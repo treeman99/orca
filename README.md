@@ -320,6 +320,55 @@ NODE_EXTRA_CA_CERTS=C:\path\to\corp-root-ca.pem
 
 어떤 기능이 어디로 나가는지 전체 목록과 차단 근거는 [외부 연동 감사](docs/reference/external-integrations-audit.md)를 참고하세요.
 
+### 5. upstream(원본 Orca) 최신 반영 — fork 동기화
+
+이 저장소는 원본 [`stablyai/orca`](https://github.com/stablyai/orca)의 fork입니다. 원본은 매일 릴리스되므로, 주기적으로 최신 변경을 가져와야 합니다. 전략은 **역할을 나누는 것**입니다.
+
+- `main` — 원본 `upstream/main`의 **깨끗한 미러**로만 유지(사내 커밋을 올리지 않음). 항상 fast-forward로 갱신됩니다.
+- `enterprise/samsungds` — 사내 커스터마이즈. 새 릴리스가 나오면 그 위로 **재배치(rebase)** 합니다.
+
+#### 최초 1회 — upstream 원격 등록
+
+```bash
+git remote add upstream https://github.com/stablyai/orca.git
+git remote -v   # origin=treeman99/orca, upstream=stablyai/orca 확인
+```
+
+#### 주기적으로 — main 미러 갱신
+
+`main`에는 사내 커밋이 없으므로 그냥 fast-forward 하면 됩니다.
+
+```bash
+git fetch upstream --tags --prune
+git checkout main
+git merge --ff-only upstream/main
+git push origin main
+```
+
+> 더 간단하게는 GitHub 웹의 fork 페이지 상단 **"Sync fork" → "Update branch"** 버튼으로 `main`을 원클릭 갱신할 수 있습니다.
+
+#### 사내 커스터마이즈를 새 릴리스 위로 올리기
+
+원본이 예컨대 `v1.4.160`을 릴리스했다면, 사내 커밋(2개)을 그 태그 위로 재생합니다.
+
+```bash
+git fetch upstream --tags
+git checkout enterprise/samsungds
+git rebase v1.4.160                 # 사내 커밋만 새 태그 위로 재생
+# 충돌은 대개 README.md / .gitignore 처럼 추가된 영역 → 해결 후:
+git add -A && git rebase --continue
+git push --force-with-lease origin enterprise/samsungds
+```
+
+- `rebase`는 히스토리를 깨끗하게 유지하지만 강제 푸시(`--force-with-lease`)가 필요합니다. 강제 푸시를 피하고 싶으면 대신 병합하세요:
+  ```bash
+  git checkout enterprise/samsungds
+  git merge v1.4.160
+  git push origin enterprise/samsungds
+  ```
+- exe는 항상 이 `enterprise/samsungds` 브랜치(또는 재배치한 릴리스 태그)에서 빌드합니다.
+- 충돌이 잦다면 사내 변경을 더 격리하세요 — 이 브랜치의 변경은 대부분 `src/shared/enterprise-policy.ts`(신규)와 소수 파일의 최소 게이트라 원본 파일과 겹칠 일이 적습니다.
+
 ---
 
 <a href="https://github.com/stablyai/orca/graphs/contributors">
