@@ -54,6 +54,20 @@ pnpm exec electron-builder --config config/electron-builder.config.cjs --win --x
 
 ---
 
+> [!IMPORTANT]
+> **아래 §2–§4의 설정값(`ORCA_*`, `GH_HOST`, `AWS_*`, `HTTPS_PROXY`, `NODE_EXTRA_CA_CERTS` 등)은 전부 OS 환경 변수입니다.** 앱 설정 화면이나 소스 코드가 아니라, **Orca를 실행하는 환경에 환경 변수로 심어야** 합니다. Orca는 시작할 때 이 값들을 읽습니다.
+>
+> Windows에서 영구 설정(사용자 단위) — `setx` 또는 `시스템 속성 → 고급 → 환경 변수` GUI:
+> ```powershell
+> setx ORCA_ENTERPRISE_LOCKDOWN 1
+> setx ORCA_GITHUB_ENTERPRISE_HOST "github.samsungds.net"
+> # 필요한 변수마다 반복
+> ```
+> - `setx`로 넣은 값은 **새로 실행되는 프로세스부터** 적용됩니다. 이미 떠 있는 Orca·터미널은 껐다 다시 켜세요.
+> - 바탕화면/시작 메뉴 아이콘(GUI)으로 Orca를 켜면 **사용자/시스템 환경 변수**만 상속됩니다. 특정 터미널에서 `$env:VAR="..."`로만 넣은 값은 그 터미널에서 실행한 Orca에만 전달됩니다.
+> - 여러 대에 배포할 때는 그룹 정책(GPO)이나 배포 스크립트로 한 번에 심는 것이 편합니다.
+> - truthy 인식: `1` / `true` / `yes` / `on` (대소문자 무관). `0` / `false`면 꺼집니다.
+
 ## 2. 사내 GitHub Enterprise (`github.samsungds.net`)
 
 Orca의 GitHub 연동은 `gh` CLI를 통하며 **GHES를 이미 지원**합니다(github.com 하드코딩 아님). 사내 호스트로 쓰려면:
@@ -71,13 +85,13 @@ gh auth login --hostname github.samsungds.net
 
 ## 3. AWS Bedrock으로 Claude 사용
 
-Bedrock 인증은 Orca가 실행하는 **Claude Code CLI 자체**가 AWS로 처리합니다. Orca는 셸/워크스페이스 환경변수를 에이전트에 전달하므로, 아래를 사용자 셸 프로파일 또는 Orca의 per-workspace 환경(설정 → 워크스페이스 환경변수)에 넣으면 됩니다.
+Bedrock 인증은 Orca가 실행하는 **Claude Code CLI 자체**가 AWS로 처리합니다. Orca는 자신이 받은 환경 변수를 에이전트에 전달하므로, 아래 **환경 변수**를 (a) OS 사용자 환경 변수로 심거나(위 안내의 `setx`), (b) Orca의 per-workspace 환경(설정 → 워크스페이스 환경변수)에 넣으면 됩니다.
 
-```
-CLAUDE_CODE_USE_BEDROCK=1
-AWS_REGION=us-east-1                 # 사내에서 사용하는 리전
-AWS_PROFILE=<프로필>                  # 또는 AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_SESSION_TOKEN
-ANTHROPIC_MODEL=<Bedrock inference profile ARN 또는 모델 ID>
+```powershell
+setx CLAUDE_CODE_USE_BEDROCK 1
+setx AWS_REGION us-east-1                      # 사내에서 사용하는 리전
+setx AWS_PROFILE <프로필>                       # 또는 AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_SESSION_TOKEN
+setx ANTHROPIC_MODEL "<Bedrock inference profile ARN 또는 모델 ID>"
 ```
 
 Bedrock을 쓰면 Orca 자체의 Claude 클라우드 호출(`platform.claude.com` 사용량/OAuth)은 **Orca 관리 Claude 계정을 추가하지 않는 한 발생하지 않습니다.** 계정 스위처를 쓰지 않으면 별도 차단이 필요 없습니다.
@@ -86,19 +100,19 @@ Bedrock을 쓰면 Orca 자체의 Claude 클라우드 호출(`platform.claude.com
 
 ## 4. 외부 연동 잠금 (보안)
 
-실행 환경에 아래 하나만 설정하면 벤더 SaaS phone-home(자동 업데이트, 업데이트 넛지, star 체크, 텔레메트리)을 일괄 차단합니다.
+아래 **환경 변수** 하나만 심으면 벤더 SaaS phone-home(자동 업데이트, 업데이트 넛지, star 체크, 텔레메트리)을 일괄 차단합니다.
 
+```powershell
+setx ORCA_ENTERPRISE_LOCKDOWN 1
 ```
-ORCA_ENTERPRISE_LOCKDOWN=1
-```
 
-개별 제어도 가능합니다: `ORCA_DISABLE_AUTO_UPDATE`, `ORCA_DISABLE_STAR_NAG`, `ORCA_TELEMETRY_DISABLED`(`DO_NOT_TRACK`). 개별 값이 마스터보다 우선하므로 `ORCA_ENTERPRISE_LOCKDOWN=1` + `ORCA_DISABLE_AUTO_UPDATE=0`처럼 예외도 둘 수 있습니다.
+개별 제어도 환경 변수로 합니다: `ORCA_DISABLE_AUTO_UPDATE`, `ORCA_DISABLE_STAR_NAG`, `ORCA_TELEMETRY_DISABLED`(`DO_NOT_TRACK`). 개별 값이 마스터보다 우선하므로 `ORCA_ENTERPRISE_LOCKDOWN=1` + `ORCA_DISABLE_AUTO_UPDATE=0`처럼 예외도 둘 수 있습니다.
 
-사내 프록시/사설 CA는 표준 환경변수로 처리됩니다.
+사내 프록시/사설 CA도 표준 **환경 변수**로 처리됩니다.
 
-```
-HTTPS_PROXY / HTTP_PROXY / NO_PROXY
-NODE_EXTRA_CA_CERTS=C:\path\to\corp-root-ca.pem
+```powershell
+setx HTTPS_PROXY "http://proxy.samsungds.net:8080"   # HTTP_PROXY / NO_PROXY 도 동일
+setx NODE_EXTRA_CA_CERTS "C:\path\to\corp-root-ca.pem"
 ```
 
 어떤 기능이 어디로(어떤 호스트) 나가는지 전체 목록과 차단 근거는 **[외부 연동 감사 및 차단 계획](docs/reference/external-integrations-audit.md)** 을 참고하세요.
