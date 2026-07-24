@@ -81,20 +81,36 @@ gh auth login --hostname github.samsungds.net
 
 `ORCA_GITHUB_ENTERPRISE_HOST`를 지정하면 Orca가 해당 호스트를 GitHub로 인식합니다. 이 브랜치는 지정하지 않았을 때 사내 호스트를 Gitea로 오인해 `/api/v1/...`로 잘못 요청하던 폴백을 막도록 수정되어 있습니다. 아바타·PR·이슈 링크는 모두 이 호스트 기준으로 동작합니다.
 
+#### git 바이너리(clone/fetch/push·워크트리) 전제조건
+
+PR/이슈 표시는 `gh` API를 타지만, **클론·페치·푸시, 그리고 워크트리 생성 시 base 브랜치 페치는 `git` 바이너리**가 직접 `origin`(= 사내 GHES)로 나갑니다. `git worktree add` 자체는 로컬이지만 base 브랜치가 로컬에 없으면 생성 과정에서 `git fetch origin`이 일어나므로, 아래가 갖춰져야 워크트리가 막힘없이 만들어집니다.
+
+- **git 자격증명**: `gh auth login`만으로는 `git` HTTPS 인증이 자동 설정되지 않습니다. `gh auth setup-git --hostname github.samsungds.net`(gh를 git credential helper로 등록)이나 Windows 자격증명 관리자/SSH 키를 함께 설정하세요.
+- **사설 CA**: `NODE_EXTRA_CA_CERTS`는 Orca의 Node 계층에만 적용되고 **`git`/`gh` 바이너리 TLS엔 무관**합니다. Windows Git은 schannel로 **Windows 인증서 저장소**를 쓰므로 사내 루트 CA가 (보통 GPO로) 저장소에 있으면 자동 신뢰됩니다. 없으면 `git config --global http.sslCAInfo C:\path\to\corp-root-ca.pem`.
+- **프록시**: `HTTPS_PROXY`가 외부 프록시를 가리키면 내부 호스트를 `NO_PROXY`에 넣거나(`setx NO_PROXY "github.samsungds.net,.samsungds.net"`) 프록시가 내부 라우팅을 하도록 하세요. git 서브프로세스는 이 env를 상속합니다.
+
 ---
 
 ## 3. AWS Bedrock으로 Claude 사용
 
-Bedrock 인증은 Orca가 실행하는 **Claude Code CLI 자체**가 AWS로 처리합니다. Orca는 자신이 받은 환경 변수를 에이전트에 전달하므로, 아래 **환경 변수**를 (a) OS 사용자 환경 변수로 심거나(위 안내의 `setx`), (b) Orca의 per-workspace 환경(설정 → 워크스페이스 환경변수)에 넣으면 됩니다.
+Bedrock 인증은 **Claude Code CLI 자체**가 처리합니다. Orca는 이 흐름에 전혀 관여하지 않고(어떤 AWS/Bedrock 변수도 주입·요구하지 않음), 받은 환경을 에이전트 PTY에 그대로 물려줄 뿐입니다. 따라서 **모델·리전·Bedrock 플래그는 Claude Code의 `~/.claude/settings.json`에 두는 것이 가장 깔끔합니다.** (`/setup-bedrock` 슬래시 명령이 이 블록을 자동으로 써 줍니다.)
 
-```powershell
-setx CLAUDE_CODE_USE_BEDROCK 1
-setx AWS_REGION us-east-1                      # 사내에서 사용하는 리전
-setx AWS_PROFILE <프로필>                       # 또는 AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_SESSION_TOKEN
-setx ANTHROPIC_MODEL "<Bedrock inference profile ARN 또는 모델 ID>"
+```jsonc
+// ~/.claude/settings.json  ← Orca가 아니라 Claude Code가 읽습니다
+{
+  "env": {
+    "CLAUDE_CODE_USE_BEDROCK": "1",
+    "AWS_REGION": "us-east-1",                     // 미지정 시 us-east-1로 폴백되므로 명시 권장
+    "ANTHROPIC_MODEL": "<Bedrock inference profile ARN 또는 모델 ID>"
+  },
+  "awsAuthRefresh": "aws sso login"                // SSO 세션 만료 감지 시 자동 재로그인
+}
 ```
 
-Bedrock을 쓰면 Orca 자체의 Claude 클라우드 호출(`platform.claude.com` 사용량/OAuth)은 **Orca 관리 Claude 계정을 추가하지 않는 한 발생하지 않습니다.** 계정 스위처를 쓰지 않으면 별도 차단이 필요 없습니다.
+자격증명은 **기본 AWS 자격증명 체인**을 씁니다. 사내는 SSO(`aws sso login`)를 쓰고 **`AWS_PROFILE`을 따로 지정하지 않으므로**(지정하지 않으면 default 프로필/SSO 세션 사용), 위 설정 + 사전 `aws sso login` 1회면 됩니다. named 프로필이 꼭 필요할 때만 `env`에 `AWS_PROFILE`을 추가하세요. OS 환경변수(`setx`)나 `설정 → Agents`의 에이전트별 env로 넣어도 동작하지만, Orca는 어느 쪽이든 값을 만들지 않고 전달만 합니다.
+
+- **관리형 Claude 계정 스위처는 켜지 마세요.** 이 opt-in 기능은 `AWS_BEARER_TOKEN_BEDROCK`를 벗겨냅니다(기본 자격증명 체인 방식엔 영향 없지만 혼선 방지를 위해 꺼 두는 편이 안전). Bedrock을 쓰면 `platform.claude.com`으로 가는 Orca 자체 호출은 이 계정을 추가하지 않는 한 발생하지 않습니다.
+- **SSO + 사내 프록시/VPN 주의**: 브라우저 SSO 흐름이 막히는 환경이면 `awsAuthRefresh`가 무한 인증 루프를 유발할 수 있습니다. 그럴 땐 `awsAuthRefresh`를 빼고 세션 시작 전 수동으로 `aws sso login`을 끝내 두세요.
 
 ---
 
@@ -114,6 +130,8 @@ setx ORCA_ENTERPRISE_LOCKDOWN 1
 setx HTTPS_PROXY "http://proxy.samsungds.net:8080"   # HTTP_PROXY / NO_PROXY 도 동일
 setx NODE_EXTRA_CA_CERTS "C:\path\to\corp-root-ca.pem"
 ```
+
+> `NODE_EXTRA_CA_CERTS`는 Orca(Node) 자체 통신용입니다. **`git`/`gh` 바이너리의 사설 CA 신뢰는 별개**로, Windows 인증서 저장소(schannel) 또는 `git config http.sslCAInfo`를 따릅니다 — §2의 "git 바이너리 전제조건" 참고.
 
 어떤 기능이 어디로(어떤 호스트) 나가는지 전체 목록과 차단 근거는 **[외부 연동 감사 및 차단 계획](docs/reference/external-integrations-audit.md)** 을 참고하세요.
 
