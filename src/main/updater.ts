@@ -8,6 +8,7 @@ import type {
   RemoteServerUpdateSupport
 } from '../shared/remote-server-update'
 import { isWindowsSignatureCheckUnavailableFailure } from '../shared/updater-windows-signature-check'
+import { resolveEnterprisePolicy } from '../shared/enterprise-policy'
 import { killAllPty } from './ipc/pty'
 import { withUpdaterSpan } from './observability/instrumentation'
 import { loadElectronAutoUpdater, type ElectronAutoUpdater } from './electron-updater-loader'
@@ -1238,6 +1239,12 @@ export function checkForUpdatesFromMenu(options?: UpdateCheckOptions): void {
     sendStatus({ state: 'not-available', userInitiated: true })
     return
   }
+  // Why: even the manual "Check for Updates" menu item must not reach the
+  // vendor feed under a locked-down corporate policy.
+  if (resolveEnterprisePolicy(process.env).disableAutoUpdate) {
+    sendStatus({ state: 'not-available', userInitiated: true })
+    return
+  }
 
   const checkVariant = getUpdateCheckVariant(options)
   if (checkVariant === 'prerelease') {
@@ -1436,6 +1443,17 @@ export function setupAutoUpdater(
     return
   }
   if (is.dev) {
+    return
+  }
+  // Why: a locked-down corporate build must not reach the vendor update feed
+  // (github.com/stablyai/orca releases) or the onorca.dev nudge poll. Return
+  // before the feed URL, nudge scheduler, and wake/focus checks are wired up.
+  if (resolveEnterprisePolicy(process.env).disableAutoUpdate) {
+    recordUpdaterLifecycle(
+      'auto_update_disabled_by_policy',
+      {},
+      { level: 'info', message: 'Auto-update disabled by enterprise policy' }
+    )
     return
   }
 

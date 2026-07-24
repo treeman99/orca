@@ -252,6 +252,76 @@ Pair with your desktop app to monitor and steer your agents from your phone.
 
 Want to contribute or run locally? See our [CONTRIBUTING.md](.github/CONTRIBUTING.md) guide.
 
+## 사내(Enterprise) 배포 — Windows + GitHub Enterprise + AWS Bedrock
+
+사내망(보안 환경)에서 Windows용 Orca를 빌드·운영하기 위한 요약입니다. 상세 문서:
+
+- **[Windows 사내 빌드 가이드](docs/reference/windows-corporate-build.md)** — `.exe` 빌드 전체 절차, 서명, 프록시/미러, 트러블슈팅.
+- **[외부 연동 감사 및 차단 계획](docs/reference/external-integrations-audit.md)** — 외부로 나가는 모든 기능 목록과 차단 방법.
+
+### 1. 빌드 (회사 Windows 머신)
+
+```powershell
+corepack enable ; corepack prepare pnpm@10.24.0 --activate
+Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN, Env:GITHUB_RELEASE_TOKEN, Env:ORCA_MAC_RELEASE -ErrorAction SilentlyContinue
+pnpm install --frozen-lockfile
+pnpm build:release
+node config/scripts/ensure-native-runtime.mjs --runtime=electron
+pnpm exec electron-builder --config config/electron-builder.config.cjs --win --x64 --publish never
+# 산출물: dist\orca-windows-setup.exe (NSIS, per-user, 기본 무서명)
+```
+
+- 회사 표준 **최신 Node로도 빌드됩니다.** `engines`의 Node 24는 강제되지 않으며(경고만), 네이티브 모듈은 Electron ABI로 재빌드됩니다. 첫 빌드 전 `node config/scripts/ensure-native-runtime.mjs --check-only`가 exit 0인지만 확인하세요. 자세한 근거는 빌드 가이드 §3.
+- 실제 준비 부담은 Node가 아니라 **Visual Studio 2022 Build Tools(C++) + Python 3**입니다.
+- `--publish never`는 필수입니다(빠지면 사내 CI에서 github.com 업로드를 시도).
+
+### 2. 사내 GitHub Enterprise (github.samsungds.net)
+
+Orca의 GitHub 연동은 `gh` CLI를 통하며 **GHES를 이미 지원**합니다(github.com 하드코딩 아님). 사내 호스트로 쓰려면:
+
+```powershell
+# 실행 환경에 설정
+setx ORCA_GITHUB_ENTERPRISE_HOST "github.samsungds.net"   # 또는 GH_HOST
+# gh를 사내 호스트로 로그인 (사용자별 1회)
+gh auth login --hostname github.samsungds.net
+```
+
+`ORCA_GITHUB_ENTERPRISE_HOST`를 지정하면 Orca가 해당 호스트를 GitHub로 인식해, 미지정 호스트를 Gitea로 오인해 `/api/v1/...`로 잘못 요청하던 폴백을 막습니다. 아바타·PR·이슈 링크는 모두 이 호스트 기준으로 동작합니다.
+
+### 3. AWS Bedrock으로 Claude 사용
+
+Bedrock 인증은 Orca가 실행하는 **Claude Code CLI 자체**가 처리합니다. Orca는 셸/워크스페이스 환경변수를 에이전트에 전달하므로, 아래를 사용자 셸 프로파일 또는 Orca의 per-workspace 환경(설정 → 워크스페이스 환경변수)에 넣으면 됩니다.
+
+```
+CLAUDE_CODE_USE_BEDROCK=1
+AWS_REGION=us-east-1                     # 사내에서 사용하는 리전
+AWS_PROFILE=<프로필>                      # 또는 AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_SESSION_TOKEN
+ANTHROPIC_MODEL=<Bedrock inference profile ARN 또는 모델 ID>
+```
+
+Bedrock을 쓰면 Orca의 자체 Claude 클라우드 호출(`platform.claude.com` 사용량/OAuth)은 **Orca 관리 Claude 계정을 추가하지 않는 한 발생하지 않습니다.** 즉 계정 스위처를 쓰지 않으면 별도 차단이 필요 없습니다.
+
+### 4. 외부 연동 잠금 (보안)
+
+실행 환경에 아래 하나만 설정하면 벤더 SaaS phone-home(자동 업데이트, 업데이트 넛지, star 체크, 텔레메트리)을 일괄 차단합니다.
+
+```
+ORCA_ENTERPRISE_LOCKDOWN=1
+```
+
+개별 제어도 가능합니다: `ORCA_DISABLE_AUTO_UPDATE`, `ORCA_DISABLE_STAR_NAG`, `ORCA_TELEMETRY_DISABLED`(`DO_NOT_TRACK`). 개별 값이 마스터보다 우선하므로 `ORCA_ENTERPRISE_LOCKDOWN=1` + `ORCA_DISABLE_AUTO_UPDATE=0`처럼 예외도 둘 수 있습니다.
+
+사내 프록시/사설 CA는 표준 환경변수로 처리됩니다.
+
+```
+HTTPS_PROXY / HTTP_PROXY / NO_PROXY
+NODE_EXTRA_CA_CERTS=C:\path\to\corp-root-ca.pem
+```
+
+어떤 기능이 어디로 나가는지 전체 목록과 차단 근거는 [외부 연동 감사](docs/reference/external-integrations-audit.md)를 참고하세요.
+
+---
+
 <a href="https://github.com/stablyai/orca/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=stablyai/orca" alt="Orca contributors" />
 </a>

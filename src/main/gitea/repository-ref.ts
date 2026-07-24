@@ -1,5 +1,6 @@
 import { gitExecFileAsync } from '../git/runner'
 import { getSshGitProvider } from '../providers/ssh-git-dispatch'
+import { resolveEnterpriseGitHubHost } from '../../shared/enterprise-policy'
 
 export type GiteaRepoRef = {
   host: string
@@ -81,9 +82,15 @@ function apiBaseUrlFromWebBase(webBaseUrl: string): string {
 
 function makeRepoRef(host: string, path: string, webOrigin: string): GiteaRepoRef | null {
   const normalizedHost = host.toLowerCase()
+  // Why: a private GitHub Enterprise host is not in KNOWN_NON_GITEA_HOSTS, so
+  // without this guard the Gitea fallback would claim it and hit
+  // `<ghes-host>/api/v1/...` — a wrong endpoint. Excluding the configured
+  // enterprise host keeps GHES remotes on the gh-CLI GitHub path.
+  const enterpriseGitHubHost = resolveEnterpriseGitHubHost(process.env)
   if (
     !normalizedHost ||
     KNOWN_NON_GITEA_HOSTS.has(normalizedHost) ||
+    normalizedHost === enterpriseGitHubHost ||
     normalizedHost.endsWith('.visualstudio.com')
   ) {
     return null

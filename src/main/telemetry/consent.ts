@@ -8,6 +8,7 @@
 
 import type { GlobalSettings } from '../../shared/types'
 import type { TelemetryConsentState } from '../../shared/telemetry-consent-types'
+import { resolveEnterprisePolicy } from '../../shared/enterprise-policy'
 
 // Discriminated union instead of a boolean: the Privacy pane (PR 3) needs the
 // `reason` to render the correct "disabled because X" helper text, and the
@@ -80,6 +81,11 @@ export function resolveConsent(settings: GlobalSettings): ConsentState {
   }
   // Precedence 2: product-specific kill switch.
   if (isEnvVarTruthy('ORCA_TELEMETRY_DISABLED')) {
+    return { effective: 'disabled', reason: 'orca_disabled' }
+  }
+  // Precedence 2b: enterprise lockdown master switch (or ORCA_DISABLE_TELEMETRY)
+  // disables telemetry as a corporate-policy kill switch.
+  if (resolveEnterprisePolicy(process.env).disableTelemetry) {
     return { effective: 'disabled', reason: 'orca_disabled' }
   }
   // Precedence 3: CI detection. Any presence (not just truthy) counts — many
