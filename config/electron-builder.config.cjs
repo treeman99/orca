@@ -400,8 +400,10 @@ module.exports = {
   // on Intel Macs. The beforeBuild hook performs Orca's targeted rebuild and
   // returns false so electron-builder does not rebuild optional cpu-features.
   npmRebuild: true,
-  // Why: a rebuild that opts out ships no updater metadata at all, so its installer
-  // can never be superseded by the upstream release feed.
+  // Why: a rebuild that opts out ships no updater metadata, so packaging never
+  // uploads anywhere. It does NOT stop the app reaching the vendor feed at runtime
+  // — src/main/updater.ts sets that URL in code — so the runtime protection is the
+  // policy file's disableAutoUpdate, not this flag.
   publish:
     process.env.ORCA_DISABLE_PUBLISH_TARGET === '1'
       ? null

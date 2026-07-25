@@ -1,7 +1,7 @@
 # Windows 사내 빌드 가이드
 
 사내 Windows 환경에서 Orca 설치 프로그램(`.exe`)을 만드는 절차입니다.
-기준 버전: **v1.4.153** (브랜치 `enterprise/samsungds`).
+기준 버전: **v1.4.155** (브랜치 `enterprise/samsungds`).
 
 **최종 산출물**: `dist\orca-windows-setup.exe`
 NSIS 원클릭 설치 프로그램, x64, **per-user 설치**(관리자 권한 불필요, `%LOCALAPPDATA%\Programs\`에 설치), 기본적으로 **서명 없음**.
@@ -18,11 +18,11 @@ NSIS 원클릭 설치 프로그램, x64, **per-user 설치**(관리자 권한 �
 | Visual Studio | **VS 2022 Build Tools** + "C++를 사용한 데스크톱 개발" 워크로드 (MSVC v143 + Windows SDK) | **가장 큰 실패 요인.** §3-3 |
 | Python | 3.x, PATH 등록 | node-gyp 요구사항 |
 | .NET Framework 4.x | `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe` | Windows 8 이상 기본 탑재. 없으면 빌드가 중단됩니다 (§8). 탐색 경로는 `config/scripts/build-windows-cli-launcher.mjs:50-53` |
-| Windows PowerShell | 5.1 (`powershell.exe`) | **`verify:computer-native` 핸드셰이크 전용**(아래). 압축 해제 경로에는 쓰이지 않습니다 — Electron zip은 `extract-zip`, electron-builder 툴셋은 `tar`/`7za`로 풀립니다 |
+| Windows PowerShell | 5.1 (`powershell.exe`) | `verify:computer-native` 핸드셰이크(아래)와 **패키징 양쪽**에서 씁니다. electron-builder는 Windows에서 의존성 트리 수집용 `pnpm list`를 `powershell.exe -EncodedCommand`로 감싸 실행합니다(`node_modules/app-builder-lib/out/node-module-collector/nodeModulesCollector.js:324`, 호출부 `node_modules/app-builder-lib/out/util/appFileCopier.js:183`). 압축 해제 경로에는 쓰이지 않습니다 — Electron zip은 `@electron-internal/extract-zip`(`node_modules/electron/install.js:5`), electron-builder 툴셋은 `tar` / 내장 zip 스트리밍 / `7za`(`node_modules/app-builder-lib/out/util/electronGet.js:139`, `:159-160`, `:163-165`) |
 | Git | 2.25 이상 | |
 | 디스크 | 약 15 GB 이상 | `node_modules` + Electron 배포본 + `dist` |
 
-> **`powershell.exe`는 선택 사항이 아닙니다.** §4가 권장하는 `pnpm build:release`는 `verify:computer-native`를 포함하고(`package.json:70`), 이 스크립트는 Windows에서 `native/computer-use-windows/runtime.ps1`을 **실제로 실행해** `{ok:true, capabilities.protocolVersion:1}` 응답을 요구합니다(`config/scripts/verify-computer-native.mjs:68-71`, `:143-178`). 해당 스크립트는 시작하자마자 `UIAutomationClient` / `UIAutomationTypes` / `System.Drawing` / `System.Windows.Forms` 어셈블리를 로드하므로(`native/computer-use-windows/runtime.ps1:12-15`) .NET Framework 기반의 Windows PowerShell 5.1이 있어야 합니다. 실패 시 조치는 §8을 보세요.
+> **`powershell.exe`는 선택 사항이 아닙니다.** §4가 권장하는 `pnpm build:release`는 `verify:computer-native`를 포함하고(`package.json:70`), 이 스크립트는 Windows에서 `native/computer-use-windows/runtime.ps1`을 **실제로 실행해** `{ok:true, capabilities.protocolVersion:1}` 응답을 요구합니다(`config/scripts/verify-computer-native.mjs:68-71`, `:143-178`). 해당 스크립트는 시작하자마자 `UIAutomationClient` / `UIAutomationTypes` / `System.Drawing` / `System.Windows.Forms` 어셈블리를 로드하므로(`native/computer-use-windows/runtime.ps1:12-15`) .NET Framework 기반의 Windows PowerShell 5.1이 있어야 합니다. 요구 강도는 두 단계입니다 — **`powershell.exe` 자체는 패키징(§4의 6단계)도 씁니다**(위 표), UI Automation 어셈블리까지 필요한 것은 `verify:computer-native`뿐입니다. 실패 시 조치는 §8을 보세요.
 
 > 작업 경로는 **공백과 한글이 없는 짧은 경로**를 쓰세요 (예: `C:\src\orca`). NSIS와 node-gyp는 긴 경로에서 자주 깨집니다.
 
@@ -107,7 +107,7 @@ PowerShell에서 실행합니다.
 # 0) 클론 및 체크아웃
 git clone <사내 저장소 URL> C:\src\orca
 cd C:\src\orca
-git checkout enterprise/samsungds      # 또는 v1.4.153
+git checkout enterprise/samsungds      # 또는 v1.4.155
 
 # 1) 툴체인
 corepack enable
@@ -175,7 +175,7 @@ publish:
     : { provider: 'github', owner: 'stablyai', repo: 'orca', releaseType: 'release' }
 ```
 
-업로드 여부는 `--publish` 정책이 결정합니다:
+업로드 여부는 `--publish` 정책이 결정합니다(플래그를 안 줬을 때의 기본값 결정은 `node_modules/app-builder-lib/out/publish/PublishManager.js:46-64`, provider별 스킵 예외는 `:126`, 태그로 인정되는 환경변수 목록은 `node_modules/electron-publish/out/publisher.js:41-50`):
 
 | 상황 | 결과 |
 | --- | --- |
@@ -190,11 +190,11 @@ publish:
 
 1. **항상 `--publish never`를 붙인다** (설정 변경 불필요, 가장 확실)
 2. 빌드 셸에서 `GH_TOKEN` / `GITHUB_TOKEN` / `GITHUB_RELEASE_TOKEN` 제거
-3. **빌드 셸에 `ORCA_DISABLE_PUBLISH_TARGET=1`을 설정한다.** 소스를 고칠 필요 없이 `publish`가 `null`이 됩니다(`config/electron-builder.config.cjs:405-413`, 의도는 `:403-404` 주석). `publish: null`이면 `getPublishConfigs`가 곧바로 `null`을 반환해(`node_modules/app-builder-lib/out/publish/PublishManager.js:354-358`) 저장소 정보로부터의 기본 github 폴백조차 타지 않고(`:212-214`), `app-update.yml`은 publish 설정이 있을 때만 기록되므로(`:87-90`) 업데이터 메타(`latest.yml`, `app-update.yml`)가 아예 나오지 않습니다. 설치된 앱은 업스트림 릴리스 피드로 덮어써질 수 없습니다
+3. **빌드 셸에 `ORCA_DISABLE_PUBLISH_TARGET=1`을 설정한다.** 소스를 고칠 필요 없이 `publish`가 `null`이 됩니다(`config/electron-builder.config.cjs:405-413`, 의도는 `:403-404` 주석). `publish: null`이면 `getPublishConfigs`가 곧바로 `null`을 반환해(`node_modules/app-builder-lib/out/publish/PublishManager.js:354-358`) 저장소 정보로부터의 기본 github 폴백조차 타지 않고(`:212-214`), `app-update.yml`은 publish 설정이 있을 때만 기록되므로(`:87-90`) 업데이터 메타(`latest.yml`, `app-update.yml`)가 아예 나오지 않습니다. **다만 이것을 런타임 차단으로 오해하지 마십시오** — Orca는 피드 URL을 `app-update.yml`이 아니라 코드에서 직접 지정하므로(`src/main/updater.ts:1485-1488`, `setFeedURL`이 provider를 선주입해 `app-update.yml` 조회를 건너뜁니다 — `node_modules/electron-updater/out/AppUpdater.js:247`, `:382-383`), 업데이트 **조회는 그대로 업스트림에 나갑니다.** 메타가 없으면 다운로드 단계에서 `app-update.yml`을 읽다 실패할 뿐입니다(`AppUpdater.js:545`)
 
 `ORCA_DISABLE_PUBLISH_TARGET`은 **빌드 셸 전용 변수**입니다. 앱 런타임 환경변수가 아니며 설치된 Orca는 이 값을 읽지 않습니다.
 
-> 3번은 **빌드 시점** phone-home과 업데이터 메타 생성만 막습니다. 앱이 실행 중에 GitHub 릴리스를 조회하는 **런타임 자동 업데이트**는 별개이며, 관리자 정책 파일의 `disableAutoUpdate`(또는 마스터 스위치 `lockdown`)로 끕니다 — `src/shared/enterprise-policy.ts:19`, 차단 지점은 `src/main/updater.ts:1179` / `:1251` / `:1458`. 정책 파일은 머신 전역 경로가 우선 탐색되며 Windows에서는 `%ProgramData%\Orca\enterprise-policy.json`입니다(`src/main/enterprise/enterprise-policy-file.ts:30-39`, 탐색 순서 `:45-59`). 전체 외부 연동 잠금은 [외부 연동 감사](./external-integrations-audit.md) 참고.
+> 3번은 **빌드 시점** phone-home과 업데이터 메타 생성만 막습니다. 앱이 실행 중에 GitHub 릴리스를 조회하는 **런타임 자동 업데이트**는 별개이며, 관리자 정책 파일의 `disableAutoUpdate`(또는 마스터 스위치 `lockdown`)로 끕니다 — `src/shared/enterprise-policy.ts:19`, 차단 지점은 `src/main/updater.ts:1179` / `:1251` / `:1458`. 정책 파일은 머신 전역 경로가 우선 탐색되며 Windows에서는 `%ProgramData%\Orca\enterprise-policy.json`입니다(`src/main/enterprise/enterprise-policy-file.ts:37-47`, 탐색 순서 `:59-83`). 전체 외부 연동 잠금은 [외부 연동 감사](./external-integrations-audit.md) 참고.
 
 ### 5-2. `ORCA_MAC_RELEASE` 환경변수 남겨두기
 
@@ -212,7 +212,7 @@ publish:
 | postinstall → Electron 43.1.0 바이너리 | `github.com/electron/electron/releases/download/` | `ELECTRON_MIRROR`, `ELECTRON_CUSTOM_DIR`, `ELECTRON_CUSTOM_FILENAME` |
 | node-gyp 헤더 | `nodejs.org/download/release/` | `npm_config_disturl`, `npm_config_nodedir` |
 | Electron ABI 리빌드 헤더 | `www.electronjs.org/headers` | ⚠️ **환경변수로 못 바꿉니다.** `rebuild-native-deps.mjs`의 `rebuild()` 호출(:134-147)이 `headerURL`을 넘기지 않아 @electron/rebuild의 기본값이 그대로 `--dist-url`로 들어갑니다(`node_modules/@electron/rebuild/lib/rebuild.js:43`, `lib/module-type/node-gyp/node-gyp.js:19`). 우회: 캐시 디렉터리 `%USERPROFILE%\.electron-gyp\43.1.0\`에 헤더와 `node.lib`를 미리 배치 — 이 경로 역시 코드 상수라 환경변수로 옮길 수 없습니다(`lib/constants.js:3`) |
-| electron-builder NSIS 번들 (+ **서명할 때만** `winCodeSign`) | `github.com/electron-userland/electron-builder-binaries/` | `ELECTRON_BUILDER_BINARIES_MIRROR`, `ELECTRON_BUILDER_CACHE`, `ELECTRON_BUILDER_NSIS_DIR`(`node_modules/app-builder-lib/out/toolsets/windows.js:202`) |
+| electron-builder NSIS 번들 (+ **서명할 때만** `winCodeSign`) | `github.com/electron-userland/electron-builder-binaries/` | `ELECTRON_BUILDER_BINARIES_MIRROR`(`node_modules/app-builder-lib/out/util/electronGet.js:509-522`, 기본 저장소는 `node_modules/app-builder-lib/out/binDownload.js:54`), `ELECTRON_BUILDER_CACHE`(`electronGet.js:37`), `ELECTRON_BUILDER_NSIS_DIR`(`node_modules/app-builder-lib/out/toolsets/windows.js:202`) |
 
 **서명하지 않는 빌드가 폐쇄망에서 반드시 필요한 electron-builder 툴셋은 NSIS 번들뿐입니다.** 아이콘/버전 리소스 스탬핑에는 다운로드가 필요 없습니다 — 이 버전은 `rcedit.exe`를 쓰지 않고 번들된 JS 패키지 `resedit`으로 PE 리소스를 직접 편집합니다(`node_modules/app-builder-lib/out/util/resEdit.js:6-11`, 호출부 `node_modules/app-builder-lib/out/winPackager.js:196`). `getRceditBundle()`은 정의만 남아 있고 호출하는 곳이 없습니다(`node_modules/app-builder-lib/out/toolsets/windows.js:136`). `winCodeSign` 번들은 실제로 서명할 때만 받습니다 — Windows 호스트에서 `signtool.exe`가 거기서 나옵니다(`node_modules/app-builder-lib/out/toolsets/windows.js:101-102`).
 
@@ -290,7 +290,7 @@ win: {
 $env:ORCA_WIN_PUBLISHER_NAME = "<사내 인증서 CN>"
 ```
 
-이 항목은 **`publish`를 살려 둔 빌드에만** 해당합니다. §5-1의 3번(`ORCA_DISABLE_PUBLISH_TARGET=1`)을 적용했다면 `app-update.yml` 자체가 없어 `verifySignature`가 곧바로 `null`을 반환하므로(`NsisUpdater.js:93-96`) 자동 업데이트 경로 자체가 성립하지 않습니다.
+이 항목은 **`publish`를 살려 둔 빌드에만** 해당합니다. §5-1의 3번(`ORCA_DISABLE_PUBLISH_TARGET=1`)을 적용하면 `app-update.yml` 자체가 없어지지만, 이것을 자동 업데이트 차단으로 세지 마십시오 — 조회는 그대로 나가고(§5-1), 실제로 멈추는 지점은 다운로드가 그 없는 파일을 읽다 실패하는 곳입니다(`AppUpdater.js:585` → `:545`). Authenticode 게시자 확인은 그보다 **뒤에** 있으므로(`NsisUpdater.js:52`) 이 구성에서는 아예 도달하지 않습니다. 반대로 파일은 있는데 `publisherName`만 비어 있으면 `verifySignature`가 곧바로 `null`을 반환해 게시자 확인을 건너뜁니다(`NsisUpdater.js:84-99`). 즉 어느 쪽이든 이 경로에 서명 검증을 기대해서는 안 됩니다. **자동 업데이트를 끄는 유일하게 확실한 수단은 정책 파일의 `disableAutoUpdate`입니다.**
 
 `win.verifyUpdateCodeSignature: false`는 **추가하지 마십시오** — Windows에서 유일한 Authenticode 검증을 꺼서 임의의 설치 프로그램을 수락하게 됩니다. 자동 업데이트 자체를 끄려면 정책 파일의 `disableAutoUpdate`를 쓰십시오(§5-1).
 
@@ -305,7 +305,7 @@ $env:ORCA_WIN_PUBLISHER_NAME = "<사내 인증서 CN>"
 | `pnpm install` 중 `cpu-features` 컴파일 에러 | **정상입니다. 무시하세요.** optional 의존성이며 `rebuild-native-deps.mjs:51`의 `ignoreModules`에도 등재되어 있습니다. ssh2가 순수 JS로 폴백합니다 |
 | `beforeBuild`에서 node-gyp 실패 | MSVC/Python 미설치. VS 2022 Build Tools + Windows SDK + Python 3 설치. 단독 재현: `node config/scripts/rebuild-native-deps.mjs --platform=win32 --arch=x64 --force` |
 | `csc.exe` 못 찾음 | .NET Framework 4.x 누락. `beforeBuild`가 Windows CLI 런처(`native/windows-cli-launcher/OrcaCliLauncher.cs`)를 컴파일하므로 **빌드가 중단됩니다**. 탐색 경로 `config/scripts/build-windows-cli-launcher.mjs:50-53` |
-| `pnpm build:release`가 `[computer-native] Windows provider handshake`에서 실패 | `powershell.exe`(Windows PowerShell 5.1)가 없거나 UI Automation 어셈블리를 못 여는 경우. `native/computer-use-windows/runtime.ps1:12-15`가 `UIAutomationClient`/`UIAutomationTypes`/`System.Drawing`/`System.Windows.Forms`를 로드합니다. 단독 재현: `pnpm verify:computer-native`. 패키징 자체와는 무관한 단계이므로, 급하면 §4의 4단계를 `pnpm build:relay && pnpm build:native && pnpm build:cli && pnpm build:electron-vite && pnpm build:web`으로 풀어 실행해 우회할 수 있습니다 |
+| `pnpm build:release`가 `[computer-native] Windows provider handshake`에서 실패 | `powershell.exe`(Windows PowerShell 5.1)가 없거나 UI Automation 어셈블리를 못 여는 경우. `native/computer-use-windows/runtime.ps1:12-15`가 `UIAutomationClient`/`UIAutomationTypes`/`System.Drawing`/`System.Windows.Forms`를 로드합니다. 단독 재현: `pnpm verify:computer-native`. 패키징 자체와는 무관한 단계이므로, 급하면 §4의 4단계를 `pnpm build:relay && pnpm build:native && pnpm build:cli && pnpm build:electron-vite && pnpm build:web`으로 풀어 실행해 우회할 수 있습니다. 단 이 우회는 **어셈블리 로드만 실패할 때** 유효합니다 — `powershell.exe` 자체가 없으면 패키징 단계도 못 넘어갑니다(§1) |
 | `EPERM ... .node` | 실행 중인 Orca/Electron 프로세스가 파일을 잡고 있음. 전부 종료 후 재시도 |
 | `Packaged node-pty is missing ...conpty.dll` / `...OpenConsole.exe` throw | `afterPack`이 `third_party\conpty\...\win10-x64`에서 ConPTY 런타임을 채우려다 원본을 못 찾은 것 (`config/packaged-runtime-node-modules.cjs:275-301`, 던지는 지점 `:295`). node-pty가 제대로 재빌드되지 않은 상태이므로 `pnpm install` 재실행. 해당 arch 페이로드 자체가 없으면 `Packaged node-pty has no ConPTY payload for win10-...`가 대신 뜹니다(`:272`) |
 | `Usage: daemon-entry` 검증 실패 | 패키징된 `daemon-entry.js`를 호스트 Node로 부팅하는 게이트(`config/scripts/verify-packaged-daemon-entry.cjs:33-56`). **호스트 Node가 패키징 산출물을 직접 실행하는 유일한 지점**입니다. §3-3의 사전 점검은 이 중 네이티브 모듈 로드 부분만 미리 걸러 줍니다 — asar-unpack/번들 그래프 회귀는 패키징 시점에야 드러납니다 |

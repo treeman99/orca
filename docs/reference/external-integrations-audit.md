@@ -1,11 +1,11 @@
 # 외부 연동 감사 및 차단 계획 (사내 배포용)
 
-기준: **v1.4.153** (브랜치 `enterprise/samsungds`).
+기준: **v1.4.155** (브랜치 `enterprise/samsungds`).
 목적: 사내(폐쇄망/보안) 환경에서 Orca를 배포할 때, 외부 인터넷으로 나가는 기능을 파악하고 필요 시 차단한다.
 
 > **조사 방식**: 10개 카테고리를 병렬로 정적 분석(스윕) → 누락 항목 크리틱 → 항목별 적대적 검증(“실제로 소켓을 여는가 / 언제 발동하는가 / 끌 수 있는가”). 후보 103건 중 44건이 실제 외부 호출로 확정됐습니다.
 >
-> **⚠️ 표시는 미검증이거나 운영상 주의가 필요한 항목**입니다. 이 중 **코드로 확인하지 못한 것은 두 건뿐**입니다(§7 레벨 3의 `net.fetch` 경유 여부, §8의 DoH/컴포넌트 업데이터 실측). 나머지 ⚠️는 코드는 확인했으나 배포 시 조작이 필요한 항목입니다. 모든 `파일:라인` 인용은 해당 파일을 열어 확인했습니다. 이전 판에 있던 존재하지 않는 환경변수(`ORCA_DISABLE_UPDATES`)와 자기모순 서술은 제거했습니다.
+> **⚠️ 표시는 미검증이거나 운영상 주의가 필요한 항목**입니다. 이 중 **코드로 확인하지 못한 것은 두 건뿐**입니다(§7 레벨 3의 `net.fetch` 경유 여부, §8의 컴포넌트 업데이터 실측). 나머지 ⚠️는 코드는 확인했으나 배포 시 조작이 필요한 항목입니다. 모든 `파일:라인` 인용은 **v1.4.155 리베이스 이후의 트리에서 해당 파일을 다시 열어** 확인했습니다. 이전 판에 있던 존재하지 않는 환경변수(`ORCA_DISABLE_UPDATES`)와 자기모순 서술은 제거했습니다.
 
 ---
 
@@ -19,14 +19,16 @@
 | **star-nag (github.com SaaS 고정)** | 랜딩·설정 화면 진입, 에이전트 완료, 온보딩 완료, 스폰 임계치에서 발동 | ✅ `disableStarNag` | 없음 (`gh` 호출 함수 자체에서 차단, §1) |
 | **Orca Cloud 로그인 / 모바일 페어링 릴레이** | 로그인 안 하면 안 나감 | ✅ `disableCloudRelay` | 없음 |
 | **AI 벤더 사용량 폴링 (Claude/Codex/Grok/…)** | 🔴 **Orca 계정 연동과 무관 — 로컬 벤더 CLI 자격증명만 있으면 15분마다 폴링** | ✅ `disableUsagePolling` | 없음 (§4) |
-| **Claude OAuth 토큰 회전 (platform.claude.com)** | Orca 관리 Claude 계정을 쓸 때만 | ✅ `disableManagedClaudeAccounts` | 없음 (§4) |
-| **git 호스팅 (GitHub/GitLab/…)** | 사용자 열람 + 일부 자동 폴링 | ➖ `githubEnterpriseHost`는 **Gitea 오폴백만 차단**(호스트 전환도, 트래픽 차단도 아님) | `gh` 목적지는 여전히 `GH_HOST`/origin 리모트가 결정 (§1, §7 레벨 2) |
+| **Claude OAuth 토큰 회전 (platform.claude.com)** | Orca 관리 Claude 계정을 쓸 때만 | ✅ `disableManagedClaudeAccounts` | egress는 없음. 단 이 스위치는 **Bedrock 플릿에서 선택이 아니라 필수**입니다 — 끄면 WSL 세션이 관리형 계정 없이도 인증 env를 스트립하고, 런치 env에 `AWS_BEARER_TOKEN_BEDROCK` 등이 있으면 스폰이 하드 실패합니다 (§4) |
+| **git 호스팅 (GitHub/GitLab/…)** | 사용자 열람 + 일부 자동 폴링 | ➖ `githubEnterpriseHost`는 **Gitea 폴백 오인만 차단**(호스트 전환도, 트래픽 차단도 아님) | `gh` 목적지는 여전히 `GH_HOST`/origin 리모트가 결정 (§1, §7 레벨 2) |
 | **맞춤법 사전 다운로드 (Chromium)** | Windows/Linux에서 자동 | ✅ `disableSpellcheck` | 없음 (§8) |
+| **DNS-over-HTTPS 자동 승격 (Chromium)** | 머신 리졸버가 알려진 DoH 제공자면 자동 | ✅ `lockdown` (OS 리졸버로 고정) | 없음 (§8). 개별 스위치 없이 `lockdown`에만 달려 있습니다 |
 | **렌더러 외부 이미지 (Google favicon / 아바타 / 마크다운 인라인)** | 아이콘·본문 표시 시 자동 | ➖ `enforceNetworkAllowlist` opt-in 시에만 | 기본값은 차단 안 됨 (§6) |
 | **서브프로세스 (gh/glab/git/에이전트 CLI)** | 사용자 조작 | ❌ Orca 측 통제 수단 없음 | 🔴 프록시·방화벽으로만 통제 (§0.2) |
-| **에셋 다운로드 (scrcpy, STT 모델)** | 사용자가 해당 기능을 켤 때만 | ❌ 코드 차단 없음 | 기능 미사용 시 미발생 (§0.2) |
+| **에셋 다운로드 — scrcpy 서버 jar** | 사용자가 Android 스트리밍을 켤 때만 | ✅ `lockdown` (직접 다운로드 거부 가드) | 없음 (§0.2 #9) |
+| **에셋 다운로드 — STT(sherpa-onnx) 모델** | 사용자가 모델을 명시적으로 내려받을 때만 | ❌ 코드 차단 없음 | 기능 미사용 시 미발생 (§0.2 #10) |
 
-**결론**: 이 브랜치의 정책 파일은 **벤더 SaaS로 나가는 Orca 자체 호출**(텔레메트리·업데이트·넛지·star-nag·클라우드·사용량 폴링·관리형 Claude 계정 OAuth 회전)을 코드 차원에서 차단합니다. 다만 **차단 범위는 Orca 프로세스가 직접 여는 소켓까지**입니다. 서브프로세스(`gh`/`glab`/`git`/에이전트 CLI), 렌더러 외부 이미지(기본값), SSH 릴레이의 원격 `npm install`, 그리고 `node:https`를 쓰는 다운로더는 정책 파일로 막히지 않습니다 — 이들은 §0.2의 잔여 위험 목록으로 관리하고 망 계층(프록시·방화벽)에서 통제해야 합니다.
+**결론**: 이 브랜치의 정책 파일은 **벤더 SaaS로 나가는 Orca 자체 호출**(텔레메트리·업데이트·넛지·star-nag·클라우드·사용량 폴링·관리형 Claude 계정 OAuth 회전)을 코드 차원에서 차단합니다. 다만 **차단 범위는 Orca 프로세스가 직접 여는 소켓까지**입니다. 서브프로세스(`gh`/`glab`/`git`/에이전트 CLI), 렌더러 외부 이미지(기본값), SSH 릴레이의 원격 `npm install`, 그리고 STT 모델 다운로드는 정책 파일로 막히지 않습니다 — 이들은 §0.2의 잔여 위험 목록으로 관리하고 망 계층(프록시·방화벽)에서 통제해야 합니다. (`node:https` 다운로더 중 scrcpy jar 하나만 `lockdown`이 명시적으로 거부합니다 — §0.2 #9.)
 
 ### 0.1 ✅ 관리자 정책 파일 (`enterprise-policy.json`)
 
@@ -57,10 +59,7 @@
 
 **패키징 빌드 — 플릿에서 유일하게 의미 있는 순서**
 
-1. **머신 전역**
-   - Windows: `%ProgramData%\Orca\enterprise-policy.json`
-   - macOS: `/Library/Application Support/Orca/enterprise-policy.json`
-   - Linux: `/etc/orca/enterprise-policy.json`
+1. **머신 전역** — 이 배포의 대상인 **Windows: `%ProgramData%\Orca\enterprise-policy.json`** (`enterprise-policy-file.ts:39-41`). *(코드는 세 OS를 그대로 지원합니다 — macOS `/Library/Application Support/Orca/…`(`:43-44`), Linux `/etc/orca/…`(`:46`). 이 플릿에는 Mac이 없으므로 배포 대상은 Windows 경로뿐입니다.)*
 2. `ORCA_ENTERPRISE_POLICY` 명시 경로 (무효화 값은 무시)
 3. **사용자별**: `<userData>/enterprise-policy.json`
 
@@ -77,12 +76,12 @@
 | 키 | 타입 | 기본값 | 효과와 **구현 위치** |
 | --- | --- | --- | --- |
 | `lockdown` | boolean | `false` | 마스터 스위치. 아래 7개 스위치의 기본값이 됩니다 (`src/shared/enterprise-policy.ts:52-60`, `:196-200`) |
-| `githubEnterpriseHost` | string | `GH_HOST` 폴백 | 해당 호스트를 Gitea 후보에서 제외 → 오폴백 방지 (`src/main/gitea/repository-ref.ts:87-98`) + 허용목록에 자동 추가 (`enterprise-policy.ts:204-207`). **`gh`의 대상 호스트는 바꾸지 않습니다** (§7 레벨 2) |
+| `githubEnterpriseHost` | string | `GH_HOST` 폴백 | 해당 호스트를 Gitea 후보에서 제외 → 폴백 오인 방지 (`src/main/gitea/repository-ref.ts:87-98`) + 허용목록에 자동 추가 (`enterprise-policy.ts:204-207`). **`gh`의 대상 호스트는 바꾸지 않습니다** (§7 레벨 2) |
 | `disableTelemetry` | boolean | = `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88`) **및** 진단/크래시 번들 업로드 (`src/main/observability/index.ts:103,120-133`). 로컬 NDJSON 로깅은 유지(`localFileEnabled: true`, `:130`) |
 | `disableAutoUpdate` | boolean | = `lockdown` | `runBackgroundUpdateCheck()` (`src/main/updater.ts:1173,1179`) + `checkForUpdatesFromMenu()` (`:1244,1251`) + `setupAutoUpdater()` (`:1415,1458`). 마지막 하나가 넛지 스케줄러(`:1537`)와 `powerMonitor` 리스너(`:1556`)의 무장 자체를 막습니다 |
 | `disableStarNag` | boolean | = `lockdown` | `checkOrcaStarred()` (`src/main/github/client.ts:234`) / `starOrca()` (`:401`) |
-| `disableCloudRelay` | boolean | = `lockdown` | `getOrcaCloudAuthConfig()`가 "미구성"을 반환 (`src/main/orca-profiles/profile-cloud-auth-config.ts:73`) → 이 한 함수에 의존하는 클라우드 경로 전부(로그인·프로필 연결·조직 멤버 IPC 5종)가 죽고, 모바일 페어링 릴레이는 `configured`일 때만 생성되므로 아예 기동하지 않습니다 (`src/main/index.ts:2420-2421`) |
-| `disableUsagePolling` | boolean | = `lockdown` | `src/main/rate-limits/service.ts:733`의 술어를 `start()`(`:309`), `fetchAll`/`fetchCodexOnly`/`fetchClaudeOnly`/`fetchGrokOnly`(`:894,959,1021,1086`), 계정 스위처 프리뷰 2종(`:499,579`), Codex 리셋 크레딧 POST(`:425`)에서 검사 |
+| `disableCloudRelay` | boolean | = `lockdown` | `getOrcaCloudAuthConfig()`가 "미구성"을 반환 (`src/main/orca-profiles/profile-cloud-auth-config.ts:73`) → 이 한 함수에 의존하는 클라우드 경로 전부(로그인·프로필 연결·조직 멤버 IPC 5종)가 죽고, 모바일 페어링 릴레이는 `configured`일 때만 생성되므로 아예 기동하지 않습니다 (`src/main/index.ts:2427-2428`) |
+| `disableUsagePolling` | boolean | = `lockdown` | `src/main/rate-limits/service.ts:734`의 술어를 `start()`(`:310`), `fetchAll`/`fetchCodexOnly`/`fetchClaudeOnly`/`fetchGrokOnly`(`:895,960,1022,1087`), 계정 스위처 프리뷰 2종(`:500,580`), Codex 리셋 크레딧 POST(`:426`)에서 검사 |
 | `disableManagedClaudeAccounts` | boolean | = `lockdown` | Orca 관리형 Claude 계정. 게이트 3곳: `platform.claude.com` 회전 함수 진입부(`src/main/claude-accounts/oauth-refresh.ts:131-133`), 인증 준비에서 활성 계정을 `null`로 고정(`src/main/claude-accounts/runtime-auth-service.ts:613-616`), 환경 스트립 최후 방어선(`src/main/claude-accounts/environment.ts:22`) (§4) |
 | `disableSpellcheck` | boolean | = `lockdown` | `webPreferences.spellcheck`를 끄는 지점 **5곳**: 메인 창(`src/main/window/createMainWindow.ts:253`), `will-attach-webview` 게스트(`:425`), 대시보드 팝아웃 창(`src/main/window/dashboard-popout-window.ts:176`), 오프스크린 브라우저 백엔드(`src/main/browser/offscreen-browser-backend.ts:45`), PDF 내보내기 WebContents(`src/main/lib/html-to-pdf.ts:46`) |
 | `enforceNetworkAllowlist` | boolean | **`false`** (lockdown이어도) | 호스트 허용목록 하드 게이트 (`src/main/enterprise/enterprise-network-guard.ts`) |
@@ -97,7 +96,7 @@
 
 정책은 프로세스당 한 번만 읽고 캐시합니다 (`enterprise-policy-file.ts:180-199`). 세션 도중 파일을 바꿔도 반영되지 않습니다 — 앱 재시작이 필요합니다.
 
-예시 (`/etc/orca/enterprise-policy.json` 또는 `%ProgramData%\Orca\enterprise-policy.json`):
+예시 (`%ProgramData%\Orca\enterprise-policy.json`):
 
 ```jsonc
 {
@@ -130,18 +129,18 @@
 | 2 | **렌더러 외부 이미지 — 에이전트 카탈로그 아이콘** | `www.google.com/s2/favicons` | 에이전트 목록 표시 시 자동 | 기본값에는 게이트가 없습니다. `enforceNetworkAllowlist`를 켜야 막힙니다 | `src/renderer/src/lib/agent-catalog.tsx:370` |
 | 3 | **렌더러 외부 이미지 — "다른 앱으로 열기" 아이콘** | `www.google.com/s2/favicons` | 앱 프리셋 표시 시 자동 | 동일 | `src/renderer/src/lib/open-in-app-catalog.tsx:66` |
 | 4 | **렌더러 외부 이미지 — 저장소 아이콘 자동감지** | `www.google.com/s2/favicons` | 저장소 웹사이트 URL이 있을 때 | 동일 | `src/shared/repo-icon.ts:15-30` |
-| 5 | **렌더러 외부 이미지 — GitHub 아바타** | `avatars.githubusercontent.com` 또는 **GHES 호스트** | PR/이슈/프로젝트 렌더 시 | 동일. 단 저장소 아이콘용 아바타는 GHES 호스트를 따라가므로(`repo-icon.ts:33-42`) 사내 호스트로만 나갈 수 있음 | `src/renderer/src/components/github/github-user-avatar.tsx:35,78` |
+| 5 | **렌더러 외부 이미지 — GitHub 아바타** | `avatars.githubusercontent.com` 또는 **GHES 호스트** | PR/이슈/프로젝트 렌더 시 | 동일. 단 저장소 아이콘용 아바타는 GHES 호스트를 따라가므로(`repo-icon.ts:33-42`) 사내 호스트로만 나갈 수 있음 | `src/renderer/src/components/github/github-user-avatar.tsx:35,79` |
 | 6 | **마크다운 본문의 인라인 이미지** (`variant="document"`) | 본문에 적힌 임의의 http(s) URL — GitHub/Jira 첨부 등 | PR·이슈·Jira 설명 본문 렌더 시 | 동일. `document` 변형만 원격 `src`를 그대로 `<img>`로 로드합니다 | `src/renderer/src/components/sidebar/comment-markdown-element-renderers.tsx:258,274` / 호출측 `JiraIssueWorkspace.tsx:674-676` |
 | 6b | **Linear/Jira 사용자 아바타** | 각 벤더 아바타 CDN | 이슈·코멘트 목록 렌더 시 | 동일 (렌더러 `<img>`) | `src/renderer/src/components/LinearIssueWorkspace.tsx:101`, `JiraIssueWorkspace.tsx:591,740` |
 | 7 | **SSH 릴레이의 원격 `npm install`** | 원격 호스트의 npm 레지스트리 (기본 `registry.npmjs.org`) | 원격 호스트 최초 연결 시 | 릴레이 번들은 SCP로 보내지만 `node-pty`/`@parcel/watcher`는 네이티브 애드온이라 **원격에서 설치**합니다. 정책 파일은 원격 머신에 없습니다 | `src/main/ssh/ssh-relay-deploy.ts:683-684,725,737` |
 | 8 | **Node `fetch` / `node:https` 프록시 우회** | 아래 §5 목록 | 해당 기능 사용 시 | `proxy-settings.ts`는 **Electron 세션에만** 프록시를 겁니다 | `src/main/network/proxy-settings.ts:41-79` |
-| 9 | **scrcpy 서버 jar 다운로드** | `github.com/Genymobile/scrcpy/releases` | Android 에뮬레이터 스트리밍 최초 사용 | `node:https`의 `get`을 직접 씁니다 — 세션 프록시도, global `fetch` 래퍼도 안 탑니다 | `src/main/emulator/android/scrcpy-server-download.ts:4,14` |
-| 10 | **STT(sherpa-onnx) 모델 다운로드** | `github.com/k2-fsa/sherpa-onnx/releases` | 사용자가 로컬 받아쓰기 모델을 명시적으로 내려받을 때 | 코드 차단 없음. 다만 Electron `net.request`를 쓰므로 §5 프록시는 탑니다 | `src/main/speech/model-catalog.ts:16`, `model-manager.ts:2,751` |
+| ~~9~~ | ~~**scrcpy 서버 jar 다운로드**~~ | ~~`github.com/Genymobile/scrcpy/releases`~~ | — | **해소됨**: `node:https`를 직접 쓰는 것은 맞지만, 다운로드 직전에 `lockdown`(또는 허용목록 밖 호스트)이면 거부하고 `EmulatorError`를 던집니다. 관리자가 미리 배치한 jar은 그대로 씁니다 | 가드 `src/main/enterprise/enterprise-direct-download-guard.ts:17-32`, 적용부 `src/main/emulator/android/scrcpy-server-download.ts:42-46` |
+| 10 | **STT(sherpa-onnx) 모델 다운로드** | `github.com/k2-fsa/sherpa-onnx/releases` | 사용자가 로컬 받아쓰기 모델을 명시적으로 내려받을 때 | 코드 차단 없음 — 위 #9의 다운로드 거부 가드는 scrcpy 한 곳에만 배선돼 있고 이 경로는 호출하지 않습니다. 다만 Electron `net.request`를 쓰므로 §5 프록시는 탑니다 | `src/main/speech/model-catalog.ts:16`, `model-manager.ts:2,751` (가드 미사용) |
 | ~~11~~ | ~~**Claude OAuth 토큰 회전**~~ | ~~`platform.claude.com`~~ | — | **해소됨**: `disableManagedClaudeAccounts`가 덮습니다 (§4). 이전 판의 "정책 스위치 없음"은 더 이상 사실이 아닙니다 | 게이트 `src/main/claude-accounts/oauth-refresh.ts:131-133` |
 | 12 | **임베디드 브라우저** | 사용자가 방문하는 임의의 사이트 | 사용자 조작 | 허용목록은 `persist:` 파티션을 의도적으로 제외합니다 — 그 슬롯은 인증서 게이트가 이미 점유 중이고, 임의 사이트 열람이 이 기능의 목적이기 때문 | `enterprise-network-guard.ts:9-13` |
 | 13 | **Gitea/Forgejo 폴백 직접 fetch** | origin 리모트에서 동적 유도된 호스트 | 미지정 git 호스트를 쓸 때 | `githubEnterpriseHost`를 지정하면 GHES는 제외되지만, **그 외 모든 미지정 호스트는 여전히 Gitea로 간주**됩니다 (§1) | `src/main/gitea/repository-ref.ts:87-98`, `client.ts:91` |
 
-**#2~#6b는 `enforceNetworkAllowlist: true`로 닫을 수 있습니다** — 메인 창은 파티션을 지정하지 않아 `session.defaultSession`을 쓰므로 렌더러 `<img>` 요청이 가드의 `onBeforeRequest`를 지나갑니다. #1, #7은 어떤 Orca 측 스위치로도 닫히지 않으며 망 계층에서만 통제됩니다.
+**#2~#6b는 `enforceNetworkAllowlist: true`로 닫을 수 있습니다** — 메인 창은 파티션을 지정하지 않아 `session.defaultSession`을 쓰므로 렌더러 `<img>` 요청이 가드의 `onBeforeRequest`를 지나갑니다 (`createMainWindow.ts:249-255`에 `partition` 없음). #1, #7은 어떤 Orca 측 스위치로도 닫히지 않으며 망 계층에서만 통제됩니다. #10은 Electron `net.request`를 쓰므로 허용목록이 덮는지 여부가 §7 레벨 3의 미검증 항목과 같습니다.
 
 ---
 
@@ -150,13 +149,13 @@
 ### GitHub — `gh` CLI 서브프로세스 (직접 fetch 아님)
 
 - **호스트**: `api.github.com`, `github.com`, 설정 시 사내 GHES(`github.samsungds.net`)
-- **발동**: 대부분 사용자 조작(PR/이슈 열람). **일부 자동**: 사이드바에 보이는 워크트리 행의 PR/CI 백그라운드 갱신, 그리고 star-nag. star-nag 서비스는 부팅 시 기동하지만(`src/main/index.ts:2151`) `start()`는 스폰 카운터 리스너만 등록할 뿐 즉시 네트워크를 쓰지 않습니다(`src/main/star-nag/service.ts:65-70`) — 실제 `gh` 호출 시점은 아래 4개 경로입니다.
+- **발동**: 대부분 사용자 조작(PR/이슈 열람). **일부 자동**: 사이드바에 보이는 워크트리 행의 PR/CI 백그라운드 갱신, 그리고 star-nag. star-nag 서비스는 부팅 시 기동하지만(`src/main/index.ts:2157-2158`) `start()`는 스폰 카운터 리스너만 등록할 뿐 즉시 네트워크를 쓰지 않습니다(`src/main/star-nag/service.ts:65-70`) — 실제 `gh` 호출 시점은 아래 4개 경로입니다.
 - **전송**: repo owner/name, 브랜치, 커밋 SHA, PR/이슈 번호·제목·본문, 리뷰 코멘트, CI 로그. 인증 토큰은 `gh`가 보관하고 **Orca 프로세스를 통과하지 않음** (긍정적).
 - **GHES 지원**: 이미 있음. origin 리모트에서 호스트를 유도하거나 `GH_HOST`/`options.host`로 `gh api --hostname <host>`를 주입합니다 (`src/main/git/runner.ts:1291-1303`, 레이트리밋 스코프도 같은 호스트를 따름 `:1368-1376`). **github.com 하드코딩 아님.**
 
 ### ⚠️ 주의 1: GHES 감지가 `gh auth status`에 의존
 
-사내 GHES가 `gh`에 로그인돼 있지 않으면 GHES 감지(`src/main/github/github-enterprise-repository.ts:151`)가 실패하고 **Gitea 폴백 경로로 떨어질 수 있습니다**. → 배포 시 `gh auth login --hostname github.samsungds.net`을 선행하세요. 정책 파일의 `githubEnterpriseHost`는 Gitea 오폴백을 별도로 막아 주지만(아래), `gh` 로그인 자체를 대신하지는 않습니다.
+사내 GHES가 `gh`에 로그인돼 있지 않으면 GHES 감지(`src/main/github/github-enterprise-repository.ts:151`)가 실패하고 **Gitea 폴백 경로로 떨어질 수 있습니다**. → 배포 시 `gh auth login --hostname github.samsungds.net`을 선행하세요. 정책 파일의 `githubEnterpriseHost`는 Gitea 폴백 오인을 별도로 막아 주지만(아래), `gh` 로그인 자체를 대신하지는 않습니다.
 
 ### ✅ 주의 2 (해결됨): star-nag의 github.com 고정 호출 — 게이트는 `gh` 호출 함수 자체에 있음
 
@@ -173,7 +172,7 @@
 | 1 | `gh:checkOrcaStarred` / `gh:starOrca` IPC — 랜딩 화면 | `src/main/ipc/github.ts:1174-1175` ← `src/renderer/src/components/Landing.tsx:41,82` |
 | 2 | 같은 IPC — 설정 → Support 섹션 | 같은 IPC ← `src/renderer/src/components/settings/GeneralSupportSection.tsx:43,71` |
 | 3 | 에이전트 완료 “value moment” 트리거 | `src/main/star-nag/agent-value-moment.ts:46` |
-| 4 | star-nag 서비스: 스폰 임계치(`service.ts:105`)와 온보딩 완료(`:240`) → `maybeShow()` (`:121`) | `src/main/star-nag/service.ts` |
+| 4 | star-nag 서비스: 스폰 임계치(`service.ts:105`)와 온보딩 완료(`:240`) → `maybeShow()` (선언 `:108`, `gh` 호출 `:121`) | `src/main/star-nag/service.ts` |
 
 `starOrca()` 쓰기 경로는 위 1·2번 IPC 외에 `src/main/star-nag/direct-star-attempt.ts:9`에서도 호출됩니다. 게이트를 `client.ts`의 두 함수에 둔 덕분에 이 호출 지점 전부가 한 번에 막힙니다 — `StarNagService.start()`에만 걸었다면 1·2·3번은 그대로 github.com으로 나갔습니다.
 
@@ -196,10 +195,10 @@
 | --- | --- | --- |
 | PostHog 제품 텔레메트리 | `us.i.posthog.com` | **opt-in(기본 꺼짐)** + 공식 CI 빌드에서만 키 주입 |
 | 진단 번들 업로드 (설정 → Privacy) | `www.onorca.dev/v1/feedback` (폴백 `api.onorca.dev`) | 사용자 명시적 클릭 |
-| 크래시 리포트 + 인앱 피드백 | 동일 (`src/main/ipc/feedback.ts:9-10`) | 사용자 명시적 제출 |
+| 크래시 리포트 + 인앱 피드백 | 동일 (`src/main/ipc/feedback.ts:10-11`) | 사용자 명시적 제출 |
 | star-nag 프롬프트 텔레메트리 | `us.i.posthog.com` | 위 PostHog 게이트에 종속 |
 
-**게이트는 두 레인 모두에 있습니다.**
+**게이트는 세 레인 모두에 있습니다.**
 
 PostHog 레인 (`src/main/telemetry/consent.ts:77-96`):
 1. `DO_NOT_TRACK` truthy → 무조건 차단 (최우선, `:79`)
@@ -210,7 +209,9 @@ PostHog 레인 (`src/main/telemetry/consent.ts:77-96`):
 
 진단/크래시 번들 레인 (`src/main/observability/index.ts:97-140`): `disableTelemetry`가 켜지면 `bundleEnabled: false`로 **망 전송만 차단**하고 `localFileEnabled: true`는 유지합니다 (`:120-133`). 로컬 NDJSON 트레이스는 머신을 떠나지 않으므로 그대로 두는 설계이며, 소비자는 `src/main/ipc/diagnostics.ts:221,253,263`과 `src/main/crash-reporting/crash-feedback-diagnostic-bundle.ts:33`입니다.
 
-게다가 전송 키(`ORCA_POSTHOG_WRITE_KEY`)는 **공식 CI 릴리스 빌드에만 컴파일타임에 주입**되고, 사내에서 직접 빌드한 exe는 이 값이 리터럴 `null`로 접히므로 애초에 전송 경로가 죽습니다 (`electron.vite.config.ts:26-31,210`).
+피드백/크래시 **제출 본문** 레인: 위 번들 게이트는 첨부만 떼어 낼 뿐이라 사용자가 쓴 텍스트는 그대로 `onorca.dev`로 나갔습니다. 그래서 `disableTelemetry`가 `submitFeedback()` 진입부에서 제출 자체를 거부합니다 (`src/main/ipc/feedback.ts:259,262` ← `src/main/ipc/feedback-submission-policy.ts:13-17`, 근거 주석 `:1-5`). 렌더러의 `feedback:submit` 채널과 크래시 다이얼로그가 모두 이 함수를 지나므로 두 진입점이 한 번에 막힙니다.
+
+게다가 전송 키(`ORCA_POSTHOG_WRITE_KEY`)는 **공식 CI 릴리스 빌드에만 컴파일타임에 주입**되고, 사내에서 직접 빌드한 exe는 이 값이 리터럴 `null`로 접히므로 애초에 전송 경로가 죽습니다 (`electron.vite.config.ts:26-30,210`).
 
 **→ 사내 조치**: 정책 파일 `"lockdown": true`(또는 `"disableTelemetry": true`)로 봉인. 업스트림 `ORCA_TELEMETRY_DISABLED=1`을 병행해도 되지만 필수는 아닙니다.
 
@@ -233,7 +234,7 @@ PostHog 레인 (`src/main/telemetry/consent.ts:77-96`):
 | `checkForUpdatesFromMenu()` (`:1244`) | `:1251` | 메뉴의 수동 "Check for Updates" |
 | `setupAutoUpdater()` (`:1415`) | `:1458` | **피드 URL 설정 전에 조기 반환**하므로 넛지 스케줄러(`:1537`)와 `powerMonitor.on('resume')` 리스너(`:1556`)가 **아예 무장되지 않습니다** |
 
-즉 “넛지 폴링 타이머가 계속 돌아 30분마다 `onorca.dev`로 나간다”는 문제는 이 브랜치에서 해소되었습니다. `setupAutoUpdater()`의 조기 반환은 `recordUpdaterLifecycle('auto_update_disabled_by_policy', ...)`로 로컬 로그에 흔적을 남깁니다.
+즉 “넛지 폴링 타이머가 계속 돌아 30분마다 `onorca.dev`로 나간다”는 문제는 **`disableAutoUpdate`가 켜져 있는 동안** 해소됩니다(코드에서 타이머가 사라진 것이 아니라 무장되지 않는 것입니다). `setupAutoUpdater()`의 조기 반환은 `recordUpdaterLifecycle('auto_update_disabled_by_policy', ...)`로 로컬 로그에 흔적을 남깁니다.
 
 **추가 방어 (선택)**:
 1. **빌드 시**: 빌드 셸에 `ORCA_DISABLE_PUBLISH_TARGET=1`. 코드 수정이 필요 없습니다 — 설정이 이미 이 값을 보고 `publish`를 `null`로 떨어뜨립니다 (`config/electron-builder.config.cjs:405-407`). 그러면 업데이터 메타(`latest.yml`, `app-update.yml`)가 생성되지 않아 electron-updater가 피드를 조회할 수 없습니다.
@@ -249,27 +250,27 @@ Orca가 스폰하는 에이전트 CLI(claude/codex/…)의 트래픽이 아니�
 
 | 기능 | 호스트 | 기본 상태 | 정책 차단 |
 | --- | --- | --- | --- |
-| 🔴 **Claude 사용량/rate-limit 폴링** | **`api.anthropic.com/api/oauth/usage`** | **기본 켜짐.** 부팅 시 서비스 시작(`src/main/index.ts:1188`), 창이 보이고 포커스된 동안 **15분 주기**(`src/main/rate-limits/service.ts:74,769-778`) | ✅ `disableUsagePolling` |
-| 🔴 **Claude OAuth 리프레시 토큰 회전** | `platform.claude.com/v1/oauth/token` | Orca 관리 Claude 계정을 추가하지 않으면 안 나감 | ✅ `disableManagedClaudeAccounts` |
+| 🔴 **Claude 사용량/rate-limit 폴링** | **`api.anthropic.com/api/oauth/usage`** (Electron `net.fetch`, `claude-fetcher.ts:355`) | **기본 켜짐.** 창 생성 직후 서비스 시작(`src/main/index.ts:1190`), 창이 보이고 포커스된 동안 **15분 주기**(`src/main/rate-limits/service.ts:75`, 가시성 술어 `:770-779`) | ✅ `disableUsagePolling` |
+| 🔴 **Claude OAuth 리프레시 토큰 회전** | `platform.claude.com/v1/oauth/token` (Electron `net.fetch`, `oauth-refresh.ts:10,149`) | Orca 관리 Claude 계정을 추가하지 않으면 안 나감 | ✅ `disableManagedClaudeAccounts` |
 | 🔴 **Codex 사용량** | `chatgpt.com/backend-api/wham/usage` (`src/main/rate-limits/codex-fetcher.ts:518`) | Claude와 동일 구조 — 로컬 `~/.codex/auth.json`(또는 `CODEX_HOME`)만 있으면 발생 (`:190,336`) | ✅ `disableUsagePolling` |
 | 🔴 **Grok 사용량** | `cli-chat-proxy.grok.com` (`src/main/rate-limits/grok-fetcher.ts:17`) | 로컬 `<GROK_HOME>/auth.json`만 있으면 발생 (`src/main/rate-limits/grok-auth.ts:11`) | ✅ `disableUsagePolling` |
 | 🔴 **Kimi 사용량** | `api.kimi.com/coding/v1` (`src/main/rate-limits/kimi-fetcher.ts:15`) | 로컬 `<KIMI_HOME>/credentials/kimi-code.json`만 있으면 발생 (`:27-28,55-59`) | ✅ `disableUsagePolling` |
 | Gemini CLI 쿼터 + Google OAuth 갱신 | `cloudcode-pa.googleapis.com`, `oauth2.googleapis.com` (`src/main/rate-limits/gemini-usage-fetcher.ts:19`, `gemini-oauth-sources.ts:9-10`) | **기본 꺼짐** — `geminiCliOAuthEnabled: false` (opt-in, `src/shared/constants.ts:317`) | ✅ `disableUsagePolling` |
 | MiniMax 사용량 | `platform.minimax.io` (`src/main/rate-limits/minimax-request-context.ts:4`) | **기본 꺼짐** — 세션 쿠키 미설정 시 무전송 | ✅ `disableUsagePolling` |
 | OpenCode 사용량 | `opencode.ai/_server` (`src/main/rate-limits/opencode-go-usage-fetcher.ts:12`) | **기본 꺼짐** — 세션 쿠키 필요 | ✅ `disableUsagePolling` |
-| 🔴 **받아쓰기(STT) → OpenAI** | `api.openai.com` (`src/main/speech/openai-transcription-client.ts:118`, global fetch) | **기본 꺼짐** — `voice.enabled: false` + 모델 미선택 + API 키 미설정, 3중 게이트 | ❌ 코드 차단 없음 (기능을 켜지 않으면 됨) |
+| 🔴 **받아쓰기(STT) → OpenAI** | `api.openai.com` (`src/main/speech/openai-transcription-client.ts:118`, global fetch) | **기본 꺼짐** — `voice.enabled: false` + 모델 미선택 + API 키 미설정, 3중 게이트 | ❌ 기능 스위치 없음. 단 global fetch라서 opt-in `enforceNetworkAllowlist`는 이 호출을 덮습니다 (§5 표) |
 
 ### 🔴 정정: 사용량 폴링은 “Orca 계정 연동에 종속”되지 않습니다
 
 이전 판은 사용량 폴링이 Orca 관리 Claude 계정 연동에 종속된다고 적었으나 **사실이 아닙니다.** Claude가 가장 위험하지만, Codex·Grok·Kimi도 **읽는 파일만 다를 뿐 구조가 같습니다** — 전부 사용자의 로컬 벤더 CLI 자격증명을 직접 읽습니다.
 
 - 목적지는 `platform.claude.com`이 아니라 **`https://api.anthropic.com/api/oauth/usage`** 입니다 (`src/main/rate-limits/claude-fetcher.ts:46`, 호출은 `:355`). 이 호스트는 이전 판 어디에도 등장하지 않았습니다 — **방화벽 허용목록에서 빠지기 쉬운 지점입니다.**
-- 자격증명은 Orca 계정이 아니라 **사용자의 기존 Claude CLI 자격증명**에서 읽습니다: macOS Keychain을 먼저 보고, 없으면 **`~/.claude/.credentials.json`** 으로 폴백합니다 (`claude-fetcher.ts:193-201`, 순서는 `:207-233`).
+- 자격증명은 Orca 계정이 아니라 **사용자의 기존 Claude CLI 자격증명**에서 읽습니다: macOS Keychain을 먼저 보고, 없으면 **`~/.claude/.credentials.json`** 으로 폴백합니다 (`claude-fetcher.ts:193-201`, 경로 조립은 `:194`, 순서는 `:207-233`).
 - 즉 **사내 개발자가 Claude Code CLI에 이미 로그인해 있기만 하면**, Orca에 아무 계정도 추가하지 않아도 창이 포커스된 동안 15분마다 `api.anthropic.com`으로 나갑니다.
 
-이 경로는 `disableUsagePolling`으로 닫힙니다. 게이트 술어는 `src/main/rate-limits/service.ts:733`이고, 9개 진입점에서 검사합니다(`함수 선언줄` / `게이트줄`): `start()` `:307`/`:309` — 폴링 타이머 자체를 무장하지 않음, `fetchAll()` `:893`/`:894`, `fetchCodexOnly()` `:958`/`:959`, `fetchClaudeOnly()` `:1020`/`:1021`, `fetchGrokOnly()` `:1085`/`:1086`, 계정 스위처 프리뷰 `fetchInactiveClaudeAccountsOnOpen()` `:499`, `fetchInactiveCodexAccountsOnOpen()` `:579`, Codex 리셋 크레딧 POST `:425`, UI 상태 표기 `:1462`.
+이 경로는 `disableUsagePolling`으로 닫힙니다. 게이트 술어는 `isUsagePollingDisabled()` (`src/main/rate-limits/service.ts:734`)이고, 9개 진입점에서 검사합니다(`함수 선언줄` / `게이트줄`): `start()` `:308`/`:310` — 폴링 타이머 자체를 무장하지 않음, `fetchAll()` `:894`/`:895`, `fetchCodexOnly()` `:959`/`:960`, `fetchClaudeOnly()` `:1021`/`:1022`, `fetchGrokOnly()` `:1086`/`:1087`, 계정 스위처 프리뷰 `fetchInactiveClaudeAccountsOnOpen()` `:499`/`:500`, `fetchInactiveCodexAccountsOnOpen()` `:579`/`:580`, Codex 리셋 크레딧 POST `:424`/`:426`, UI 상태 표기 `:1463`.
 
-**Gemini/OpenCode/Kimi/MiniMax도 같은 게이트에 덮입니다.** 이 네 페처는 모두 `runFetchAllCycle()`(`:1479`) 안의 단일 `Promise.allSettled` 배치에서 호출되고(`:1578-1590`), `runFetchAllCycle`의 호출자는 위에 나열한 4개 게이트 메서드뿐입니다(`:912,984,1049,1111`). 즉 별도 페처 경로가 아니라 전부 하나의 초크포인트 아래에 있습니다.
+**Gemini/OpenCode/Kimi/MiniMax도 같은 게이트에 덮입니다.** 이 네 페처는 모두 `runFetchAllCycle()`(`:1480`) 안의 단일 `Promise.allSettled` 배치에서 호출되고(`:1563-1593`, 네 페처는 `:1579,1580,1585,1588`), `runFetchAllCycle`의 호출자는 위에 나열한 4개 게이트 메서드뿐입니다(`:913,985,1050,1112`). 즉 별도 페처 경로가 아니라 전부 하나의 초크포인트 아래에 있습니다.
 
 ### ✅ 정정(해소됨): Claude OAuth 토큰 회전 — `disableManagedClaudeAccounts`
 
@@ -282,9 +283,11 @@ Orca가 스폰하는 에이전트 CLI(claude/codex/…)의 트래픽이 아니�
 1. **egress** — 위의 `platform.claude.com` 토큰 회전. 게이트가 **함수 진입부**(`oauth-refresh.ts:131-133`)에 있어 호출자를 가리지 않고, 소켓을 열기 전에 `null`을 반환합니다. `null`은 원래 "기존 자격증명 유지"라 예외가 나지 않습니다.
 2. **에이전트 환경 재작성** — 관리형 계정이 활성일 때 자식 환경에서 `ANTHROPIC_API_KEY`·`ANTHROPIC_AUTH_TOKEN`·`CLAUDE_CODE_OAUTH_TOKEN`·**`AWS_BEARER_TOKEN_BEDROCK`** 및 인증성 `ANTHROPIC_CUSTOM_HEADERS`를 삭제하는 동작 (`src/main/claude-accounts/environment.ts:3-8,22-29`, 적용부 `src/main/rate-limits/claude-pty.ts:244-247`, `src/main/text-generation/commit-message-agent-environment.ts:127-128`). 게이트는 두 겹입니다 — 인증 준비에서 활성 계정을 `null`로 고정(`src/main/claude-accounts/runtime-auth-service.ts:613-616`, 호스트 세션의 `stripAuthEnv`는 여기서 유도되므로 `:667`이 자동으로 `false`)하고, `stripAuthEnv: true`를 하드코딩해 넘기는 호출자에 대비해 `environment.ts:22`에서 한 번 더 막습니다.
 
-두 번째는 **Bedrock 플릿에서 egress가 아니라 기능 장애로 나타납니다.** WSL 런타임을 고른 세션은 관리형 계정이 하나도 없어도 스트립이 켜졌고(`src/main/claude-accounts/runtime-auth-service.ts:647,657` — WSL 홈을 찾은 경우와 못 찾은 경우), 그 상태에서 런치 환경에 위 변수가 있으면 PTY 스폰이 에러로 **하드 실패**했습니다 (`src/main/ipc/pty.ts:2955-2959`, `:4013-4017`). 지금은 두 분기의 `stripAuthEnv`가 `!managedAccountsDisabled`라 스위치가 켜져 있으면 실패 조건 자체가 성립하지 않습니다. Windows 호스트 세션은 원래도 관리형 계정을 선택한 동안에만 스트립됐습니다 (`:667`).
+두 번째는 **Bedrock 플릿에서 egress가 아니라 기능 장애로 나타납니다.** WSL 런타임을 고른 세션은 **관리형 계정이 하나도 없어도** 스트립이 켜집니다 — 두 분기의 값이 `stripAuthEnv: !managedAccountsDisabled`이기 때문입니다 (`src/main/claude-accounts/runtime-auth-service.ts:647,657` — WSL 홈을 찾은 경우와 못 찾은 경우). 그 상태에서 런치 환경에 위 변수가 있으면 PTY 스폰이 에러로 **하드 실패**합니다 (`src/main/ipc/pty.ts:2955-2959`, `:4013-4017`).
 
-**요점**: 손봐야 하는 건 **로컬 CLI 자격증명만으로 발동하는 사용량 폴링 4종(Claude·Codex·Grok·Kimi → `disableUsagePolling`)** 과 **관리형 Claude 계정(→ `disableManagedClaudeAccounts`)** 이며, `lockdown: true` 하나로 둘 다 켜집니다. Gemini/MiniMax/OpenCode/Kimi는 기본 opt-in이라 켜지 않으면 나가지 않고, **켜더라도 `disableUsagePolling`이 덮습니다** — 이들의 fetcher는 `runFetchAllCycle` 안에서만 호출되고 그 사이클로 들어가는 경로가 전부 게이트를 지납니다. 정책 스위치가 없는 것은 받아쓰기(STT → `api.openai.com`)뿐이며, 이쪽은 3중 opt-in이라 설정하지 않으면 발동하지 않습니다.
+> 🔴 **읽는 방향을 헷갈리지 마세요.** 이 실패 조건은 코드에서 사라진 것이 아니라 **`disableManagedClaudeAccounts`가 켜져 있을 때만** 성립하지 않습니다. 스위치를 끄면(또는 `lockdown` 없이 배포하면) WSL Claude 세션은 예전 그대로 하드 실패합니다. **그래서 Bedrock + WSL 플릿에서 이 스위치는 권장이 아니라 필수입니다.** Windows 호스트 세션은 원래도 관리형 계정을 선택한 동안에만 스트립됩니다 (`:667`).
+
+**요점**: 손봐야 하는 건 **로컬 CLI 자격증명만으로 발동하는 사용량 폴링 4종(Claude·Codex·Grok·Kimi → `disableUsagePolling`)** 과 **관리형 Claude 계정(→ `disableManagedClaudeAccounts`)** 이며, `lockdown: true` 하나로 둘 다 켜집니다. Gemini/MiniMax/OpenCode/Kimi는 기본 opt-in이라 켜지 않으면 나가지 않고, **켜더라도 `disableUsagePolling`이 덮습니다** — 이들의 fetcher는 `runFetchAllCycle` 안에서만 호출되고 그 사이클로 들어가는 경로가 전부 게이트를 지납니다. 기능 스위치가 없는 것은 **받아쓰기 계열 두 경로**뿐입니다 — 전사(`api.openai.com`, 3중 opt-in이라 설정하지 않으면 발동하지 않음)와 로컬 모델 다운로드(`github.com`, §0.2 #10). 앞의 것은 global fetch라 `enforceNetworkAllowlist`가 덮고, 뒤의 것은 어떤 정책도 덮지 않습니다.
 
 ### AWS Bedrock으로 Claude를 쓰는 경우
 
@@ -292,20 +295,33 @@ Orca가 스폰하는 에이전트 CLI(claude/codex/…)의 트래픽이 아니�
 
 ```
 CLAUDE_CODE_USE_BEDROCK=1
-AWS_REGION / AWS_PROFILE (또는 AWS_ACCESS_KEY_ID 등)
+AWS_REGION
 ANTHROPIC_MODEL=<Bedrock inference profile ARN 또는 모델 ID>
 ```
+
+> 사내 플릿은 SSO를 쓰고 `AWS_PROFILE`을 설정하지 않습니다. 그래도 문제는 없습니다 — **Orca 프로덕션 코드는 `AWS_PROFILE`을 어디서도 읽지 않습니다**(저장소 전체에서 이 이름이 나오는 곳은 테스트 픽스처 `src/main/claude-accounts/environment.test.ts:13,72`뿐). PTY 스폰 경로에는 env 허용목록이 없어 셸 환경이 그대로 상속되고, Orca가 삭제하는 유일한 AWS 변수는 `AWS_BEARER_TOKEN_BEDROCK`입니다 (`src/main/claude-accounts/environment.ts:3-8`).
 
 `platform.claude.com`으로 가는 OAuth 갱신은 **Orca 관리 Claude 계정을 추가하지 않는 한 발생하지 않지만, 그 "추가하지 않음"을 사용자 선의에 맡기지 말고 `disableManagedClaudeAccounts`로 못 박으세요.** Bedrock 플릿에서 이 스위치는 egress 차단인 동시에 **기능 안정화**입니다 — 위 절에서 본 대로 관리형 계정의 환경 스트립은 `AWS_BEARER_TOKEN_BEDROCK`을 지우고, WSL 세션에서는 관리형 계정 없이도 켜져 Claude 스폰을 하드 실패시킵니다.
 
 **`api.anthropic.com` 사용량 폴링은 별개 경로**이며 Bedrock 사용 여부와 무관하게 로컬 Claude CLI 자격증명만 있으면 발생하므로, `disableUsagePolling`도 함께 켜야 합니다. 둘 다 `lockdown: true`에 포함됩니다. AWS 자격증명이 프록시/사설 CA를 타야 하면 §5의 환경변수를 함께 설정하세요.
 
+#### ⚠️ 이 플릿에서 실측으로 확인된 운영 결함 4건
+
+egress가 아니라 **환경변수가 에이전트까지 도달하는 경로**의 문제입니다. 배포 검토자는 네 건 모두 알고 있어야 합니다.
+
+| # | 증상 | 원인 | 확인 위치 | 대응 |
+| --- | --- | --- | --- | --- |
+| 1 | `setx`로 `AWS_REGION` 등을 넣었는데 **에이전트에는 안 보임** | 상주 PTY 데몬은 앱 재시작을 넘어 살아남고 **fork 시점의 `process.env`를 계속 씁니다.** 매 스폰마다 레지스트리에서 다시 읽는 값은 **`PATH` 하나뿐**입니다 | 데몬이 자기 `process.env`를 권위로 삼음 `src/main/daemon/pty-subprocess.ts:102`, 스폰 env 조립 `:563` / `PATH`만 재병합 `src/main/ipc/pty.ts:981` ← `src/main/pty/windows-environment-path.ts:11-14`(레지스트리 키 2개) | `setx` 뒤에 **데몬 재시작 또는 재로그온**. 앱만 재시작하는 것으로는 부족 |
+| 2 | 설정에서 만든 per-agent 환경변수의 **값을 비워 두면 OS 값까지 사라짐** | 빈 문자열이 정상 값으로 저장되고(`nextEnv[key] = raw`) 스폰 시 OS 값 위에 덮어써서 **빈 문자열로 가려집니다** | 정규화 `src/shared/tui-agent-launch-defaults.ts:62-68`(빈 문자열을 거르지 않음), 해석 `:96-104` → 스폰 플랜의 `env`로 전달 `src/shared/tui-agent-startup.ts:94` → 병합 `src/main/daemon/pty-subprocess.ts:563`(`opts.env`가 `process.env`를 덮음) | 쓰지 않을 변수는 **값을 비우지 말고 행 자체를 삭제** |
+| 3 | WSL Claude 세션이 **스폰 즉시 에러로 종료** | `disableManagedClaudeAccounts`가 꺼져 있으면 WSL 분기가 관리형 계정 없이도 `stripAuthEnv`를 켜고, 런치 env에 인증 변수가 있으면 하드 실패 | `src/main/claude-accounts/runtime-auth-service.ts:647,657` → `src/main/ipc/pty.ts:2955-2959`, `:4013-4017` | `disableManagedClaudeAccounts: true` (= `lockdown: true`). **필수** |
+| 4 | Windows에서 설정한 `AWS_*`가 **WSL 게스트 안에서 안 보임** | `wsl.exe`는 `WSLENV`에 이름이 적힌 변수만 넘기는데, Orca가 등록하는 목록에 `AWS_*`가 **하나도 없습니다**(`ORCA_*`·`CODEX_HOME`·`CLAUDE_CONFIG_DIR` 계열뿐) | `src/main/pty/wsl-orca-env.ts:58-76`, 추가 등록 지점 `src/main/providers/local-pty-provider.ts:710,727,731,735` | 게스트 배포판 안에서 별도 설정(`~/.bashrc`, `/etc/environment`, WSL 쪽 AWS 프로필) |
+
 ---
 
 ## 5. 사내 프록시 / 사설 CA (⚠️ 부분 지원 — 전 경로를 덮지 않음)
 
-- **프록시**: 부팅 시 호출되는 것은 `applyElectronProxySettings(store.getSettings())`입니다 (`src/main/index.ts:1849`). Dock/런치패드 실행은 셸 env를 못 물려받으므로 **앱 내 프록시 설정값이 우선**이고(`proxy-settings.ts:90-113`), 설정이 비었을 때만 `ensureElectronProxyFromEnvironment`로 폴백해 `HTTPS_PROXY`/`HTTP_PROXY`/`ALL_PROXY`/`NO_PROXY`(소문자 변형 포함)를 읽습니다 (`:92-97,119-124`, 이름 목록은 `src/shared/network-proxy.ts:14-21`). 단, 시스템 프록시가 이미 잡혀 있으면(`resolveProxy !== 'DIRECT'`) env는 무시됩니다 (`proxy-settings.ts:54-57`).
-- **앱 내 프록시 설정은 자식 프로세스로 전파됩니다**: PTY로 스폰되는 에이전트 CLI의 환경에 `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY`/`NO_PROXY`(대·소문자 6+2종)를 주입합니다 (`src/shared/network-proxy.ts:94-116` ← `src/main/ipc/pty.ts:982`, `src/main/rate-limits/claude-pty.ts:253`). **env에서 유도한 프록시는 이 주입 대상이 아닙니다** — 그 경우 자식은 부모 셸의 env를 그대로 상속할 뿐입니다.
+- **프록시**: 부팅 시 호출되는 것은 `applyElectronProxySettings(store.getSettings())`입니다 (`src/main/index.ts:1853`). Dock/런치패드 실행은 셸 env를 못 물려받으므로 **앱 내 프록시 설정값이 우선**이고(`proxy-settings.ts:90-113`), 설정이 비었을 때만 `ensureElectronProxyFromEnvironment`로 폴백해 `HTTPS_PROXY`/`HTTP_PROXY`/`ALL_PROXY`/`NO_PROXY`(소문자 변형 포함)를 읽습니다 (`:92-97,119-124`, 이름 목록은 `src/shared/network-proxy.ts:13-21`). 단, 시스템 프록시가 이미 잡혀 있으면(`resolveProxy !== 'DIRECT'`) env는 무시됩니다 (`proxy-settings.ts:54-57`).
+- **앱 내 프록시 설정은 자식 프로세스로 전파됩니다**: PTY로 스폰되는 에이전트 CLI의 환경에 `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY`/`NO_PROXY`(대·소문자 6+2종)를 주입합니다 (`src/shared/network-proxy.ts:115-140`, 변수 목록은 `:123-137` ← `src/main/ipc/pty.ts:982`, `src/main/rate-limits/claude-pty.ts:253`). **env에서 유도한 프록시는 이 주입 대상이 아닙니다** — 그 경우 자식은 부모 셸의 env를 그대로 상속할 뿐입니다.
 - **사설 CA / TLS 검사**: 임베디드 브라우저에 인증서 신뢰 컨트롤러 존재(`browser-certificate-trust-controller.ts`). Node 계층은 표준 `NODE_EXTRA_CA_CERTS`를 따르므로 사내 루트 CA를 이 환경변수로 주입(Electron `net`은 이 변수가 아니라 OS 신뢰 저장소를 씁니다).
 
 ### 🔴 한계: 프록시는 **Electron 세션에만** 적용됩니다
@@ -328,10 +344,12 @@ ANTHROPIC_MODEL=<Bedrock inference profile ARN 또는 모델 ID>
 
 (같은 표의 나머지 항목 — `main/amp/hook-service.ts`, `main/opencode/hook-service.ts`, `main/pi/agent-status-extension-source.ts`, `main/ipc/worktree-remote.ts`, `relay/git-handler.ts`, `main/ipc/feedback.ts` — 은 주입 스크립트 문자열 / `git fetch` 식별자 / 주석이라 실제 HTTP 호출이 아닙니다.)
 
-`node:https`를 직접 쓰는 다운로더도 프록시를 우회합니다:
+`node:https`를 직접 쓰는 다운로더도 프록시를 우회합니다. **두 곳뿐이며, 둘 다 정책으로 닫힙니다**:
 
-- `src/main/emulator/android/scrcpy-server-download.ts:4,14` — `github.com`에서 scrcpy 서버 jar 다운로드
-- `src/main/observability/diagnostic-upload-http.ts:1-2` — 진단 번들 업로드 (단 `disableTelemetry`로 차단됨)
+- `src/main/emulator/android/scrcpy-server-download.ts:4,15` — `github.com`에서 scrcpy 서버 jar 다운로드. `lockdown`이면 소켓을 열기 전에 거부합니다 (`enterprise-direct-download-guard.ts:17-32` ← `scrcpy-server-download.ts:42-46`). 가드의 근거 주석(`:1-7`)이 이 절과 같은 사실을 적고 있습니다 — 프록시 우회 + 허용목록 비가시 + Node 자체 CA 번들 사용.
+- `src/main/observability/diagnostic-upload-http.ts:1-2` — 진단 번들 업로드 (`disableTelemetry`로 차단됨)
+
+⚠️ 이 가드는 **scrcpy 한 곳에만 배선**돼 있습니다. §0.2 #10의 STT 모델 다운로드는 Electron `net.request`라 프록시는 타지만 정책 게이트는 없습니다.
 
 **사내 조치**: 아래를 설정하되, 위 경로들은 **프록시가 아니라 방화벽/라우팅 또는 `enforceNetworkAllowlist`로 통제**해야 한다는 점을 전제하세요.
 
@@ -348,7 +366,7 @@ NODE_EXTRA_CA_CERTS=C:\path\to\corp-root-ca.pem
 
 | 기능 | 호스트 | 발동 | 파일 |
 | --- | --- | --- | --- |
-| GitHub 아바타 | `avatars.githubusercontent.com` (저장소 아이콘은 GHES 호스트를 따름) | PR/이슈/프로젝트 렌더 시 | `src/renderer/src/components/github/github-user-avatar.tsx:35,78`, `src/shared/repo-icon.ts:33-62` |
+| GitHub 아바타 | `avatars.githubusercontent.com` (저장소 아이콘은 GHES 호스트를 따름) | PR/이슈/프로젝트 렌더 시 | `src/renderer/src/components/github/github-user-avatar.tsx:35,79`, `src/shared/repo-icon.ts:33-62` |
 | 저장소 아이콘 자동감지 | `www.google.com/s2/favicons` | 저장소 웹사이트 URL이 있을 때 | `src/shared/repo-icon.ts:15-30` |
 | 에이전트 카탈로그 아이콘 | `www.google.com/s2/favicons` | 에이전트 목록 표시 | `src/renderer/src/lib/agent-catalog.tsx:370` |
 | "다른 앱으로 열기" 아이콘 | `www.google.com/s2/favicons` | 앱 프리셋 표시 | `src/renderer/src/lib/open-in-app-catalog.tsx:66` |
@@ -376,7 +394,9 @@ NODE_EXTRA_CA_CERTS=C:\path\to\corp-root-ca.pem
 }
 ```
 
-이것으로 §2(텔레메트리·진단), §3(자동 업데이트·넛지), §1(star-nag), Orca Cloud/모바일 릴레이, §4(사용량 폴링 + 관리형 Claude 계정/`platform.claude.com` OAuth 회전), 맞춤법 사전 다운로드가 한 번에 닫히고, Gitea 오폴백이 방지됩니다.
+이것으로 §2(텔레메트리·진단·피드백/크래시 제출), §3(자동 업데이트·넛지), §1(star-nag), Orca Cloud/모바일 릴레이, §4(사용량 폴링 + 관리형 Claude 계정/`platform.claude.com` OAuth 회전), 맞춤법 사전 다운로드, scrcpy jar 직접 다운로드(§0.2 #9), Chromium의 DNS-over-HTTPS 자동 승격(§8)이 한 번에 닫히고, Gitea 폴백 오인이 방지됩니다.
+
+**닫히지 않는 것**(§0.2와 동일): 서브프로세스 트래픽, 렌더러 외부 이미지, SSH 릴레이의 원격 `npm install`, STT 모델 다운로드. 레벨 1만으로 "외부 통신이 끊겼다"고 보고하면 안 됩니다.
 
 추가로:
 - 사이드바 워크트리 카드 속성에서 `pr`/`ci`(신형 카드 스타일이면 `status`) 제거 → PR/리뷰 백그라운드 갱신 중단(명시적 열람은 유지). 단 **`groupBy`가 `pr-status`이거나 우측 사이드바가 PR 데이터를 보이면 카드 속성과 무관하게 계속 갱신**됩니다 (`src/renderer/src/store/slices/github.ts:4270-4275`).
@@ -390,7 +410,7 @@ HTTPS_PROXY / HTTP_PROXY / NO_PROXY # 프록시 (§5, Electron 세션 한정)
 NODE_EXTRA_CA_CERTS=<corp-ca.pem>  # 사설 CA (§5)
 ```
 
-⚠️ **`githubEnterpriseHost`는 `GH_HOST`를 대체하지 않습니다.** 저장소 전체에서 이 정책 값을 읽는 곳은 `src/main/gitea/repository-ref.ts:91`(Gitea 오폴백 제외)과 `src/shared/enterprise-policy.ts:204-207`(허용목록에 자동 추가) 두 곳뿐입니다. `gh`가 어느 호스트로 나갈지는 여전히 origin 리모트에서 유도한 `options.host` 또는 `GH_HOST`가 정합니다 (`src/main/git/runner.ts:1297-1303,1370-1376`). 의존 방향은 오히려 반대입니다 — `githubEnterpriseHost`가 비어 있을 때 `GH_HOST`를 폴백으로 읽습니다 (`src/shared/enterprise-policy.ts:203`).
+⚠️ **`githubEnterpriseHost`는 `GH_HOST`를 대체하지 않습니다.** 저장소 전체에서 이 정책 값을 읽는 곳은 `src/main/gitea/repository-ref.ts:91`(Gitea 폴백 후보에서 제외)과 `src/shared/enterprise-policy.ts:204-207`(허용목록에 자동 추가) 두 곳뿐입니다. `gh`가 어느 호스트로 나갈지는 여전히 origin 리모트에서 유도한 `options.host` 또는 `GH_HOST`가 정합니다 (`src/main/git/runner.ts:1297-1303,1370-1376`). 의존 방향은 오히려 반대입니다 — `githubEnterpriseHost`가 비어 있을 때 `GH_HOST`를 폴백으로 읽습니다 (`src/shared/enterprise-policy.ts:203`).
 
 ### 레벨 3 — 허용목록 하드 게이트 (opt-in)
 
@@ -401,7 +421,7 @@ NODE_EXTRA_CA_CERTS=<corp-ca.pem>  # 사설 CA (§5)
 
 허용목록에 없는 호스트는 호스트당 한 줄씩 stderr에 기록되고 차단됩니다 (`:36-45`). 로그는 256개 호스트에서 멈추지만(`:30,37`) **차단 자체에는 상한이 없습니다** — 로그가 끊겨도 요청은 계속 막힙니다. 루프백과 non-http 스킴은 항상 통과합니다 (`:47-71`).
 
-**덮지 않는 것** (§0.2와 동일): 서브프로세스(`gh`/`glab`/에이전트 CLI), `node:https` 다운로더, 임베디드 브라우저의 `persist:` 파티션(`:9-13` — 그 슬롯은 인증서 게이트가 점유). ⚠️ Electron `net.fetch`/`net.request`가 `defaultSession`의 `webRequest` 리스너를 타는지는 테스트로 확인되지 않았습니다(`enterprise-network-guard.test.ts`는 렌더러 요청과 global fetch만 검증).
+**덮지 않는 것** (§0.2와 동일): 서브프로세스(`gh`/`glab`/에이전트 CLI), `node:https` 다운로더(단 scrcpy는 별도 가드가 있고, 그 가드도 `enforceNetworkAllowlist`를 함께 봅니다 — `enterprise-direct-download-guard.ts:26-31`), 임베디드 브라우저의 `persist:` 파티션(`:9-13` — 그 슬롯은 인증서 게이트가 점유). ⚠️ Electron `net.fetch`/`net.request`가 `defaultSession`의 `webRequest` 리스너를 타는지는 테스트로 확인되지 않았습니다(`enterprise-network-guard.test.ts`의 케이스는 렌더러 요청 8건과 global fetch 5건뿐 — `:86-182`, `:184-243`). 이 항목이 §4의 `api.anthropic.com`·`platform.claude.com`(둘 다 `net.fetch`)과 §0.2 #10에 동시에 걸립니다.
 
 ### 레벨 4 — 망 차원 (가장 견고)
 
@@ -415,7 +435,7 @@ NODE_EXTRA_CA_CERTS=<corp-ca.pem>  # 사설 CA (§5)
 
 ## 8. 종결된 항목 및 남은 미검증(⚠️)
 
-이전 판의 “미검증 5건” 중 **4건이 완전히 종결**되었고, 나머지 1건(Electron 기본 동작)은 맞춤법 사전만 종결되고 DNS-over-HTTPS·컴포넌트 업데이터가 남았습니다.
+이전 판의 “미검증 5건” 중 **4건이 완전히 종결**되었고, 나머지 1건(Electron 기본 동작)은 맞춤법 사전과 DNS-over-HTTPS가 종결되고 컴포넌트 업데이터만 남았습니다.
 
 ### ✅ 종결: Chromium 맞춤법 사전 다운로드 — 실재하며, 이제 차단됨
 
@@ -425,12 +445,12 @@ Electron은 `spellcheck`를 기본 켜며, **Windows/Linux에서 Chromium이 hun
 
 `src/renderer/index.html`에는 CSP가 없습니다. 이전에 “electron-vite가 주입한다”고 적혀 있던 주석은 **거짓이었고 제거되었습니다**. 현재 주석은 사실대로 “어느 단계에서도 CSP는 주입되지 않으며, egress는 메인 프로세스의 `enterprise-network-guard.ts`에서 통제한다”고 명시합니다. 저장소 전체에서 `Content-Security-Policy`가 나오는 곳은 마크다운 내보내기 HTML 템플릿(`src/renderer/src/components/editor/markdown-export-html.ts:41`) 하나뿐이며, 이는 앱 렌더러와 무관합니다.
 
-대체 통제 수단은 opt-in `enforceNetworkAllowlist`입니다. **덮는 것**: 렌더러의 모든 http(s) 요청(§6의 이미지 포함)과 메인 프로세스 global `fetch`. **덮지 않는 것**: 서브프로세스, `node:https`, 임베디드 브라우저 파티션 (§0.2·§7 레벨 3).
+대체 통제 수단은 opt-in `enforceNetworkAllowlist`입니다. **덮는 것**: 렌더러의 모든 http(s) 요청(§6의 이미지 포함)과 메인 프로세스 global `fetch`. **덮지 않는 것**: 서브프로세스, `node:https`(scrcpy만 별도 가드가 대신 봄 — §5), 임베디드 브라우저 파티션 (§0.2·§7 레벨 3).
 
 ### ✅ 종결: SSH 릴레이의 원격 다운로드 — **npm install은 실재, ripgrep 다운로드는 사실무근**
 
 - **실재**: 릴레이는 원격 호스트에서 `npm install`을 실행해 `node-pty`와 `@parcel/watcher`를 설치합니다 (`src/main/ssh/ssh-relay-deploy.ts:683-684,725,737`). 이 둘은 네이티브 애드온이라 esbuild 번들에 포함할 수 없습니다. Linux에서는 node-pty가 소스 컴파일되므로 C/C++ 툴체인까지 필요합니다(`:753-757`). **폐쇄망 원격 호스트에서는 최초 연결이 실패합니다** — 사내 npm 미러 또는 사전 설치가 필요합니다.
-- **사실무근**: 릴레이가 ripgrep을 다운로드하지는 **않습니다.** `src/relay/fs-handler-install-rg.ts`는 배포판을 감지해 `sudo apt install ripgrep` 같은 **설치 안내 문자열만 생성**하며(`:11-45`), `:24`의 `github.com/BurntSushi/ripgrep` URL도 사용자에게 보여 주는 텍스트일 뿐 소켓을 열지 않습니다. rg가 없으면 git/readdir 폴백으로 degrade합니다(`fs-handler-git-fallback.ts`, `fs-handler-readdir-fallback.ts`).
+- **사실무근**: 릴레이가 ripgrep을 다운로드하지는 **않습니다.** `src/relay/fs-handler-install-rg.ts`는 배포판을 감지해 `sudo apt install ripgrep` 같은 **설치 안내 문자열만 생성**하며(`:11-25`, 배포판 분기 `:27-44`), `:24`의 `github.com/BurntSushi/ripgrep` URL도 사용자에게 보여 주는 텍스트일 뿐 소켓을 열지 않습니다. 이 파일이 import하는 것은 `node:fs/promises`의 `readFile`과 로컬 파서뿐이라(`:1-5`) HTTP 클라이언트 자체가 없습니다. rg가 없으면 git/readdir 폴백으로 degrade합니다(`fs-handler-git-fallback.ts`, `fs-handler-readdir-fallback.ts`).
 - 릴레이 번들 자체는 SCP로 전송되며 다운로드하지 않습니다. 원격 Node가 없을 때도 안내 메시지만 냅니다(`src/main/ssh/ssh-remote-node-resolution.ts:301`).
 
 ### ✅ 종결: agent-browser 서브프로세스의 `process.env` 상속 — **전체 상속 확정**
@@ -441,9 +461,15 @@ Electron은 `spellcheck`를 기본 켜며, **Windows/Linux에서 Chromium이 hun
 
 `config/scripts/bootstrap-locale-catalog.mjs:66`에서 `translate.googleapis.com/translate_a/single`을 호출합니다. 이는 **번역 카탈로그를 생성하는 개발용 스크립트**이며 앱 런타임 코드가 아닙니다(`src/` 아래 어디에도 이 호스트가 없음). 사내 배포 위험 아님.
 
+### ✅ 종결: Chromium의 DNS-over-HTTPS 자동 승격 — `lockdown`이 OS 리졸버로 고정
+
+Electron의 `configureHostResolver`는 `secureDnsMode`가 기본 `'automatic'`이라, 머신에 설정된 리졸버가 알려진 DoH 제공자면 Chromium이 스스로 DoH로 승격합니다. 그러면 이름 해석이 443으로 공용 리졸버에 나가면서 **사내 호스트만 풀 수 있는 split-horizon DNS와 DNS 기반 egress 모니터링을 동시에 지나칩니다** — 근거는 코드 주석에 그대로 있습니다(`src/main/enterprise/enterprise-secure-dns.ts:1-8`). `lockdown`이면 `secureDnsMode: 'off'`로 고정합니다(`:19-24`). 배선은 `ready` 이후입니다(`src/main/index.ts:1793`, Electron이 `ready` 전 호출을 거부하므로). 고정에 실패해도 stderr 한 줄만 남기고 기동은 계속합니다(`:25-30`).
+
+> ⚠️ 이 통제는 **커맨드라인 스위치가 아니라 `app.configureHostResolver` 호출**이므로 `disable-features`/`appendSwitch` 목록에는 나타나지 않습니다. 스위치 목록만 보고 “DoH 통제 수단이 없다”고 읽으면 안 됩니다 — 이전 판이 그렇게 적었고, 틀렸습니다.
+
 ### ⚠️ 남은 미검증
 
-- **Chromium의 DNS-over-HTTPS 자동 업그레이드 / 컴포넌트 업데이터.** 이 브랜치는 어떤 관련 스위치도 걸지 않습니다 — `disable-features`에 들어가는 값은 `IntensiveWakeUpThrottling` 하나뿐이고(`src/main/startup/configure-process.ts:319-325`), 전체 `appendSwitch` 호출 10곳 어디에도 DoH/컴포넌트 관련 항목이 없습니다. **통제 수단이 없다는 것은 확인했으나, Electron 런타임이 실제로 DoH 프로브나 컴포넌트 업데이트 요청을 내는지는 패킷 캡처로 확인하지 못했습니다.** 배포 전 실측 권장.
+- **Chromium 컴포넌트 업데이터.** 이 브랜치는 관련 스위치를 걸지 않습니다 — `disable-features`에 들어가는 값은 `IntensiveWakeUpThrottling` 하나뿐이고(`src/main/startup/configure-process.ts:319-325`), 프로덕션 `appendSwitch` 호출 10곳(`configure-process.ts` 6곳, `index.ts:1381`, `startup/ensure-virtual-display.ts:22,25`, `startup/renderer-heap-headroom.ts:101`) 어디에도 컴포넌트 관련 항목이 없습니다. **통제 수단이 없다는 것은 확인했으나, Electron 런타임이 실제로 컴포넌트 업데이트 요청을 내는지는 패킷 캡처로 확인하지 못했습니다.** 배포 전 실측 권장.
 
 ---
 
