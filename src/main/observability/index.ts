@@ -20,6 +20,8 @@
 //                                hatch for users on devices where even local
 //                                debug logs are policy-forbidden.
 //   CI detection              → disable everything in this lane.
+//   enterprise policy file    → `disableTelemetry` behaves like DO_NOT_TRACK
+//                                here: bundles are egress, local logs are not.
 //
 // The CI gate matches the same env-var list the product-telemetry consent
 // resolver uses (CI / GITHUB_ACTIONS / GITLAB_CI / CIRCLECI / TRAVIS /
@@ -49,6 +51,7 @@ import {
   type UploadBundleResult
 } from './diagnostic-bundle-upload'
 import { setActiveSink } from './tracer'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 
 const CI_ENV_VARS = [
   'CI',
@@ -71,6 +74,7 @@ export type ObservabilityConsent = {
     | 'do_not_track'
     | 'orca_telemetry_disabled'
     | 'orca_diagnostics_disabled'
+    | 'enterprise_policy'
     | 'ci'
 }
 
@@ -88,13 +92,15 @@ function inCI(): boolean {
 }
 
 /** Resolve the per-launch consent state for this lane. Pure — reads only
- *  process.env, so callers can re-evaluate any time without holding state. */
+ *  process.env and the cached policy file, so callers can re-evaluate any
+ *  time without holding state. */
 export function resolveObservabilityConsent(): ObservabilityConsent {
   // CI and DNT/disabled have different effects on which sub-lanes are gated.
   // Keep the ordering aligned with §Consent boundaries above.
   const dnt = envOn('DO_NOT_TRACK')
   const orcaDisabled = envOn('ORCA_TELEMETRY_DISABLED')
   const diagnosticsDisabled = envOn('ORCA_DIAGNOSTICS_DISABLED')
+  const policyDisabled = getEnterprisePolicy().disableTelemetry
   const ci = inCI()
 
   if (ci) {
@@ -111,13 +117,19 @@ export function resolveObservabilityConsent(): ObservabilityConsent {
       disabledReason: 'orca_diagnostics_disabled'
     }
   }
-  if (dnt || orcaDisabled) {
+  if (dnt || orcaDisabled || policyDisabled) {
     // Local file remains active — DNT is a *network* signal, and the local
-    // file never leaves the machine.
+    // file never leaves the machine. Corporate lockdown gates egress only, so
+    // it lands in this branch rather than the diagnostics-off one above.
+    const disabledReason = dnt
+      ? 'do_not_track'
+      : orcaDisabled
+        ? 'orca_telemetry_disabled'
+        : 'enterprise_policy'
     return {
       localFileEnabled: true,
       bundleEnabled: false,
-      disabledReason: dnt ? 'do_not_track' : 'orca_telemetry_disabled'
+      disabledReason
     }
   }
 

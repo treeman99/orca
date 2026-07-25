@@ -26,6 +26,8 @@ import { readGrokAuthSession } from './grok-auth'
 import { hasMiniMaxSessionCookie } from '../minimax/minimax-cookie-store'
 import { fetchMiniMaxRateLimits } from './minimax-fetcher'
 import { fetchOpenCodeGoRateLimits } from './opencode-go-usage-fetcher'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
+import { settleUsagePollingDisabledProviders } from './usage-polling-disabled-providers'
 import {
   normalizeCodexAccountSelectionTarget,
   type CodexAccountSelectionTarget,
@@ -304,6 +306,10 @@ export class RateLimitService {
   }
 
   start(options: { fetchImmediately?: boolean } = {}): void {
+    // Why: leave the timer unarmed so a locked-down deployment never wakes up to poll vendor usage endpoints.
+    if (this.isUsagePollingDisabled()) {
+      return
+    }
     if (options.fetchImmediately !== false) {
       void this.fetchAll()
     } else {
@@ -329,7 +335,7 @@ export class RateLimitService {
     this.pruneInactiveClaudeState()
     this.pruneInactiveCodexState()
     return {
-      ...this.state,
+      ...settleUsagePollingDisabledProviders(this.state, this.isUsagePollingDisabled()),
       // Why: the cookie lives on the filesystem, not GlobalSettings; surface its presence so the renderer keeps the MiniMax bar across reloads.
       minimaxCookieConfigured: hasMiniMaxSessionCookie(),
       grokAuthConfigured: this.grokAuthConfigured,
@@ -416,6 +422,10 @@ export class RateLimitService {
   }
 
   async consumeCodexRateLimitResetCredit(): Promise<CodexRateLimitResetResult> {
+    // Why: this posts to the vendor's rate-limit backend, so the same policy that stops polling must stop it.
+    if (this.isUsagePollingDisabled()) {
+      throw new Error('Rate-limit usage requests are disabled by enterprise policy')
+    }
     const codexTarget = this.codexFetchTarget
     const codexHomePath = this.codexHomePathResolver?.(codexTarget) ?? null
     const missingWslCodexHome = codexHomePath
@@ -487,6 +497,9 @@ export class RateLimitService {
   }
 
   async fetchInactiveClaudeAccountsOnOpen(): Promise<void> {
+    if (this.isUsagePollingDisabled()) {
+      return
+    }
     if (Date.now() - this.lastInactiveClaudeFetchAt < INACTIVE_FETCH_DEBOUNCE_MS) {
       return
     }
@@ -564,6 +577,9 @@ export class RateLimitService {
   }
 
   async fetchInactiveCodexAccountsOnOpen(): Promise<void> {
+    if (this.isUsagePollingDisabled()) {
+      return
+    }
     if (Date.now() - this.lastInactiveCodexFetchAt < INACTIVE_FETCH_DEBOUNCE_MS) {
       return
     }
@@ -712,6 +728,12 @@ export class RateLimitService {
   // ---------------------------------------------------------------------------
   // Internal
   // ---------------------------------------------------------------------------
+
+  // Why: an administrator-locked deployment must not reach AI-vendor usage endpoints at all, so every
+  // fetch entry point — poll timer, activation retry, account switch, and manual refresh — checks this.
+  private isUsagePollingDisabled(): boolean {
+    return getEnterprisePolicy().disableUsagePolling
+  }
 
   private startTimer(): void {
     this.stopTimer()
@@ -870,6 +892,9 @@ export class RateLimitService {
   }
 
   private async fetchAll(options?: { force?: boolean }): Promise<void> {
+    if (this.isUsagePollingDisabled()) {
+      return
+    }
     if (this.isFetching) {
       if (options?.force) {
         this.fullFetchQueued = true
@@ -932,6 +957,9 @@ export class RateLimitService {
   }
 
   private async fetchCodexOnly(options?: { force?: boolean }): Promise<void> {
+    if (this.isUsagePollingDisabled()) {
+      return
+    }
     if (this.isFetching) {
       if (options?.force) {
         this.codexOnlyFetchQueued = true
@@ -991,6 +1019,9 @@ export class RateLimitService {
   }
 
   private async fetchClaudeOnly(options?: { force?: boolean }): Promise<void> {
+    if (this.isUsagePollingDisabled()) {
+      return
+    }
     if (this.isFetching) {
       if (options?.force) {
         this.claudeOnlyFetchQueued = true
@@ -1053,6 +1084,9 @@ export class RateLimitService {
   }
 
   private async fetchGrokOnly(options?: { force?: boolean }): Promise<void> {
+    if (this.isUsagePollingDisabled()) {
+      return
+    }
     if (this.isFetching) {
       if (options?.force) {
         this.grokOnlyFetchQueued = true
@@ -1424,13 +1458,16 @@ export class RateLimitService {
       | 'antigravity'
   ): ProviderRateLimits {
     if (!current) {
+      // Why: with polling disabled no cycle will ever clear a "fetching" chip; report the provider as
+      // unavailable so an account switch doesn't leave a permanent spinner in the status bar.
+      const status = this.isUsagePollingDisabled() ? 'unavailable' : 'fetching'
       return {
         provider,
         session: null,
         weekly: null,
         updatedAt: 0,
         error: null,
-        status: 'fetching'
+        status
       }
     }
     // Why: keep a settled chip visible during background refetch so a persistently failing provider doesn't flash "…" → error each cycle.

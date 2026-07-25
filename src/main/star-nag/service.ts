@@ -1,6 +1,5 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { STAR_NAG_INITIAL_THRESHOLD } from '../../shared/constants'
-import { resolveEnterprisePolicy } from '../../shared/enterprise-policy'
 import { checkOrcaStarred } from '../github/client'
 import type { Store } from '../persistence'
 import type { StatsCollector } from '../stats/collector'
@@ -64,12 +63,6 @@ export class StarNagService {
   }
 
   start(): void {
-    // Why: the star check/write targets github.com/stablyai/orca directly and
-    // cannot be re-hosted to a private GitHub Enterprise; a locked-down build
-    // must not reach vendor SaaS, so never wire up the prompt trigger.
-    if (resolveEnterprisePolicy(process.env).disableStarNag) {
-      return
-    }
     ensureStarNagBaseline(this.store, this.stats)
     this.disposeStatsListener = this.stats.onAgentStarted((total) => {
       this.handleAgentSpawned(total)

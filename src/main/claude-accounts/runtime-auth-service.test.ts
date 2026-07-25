@@ -17,6 +17,7 @@ import { join } from 'node:path'
 import { getDefaultSettings } from '../../shared/constants'
 import type { ClaudeManagedAccount, GlobalSettings } from '../../shared/types'
 import { isOauthTokenExpiring, refreshClaudeOauthCredentials } from './oauth-refresh'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
 
 const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform')
 const hostPlatform = process.platform
@@ -52,6 +53,11 @@ vi.mock('electron', () => ({
 vi.mock('./oauth-refresh', () => ({
   isOauthTokenExpiring: vi.fn(() => false),
   refreshClaudeOauthCredentials: vi.fn(async () => null)
+}))
+
+const getEnterprisePolicyMock = vi.fn(() => makeEnterprisePolicy())
+vi.mock('../enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: () => getEnterprisePolicyMock()
 }))
 
 vi.mock('node:os', async () => {
@@ -263,6 +269,7 @@ describe('ClaudeRuntimeAuthService', () => {
     setPlatform('darwin')
     vi.resetModules()
     vi.clearAllMocks()
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
     testState.activeKeychainCredentials = null
     testState.scopedKeychainCredentials = null
     testState.legacyKeychainCredentials = null
@@ -3660,6 +3667,94 @@ describe('ClaudeRuntimeAuthService', () => {
     expect(preparation.runtime).toBe('wsl')
     expect(preparation.provenance).toBe('wsl:Ubuntu:system')
     expect(preparation.stripAuthEnv).toBe(true)
+  })
+
+  describe('with managed Claude accounts disabled by enterprise policy', () => {
+    beforeEach(() => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+    })
+
+    it('never strips auth env for a WSL launch, so an inherited Bedrock env survives', async () => {
+      const store = createStore(createSettings())
+
+      const { ClaudeRuntimeAuthService } = await import('./runtime-auth-service')
+      const service = new ClaudeRuntimeAuthService(store as never)
+      const preparation = await service.prepareForClaudeLaunch({
+        runtime: 'wsl',
+        wslDistro: 'Ubuntu'
+      })
+
+      expect(preparation.runtime).toBe('wsl')
+      expect(preparation.provenance).toBe('wsl:Ubuntu:system')
+      expect(preparation.stripAuthEnv).toBe(false)
+      expect(preparation.envPatch).toEqual({})
+    })
+
+    it('ignores a selected WSL managed account instead of rewriting the launch env', async () => {
+      setPlatform('win32')
+      vi.doMock('../wsl', () => ({
+        getDefaultWslDistro: () => 'Ubuntu',
+        getWslHome: () => null,
+        toWindowsWslPath: (value: string) => value
+      }))
+      const ubuntuAuthPath = createManagedClaudeAuth(
+        testState.userDataDir,
+        'ubuntu-account',
+        createClaudeCredentialsJson('ubuntu@example.com', 'ubuntu-token')
+      )
+      const settings = createSettings({
+        localAccountRuntime: 'wsl',
+        localAccountWslDistro: 'Ubuntu',
+        claudeManagedAccounts: [
+          createClaudeAccount('ubuntu-account', ubuntuAuthPath, {
+            managedAuthRuntime: 'wsl',
+            wslDistro: 'Ubuntu',
+            wslLinuxAuthPath: '/home/alice/.local/share/orca/claude-accounts/ubuntu/auth'
+          })
+        ],
+        activeClaudeManagedAccountId: null,
+        activeClaudeManagedAccountIdsByRuntime: {
+          host: null,
+          wsl: { Ubuntu: 'ubuntu-account' }
+        }
+      })
+      const store = createStore(settings)
+
+      const { ClaudeRuntimeAuthService } = await import('./runtime-auth-service')
+      const service = new ClaudeRuntimeAuthService(store as never)
+      const preparation = await service.prepareForClaudeLaunch()
+
+      expect(preparation).toMatchObject({
+        runtime: 'wsl',
+        provenance: 'wsl:Ubuntu:system',
+        stripAuthEnv: false,
+        envPatch: {}
+      })
+    })
+
+    it('ignores an active host managed account for the launch preparation', async () => {
+      const managedAuthPath = createManagedClaudeAuth(
+        testState.userDataDir,
+        'account-1',
+        createClaudeCredentialsJson('user@example.com', 'managed')
+      )
+      const settings = createSettings({
+        claudeManagedAccounts: [createClaudeAccount('account-1', managedAuthPath)],
+        activeClaudeManagedAccountId: 'account-1'
+      })
+      const store = createStore(settings)
+
+      const { ClaudeRuntimeAuthService } = await import('./runtime-auth-service')
+      const service = new ClaudeRuntimeAuthService(store as never)
+      const preparation = await service.prepareForClaudeLaunch()
+
+      expect(preparation).toMatchObject({
+        runtime: 'host',
+        provenance: 'system',
+        stripAuthEnv: false
+      })
+      expect(preparation.envPatch.CLAUDE_CONFIG_DIR).toBeUndefined()
+    })
   })
 
   it('uses the default distro selection for WSL-default Claude preparation', async () => {

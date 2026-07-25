@@ -89,6 +89,7 @@ import {
   type GitHubApiRepository
 } from './github-api-repository'
 import { githubRepoIdentityKey } from '../../shared/github-repository-identity-key'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 export { _resetOwnerRepoCache } from './gh-utils'
 export {
   getIssue,
@@ -227,6 +228,12 @@ function isNoPullRequestError(err: unknown): boolean {
  * Returns true if starred, false if not, null if unable to determine (gh unavailable).
  */
 export async function checkOrcaStarred(): Promise<boolean | null> {
+  // Why: this hits github.com SaaS, which a locked-down deployment cannot reach.
+  // "Already starred" is the only answer every caller degrades quietly on — null
+  // routes the nag to a browser handoff and false shows the prompt outright.
+  if (getEnterprisePolicy().disableStarNag) {
+    return true
+  }
   await acquire()
   try {
     const { stdout, stderr } = await execFileAsync(
@@ -389,6 +396,11 @@ export async function getPullRequestPushTarget(
  * Star the Orca repo for the authenticated user.
  */
 export async function starOrca(): Promise<boolean> {
+  // Why: an authenticated PUT to github.com SaaS; report the ordinary failure so
+  // callers keep their existing "could not star" path instead of a new branch.
+  if (getEnterprisePolicy().disableStarNag) {
+    return false
+  }
   await acquire()
   try {
     await execFileAsync('gh', ['api', '-X', 'PUT', `user/starred/${ORCA_REPO}`], {

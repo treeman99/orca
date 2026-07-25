@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { app } from 'electron'
 import type { ClaudeManagedAccount } from '../../shared/types'
 import type { Store } from '../persistence'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { writeFileAtomically } from '../codex-accounts/fs-utils'
 import type { ClaudeEnvPatch } from './environment'
 import {
@@ -607,7 +608,12 @@ export class ClaudeRuntimeAuthService {
     const normalizedTarget = this.resolveWslDefaultTarget(
       target ?? this.getDefaultAccountSelectionTarget(settings)
     )
-    const activeAccountId = getSelectedClaudeAccountIdForTarget(settings, normalizedTarget)
+    // Why: under the enterprise switch a launch must keep its inherited auth (AWS_*,
+    // CLAUDE_CODE_USE_BEDROCK, the SSO cache) — no managed account, no env rewriting.
+    const managedAccountsDisabled = getEnterprisePolicy().disableManagedClaudeAccounts
+    const activeAccountId = managedAccountsDisabled
+      ? null
+      : getSelectedClaudeAccountIdForTarget(settings, normalizedTarget)
     const activeAccount = this.getActiveAccount(settings.claudeManagedAccounts, activeAccountId)
     if (
       normalizeClaudeAccountSelectionTarget(normalizedTarget).runtime === 'wsl' &&
@@ -638,7 +644,7 @@ export class ClaudeRuntimeAuthService {
           wslDistro: distro,
           wslLinuxConfigDir: linuxConfigDir,
           envPatch: {},
-          stripAuthEnv: true,
+          stripAuthEnv: !managedAccountsDisabled,
           provenance: `wsl:${distro}:system`
         }
       }
@@ -648,7 +654,7 @@ export class ClaudeRuntimeAuthService {
         wslDistro: normalizeClaudeAccountSelectionTarget(normalizedTarget).wslDistro,
         wslLinuxConfigDir: null,
         envPatch: {},
-        stripAuthEnv: true,
+        stripAuthEnv: !managedAccountsDisabled,
         provenance: `wsl:${normalizeClaudeAccountSelectionTarget(normalizedTarget).wslDistro ?? '__default__'}:system`
       }
     }

@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { GlobalSettings } from '../../shared/types'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
 import { resolveConsent, _resetMisconfigWarnCacheForTests } from './consent'
+
+const getEnterprisePolicyMock = vi.fn(() => makeEnterprisePolicy())
+vi.mock('../enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: () => getEnterprisePolicyMock()
+}))
 
 // A minimal GlobalSettings stub — the resolver only reads `settings.telemetry`,
 // so we cast through `unknown` rather than enumerating every unrelated field.
@@ -33,6 +39,7 @@ describe('resolveConsent', () => {
       savedEnv[k] = process.env[k]
       delete process.env[k]
     }
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
     _resetMisconfigWarnCacheForTests()
   })
 
@@ -111,6 +118,62 @@ describe('resolveConsent', () => {
       effective: 'disabled',
       reason: 'do_not_track'
     })
+  })
+
+  // ── Administrator-owned policy file ─────────────────────────────────
+
+  it('returns orca_disabled when the policy file locks the machine down', () => {
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+    expect(
+      resolveConsent(
+        settingsWithTelemetry({
+          optedIn: true,
+          installId: 'x',
+          existedBeforeTelemetryRelease: false
+        })
+      )
+    ).toEqual({ effective: 'disabled', reason: 'orca_disabled' })
+  })
+
+  it('lets an explicit disableTelemetry=false opt a locked-down machine back in', () => {
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy({ disableTelemetry: false }))
+    expect(
+      resolveConsent(
+        settingsWithTelemetry({
+          optedIn: true,
+          installId: 'x',
+          existedBeforeTelemetryRelease: false
+        })
+      )
+    ).toEqual({ effective: 'enabled' })
+  })
+
+  it('keeps the policy gate ahead of CI detection', () => {
+    process.env.CI = 'true'
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+    expect(
+      resolveConsent(
+        settingsWithTelemetry({
+          optedIn: true,
+          installId: 'x',
+          existedBeforeTelemetryRelease: false
+        })
+      )
+    ).toEqual({ effective: 'disabled', reason: 'orca_disabled' })
+  })
+
+  it('keeps DO_NOT_TRACK ahead of the policy gate', () => {
+    process.env.DO_NOT_TRACK = '1'
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+    expect(
+      resolveConsent(
+        settingsWithTelemetry({
+          optedIn: true,
+          installId: 'x',
+          existedBeforeTelemetryRelease: false
+        })
+      )
+    ).toEqual({ effective: 'disabled', reason: 'do_not_track' })
   })
 
   it.each([

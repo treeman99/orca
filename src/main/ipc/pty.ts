@@ -979,7 +979,7 @@ export function buildPtyHostEnv(
   opts: BuildPtyHostEnvOptions
 ): Record<string, string> {
   mergePersistedWindowsPath(baseEnv)
-  Object.assign(baseEnv, buildConfiguredProxyEnv(opts.networkProxySettings))
+  Object.assign(baseEnv, buildConfiguredProxyEnv(opts.networkProxySettings, baseEnv))
 
   // Why: local path's baseEnv includes process.env but the daemon path doesn't (fork inheritance, not IPC); check both sources so guards stay in lock-step across spawn paths.
   const preexistingOpenCodeConfigDir = resolveOpenCodeSourceConfigDir(baseEnv)

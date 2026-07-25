@@ -7,6 +7,7 @@ import { sendToTrustedUIRenderer } from '../ipc/ui'
 import { installPrivilegedWindowNavigationPolicy } from './privileged-window-navigation'
 import { stepUIZoomLevel, type UIZoomDirection } from '../../shared/ui-zoom-level'
 import { nativeZoomCommandMatchesKeybindings } from '../../shared/window-shortcut-policy'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import {
   keybindingMatchesAction,
   type KeybindingActionId,
@@ -171,6 +172,8 @@ export function createOrFocusDashboardPopout(
       sandbox: true,
       // Why: Chromium shares zoom by origin; a separate in-memory session keeps pop-out zoom window-local.
       partition: DASHBOARD_POPOUT_PARTITION,
+      // Why: this window's own session does not inherit the main window's spellcheck gate, so it would fetch hunspell dictionaries from a Google CDN under lockdown.
+      spellcheck: !getEnterprisePolicy().disableSpellcheck,
       // Why: the dashboard is plain DOM — no <webview> guests — so keep the
       // guest-embedding surface off for this window.
       webviewTag: false

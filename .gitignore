@@ -95,6 +95,7 @@ docs/**
 !docs/reference/linux-glibc-compatibility.md
 !docs/reference/windows-corporate-build.md
 !docs/reference/external-integrations-audit.md
+!docs/reference/enterprise-policy.md
 
 # Stably CLI (only docs/ are tracked)
 .stably/*

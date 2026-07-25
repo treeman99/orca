@@ -1,4 +1,5 @@
 import { net, session } from 'electron'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { ensureElectronProxyFromEnvironment } from '../network/proxy-settings'
 
 // Why: the OAuth client id and token endpoint are the public Claude Code
@@ -125,6 +126,12 @@ export async function refreshClaudeOauthCredentials(
   credentialsJson: string,
   now: number = Date.now()
 ): Promise<string | null> {
+  // Why: cut the platform.claude.com egress at the source rather than per caller —
+  // null already means "keep the existing credentials", so nothing throws.
+  if (getEnterprisePolicy().disableManagedClaudeAccounts) {
+    return null
+  }
+
   const refreshToken = readRefreshToken(credentialsJson)
   if (!refreshToken) {
     return null

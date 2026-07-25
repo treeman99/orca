@@ -91,8 +91,30 @@ export function getProxyBypassRulesFromEnvironment(
   return ''
 }
 
+function mergeBypassRules(...groups: string[]): string {
+  const merged: string[] = []
+  const seen = new Set<string>()
+  for (const group of groups) {
+    for (const rule of group.split(';')) {
+      if (!rule || seen.has(rule)) {
+        continue
+      }
+      seen.add(rule)
+      merged.push(rule)
+    }
+  }
+  return merged.join(',')
+}
+
+/**
+ * Proxy env vars for a child process. `baseEnv` is the environment the result
+ * will be merged into; its NO_PROXY is kept because on corporate networks that
+ * list is what routes internal hosts (git/gh against an enterprise host,
+ * intranet services) around the external proxy.
+ */
 export function buildConfiguredProxyEnv(
-  settings: NetworkProxySettings | null | undefined
+  settings: NetworkProxySettings | null | undefined,
+  baseEnv: Record<string, string | undefined> = {}
 ): Record<string, string> {
   const proxy = normalizeProxyUrl(settings?.httpProxyUrl)
   if (!proxy.ok || !proxy.value) {
@@ -107,12 +129,13 @@ export function buildConfiguredProxyEnv(
     all_proxy: proxy.value
   }
   const bypassRules = normalizeProxyBypassRules(settings?.httpProxyBypassRules)
-  // Why: explicit Orca proxy settings should not accidentally inherit a
-  // parent shell's NO_PROXY. The bypass field above is the single source for
-  // local child process bypass behavior when a configured proxy is present.
-  const noProxy = bypassRules ? bypassRules.replaceAll(';', ',') : ''
-  env.NO_PROXY = noProxy
-  env.no_proxy = noProxy
+  const noProxy = mergeBypassRules(bypassRules, getProxyBypassRulesFromEnvironment(baseEnv))
+  // Why: leave NO_PROXY untouched when there is nothing to add — writing an empty
+  // value would send hosts the environment deliberately exempted through the proxy.
+  if (noProxy) {
+    env.NO_PROXY = noProxy
+    env.no_proxy = noProxy
+  }
   return env
 }
 

@@ -5,6 +5,7 @@ import { ORCA_BROWSER_GUEST_WEB_PREFERENCES } from '../../shared/browser-guest-w
 import type { BrowserBackend, BrowserBackendCreateTab } from './browser-backend'
 import type { BrowserManager } from './browser-manager'
 import { browserSessionRegistry } from './browser-session-registry'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 
 // Why: headless orca serve has no renderer window to host a <webview>, so each
 // browser page is backed by a main-process offscreen BrowserWindow. The window
@@ -40,6 +41,8 @@ export class OffscreenBrowserBackend implements BrowserBackend {
         // HTML fullscreen behavior aligned with desktop <webview> guests.
         ...ORCA_BROWSER_GUEST_WEB_PREFERENCES,
         partition,
+        // Why: this backend's session is not the main window's, so its own spellcheck gate is needed or it fetches hunspell dictionaries from a Google CDN.
+        spellcheck: !getEnterprisePolicy().disableSpellcheck,
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false

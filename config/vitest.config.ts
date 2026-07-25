@@ -22,6 +22,8 @@ export default defineConfig({
       'config/scripts/**/*.test.mjs',
       'tests/e2e/**/*.unit.test.ts'
     ],
+    // Why: the corporate policy file is ambient process state; see the setup file.
+    setupFiles: [resolve('config/vitest-enterprise-policy-isolation.ts')],
     // Why: the full suite runs heavy TS transforms plus real git/http fixtures;
     // the Vitest 5s defaults are too tight for the slowest integration cases.
     hookTimeout: 60_000,

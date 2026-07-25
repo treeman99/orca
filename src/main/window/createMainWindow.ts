@@ -48,6 +48,7 @@ import { resolveWindowCloseAction } from './window-close-decision'
 import { rectHasVisibleAreaOnAnyDisplay } from './window-bounds-validation'
 import { closeDashboardPopout } from './dashboard-popout-window'
 import { installPrivilegedWindowNavigationPolicy } from './privileged-window-navigation'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 
 // Why: show/restore/resume can overlap before the size nudge resets; never capture the temporary width as the next baseline.
 const activeRepaintJiggles = new WeakSet<BrowserWindow>()
@@ -248,6 +249,8 @@ export function createMainWindow(
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
+      // Why: Electron defaults spellcheck on, and on Windows/Linux Chromium then fetches hunspell dictionaries from a Google CDN.
+      spellcheck: !getEnterprisePolicy().disableSpellcheck,
       webviewTag: true
     }
   })
@@ -418,6 +421,8 @@ export function createMainWindow(
     webPreferences.allowRunningInsecureContent = false
     webPreferences.contextIsolation = true
     webPreferences.sandbox = true
+    // Why: guests run in their own session, so the main window's spellcheck gate does not cover their dictionary downloads.
+    webPreferences.spellcheck = !getEnterprisePolicy().disableSpellcheck
     // Why: force the browser guest policy even if host markup omits or misspells a preference.
     Object.assign(webPreferences, ORCA_BROWSER_GUEST_WEB_PREFERENCES)
     // Why: keep the registry-validated partition so isolated session profiles use their own storage while other hardening stays intact.

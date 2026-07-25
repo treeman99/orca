@@ -202,7 +202,8 @@ describe('browserManager', () => {
         nodeIntegration: false,
         nodeIntegrationInSubFrames: false,
         sandbox: true,
-        webviewTag: false
+        webviewTag: false,
+        spellcheck: true
       }
     })
     // Why: the custom createWindow is what swaps the chrome-less native child

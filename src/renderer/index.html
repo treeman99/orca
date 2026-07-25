@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>Orca</title>
-    <!-- CSP is relaxed during development; electron-vite injects a stricter policy for production builds -->
+    <!-- No CSP is injected at any stage; egress is gated in main by src/main/enterprise/enterprise-network-guard.ts -->
   </head>
 
   <body>

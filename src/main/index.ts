@@ -238,6 +238,9 @@ import {
 import { LocalPtyProvider } from './providers/local-pty-provider'
 import { KeybindingService } from './keybindings/keybinding-service'
 import { applyElectronProxySettings } from './network/proxy-settings'
+import { installEnterpriseNetworkGuard } from './enterprise/enterprise-network-guard'
+import { applyEnterpriseSecureDnsPolicy } from './enterprise/enterprise-secure-dns'
+import { recordEnterprisePolicyTrace } from './enterprise/enterprise-policy-trace'
 import { preserveAgentAuthBeforeRestart } from './agent-auth-restart-preservation'
 import { CliInstaller } from './cli/cli-installer'
 import { installLinuxBareOrcaDispatcher } from './cli/linux-bare-orca-dispatcher'
@@ -1786,6 +1789,8 @@ app.whenReady().then(async () => {
       })
     }
   )
+  // Why: host resolution must be settled before the first lookup, and Electron only accepts this call after 'ready'.
+  applyEnterpriseSecureDnsPolicy()
   electronApp.setAppUserModelId(devInstanceIdentity.appUserModelId)
   // Why: setName drives the macOS safeStorage Keychain item name; use the stable appName (not per-branch `name`) so dev branches share one key and don't re-prompt.
   app.setName(devInstanceIdentity.appName)
@@ -1849,6 +1854,7 @@ app.whenReady().then(async () => {
   } catch {
     console.warn('[proxy] Failed to apply network proxy settings')
   }
+  installEnterpriseNetworkGuard()
   // Why: browser sessions serve desktop webviews and runtime profile commands, so init at app startup rather than via a renderer IPC path.
   initializeBrowserSessionsForApp({
     orcaProfileId: activeOrcaProfile.profile.id,
@@ -1884,6 +1890,9 @@ app.whenReady().then(async () => {
   // Honors DO_NOT_TRACK / ORCA_TELEMETRY_DISABLED / ORCA_DIAGNOSTICS_DISABLED
   // / CI internally; those gates do not need to be re-checked here.
   initObservability()
+  // Why: the policy resolved ~35 lines above, before this sink existed, and a
+  // Start-Menu-launched Windows GUI has no console to have seen its stderr.
+  recordEnterprisePolicyTrace()
   recordDurableCrashBreadcrumb('main_process_lifecycle_started', {
     packaged: app.isPackaged,
     platform: process.platform

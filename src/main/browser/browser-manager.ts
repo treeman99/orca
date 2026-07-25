@@ -37,6 +37,7 @@ import {
 } from './browser-guest-ui'
 import { ANTI_DETECTION_SCRIPT } from './anti-detection'
 import { openPopupWithOriginBar, type PopupChildWindowOptions } from './popup-origin-bar-window'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import {
   BROWSER_CLICKED_LINK_ROUTING_WORLD_ID,
   buildBrowserClickedLinkRoutingScript,
@@ -178,6 +179,21 @@ const SAFE_POPUP_WINDOW_OPTIONS = {
     webviewTag: false
   }
 } satisfies Electron.BrowserWindowConstructorOptions
+
+// Why: window.open children inherit only Electron's own security prefs from the
+// opener (contextIsolation/sandbox/…), never `spellcheck`, so a popup would fall
+// back to the default-on spellchecker and fetch hunspell dictionaries from a
+// Google CDN on Windows/Linux. Resolved per call — the policy cache must not be
+// primed at module scope, before userData is redirected.
+function safePopupWindowOptions(): Electron.BrowserWindowConstructorOptions {
+  return {
+    ...SAFE_POPUP_WINDOW_OPTIONS,
+    webPreferences: {
+      ...SAFE_POPUP_WINDOW_OPTIONS.webPreferences,
+      spellcheck: !getEnterprisePolicy().disableSpellcheck
+    }
+  }
+}
 
 type ActiveDownload = {
   downloadId: string
@@ -754,7 +770,7 @@ export class BrowserManager {
         // Why: OAuth may request size/position, but content must not create deceptive or inescapable native chrome.
         return {
           action: 'allow',
-          overrideBrowserWindowOptions: SAFE_POPUP_WINDOW_OPTIONS,
+          overrideBrowserWindowOptions: safePopupWindowOptions(),
           // Why: default child windows lack an address bar; host in an Orca origin-bar window so the destination is verifiable.
           createWindow: (options: PopupChildWindowOptions) =>
             this.createPopupChildWindowWithOriginBar(guest, url, options)

@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { get } from 'node:https'
 import { pipeline } from 'node:stream/promises'
 import type { IncomingMessage } from 'node:http'
+import { enterpriseDirectDownloadRefusal } from '../../enterprise/enterprise-direct-download-guard'
 import { EmulatorError } from '../emulator-errors'
 import { emulatorProbe, emulatorProbeError } from '../emulator-probe'
 import { SCRCPY_SERVER_VERSION } from './scrcpy-server-deploy'
@@ -36,6 +37,12 @@ export async function ensureScrcpyServerJar(): Promise<string> {
   const path = scrcpyServerJarPath()
   if (isScrcpyServerJarReady()) {
     return path
+  }
+  // Checked here, not in downloadTo: a jar an administrator already staged stays usable.
+  const refusal = enterpriseDirectDownloadRefusal(DOWNLOAD_URL)
+  if (refusal) {
+    emulatorProbeError('scrcpy.jar.download.blocked', refusal, { url: DOWNLOAD_URL })
+    throw new EmulatorError('emulator_disabled', refusal)
   }
   if (!inFlightDownload) {
     inFlightDownload = downloadScrcpyServerJar(path).finally(() => {

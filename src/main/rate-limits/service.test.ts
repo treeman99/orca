@@ -7,7 +7,7 @@ import { EventEmitter } from 'node:events'
 import type { ProviderRateLimits } from '../../shared/rate-limit-types'
 import { RateLimitService } from './service'
 import { fetchClaudeRateLimits, fetchManagedAccountUsage } from './claude-fetcher'
-import { fetchCodexRateLimits } from './codex-fetcher'
+import { consumeCodexRateLimitResetCredit, fetchCodexRateLimits } from './codex-fetcher'
 import { fetchGeminiRateLimits } from './gemini-usage-fetcher'
 import { fetchKimiRateLimits } from './kimi-fetcher'
 import { fetchMiniMaxRateLimits } from './minimax-fetcher'
@@ -15,6 +15,13 @@ import { fetchGrokRateLimits } from './grok-fetcher'
 import { readGrokAuthSession } from './grok-auth'
 import { fetchOpenCodeGoRateLimits } from './opencode-go-usage-fetcher'
 import { hasMiniMaxSessionCookie } from '../minimax/minimax-cookie-store'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+
+const getEnterprisePolicyMock = vi.fn(() => makeEnterprisePolicy())
+
+vi.mock('../enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: () => getEnterprisePolicyMock()
+}))
 
 vi.mock('./claude-fetcher', () => ({
   fetchClaudeRateLimits: vi.fn(),
@@ -22,7 +29,8 @@ vi.mock('./claude-fetcher', () => ({
 }))
 
 vi.mock('./codex-fetcher', () => ({
-  fetchCodexRateLimits: vi.fn()
+  fetchCodexRateLimits: vi.fn(),
+  consumeCodexRateLimitResetCredit: vi.fn()
 }))
 
 vi.mock('./gemini-usage-fetcher', () => ({
@@ -186,6 +194,7 @@ describe('RateLimitService', () => {
     })
     vi.mocked(hasMiniMaxSessionCookie).mockReturnValue(false)
     vi.mocked(readGrokAuthSession).mockReturnValue({ status: 'missing' })
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
   })
 
   it('does not reread Grok auth when callers read state snapshots', () => {
@@ -2149,5 +2158,164 @@ describe('RateLimitService', () => {
     expect(state.minimax?.status).toBe('error')
     expect(state.minimax?.error).toBe('MiniMax session cookie could not be decrypted')
     expect(state.claude?.status).toBe('ok')
+  })
+
+  describe('enterprise policy lockdown', () => {
+    function expectNoVendorUsageFetches(): void {
+      expect(fetchClaudeRateLimits).not.toHaveBeenCalled()
+      expect(fetchManagedAccountUsage).not.toHaveBeenCalled()
+      expect(fetchCodexRateLimits).not.toHaveBeenCalled()
+      expect(fetchGeminiRateLimits).not.toHaveBeenCalled()
+      expect(fetchOpenCodeGoRateLimits).not.toHaveBeenCalled()
+      expect(fetchKimiRateLimits).not.toHaveBeenCalled()
+      expect(fetchMiniMaxRateLimits).not.toHaveBeenCalled()
+      expect(fetchGrokRateLimits).not.toHaveBeenCalled()
+    }
+
+    it('arms no poll timer and runs no fetch when usage polling is disabled', async () => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+      vi.useFakeTimers()
+      const intervalSpy = vi.spyOn(globalThis, 'setInterval')
+      try {
+        vi.mocked(fetchClaudeRateLimits).mockResolvedValue(okProvider('claude', 12))
+        vi.mocked(fetchCodexRateLimits).mockResolvedValue(okProvider('codex', 24))
+        const service = new RateLimitService()
+        const window = new FakeRateLimitWindow()
+
+        service.attach(asRateLimitWindow(window))
+        service.start()
+        await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+
+        expect(intervalSpy).not.toHaveBeenCalled()
+        expectNoVendorUsageFetches()
+
+        // Window activation is a second polling trigger that never goes through start().
+        window.emit('focus')
+        await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+        expectNoVendorUsageFetches()
+
+        // The un-started service must stay safe to drive from IPC.
+        service.stop()
+        expect(service.getState().claude?.status).toBe('unavailable')
+      } finally {
+        intervalSpy.mockRestore()
+        vi.useRealTimers()
+      }
+    })
+
+    it('blocks user-initiated refreshes while usage polling is disabled', async () => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+      vi.mocked(fetchClaudeRateLimits).mockResolvedValue(okProvider('claude', 12))
+      vi.mocked(fetchCodexRateLimits).mockResolvedValue(okProvider('codex', 24))
+      const service = new RateLimitService()
+      service.setInactiveClaudeAccountsResolver(() => [
+        { id: 'account-1', managedAuthPath: '/tmp/account-1/auth' }
+      ])
+      service.setInactiveCodexAccountsResolver(() => [
+        { id: 'account-2', managedHomePath: '/tmp/account-2/home' }
+      ])
+
+      await service.refresh()
+      await service.refreshIfStale()
+      await service.refreshGrok()
+      await service.fetchInactiveClaudeAccountsOnOpen()
+      await service.fetchInactiveCodexAccountsOnOpen()
+      await service.refreshForClaudeAccountChange('account-1')
+      await service.refreshForCodexAccountChange('account-2')
+      await service.refreshCodexForTarget({ runtime: 'host', wslDistro: null })
+      const state = await service.refreshClaudeForTarget({ runtime: 'host', wslDistro: null })
+
+      expectNoVendorUsageFetches()
+      // A blocked cycle must not leave the chip spinning forever.
+      expect(state.claude?.status).toBe('unavailable')
+      expect(state.codex?.status).toBe('unavailable')
+    })
+
+    it('settles every provider slot as unavailable while usage polling is disabled', () => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+      const service = new RateLimitService()
+
+      // A slot the renderer sees as null becomes a permanently animating "…" chip, so no slot may stay empty.
+      const state = service.getState()
+      for (const provider of [
+        state.claude,
+        state.codex,
+        state.gemini,
+        state.opencodeGo,
+        state.kimi,
+        state.antigravity,
+        state.minimax,
+        state.grok
+      ]) {
+        expect(provider?.status).toBe('unavailable')
+        expect(provider?.error).toBeNull()
+      }
+      expect(state.claude?.provider).toBe('claude')
+      expect(state.opencodeGo?.provider).toBe('opencode-go')
+    })
+
+    it('leaves provider slots empty before the first fetch when no policy disables polling', () => {
+      const service = new RateLimitService()
+
+      const state = service.getState()
+      expect(state.claude).toBeNull()
+      expect(state.codex).toBeNull()
+      expect(state.grok).toBeNull()
+    })
+
+    it('refuses to consume a Codex reset credit while usage polling is disabled', async () => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+      const service = new RateLimitService()
+
+      await expect(service.consumeCodexRateLimitResetCredit()).rejects.toThrow(/enterprise policy/)
+      expect(consumeCodexRateLimitResetCredit).not.toHaveBeenCalled()
+      expectNoVendorUsageFetches()
+    })
+
+    it('still polls under lockdown when usage polling is explicitly opted back in', async () => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy({ disableUsagePolling: false }))
+      vi.useFakeTimers()
+      const intervalSpy = vi.spyOn(globalThis, 'setInterval')
+      try {
+        vi.mocked(fetchClaudeRateLimits).mockResolvedValue(okProvider('claude', 12))
+        vi.mocked(fetchCodexRateLimits).mockResolvedValue(okProvider('codex', 24))
+        const service = new RateLimitService()
+
+        service.start()
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(intervalSpy).toHaveBeenCalledWith(expect.any(Function), 15 * 60 * 1000)
+        expect(fetchClaudeRateLimits).toHaveBeenCalledTimes(1)
+        expect(fetchCodexRateLimits).toHaveBeenCalledTimes(1)
+
+        service.stop()
+      } finally {
+        intervalSpy.mockRestore()
+        vi.useRealTimers()
+      }
+    })
+
+    it('polls normally when no policy file locks the machine down', async () => {
+      vi.useFakeTimers()
+      const intervalSpy = vi.spyOn(globalThis, 'setInterval')
+      try {
+        vi.mocked(fetchClaudeRateLimits).mockResolvedValue(okProvider('claude', 12))
+        vi.mocked(fetchCodexRateLimits).mockResolvedValue(okProvider('codex', 24))
+        const service = new RateLimitService()
+
+        service.start()
+        await vi.advanceTimersByTimeAsync(0)
+
+        expect(intervalSpy).toHaveBeenCalledWith(expect.any(Function), 15 * 60 * 1000)
+        expect(fetchClaudeRateLimits).toHaveBeenCalledTimes(1)
+        expect(fetchGrokRateLimits).toHaveBeenCalledTimes(1)
+        expect(service.getState().claude?.status).toBe('ok')
+
+        service.stop()
+      } finally {
+        intervalSpy.mockRestore()
+        vi.useRealTimers()
+      }
+    })
   })
 })

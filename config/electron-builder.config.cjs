@@ -195,8 +195,10 @@ module.exports = {
     executableName: 'Orca',
     // Why: Windows installers are signed after electron-builder packaging by
     // SignPath, so the packager cannot infer the updater publisherName.
+    // Why: a rebuild signed by another authority must pin its own name — keeping the
+    // upstream one makes electron-updater's Authenticode check accept the public installer.
     signtoolOptions: {
-      publisherName: 'SignPath Foundation'
+      publisherName: process.env.ORCA_WIN_PUBLISHER_NAME ?? 'SignPath Foundation'
     },
     extraResources: [
       ...commonExtraResources,
@@ -398,12 +400,17 @@ module.exports = {
   // on Intel Macs. The beforeBuild hook performs Orca's targeted rebuild and
   // returns false so electron-builder does not rebuild optional cpu-features.
   npmRebuild: true,
-  publish: {
-    provider: 'github',
-    owner: 'stablyai',
-    repo: 'orca',
-    releaseType: 'release'
-  }
+  // Why: a rebuild that opts out ships no updater metadata at all, so its installer
+  // can never be superseded by the upstream release feed.
+  publish:
+    process.env.ORCA_DISABLE_PUBLISH_TARGET === '1'
+      ? null
+      : {
+          provider: 'github',
+          owner: 'stablyai',
+          repo: 'orca',
+          releaseType: 'release'
+        }
 }
 
 function chmodUnixCliLaunchers(resourcesDir, electronPlatformName) {

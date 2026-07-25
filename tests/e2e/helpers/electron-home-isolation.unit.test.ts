@@ -102,4 +102,39 @@ describe('createElectronHomeIsolation', () => {
   it('compares Windows home paths case-insensitively', () => {
     expect(areSameHomePath('C:\\Users\\Alice', 'c:\\users\\alice', 'win32')).toBe(true)
   })
+
+  // Why: E2E spawns real Electron children, so unlike vitest it cannot rely on
+  // config/vitest-enterprise-policy-isolation.ts. Without this, every spec on a
+  // corporate Windows build machine runs under the machine-wide lockdown file.
+  it('neutralizes the ambient enterprise policy for the launched app', () => {
+    const isolation = createElectronHomeIsolation({
+      inheritedEnv: {
+        ORCA_ENTERPRISE_POLICY: 'C:\\ProgramData\\Orca\\enterprise-policy.json',
+        GH_HOST: 'github.samsungds.net'
+      },
+      launchEnv: {},
+      extraEnv: {},
+      userDataDir: createUserDataDir(),
+      codexRealHomeEnabled: false,
+      realHome: '/real/home'
+    })
+
+    // `off` rather than deletion: dropping the variable still leaves the
+    // machine-wide ProgramData path in the search order.
+    expect(isolation.env.ORCA_ENTERPRISE_POLICY).toBe('off')
+    expect(isolation.env.GH_HOST).toBeUndefined()
+  })
+
+  it('lets a spec opt back in to policy coverage through launchEnv', () => {
+    const isolation = createElectronHomeIsolation({
+      inheritedEnv: { ORCA_ENTERPRISE_POLICY: 'C:\\ProgramData\\Orca\\enterprise-policy.json' },
+      launchEnv: { ORCA_ENTERPRISE_POLICY: '/fixtures/locked.json' },
+      extraEnv: {},
+      userDataDir: createUserDataDir(),
+      codexRealHomeEnabled: false,
+      realHome: '/real/home'
+    })
+
+    expect(isolation.env.ORCA_ENTERPRISE_POLICY).toBe('/fixtures/locked.json')
+  })
 })

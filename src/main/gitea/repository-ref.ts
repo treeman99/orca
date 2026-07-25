@@ -1,6 +1,6 @@
 import { gitExecFileAsync } from '../git/runner'
 import { getSshGitProvider } from '../providers/ssh-git-dispatch'
-import { resolveEnterpriseGitHubHost } from '../../shared/enterprise-policy'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 
 export type GiteaRepoRef = {
   host: string
@@ -22,6 +22,8 @@ const KNOWN_NON_GITEA_HOSTS = new Set([
   'ssh.dev.azure.com'
 ])
 const REPO_REF_CACHE_MAX_ENTRIES = 512
+// Why the enterprise host is not part of the cache key: the policy is resolved
+// once per process, so a cached ref can never disagree with a later read.
 const repoRefCache = new Map<string, GiteaRepoRef | null>()
 
 /** @internal - exposed for tests only */
@@ -86,7 +88,7 @@ function makeRepoRef(host: string, path: string, webOrigin: string): GiteaRepoRe
   // without this guard the Gitea fallback would claim it and hit
   // `<ghes-host>/api/v1/...` — a wrong endpoint. Excluding the configured
   // enterprise host keeps GHES remotes on the gh-CLI GitHub path.
-  const enterpriseGitHubHost = resolveEnterpriseGitHubHost(process.env)
+  const enterpriseGitHubHost = getEnterprisePolicy().githubEnterpriseHost
   if (
     !normalizedHost ||
     KNOWN_NON_GITEA_HOSTS.has(normalizedHost) ||

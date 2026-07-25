@@ -303,10 +303,15 @@ function DiagnosticsDisabledStateNote({
                 'auto.components.settings.PrivacyDiagnosticsRows.5ebb31e1fb',
                 'Running in CI — diagnostics are off.'
               )
-            : translate(
-                'auto.components.settings.PrivacyDiagnosticsRows.e27c8d45bf',
-                'Diagnostics are disabled by an environment variable.'
-              )
+            : reason === 'enterprise_policy'
+              ? translate(
+                  'auto.components.settings.PrivacyDiagnosticsRows.enterprisePolicy',
+                  'An enterprise policy file disables diagnostics on this machine.'
+                )
+              : translate(
+                  'auto.components.settings.PrivacyDiagnosticsRows.e27c8d45bf',
+                  'Diagnostics are disabled by an environment variable.'
+                )
 
   return (
     <div className="rounded border border-dashed border-border/60 bg-card/30 px-3 py-2 text-xs text-muted-foreground">

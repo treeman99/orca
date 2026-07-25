@@ -23,7 +23,8 @@ const {
   getSshGitProviderMock,
   readLocalGitConfigSignatureMock,
   acquireMock,
-  releaseMock
+  releaseMock,
+  getEnterprisePolicyMock
 } = vi.hoisted(() => ({
   execFileAsyncMock: vi.fn(),
   ghExecFileAsyncMock: vi.fn(),
@@ -54,7 +55,12 @@ const {
   getSshGitProviderMock: vi.fn(),
   readLocalGitConfigSignatureMock: vi.fn(),
   acquireMock: vi.fn(),
-  releaseMock: vi.fn()
+  releaseMock: vi.fn(),
+  getEnterprisePolicyMock: vi.fn()
+}))
+
+vi.mock('../enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: () => getEnterprisePolicyMock()
 }))
 
 vi.mock('./gh-utils', () => ({
@@ -165,8 +171,10 @@ vi.mock('./github-api-repository', async (importOriginal) => {
   }
 })
 
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
 import {
   checkOrcaStarred,
+  starOrca,
   getPRComments,
   getPRForBranch,
   getPRForBranchOutcome,
@@ -196,6 +204,7 @@ import { _resetOriginGitHubApiRepositoryCache } from './github-api-repository'
 // resolved by one test cannot leak into the next.
 beforeEach(() => {
   _resetOriginGitHubApiRepositoryCache()
+  getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
 })
 
 describe('checkOrcaStarred', () => {
@@ -234,6 +243,57 @@ describe('checkOrcaStarred', () => {
     execFileAsyncMock.mockResolvedValueOnce({ stdout: '', stderr: '' })
 
     await expect(checkOrcaStarred()).resolves.toBe(null)
+  })
+
+  it('never spawns gh under an enterprise policy that disables the star nag', async () => {
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+
+    // "Already starred" is what makes every caller drop the prompt silently.
+    await expect(checkOrcaStarred()).resolves.toBe(true)
+
+    expect(execFileAsyncMock).not.toHaveBeenCalled()
+    expect(acquireMock).not.toHaveBeenCalled()
+  })
+
+  it('still spawns gh when only unrelated policy switches are on', async () => {
+    getEnterprisePolicyMock.mockReturnValue(
+      makeLockdownPolicy({ lockdown: false, disableStarNag: false })
+    )
+    execFileAsyncMock.mockResolvedValueOnce({ stdout: 'HTTP/2.0 204 No Content\r\n', stderr: '' })
+
+    await expect(checkOrcaStarred()).resolves.toBe(true)
+
+    expect(execFileAsyncMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('starOrca', () => {
+  beforeEach(() => {
+    execFileAsyncMock.mockReset()
+    acquireMock.mockReset()
+    releaseMock.mockReset()
+    acquireMock.mockResolvedValue(undefined)
+  })
+
+  it('stars the repo through gh when no policy blocks it', async () => {
+    execFileAsyncMock.mockResolvedValueOnce({ stdout: '', stderr: '' })
+
+    await expect(starOrca()).resolves.toBe(true)
+
+    expect(execFileAsyncMock).toHaveBeenCalledWith(
+      'gh',
+      ['api', '-X', 'PUT', 'user/starred/stablyai/orca'],
+      { encoding: 'utf-8' }
+    )
+  })
+
+  it('never spawns gh under an enterprise policy that disables the star nag', async () => {
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+
+    await expect(starOrca()).resolves.toBe(false)
+
+    expect(execFileAsyncMock).not.toHaveBeenCalled()
+    expect(acquireMock).not.toHaveBeenCalled()
   })
 })
 

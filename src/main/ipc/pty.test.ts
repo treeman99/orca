@@ -2339,15 +2339,39 @@ describe('registerPtyHandlers', () => {
     })
 
     it('injects explicit proxy settings into local PTY env', async () => {
-      const env = await spawnAndGetEnv(undefined, undefined, undefined, () => ({
-        httpProxyUrl: 'http://proxy.example:8080',
-        httpProxyBypassRules: 'localhost,*.internal'
-      }))
+      // Why: the local path merges the inherited NO_PROXY, so clear it to keep the
+      // assertion independent of the machine running the suite.
+      const env = await spawnAndGetEnv(
+        undefined,
+        { NO_PROXY: undefined, no_proxy: undefined },
+        undefined,
+        () => ({
+          httpProxyUrl: 'http://proxy.example:8080',
+          httpProxyBypassRules: 'localhost,*.internal'
+        })
+      )
 
       expect(env.HTTP_PROXY).toBe('http://proxy.example:8080')
       expect(env.HTTPS_PROXY).toBe('http://proxy.example:8080')
       expect(env.ALL_PROXY).toBe('http://proxy.example:8080')
       expect(env.NO_PROXY).toBe('localhost,*.internal')
+    })
+
+    it('keeps the host NO_PROXY when injecting proxy settings into local PTY env', async () => {
+      // Why: pins the baseEnv argument at the buildConfiguredProxyEnv call site — without it
+      // the machine-wide bypass list is blanked and internal hosts get proxied.
+      const env = await spawnAndGetEnv(
+        undefined,
+        { NO_PROXY: 'github.corp.test', no_proxy: undefined },
+        undefined,
+        () => ({
+          httpProxyUrl: 'http://proxy.example:8080',
+          httpProxyBypassRules: 'localhost'
+        })
+      )
+
+      expect(env.NO_PROXY).toBe('localhost,github.corp.test')
+      expect(env.no_proxy).toBe('localhost,github.corp.test')
     })
 
     describe('daemon-active provider (parity with LocalPtyProvider)', () => {

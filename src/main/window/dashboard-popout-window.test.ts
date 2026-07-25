@@ -11,7 +11,8 @@ const {
   getAllDisplaysMock,
   installNavigationPolicyMock,
   sendToTrustedUIRendererMock,
-  isMock
+  isMock,
+  getEnterprisePolicyMock
 } = vi.hoisted(() => {
   const created: FakeWindow[] = []
 
@@ -112,7 +113,8 @@ const {
     ]),
     installNavigationPolicyMock: vi.fn(),
     sendToTrustedUIRendererMock: vi.fn(),
-    isMock: { dev: false } as { dev: boolean }
+    isMock: { dev: false } as { dev: boolean },
+    getEnterprisePolicyMock: vi.fn()
   }
 })
 
@@ -134,6 +136,11 @@ vi.mock('./privileged-window-navigation', () => ({
   installPrivilegedWindowNavigationPolicy: installNavigationPolicyMock
 }))
 
+vi.mock('../enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: () => getEnterprisePolicyMock()
+}))
+
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
 import {
   createOrFocusDashboardPopout,
   closeDashboardPopout,
@@ -176,6 +183,7 @@ describe('createOrFocusDashboardPopout', () => {
     isMock.dev = false
     vi.stubEnv('ELECTRON_RENDERER_URL', '')
     getAllDisplaysMock.mockReturnValue([{ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }])
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
   })
 
   afterEach(() => {
@@ -211,6 +219,23 @@ describe('createOrFocusDashboardPopout', () => {
     expect(permissionCallback).toHaveBeenCalledWith(false)
     expect(session.setPermissionCheckHandler.mock.calls[0][0]()).toBe(false)
     expect(sendToTrustedUIRendererMock).toHaveBeenCalledWith('dashboard:popoutOpenChanged', true)
+  })
+
+  it('turns spellcheck off under enterprise lockdown so its own session contacts no dictionary CDN', () => {
+    createOrFocusDashboardPopout(makeStore() as never)
+    expect(instances[0].options.webPreferences?.spellcheck).toBe(true)
+
+    closeDashboardPopout()
+    instances.length = 0
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+    createOrFocusDashboardPopout(makeStore() as never)
+    expect(instances[0].options.webPreferences?.spellcheck).toBe(false)
+
+    closeDashboardPopout()
+    instances.length = 0
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy({ disableSpellcheck: false }))
+    createOrFocusDashboardPopout(makeStore() as never)
+    expect(instances[0].options.webPreferences?.spellcheck).toBe(true)
   })
 
   it('shows the window on ready-to-show', () => {

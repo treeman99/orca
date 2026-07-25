@@ -1273,7 +1273,17 @@
         "noRunTargets": "No run targets are ready for this project.",
         "perWorkspaceEnvHint": "Provision an on-demand environment from a recipe",
         "branchName": "Branch name",
-        "branchNamePlaceholder": "feature/my-branch"
+        "branchNamePlaceholder": "feature/my-branch",
+        "connectTimedOut": "Connection timed out. It may still be connecting in the background.",
+        "connectingHost": "Connecting…",
+        "connectHost": "Connect",
+        "addHost": "Add host",
+        "addHostHint": "Register another machine or Orca server",
+        "addSshHost": "Add SSH host",
+        "addSshHostHint": "Use an existing machine over SSH",
+        "addRemoteOrcaServer": "Add Remote Orca Server",
+        "addRemoteOrcaServerHint": "Pair another Orca runtime",
+        "hostConnectionFailed": "Connection failed"
       },
       "NewWorkspaceComposerModal": {
         "createWorktree": "Create worktree",
@@ -4579,7 +4589,14 @@
           "worktree": {
             "flow": {
               "c460fecc4a": "Failed to sleep some workspaces",
-              "8bc3fc0671": "Failed to sleep workspace"
+              "8bc3fc0671": "Failed to sleep workspace",
+              "legacy": {
+                "unverified": "The older host runtime could not confirm terminal shutdown. The workspace was kept open; update the host and try again."
+              },
+              "host": {
+                "unverified": "The host could not confirm terminal shutdown. The workspace was kept open; check the connection and try again."
+              },
+              "retry": "The workspace was kept open. Try again; if the problem continues, check the host connection."
             }
           }
         },
@@ -4846,7 +4863,8 @@
           "sshImportSynced": "Synced {{value0}} host{{value1}}.",
           "sshImportFailed": "Failed to import SSH config.",
           "importing": "Importing...",
-          "importSshConfig": "Import ~/.ssh/config"
+          "importSshConfig": "Import ~/.ssh/config",
+          "advanced": "Advanced"
         },
         "ForgetSshWorkspaceDialog": {
           "reconnectFailed": "Reconnection failed",
@@ -9039,7 +9057,8 @@
           "63d03261d1": "ORCA_TELEMETRY_DISABLED=1 is set — creating and sending diagnostic files is disabled.",
           "d37e92a06b": "ORCA_DIAGNOSTICS_DISABLED=1 is set — app diagnostics are off.",
           "5ebb31e1fb": "Running in CI — diagnostics are off.",
-          "e27c8d45bf": "Diagnostics are disabled by an environment variable."
+          "e27c8d45bf": "Diagnostics are disabled by an environment variable.",
+          "enterprisePolicy": "An enterprise policy file disables diagnostics on this machine."
         },
         "ShortcutCommandBlock": {
           "eb72c52c28": "Press a shortcut, or double-tap a modifier (e.g. {{value0}}). Esc cancels.",

@@ -250,7 +250,7 @@ export async function fetchViaPty(options?: {
     // wrapper, so without the configured proxy it would reach api.anthropic.com
     // from the app's own IP — bypassing the proxy the user set for Claude and
     // risking rate-limit/geo signals on the account. Falls back to {} when unset.
-    const proxyEnv = buildConfiguredProxyEnv(options?.networkProxySettings)
+    const proxyEnv = buildConfiguredProxyEnv(options?.networkProxySettings, spawnEnv)
     Object.assign(spawnEnv, proxyEnv)
     const authPreparation = options?.authPreparation
     const wslConfig =

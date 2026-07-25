@@ -18,6 +18,21 @@ const RESTRICTED_ENV_KEYS = new Set([
   'ENV'
 ])
 
+// Why: the machines that build this fork ship a machine-wide enterprise policy
+// file, and unlike vitest (config/vitest-enterprise-policy-isolation.ts) the
+// E2E suite spawns real Electron children that would inherit it — silently
+// running every spec under lockdown. `off` neutralizes discovery entirely,
+// which stripping the variable alone cannot do: the machine-wide path is
+// searched regardless. Honored because an E2E launch is unpackaged, and
+// enterprise-policy-file.ts refuses the env override only when `isPackaged`.
+// GH_HOST rides along because it feeds the same policy's GHES host fallback.
+const ENTERPRISE_POLICY_PATH_ENV = 'ORCA_ENTERPRISE_POLICY'
+const ENTERPRISE_POLICY_DISABLED_VALUE = 'off'
+// Unlike RESTRICTED_ENV_KEYS these are neutralized, not forbidden — a spec may
+// still set either deliberately through launchEnv/extraEnv to cover the
+// locked-down behavior itself.
+const NEUTRALIZED_HOST_ENV_KEYS = new Set([ENTERPRISE_POLICY_PATH_ENV, 'GH_HOST'])
+
 type ElectronHomeIsolationOptions = {
   inheritedEnv: NodeJS.ProcessEnv
   launchEnv: NodeJS.ProcessEnv
@@ -56,9 +71,13 @@ function assertOverlayDoesNotReplaceIsolation(
   }
 }
 
-function stripAmbientHomeAndCodexEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+function stripAmbientHostEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(
-    Object.entries(env).filter(([key]) => !RESTRICTED_ENV_KEYS.has(key.toUpperCase()))
+    Object.entries(env).filter(
+      ([key]) =>
+        !RESTRICTED_ENV_KEYS.has(key.toUpperCase()) &&
+        !NEUTRALIZED_HOST_ENV_KEYS.has(key.toUpperCase())
+    )
   )
 }
 
@@ -89,7 +108,8 @@ export function createElectronHomeIsolation({
     isolatedHome,
     realHome,
     env: {
-      ...stripAmbientHomeAndCodexEnv(inheritedEnv),
+      ...stripAmbientHostEnv(inheritedEnv),
+      [ENTERPRISE_POLICY_PATH_ENV]: ENTERPRISE_POLICY_DISABLED_VALUE,
       ...launchEnv,
       ...extraEnv,
       HOME: isolatedHome,

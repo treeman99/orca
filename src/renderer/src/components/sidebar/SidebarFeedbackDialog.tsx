@@ -119,7 +119,7 @@ export function SidebarFeedbackDialog({
       })
 
       if (!result.ok) {
-        throw new Error(`Feedback request failed: ${result.error}`)
+        throw new Error(result.error)
       }
 
       if (mountedRef.current) {
@@ -135,11 +135,14 @@ export function SidebarFeedbackDialog({
       }
     } catch (err) {
       if (mountedRef.current) {
+        // Why: a permanent refusal (e.g. an administrator policy) is otherwise
+        // indistinguishable from a transient network failure, so the user retypes.
         toast.error(
           translate(
             'auto.components.sidebar.SidebarFeedbackDialog.60b721e857',
             'Failed to submit feedback. Please try again.'
-          )
+          ),
+          { description: err instanceof Error && err.message ? err.message : undefined }
         )
       }
       console.error('Failed to submit feedback:', err)

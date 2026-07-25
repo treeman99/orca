@@ -66,6 +66,25 @@ Orca is an Electron app that runs many CLI coding agents in parallel git worktre
 
 Plus `mobile/` (Expo companion that pairs to the desktop runtime) and `native/` (per-OS binaries for Computer Use and macOS notification status).
 
+### Enterprise policy is a second seam (fork-specific)
+
+This branch is a corporate fork. Every vendor phone-home is gated by an administrator-owned policy
+file, not by environment variables — env vars are inherited by every process Orca spawns (`gh`,
+`git`, agent CLIs, the relay) and leak into unrelated tooling on the machine. `src/shared/enterprise-policy.ts` is the pure resolver; `src/main/enterprise/enterprise-policy-file.ts` does discovery, JSONC parsing, and one-shot caching, and is **the only import a consumer needs**:
+
+```ts
+import { getEnterprisePolicy } from '<...>/enterprise/enterprise-policy-file'
+if (getEnterprisePolicy().disableStarNag) return
+```
+
+Rules when you touch this:
+
+- **Gate at the chokepoint, not the caller.** The first version gated `StarNagService.start()` and missed three other paths into the same `gh` call; the gate now sits in `src/main/github/client.ts`. Grep for every caller before choosing a spot.
+- **Never add a runtime environment variable.** `ORCA_ENTERPRISE_POLICY` (the file's location) is the only one, and in a packaged build it cannot switch a machine-wide policy off — on Windows a standard user can set their own env var, so an unconditional opt-out would be a one-command bypass.
+- **A new switch means four edits**: the type + `LOCKDOWN_INHERITING_KEYS` in `src/shared/enterprise-policy.ts`, `enterprise-policy-fixture.ts`, the gate, and `docs/reference/enterprise-policy.md`.
+- **Every gate needs a behavioural test.** A resolver test proves the policy object is right, not that anything consumes it — and an upstream rebase resolved the wrong way drops a gate with a green suite. Use `makeLockdownPolicy()` from `enterprise-policy-fixture.ts`.
+- `config/vitest-enterprise-policy-isolation.ts` neutralizes a machine-wide policy file for the whole suite, so building this fork on a locked-down machine does not turn the tests red. `tests/e2e/helpers/electron-home-isolation.ts` does the same for spawned Electron children.
+
 ### OrcaRuntimeService is the seam
 
 `src/main/runtime/orca-runtime.ts` is the façade for every PTY, filesystem, git, and browser operation. It dispatches to a provider — local PTY, the local daemon, WSL, or an SSH relay — so nothing above it knows where execution actually happens. **New capabilities belong behind this service, not wired straight to a provider**, otherwise they silently work locally and break over SSH. Which runtime a project resolves to is modeled in `src/shared/project-execution-runtime.ts` (`local-host` / `windows-host` / `wsl`); SSH connection and relay lifecycle live in `src/main/ssh/`.
@@ -103,3 +122,5 @@ Telemetry keys are compile-time constants substituted in `electron.vite.config.t
 ## Reference docs
 
 `docs/STYLEGUIDE.md` (mandatory for UI work), `docs/reference/git-compatibility.md` (Git 2.25 baseline, `GitCapabilityCache`), `docs/reference/linux-glibc-compatibility.md`, `docs/reference/headless-linux-server.md` (`orca serve`), `.github/CONTRIBUTING.md` (PR expectations, maintainer release flow). Loose `docs/*.md` files are per-feature design notes, not general guides.
+
+Fork-specific (Korean): `README.md` (build, GHES, Bedrock, fork sync), `docs/reference/enterprise-policy.md` (policy file schema, fleet deployment, verification), `docs/reference/external-integrations-audit.md` (what leaves the machine, what the lockdown covers, and the residual-risk register), `docs/reference/windows-corporate-build.md` (Windows installer build). Keep the audit document honest — it is what a corporate security reviewer reads, and overstating the lockdown there is worse than saying nothing.

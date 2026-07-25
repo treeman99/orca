@@ -11,11 +11,13 @@ const {
   notificationShowMock,
   powerMonitorOnMock,
   powerMonitorRemoveListenerMock,
-  isMock
+  isMock,
+  getEnterprisePolicyMock
 } = vi.hoisted(() => {
   const menuPopupMock = vi.fn()
   const notificationShowMock = vi.fn()
   return {
+    getEnterprisePolicyMock: vi.fn(),
     browserWindowMock: vi.fn(),
     openExternalMock: vi.fn(),
     attachGuestPoliciesMock: vi.fn(),
@@ -53,6 +55,10 @@ vi.mock('../app-icon', () => ({
   getAppIconPath: vi.fn(() => 'icon')
 }))
 
+vi.mock('../enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: () => getEnterprisePolicyMock()
+}))
+
 vi.mock('../browser/browser-manager', () => ({
   browserManager: {
     attachGuestPolicies: attachGuestPoliciesMock,
@@ -61,6 +67,7 @@ vi.mock('../browser/browser-manager', () => ({
 }))
 
 import { createMainWindow, loadMainWindow } from './createMainWindow'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
 import { ipcMain } from 'electron'
 import { shouldRecoverRendererAfterProcessGone } from '../crash-reporting/process-gone-classification'
 
@@ -86,6 +93,8 @@ describe('createMainWindow', () => {
     powerMonitorOnMock.mockReset()
     powerMonitorRemoveListenerMock.mockReset()
     isMock.dev = false
+    getEnterprisePolicyMock.mockReset()
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
     vi.mocked(ipcMain.on).mockReset()
     vi.mocked(ipcMain.removeListener).mockReset()
     vi.mocked(ipcMain.handle).mockReset()
@@ -250,6 +259,74 @@ describe('createMainWindow', () => {
     const guest = { marker: 'guest' }
     windowHandlers['did-attach-webview']({} as never, guest as never)
     expect(attachGuestPoliciesMock).toHaveBeenCalledWith(guest)
+  })
+
+  it('turns Chromium spellcheck off under enterprise lockdown so no dictionary CDN is contacted', () => {
+    let webContentsHandlers: Record<string, (...args: any[]) => void> = {}
+    const stubBrowserWindowInstance = (): void => {
+      webContentsHandlers = {}
+      const webContents = {
+        on: vi.fn((event, handler) => {
+          webContentsHandlers[event] = handler
+        }),
+        setZoomLevel: vi.fn(),
+        setBackgroundThrottling: vi.fn(),
+        invalidate: vi.fn(),
+        setWindowOpenHandler: vi.fn(),
+        send: vi.fn(),
+        isDevToolsOpened: vi.fn(),
+        openDevTools: vi.fn(),
+        closeDevTools: vi.fn()
+      }
+      const browserWindowInstance = {
+        webContents,
+        on: vi.fn(),
+        isDestroyed: vi.fn(() => false),
+        isMaximized: vi.fn(() => false),
+        isFullScreen: vi.fn(() => false),
+        getSize: vi.fn(() => [1200, 800]),
+        setSize: vi.fn(),
+        setWindowButtonPosition: vi.fn(),
+        maximize: vi.fn(),
+        show: vi.fn(),
+        loadFile: vi.fn(),
+        loadURL: vi.fn()
+      }
+      browserWindowMock.mockImplementation(function () {
+        return browserWindowInstance
+      })
+    }
+
+    // Guests run in their own session, so assert the guest preferences too.
+    const attachGuestSpellcheck = (): unknown => {
+      const guestPreferences: Record<string, unknown> = { partition: 'persist:orca-browser' }
+      webContentsHandlers['will-attach-webview'](
+        { preventDefault: vi.fn() } as never,
+        guestPreferences as never,
+        { src: 'https://example.com/' } as never
+      )
+      return guestPreferences.spellcheck
+    }
+
+    stubBrowserWindowInstance()
+    createMainWindow(null)
+    expect(browserWindowMock.mock.calls[0]?.[0].webPreferences.spellcheck).toBe(true)
+    expect(attachGuestSpellcheck()).toBe(true)
+
+    browserWindowMock.mockReset()
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+    stubBrowserWindowInstance()
+    createMainWindow(null)
+    expect(browserWindowMock.mock.calls[0]?.[0].webPreferences.spellcheck).toBe(false)
+    expect(attachGuestSpellcheck()).toBe(false)
+
+    // An admin may opt spellcheck back in without lifting the rest of lockdown.
+    browserWindowMock.mockReset()
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy({ disableSpellcheck: false }))
+    stubBrowserWindowInstance()
+    createMainWindow(null)
+    expect(browserWindowMock.mock.calls[0]?.[0].webPreferences.spellcheck).toBe(true)
+    expect(attachGuestSpellcheck()).toBe(true)
   })
 
   it('sets platform-specific titlebar and frame options for every desktop platform', () => {

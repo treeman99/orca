@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
 import {
   allowsPlaintextOrcaCloudSession,
   getOrcaCloudAuthConfig,
@@ -10,6 +11,15 @@ vi.mock('electron', () => ({
     isPackaged: false
   }
 }))
+
+const getEnterprisePolicyMock = vi.fn(() => makeEnterprisePolicy())
+vi.mock('../enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: () => getEnterprisePolicyMock()
+}))
+
+beforeEach(() => {
+  getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
+})
 
 describe('Orca cloud auth config', () => {
   it('reports unconfigured without both API URL and client ID', () => {
@@ -61,6 +71,39 @@ describe('Orca cloud auth config', () => {
         clientId: 'orca-desktop',
         scope: 'openid profile email offline_access'
       }
+    })
+  })
+
+  it('reports unconfigured for packaged builds when the policy disables the cloud relay', () => {
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+
+    expect(getOrcaCloudAuthConfig({}, true)).toEqual({
+      configured: false,
+      setupMessage: 'Orca Cloud sign-in is disabled by an enterprise policy.'
+    })
+  })
+
+  it('cannot be re-enabled with cloud env vars while the policy disables the relay', () => {
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+
+    expect(
+      getOrcaCloudAuthConfig(
+        {
+          ORCA_CLOUD_API_URL: 'https://orca-cloud.example',
+          ORCA_CLOUD_CLIENT_ID: 'desktop-client',
+          ORCA_RELAY_URL: 'https://relay.example'
+        },
+        true
+      )
+    ).toMatchObject({ configured: false })
+  })
+
+  it('keeps packaged cloud sign-in when the policy leaves the relay enabled', () => {
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy({ disableCloudRelay: false }))
+
+    expect(getOrcaCloudAuthConfig({}, true)).toMatchObject({
+      configured: true,
+      config: { apiBaseUrl: 'https://login.onorca.dev' }
     })
   })
 

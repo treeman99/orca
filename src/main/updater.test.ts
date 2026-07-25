@@ -1,5 +1,6 @@
 /* eslint-disable max-lines */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeEnterprisePolicy, makeLockdownPolicy } from './enterprise/enterprise-policy-fixture'
 
 const {
   appMock,
@@ -146,6 +147,14 @@ const { fetchNewerReleaseTagsMock } = vi.hoisted(() => ({
   fetchNewerReleaseTagsMock: vi.fn()
 }))
 
+const { getEnterprisePolicyMock } = vi.hoisted(() => ({
+  getEnterprisePolicyMock: vi.fn()
+}))
+
+vi.mock('./enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: () => getEnterprisePolicyMock()
+}))
+
 vi.mock('./updater-prerelease-feed', () => ({
   fetchNewerReleaseTagsWithReadiness: async (...args: unknown[]) => {
     const result = await fetchNewerReleaseTagsMock(...args)
@@ -177,6 +186,7 @@ describe('updater', () => {
     shouldApplyNudgeMock.mockReset().mockReturnValue(false)
     fetchChangelogMock.mockReset().mockResolvedValue(null)
     fetchNewerReleaseTagsMock.mockReset().mockResolvedValue([])
+    getEnterprisePolicyMock.mockReset().mockReturnValue(makeEnterprisePolicy())
     vi.unstubAllGlobals()
     vi.useRealTimers()
   })
@@ -3246,6 +3256,87 @@ describe('updater', () => {
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
       url: 'https://github.com/stablyai/orca/releases/download/v1.3.18-rc.1'
+    })
+  })
+
+  describe('enterprise lockdown', () => {
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+    it('arms no updater network path during setup', async () => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+      const mainWindow = { webContents: { send: vi.fn() } }
+
+      const { setupAutoUpdater } = await import('./updater')
+      setupAutoUpdater(mainWindow as never, { getLastUpdateCheckAt: () => null })
+      await flush()
+
+      expect(autoUpdaterMock.setFeedURL).not.toHaveBeenCalled()
+      expect(autoUpdaterMock.on).not.toHaveBeenCalled()
+      expect(powerMonitorOnMock).not.toHaveBeenCalled()
+      expect(fetchNudgeMock).not.toHaveBeenCalled()
+      expect(fetchNewerReleaseTagsMock).not.toHaveBeenCalled()
+      expect(autoUpdaterMock.checkForUpdates).not.toHaveBeenCalled()
+    })
+
+    it('answers the menu check without reaching the release feed', async () => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+      const sendMock = vi.fn()
+      const mainWindow = { webContents: { send: sendMock } }
+
+      const { setupAutoUpdater, checkForUpdatesFromMenu } = await import('./updater')
+      setupAutoUpdater(mainWindow as never, { getLastUpdateCheckAt: () => Date.now() })
+      checkForUpdatesFromMenu({ includePrerelease: true })
+      await flush()
+
+      expect(autoUpdaterMock.checkForUpdates).not.toHaveBeenCalled()
+      expect(fetchNewerReleaseTagsMock).not.toHaveBeenCalled()
+      expect(autoUpdaterMock.setFeedURL).not.toHaveBeenCalled()
+      expect(sendMock).toHaveBeenCalledWith('updater:status', {
+        state: 'not-available',
+        userInitiated: true
+      })
+    })
+
+    // Why: this export has no production caller today; the gate must hold anyway so a
+    // rebase that wires one up cannot reopen the vendor feed.
+    it('performs no feed work for the exported background check', async () => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+      const mainWindow = { webContents: { send: vi.fn() } }
+
+      const { setupAutoUpdater, checkForUpdates } = await import('./updater')
+      setupAutoUpdater(mainWindow as never, { getLastUpdateCheckAt: () => Date.now() })
+      checkForUpdates()
+      await flush()
+
+      expect(fetchNewerReleaseTagsMock).not.toHaveBeenCalled()
+      expect(autoUpdaterMock.setFeedURL).not.toHaveBeenCalled()
+      expect(autoUpdaterMock.checkForUpdates).not.toHaveBeenCalled()
+    })
+
+    it('leaves the vendor update flow untouched when no policy applies', async () => {
+      fetchNewerReleaseTagsMock.mockResolvedValue(['v1.0.52'])
+      autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined)
+      const mainWindow = { webContents: { send: vi.fn() } }
+
+      const { setupAutoUpdater, checkForUpdates } = await import('./updater')
+      setupAutoUpdater(mainWindow as never, { getLastUpdateCheckAt: () => Date.now() })
+
+      expect(autoUpdaterMock.setFeedURL).toHaveBeenCalledWith({
+        provider: 'generic',
+        url: 'https://github.com/stablyai/orca/releases/latest/download'
+      })
+      expect(autoUpdaterMock.on).toHaveBeenCalled()
+      expect(powerMonitorOnMock).toHaveBeenCalledWith('resume', expect.any(Function))
+      expect(fetchNudgeMock).toHaveBeenCalled()
+
+      checkForUpdates()
+      await vi.waitFor(() => {
+        expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
+      })
+      expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
+        provider: 'generic',
+        url: 'https://github.com/stablyai/orca/releases/download/v1.0.52'
+      })
     })
   })
 })

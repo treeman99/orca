@@ -6,6 +6,7 @@ import {
   readRefreshToken,
   refreshClaudeOauthCredentials
 } from './oauth-refresh'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
 
 const { netFetchMock } = vi.hoisted(() => ({
   netFetchMock: vi.fn()
@@ -18,6 +19,11 @@ vi.mock('electron', () => ({
 
 vi.mock('../network/proxy-settings', () => ({
   ensureElectronProxyFromEnvironment: vi.fn().mockResolvedValue({ source: 'none' })
+}))
+
+const getEnterprisePolicyMock = vi.fn(() => makeEnterprisePolicy())
+vi.mock('../enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: () => getEnterprisePolicyMock()
 }))
 
 const NOW = 1_700_000_000_000
@@ -129,10 +135,37 @@ describe('applyRefreshedToken', () => {
 describe('refreshClaudeOauthCredentials', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
   })
 
   afterEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('makes no platform.claude.com call when managed Claude accounts are disabled', async () => {
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+    netFetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ access_token: 'must-not-be-used' })
+    })
+
+    await expect(refreshClaudeOauthCredentials(credentials(), NOW)).resolves.toBeNull()
+    expect(netFetchMock).not.toHaveBeenCalled()
+  })
+
+  it('still refreshes when lockdown opts managed Claude accounts back in', async () => {
+    getEnterprisePolicyMock.mockReturnValue(
+      makeLockdownPolicy({ disableManagedClaudeAccounts: false })
+    )
+    netFetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ access_token: 'fresh-access' })
+    })
+
+    const result = await refreshClaudeOauthCredentials(credentials(), NOW)
+
+    expect(netFetchMock).toHaveBeenCalledTimes(1)
+    expect(parseClaudeOauthBlob(result!)!.accessToken).toBe('fresh-access')
   })
 
   it('returns null without a refresh token (no network call)', async () => {

@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 
 export type OrcaCloudAuthConfig = {
   apiBaseUrl: string
@@ -67,6 +68,14 @@ export function getOrcaCloudAuthConfig(
   env: NodeJS.ProcessEnv = process.env,
   packaged: boolean = isPackagedOrcaBuild()
 ): { configured: true; config: OrcaCloudAuthConfig } | { configured: false; setupMessage: string } {
+  // Why: single chokepoint — an unconfigured cloud also keeps the desktop mobile
+  // relay from starting, so no corporate terminal can be bridged to a phone.
+  if (getEnterprisePolicy().disableCloudRelay) {
+    return {
+      configured: false,
+      setupMessage: 'Orca Cloud sign-in is disabled by an enterprise policy.'
+    }
+  }
   // Why: loopback HTTP endpoints are a local-development convenience only;
   // packaged builds must not accept plain-HTTP token endpoints via env vars.
   const allowLoopbackHttp = !packaged

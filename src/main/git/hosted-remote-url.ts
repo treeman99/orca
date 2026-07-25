@@ -1,6 +1,8 @@
 // Scoped local fork of the hosted-git-info@9.0.3 behavior Orca used.
 // Why: source links only need GitHub/GitLab/Bitbucket remote parsing and file
 // URL construction, so we keep that small surface local and tested.
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
+
 type HostedRemoteProvider = 'github' | 'gitlab' | 'bitbucket'
 
 type HostedRemote = {
@@ -32,6 +34,11 @@ function providerForHost(host: string): HostedRemoteHost | null {
   }
   if (normalized === 'bitbucket.org') {
     return { host: 'bitbucket.org', provider: 'bitbucket' }
+  }
+  // Why: GitHub Enterprise Server serves the same /owner/repo/blob/<ref>/<path>#L<n>
+  // and /commit/<sha> shape at the host root, so recognizing the host is the whole fix.
+  if (normalized && normalized === getEnterprisePolicy().githubEnterpriseHost) {
+    return { host: normalized, provider: 'github' }
   }
   return null
 }

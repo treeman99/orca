@@ -63,6 +63,37 @@ describe('network proxy settings', () => {
     expect(buildConfiguredProxyEnv({ httpProxyUrl: '' })).toEqual({})
   })
 
+  it('merges the inherited NO_PROXY with the configured bypass rules', () => {
+    const env = buildConfiguredProxyEnv(
+      {
+        httpProxyUrl: 'http://proxy.example:8080',
+        httpProxyBypassRules: 'localhost;github.corp.test'
+      },
+      { NO_PROXY: 'github.corp.test,10.0.0.0/8' }
+    )
+
+    expect(env.NO_PROXY).toBe('localhost,github.corp.test,10.0.0.0/8')
+    expect(env.no_proxy).toBe(env.NO_PROXY)
+  })
+
+  it('keeps an inherited NO_PROXY when no bypass rules are configured', () => {
+    // Corporate internal hosts stay off the external proxy only because of this list.
+    const env = buildConfiguredProxyEnv(
+      { httpProxyUrl: 'http://proxy.example:8080' },
+      { no_proxy: 'github.corp.test, *.corp.test' }
+    )
+
+    expect(env.NO_PROXY).toBe('github.corp.test,*.corp.test')
+    expect(env.no_proxy).toBe('github.corp.test,*.corp.test')
+  })
+
+  it('leaves NO_PROXY unset instead of blanking it', () => {
+    const env = buildConfiguredProxyEnv({ httpProxyUrl: 'http://proxy.example:8080' }, {})
+
+    expect('NO_PROXY' in env).toBe(false)
+    expect('no_proxy' in env).toBe(false)
+  })
+
   it('redacts credentials for diagnostics', () => {
     expect(redactProxyUrl('http://user:pass@proxy.example:8080')).toBe(
       'http://***:***@proxy.example:8080'

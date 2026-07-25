@@ -1,5 +1,6 @@
 import os from 'node:os'
 import { app, ipcMain, net } from 'electron'
+import { enterpriseBlockedFeedbackFailure } from './feedback-submission-policy'
 
 // Why: the production Mac build loads the renderer from a file:// origin, so a
 // cross-origin POST from fetch() triggers a CORS preflight that the feedback
@@ -258,6 +259,10 @@ async function submitFeedbackWithDiagnosticBundle(
 export async function submitFeedback(
   args: InternalFeedbackSubmitArgs
 ): Promise<FeedbackSubmitResult> {
+  const blocked = enterpriseBlockedFeedbackFailure()
+  if (blocked) {
+    return { ok: false, ...blocked }
+  }
   const body = buildSubmitBody(args)
   if (body.diagnosticBundle) {
     const bodyWithoutDiagnosticBundle =

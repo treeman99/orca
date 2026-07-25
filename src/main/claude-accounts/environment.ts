@@ -1,3 +1,5 @@
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
+
 export const CLAUDE_AUTH_ENV_VARS = [
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
@@ -15,7 +17,9 @@ export function applyClaudeEnvPatch(
   patch: ClaudeEnvPatch,
   options?: { stripAuthEnv?: boolean }
 ): Record<string, string> {
-  if (options?.stripAuthEnv) {
+  // Why: last line of defense for callers that hardcode stripAuthEnv — under the
+  // switch AWS_BEARER_TOKEN_BEDROCK must survive into the agent's environment.
+  if (options?.stripAuthEnv && !getEnterprisePolicy().disableManagedClaudeAccounts) {
     for (const key of CLAUDE_AUTH_ENV_VARS) {
       delete baseEnv[key]
     }

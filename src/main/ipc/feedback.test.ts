@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
 
 const { fetchMock, handlers } = vi.hoisted(() => ({
   fetchMock: vi.fn(),
@@ -16,7 +17,13 @@ vi.mock('electron', () => ({
   net: { fetch: (...args: unknown[]) => fetchMock(...args) }
 }))
 
+const getEnterprisePolicyMock = vi.fn(() => makeEnterprisePolicy())
+vi.mock('../enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: () => getEnterprisePolicyMock()
+}))
+
 import { registerFeedbackHandlers, submitFeedback } from './feedback'
+import { ENTERPRISE_FEEDBACK_BLOCKED_ERROR } from './feedback-submission-policy'
 
 function okResponse(): Response {
   return { ok: true, status: 200 } as unknown as Response
@@ -58,6 +65,7 @@ describe('submitFeedback', () => {
     handlers.clear()
     fetchMock.mockReset()
     fetchMock.mockResolvedValue(okResponse())
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
   })
 
   afterEach(() => {
@@ -353,6 +361,74 @@ describe('submitFeedback', () => {
       submissionType: 'feedback',
       githubLogin: 'trusted-user',
       githubEmail: null
+    })
+  })
+
+  // The diagnostic-bundle gate only strips the attachment; the report body is
+  // user-authored text that must not reach onorca.dev under an administrator
+  // policy. submitFeedback is the single entry both lanes share, so no request
+  // may be issued from it — not even the api.onorca.dev fallback.
+  describe('enterprise policy', () => {
+    it('makes no request for renderer feedback when telemetry is disabled', async () => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+
+      await expect(
+        submitFeedback({
+          feedback: 'internal bug report',
+          submitAnonymously: false,
+          githubLogin: 'trusted-user',
+          githubEmail: 'trusted@example.com'
+        })
+      ).resolves.toEqual({
+        ok: false,
+        status: null,
+        error: ENTERPRISE_FEEDBACK_BLOCKED_ERROR
+      })
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('makes no request for crash submissions, attachment or not', async () => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+
+      await expect(submitFeedback(diagnosticSubmitArgs())).resolves.toEqual({
+        ok: false,
+        status: null,
+        error: ENTERPRISE_FEEDBACK_BLOCKED_ERROR
+      })
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('makes no request from the feedback:submit IPC channel', async () => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+      registerFeedbackHandlers()
+
+      await expect(
+        handlers.get('feedback:submit')?.(null, {
+          feedback: 'internal bug report',
+          submitAnonymously: false,
+          githubLogin: 'trusted-user',
+          githubEmail: null
+        })
+      ).resolves.toEqual({
+        ok: false,
+        status: null,
+        error: ENTERPRISE_FEEDBACK_BLOCKED_ERROR
+      })
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('lets an explicit disableTelemetry=false submit under lockdown', async () => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy({ disableTelemetry: false }))
+
+      await expect(
+        submitFeedback({
+          feedback: 'opted back in',
+          submitAnonymously: false,
+          githubLogin: null,
+          githubEmail: null
+        })
+      ).resolves.toEqual({ ok: true })
+      expect(fetchMock).toHaveBeenCalledTimes(1)
     })
   })
 })

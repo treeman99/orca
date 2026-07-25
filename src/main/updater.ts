@@ -8,7 +8,7 @@ import type {
   RemoteServerUpdateSupport
 } from '../shared/remote-server-update'
 import { isWindowsSignatureCheckUnavailableFailure } from '../shared/updater-windows-signature-check'
-import { resolveEnterprisePolicy } from '../shared/enterprise-policy'
+import { getEnterprisePolicy } from './enterprise/enterprise-policy-file'
 import { killAllPty } from './ipc/pty'
 import { withUpdaterSpan } from './observability/instrumentation'
 import { loadElectronAutoUpdater, type ElectronAutoUpdater } from './electron-updater-loader'
@@ -1173,6 +1173,13 @@ function retryPrereleaseFallbackAfterMissingManifest(
 function runBackgroundUpdateCheck(
   nudgeId: string | null = getPersistedPendingUpdateNudgeId()
 ): void {
+  // Why: the single chokepoint every feed-reaching check funnels through (24h/retry
+  // timer, wake/focus, nudge, exported checkForUpdates), so the corporate lockdown
+  // survives a rebase that adds another caller.
+  if (getEnterprisePolicy().disableAutoUpdate) {
+    sendStatus({ state: 'not-available' })
+    return
+  }
   if (backgroundCheckLaunchPending || currentStatus.state === 'checking') {
     return
   }
@@ -1241,7 +1248,7 @@ export function checkForUpdatesFromMenu(options?: UpdateCheckOptions): void {
   }
   // Why: even the manual "Check for Updates" menu item must not reach the
   // vendor feed under a locked-down corporate policy.
-  if (resolveEnterprisePolicy(process.env).disableAutoUpdate) {
+  if (getEnterprisePolicy().disableAutoUpdate) {
     sendStatus({ state: 'not-available', userInitiated: true })
     return
   }
@@ -1448,7 +1455,7 @@ export function setupAutoUpdater(
   // Why: a locked-down corporate build must not reach the vendor update feed
   // (github.com/stablyai/orca releases) or the onorca.dev nudge poll. Return
   // before the feed URL, nudge scheduler, and wake/focus checks are wired up.
-  if (resolveEnterprisePolicy(process.env).disableAutoUpdate) {
+  if (getEnterprisePolicy().disableAutoUpdate) {
     recordUpdaterLifecycle(
       'auto_update_disabled_by_policy',
       {},

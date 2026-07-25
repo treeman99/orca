@@ -161,6 +161,48 @@ describe('fetchViaPty', () => {
     await resultPromise
   })
 
+  it('carries the host NO_PROXY into the spawn env and the WSL export list', async () => {
+    // Why: pins the spawnEnv argument at the buildConfiguredProxyEnv call site — without it
+    // the distro is handed an empty NO_PROXY and internal hosts get proxied.
+    const term = makeMockTerm()
+    spawnMock.mockReturnValue(term)
+    const savedNoProxy = process.env.NO_PROXY
+    process.env.NO_PROXY = 'github.corp.test'
+
+    try {
+      const resultPromise = fetchViaPty({
+        networkProxySettings: { httpProxyUrl: 'http://127.0.0.1:7890' },
+        authPreparation: {
+          configDir: '/home/u/.claude',
+          runtime: 'wsl',
+          wslDistro: 'Ubuntu',
+          wslLinuxConfigDir: '/home/u/.claude',
+          envPatch: { CLAUDE_CONFIG_DIR: '/home/u/.claude' },
+          stripAuthEnv: false,
+          provenance: 'system'
+        }
+      })
+      await vi.advanceTimersByTimeAsync(0)
+
+      const [, spawnArgs, spawnOptions] = spawnMock.mock.calls[0] as [
+        string,
+        string[],
+        { env: Record<string, string> }
+      ]
+      expect(spawnOptions.env.NO_PROXY).toBe('github.corp.test')
+      expect(spawnArgs.at(-1)).toContain("export NO_PROXY='github.corp.test'")
+
+      term.emitExit()
+      await resultPromise
+    } finally {
+      if (savedNoProxy === undefined) {
+        delete process.env.NO_PROXY
+      } else {
+        process.env.NO_PROXY = savedNoProxy
+      }
+    }
+  })
+
   it('kills and unregisters the hidden PTY when the fetch signal aborts', async () => {
     const term = makeMockTerm()
     spawnMock.mockReturnValue(term)

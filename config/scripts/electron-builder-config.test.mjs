@@ -18,6 +18,28 @@ const {
   verifyPackagedMainRuntimeDeps
 } = require('../packaged-runtime-node-modules.cjs')
 
+const builderConfigPath = require.resolve('../electron-builder.config.cjs')
+
+// Why: the config reads build env at require time, so an override needs a fresh instance.
+function withBuildEnv(env, assertConfig) {
+  const originals = Object.keys(env).map((key) => [key, process.env[key]])
+  try {
+    delete require.cache[builderConfigPath]
+    Object.assign(process.env, env)
+    assertConfig(require('../electron-builder.config.cjs'))
+  } finally {
+    for (const [key, value] of originals) {
+      if (value === undefined) {
+        delete process.env[key]
+      } else {
+        process.env[key] = value
+      }
+    }
+    delete require.cache[builderConfigPath]
+    require('../electron-builder.config.cjs')
+  }
+}
+
 describe('electron-builder config', () => {
   it('excludes repo-only source trees from app.asar', () => {
     expect(electronBuilderConfig.files).toEqual(
@@ -143,6 +165,31 @@ describe('electron-builder config', () => {
       delete require.cache[configPath]
       require('../electron-builder.config.cjs')
     }
+  })
+
+  // Why: a hardcoded upstream publisherName lets electron-updater's Authenticode
+  // check accept the vendor-signed public installer over a differently signed build.
+  it('lets a rebuild pin its own Windows updater publisherName', () => {
+    expect(electronBuilderConfig.win.signtoolOptions.publisherName).toBe('SignPath Foundation')
+    withBuildEnv({ ORCA_WIN_PUBLISHER_NAME: 'Contoso Corp CA' }, (config) => {
+      expect(config.win.signtoolOptions.publisherName).toBe('Contoso Corp CA')
+    })
+  })
+
+  it('lets a rebuild emit no updater publish metadata without changing the upstream default', () => {
+    expect(electronBuilderConfig.publish).toEqual({
+      provider: 'github',
+      owner: 'stablyai',
+      repo: 'orca',
+      releaseType: 'release'
+    })
+    withBuildEnv({ ORCA_DISABLE_PUBLISH_TARGET: '1' }, (config) => {
+      expect(config.publish).toBeNull()
+    })
+    // Why: the official release workflow leaves the opt-out unset; any other value is not an opt-out.
+    withBuildEnv({ ORCA_DISABLE_PUBLISH_TARGET: '0' }, (config) => {
+      expect(config.publish).toMatchObject({ provider: 'github', owner: 'stablyai' })
+    })
   })
 
   it('uses Orca native rebuild hook instead of electron-builder default rebuild', () => {

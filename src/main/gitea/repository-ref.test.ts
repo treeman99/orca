@@ -1,13 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { gitExecFileAsyncMock, sshExecMock } = vi.hoisted(() => ({
+const { gitExecFileAsyncMock, sshExecMock, getEnterprisePolicyMock } = vi.hoisted(() => ({
   gitExecFileAsyncMock: vi.fn(),
-  sshExecMock: vi.fn()
+  sshExecMock: vi.fn(),
+  getEnterprisePolicyMock: vi.fn()
 }))
 
 vi.mock('../git/runner', () => ({
   gitExecFileAsync: gitExecFileAsyncMock
 }))
+
+vi.mock('../enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: () => getEnterprisePolicyMock()
+}))
+
+import { makeEnterprisePolicy } from '../enterprise/enterprise-policy-fixture'
 
 import {
   _getGiteaRepoRefCacheSize,
@@ -22,6 +29,7 @@ describe('Gitea repository ref parsing', () => {
   beforeEach(() => {
     gitExecFileAsyncMock.mockReset()
     sshExecMock.mockReset()
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
     unregisterSshGitProvider('conn-1')
     _resetGiteaRepoRefCache()
   })
@@ -205,5 +213,81 @@ describe('Gitea repository ref parsing', () => {
 
     expect(sshExecMock).toHaveBeenCalledTimes(2)
     expect(gitExecFileAsyncMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('enterprise GitHub host is never claimed as Gitea', () => {
+  const GHES_HOST = 'github.samsungds.net'
+
+  beforeEach(() => {
+    gitExecFileAsyncMock.mockReset()
+    getEnterprisePolicyMock.mockReturnValue(
+      makeEnterprisePolicy({ githubEnterpriseHost: GHES_HOST })
+    )
+    _resetGiteaRepoRefCache()
+  })
+
+  it('rejects an HTTPS remote on the configured enterprise host', () => {
+    expect(parseGiteaRepoRef(`https://${GHES_HOST}/org/repo.git`)).toBeNull()
+  })
+
+  it('rejects an scp-style remote on the configured enterprise host', () => {
+    expect(parseGiteaRepoRef(`git@${GHES_HOST}:org/repo.git`)).toBeNull()
+  })
+
+  it('rejects the enterprise host regardless of remote-URL casing', () => {
+    // The resolver lowercases the policy host, so the consumer must lowercase too.
+    expect(parseGiteaRepoRef('git@GitHub.SamsungDS.net:org/repo.git')).toBeNull()
+    expect(parseGiteaRepoRef('https://GitHub.SAMSUNGDS.net/org/repo.git')).toBeNull()
+    expect(parseGiteaRepoRef(`ssh://git@GitHub.SamsungDS.NET:2222/org/repo.git`)).toBeNull()
+  })
+
+  // Why: a corporate checkout can carry any of these remote shapes (credential
+  // helper rewrites, ssh:// with a bastion port, an :8443 GHES endpoint). The
+  // guard keys on the hostname, so every shape must reach the same verdict.
+  it.each([
+    `https://${GHES_HOST}/org/repo`,
+    `https://${GHES_HOST}/org/repo.git`,
+    `https://${GHES_HOST}/org/repo/`,
+    `https://${GHES_HOST}:8443/org/repo.git`,
+    `https://x-access-token:ghp_TOKEN@${GHES_HOST}/org/repo.git`,
+    `git@${GHES_HOST}:org/repo`,
+    `git@${GHES_HOST}:org/repo.git`,
+    `ssh://git@${GHES_HOST}/org/repo`,
+    `ssh://git@${GHES_HOST}:2222/org/repo.git`,
+    `git+ssh://git@${GHES_HOST}/org/repo.git`
+  ])('rejects the enterprise host in remote form %s', (remoteUrl) => {
+    expect(parseGiteaRepoRef(remoteUrl)).toBeNull()
+  })
+
+  it('still parses an ordinary Gitea host while the enterprise host is set', () => {
+    expect(parseGiteaRepoRef('https://git.example.com/team/project.git')).toEqual({
+      host: 'git.example.com',
+      owner: 'team',
+      repo: 'project',
+      apiBaseUrl: 'https://git.example.com/api/v1',
+      webBaseUrl: 'https://git.example.com'
+    })
+  })
+
+  it('keeps the enterprise host out of the resolved-remote path that clients call', async () => {
+    gitExecFileAsyncMock.mockResolvedValue({
+      stdout: `git@${GHES_HOST}:org/repo.git\n`,
+      stderr: ''
+    })
+
+    await expect(getGiteaRepoRef('/repo')).resolves.toBeNull()
+  })
+
+  it('treats the same host as Gitea when no policy configures it', () => {
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
+    _resetGiteaRepoRefCache()
+
+    expect(parseGiteaRepoRef(`https://${GHES_HOST}/org/repo.git`)).toMatchObject({
+      host: GHES_HOST,
+      owner: 'org',
+      repo: 'repo',
+      apiBaseUrl: `https://${GHES_HOST}/api/v1`
+    })
   })
 })

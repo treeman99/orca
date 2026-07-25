@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron'
 import { writeFile, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 
 export class ExportTimeoutError extends Error {
   constructor(message = 'Export timed out') {
@@ -41,6 +42,8 @@ export async function htmlToPdf(html: string): Promise<Buffer> {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
+      // Why: Electron defaults spellcheck on, and one enabled WebContents re-arms the session's hunspell CDN download on Windows/Linux.
+      spellcheck: !getEnterprisePolicy().disableSpellcheck,
       // Why: image-wait needs to run a short script inside the export page, and
       // the exported renderer DOM may already embed scripts/SVGs (e.g. Mermaid)
       // that need JS to paint correctly. The window stays sandboxed and

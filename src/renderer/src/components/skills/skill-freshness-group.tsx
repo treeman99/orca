@@ -82,10 +82,14 @@ function chipTooltip(chip: SkillLocationChip): string {
   }
 }
 
+// Why: 'current' and 'duplicate' describe a location that never blocks an update,
+// so they can't be the reason a skill was skipped.
+type SkippedReasonChip = Exclude<SkillLocationChip, 'current' | 'duplicate'>
+
 // Why: a skill is skipped for one concrete reason; lead with the highest-priority
 // blocking placement so the sentence explains the real cause (an edited copy is
 // more useful to surface than a downstream symptom).
-const SKIPPED_REASON_PRIORITY: SkillLocationChip[] = [
+const SKIPPED_REASON_PRIORITY: readonly SkippedReasonChip[] = [
   'unrecognized',
   'read-only',
   'inaccessible',
@@ -98,6 +102,12 @@ const SKIPPED_REASON_PRIORITY: SkillLocationChip[] = [
 function skippedReason(locations: readonly SkillLocationRow[]): string {
   const present = new Set(locations.map((location) => location.chip))
   const chip = SKIPPED_REASON_PRIORITY.find((candidate) => present.has(candidate))
+  if (chip === undefined) {
+    return translate(
+      'auto.components.skills.SkillFreshnessRow.cantUpdateReason',
+      'Orca left this skill out of the update command.'
+    )
+  }
   switch (chip) {
     case 'unrecognized':
       return translate(
@@ -133,11 +143,6 @@ function skippedReason(locations: readonly SkillLocationRow[]): string {
       return translate(
         'auto.components.skills.SkillFreshnessRow.skippedReasonBrokenLink',
         'This copy is a shortcut to something that no longer exists, so Orca left it out — you can safely delete it.'
-      )
-    default:
-      return translate(
-        'auto.components.skills.SkillFreshnessRow.cantUpdateReason',
-        'Orca left this skill out of the update command.'
       )
   }
 }
