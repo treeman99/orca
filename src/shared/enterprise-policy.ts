@@ -10,6 +10,12 @@
 // This module is a pure function of the already-parsed document so it is
 // trivially testable; discovery and file I/O live in src/main/enterprise/.
 
+import {
+  enterpriseLlmEndpointHost,
+  resolveEnterpriseLlmEndpoints,
+  type EnterpriseLlmEndpoint
+} from './enterprise-llm-endpoints'
+
 export type EnterprisePolicy = {
   /** Master switch. When on, every non-essential vendor phone-home defaults off. */
   lockdown: boolean
@@ -38,6 +44,11 @@ export type EnterprisePolicy = {
   allowedNetworkHosts: readonly string[]
   /** Private GitHub Enterprise host, e.g. "github.samsungds.net". */
   githubEnterpriseHost: string | null
+  /**
+   * Self-hosted model endpoints a user may point a session at. Administrator-owned;
+   * the per-user token is never here — see enterprise-llm-endpoints.ts.
+   */
+  llmEndpoints: readonly EnterpriseLlmEndpoint[]
   /** Absolute path of the policy file in effect, or null when none was found. */
   sourcePath: string | null
   /** Admin-facing complaints about the document (unknown keys, wrong types). */
@@ -66,6 +77,7 @@ const KNOWN_KEYS: ReadonlySet<string> = new Set<string>([
   'lockdown',
   'githubEnterpriseHost',
   'allowedNetworkHosts',
+  'llmEndpoints',
   'enforceNetworkAllowlist',
   ...LOCKDOWN_INHERITING_KEYS
 ])
@@ -205,6 +217,15 @@ export function resolveEnterprisePolicy(
   if (githubEnterpriseHost) {
     allowed.add(githubEnterpriseHost)
   }
+  const llmEndpoints = resolveEnterpriseLlmEndpoints(effective.llmEndpoints, warnings)
+  // Why: an administrator who provisions an endpoint has already decided it is
+  // reachable, so making them repeat it in allowedNetworkHosts is a trap.
+  for (const endpoint of llmEndpoints) {
+    const host = enterpriseLlmEndpointHost(endpoint)
+    if (host) {
+      allowed.add(host)
+    }
+  }
 
   return {
     lockdown,
@@ -214,6 +235,7 @@ export function resolveEnterprisePolicy(
     enforceNetworkAllowlist: readBoolean(effective, 'enforceNetworkAllowlist', warnings) ?? false,
     allowedNetworkHosts: [...allowed],
     githubEnterpriseHost,
+    llmEndpoints,
     sourcePath,
     warnings
   }

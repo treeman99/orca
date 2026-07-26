@@ -15,6 +15,7 @@ describe('resolveEnterprisePolicy', () => {
       enforceNetworkAllowlist: false,
       allowedNetworkHosts: [],
       githubEnterpriseHost: null,
+      llmEndpoints: [],
       sourcePath: null,
       warnings: []
     })

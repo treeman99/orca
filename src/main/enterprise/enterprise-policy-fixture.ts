@@ -16,6 +16,7 @@ const UNLOCKED: EnterprisePolicy = {
   enforceNetworkAllowlist: false,
   allowedNetworkHosts: [],
   githubEnterpriseHost: null,
+  llmEndpoints: [],
   sourcePath: null,
   warnings: []
 }
