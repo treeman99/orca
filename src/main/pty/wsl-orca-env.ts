@@ -1,3 +1,5 @@
+import { corporateLlmWslenvEntries } from '../enterprise/corporate-llm-wsl-passthrough'
+
 const WSLENV_ENTRY_SEPARATOR = ':'
 
 function parseWslenvEntries(value: string | undefined): string[] {
@@ -72,7 +74,8 @@ export function addOrcaWslInteropEnv(env: Record<string, string>): void {
     'ORCA_WSL_HOOK_INSTANCE/u',
     'ORCA_OMP_SOURCE_AGENT_DIR/p',
     'ORCA_OMP_STATUS_EXTENSION/p',
-    ...worktreeSetupWslenvEntries(env)
+    ...worktreeSetupWslenvEntries(env),
+    ...corporateLlmWslenvEntries(env)
   ]
   applyWslenvPassthrough(env, passthroughEntries)
 }
