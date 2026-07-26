@@ -2,6 +2,16 @@
 
 Thanks for contributing to Orca.
 
+> ## 📌 사내 포크(`enterprise/samsungds`)에서 작업하는 경우
+>
+> **이 문서는 원본 프로젝트 [`stablyai/orca`](https://github.com/stablyai/orca) 기준입니다.** 아래 내용은 그대로 유효하지만, 사내 포크에서는 세 가지가 다릅니다.
+>
+> 1. **PR은 사내 포크로 보냅니다.** 원본에 열지 마세요. 사내 커스터마이즈가 담긴 브랜치는 `enterprise/samsungds`이고, `main`은 원본의 깨끗한 미러로만 유지합니다(동기화 절차는 [`README.md`](../README.md) §6).
+> 2. **릴리스 절차가 다릅니다.** 아래 "Release Process"의 **Cut Release 워크플로를 실행하지 마세요** — 그 워크플로는 `stablyai/orca`의 GitHub Releases에 발행합니다. 사내 배포용 `.exe`는 [`docs/reference/windows-corporate-build.md`](../docs/reference/windows-corporate-build.md)의 Windows 빌드 절차로 만들며, `--publish never`가 필수입니다.
+> 3. **잠금 정책 계층을 건드릴 때 규칙이 있습니다.** 벤더 phone-home 게이트는 관리자 소유 정책 파일로 통제됩니다. 게이트를 **호출자가 아니라 초크포인트**에 두고, **런타임 환경 변수를 새로 만들지 말고**, 게이트마다 **동작 회귀 테스트**를 추가하세요 — 리졸버 테스트만으로는 리베이스에서 게이트가 사라져도 CI가 초록으로 통과합니다. 자세한 규칙은 [`CLAUDE.md`](../CLAUDE.md)의 "Enterprise policy is a second seam", 정책 파일 스키마는 [`docs/reference/enterprise-policy.md`](../docs/reference/enterprise-policy.md).
+>
+> 배포 대상은 **Windows x64 단일 플랫폼**이지만, **코드베이스는 크로스플랫폼을 유지합니다** — 아래 "Before You Start"의 플랫폼 규칙은 사내 포크에도 그대로 적용됩니다.
+
 ## Before You Start
 
 - Keep changes scoped to a clear user-facing improvement, bug fix, or refactor.
