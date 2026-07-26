@@ -14,6 +14,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
 import { parse as parseJsonc, type ParseError } from 'jsonc-parser'
+import { registerCorporateLlmEndpoints } from '../../shared/corporate-llm-session-catalog'
 import {
   resolveEnterprisePolicy,
   type EnterprisePolicy,
@@ -194,6 +195,10 @@ export function getEnterprisePolicy(): EnterprisePolicy {
   for (const message of policy.warnings) {
     warn(`${loaded?.sourcePath ?? '(no file)'}: ${message}`)
   }
+  // Why: main builds launch plans too (CLI, mobile, background sessions), and
+  // without this a persisted corporate model id would be passed to the agent's
+  // --model flag instead of resolving to the endpoint's environment.
+  registerCorporateLlmEndpoints(policy.llmEndpoints)
   cached = policy
   return policy
 }

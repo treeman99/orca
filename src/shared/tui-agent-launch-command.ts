@@ -15,6 +15,8 @@ export type ResolvedAgentLaunchCommand =
       command: string
       commandWithoutSessionOptions: string
       appliedSessionOptions: Record<string, SessionOptionValue>
+      /** `agentEnv` plus any session-option env; null when both are empty. */
+      env: Record<string, string> | null
     }
   | { ok: false; error: string }
 
@@ -24,6 +26,7 @@ export function resolveAgentLaunchCommand(args: {
   platform: NodeJS.Platform
   shell: AgentStartupShell
   agentArgs?: string | null
+  agentEnv?: Record<string, string> | null
   sessionOptions?: Record<string, SessionOptionValue>
   isRemote?: boolean
 }): ResolvedAgentLaunchCommand {
@@ -51,12 +54,17 @@ export function resolveAgentLaunchCommand(args: {
   const optionSuffix = resolvedOptions.args.map((arg) => quoteStartupArg(arg, args.shell)).join(' ')
   const commandWithOptions = optionSuffix ? `${command} ${optionSuffix}` : command
   const commandWithoutSessionOptions = suffix.suffix ? `${command} ${suffix.suffix}` : command
+  // Why: session-option env last — it is the backend the user just picked, and
+  // must win over a stale value left in the agent's configured default env.
+  const env =
+    args.agentEnv || resolvedOptions.env ? { ...args.agentEnv, ...resolvedOptions.env } : null
   // Why: session flags precede the free-form suffix so the user's explicit
   // repeated flag remains the final, winning occurrence.
   return {
     ok: true,
     command: suffix.suffix ? `${commandWithOptions} ${suffix.suffix}` : commandWithOptions,
     commandWithoutSessionOptions,
-    appliedSessionOptions: resolvedOptions.appliedValues
+    appliedSessionOptions: resolvedOptions.appliedValues,
+    env
   }
 }

@@ -13,6 +13,7 @@ import type {
   CatalogModel,
   CatalogOption
 } from './agent-session-option-catalog-types'
+import { withCorporateLlmEndpointModels } from './corporate-llm-session-catalog'
 import type { SessionOptionValue } from './native-chat-session-options'
 
 export type {
@@ -32,7 +33,9 @@ const CATALOGS: AgentSessionOptionCatalogMap = {
 }
 
 export function getAgentSessionOptionCatalog(agent: AgentType): AgentSessionOptionCatalog | null {
-  return CATALOGS[agent] ?? null
+  // Corporate endpoints are administrator-provisioned at runtime, so they are
+  // merged here rather than written into a static catalog.
+  return withCorporateLlmEndpointModels(CATALOGS[agent] ?? null)
 }
 
 export function findCatalogModel(

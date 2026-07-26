@@ -15,6 +15,7 @@ import {
 import { TUI_AGENT_CONFIG } from './tui-agent-config'
 import type { StartupCommandDelivery } from './codex-startup-delivery'
 import { buildSleepingAgentLaunchConfig } from './sleeping-agent-launch-config'
+import { resolvedLaunchConfig } from './resolved-agent-launch-config'
 import { planHermesStartupQuery } from './hermes-startup-query'
 import { inlineAgentDraftFitsPlatform } from './agent-draft-platform-limit'
 import type { TuiAgent } from './types'
@@ -67,18 +68,14 @@ export function buildAgentStartupPlan(args: {
     platform,
     shell,
     agentArgs: usesQuery ? null : args.agentArgs,
+    agentEnv: args.agentEnv,
     sessionOptions: args.sessionOptions,
     isRemote: args.isRemote
   })
   if (!baseCommand.ok) {
     return null
   }
-  const launchConfig = buildSleepingAgentLaunchConfig({
-    ...args,
-    // Why: picker flags are a one-time launch choice; a resumed provider
-    // session restores its own state and must retain only explicit user args.
-    agentCommand: baseCommand.commandWithoutSessionOptions
-  })
+  const launchConfig = resolvedLaunchConfig(args, baseCommand)
 
   if (!trimmedPrompt) {
     if (!allowEmptyPromptLaunch) {
@@ -91,7 +88,7 @@ export function buildAgentStartupPlan(args: {
       followupPrompt: null,
       launchConfig,
       ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),
-      ...(args.agentEnv ? { env: { ...args.agentEnv } } : {})
+      ...(baseCommand.env ? { env: baseCommand.env } : {})
     }
   }
 
@@ -107,7 +104,7 @@ export function buildAgentStartupPlan(args: {
       launchConfig,
       ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),
       ...(agent === 'codex' ? { startupCommandDelivery: 'shell-ready' as const } : {}),
-      ...(args.agentEnv ? { env: { ...args.agentEnv } } : {})
+      ...(baseCommand.env ? { env: baseCommand.env } : {})
     }
   }
 
@@ -119,7 +116,7 @@ export function buildAgentStartupPlan(args: {
       followupPrompt: null,
       launchConfig,
       ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),
-      ...(args.agentEnv ? { env: { ...args.agentEnv } } : {})
+      ...(baseCommand.env ? { env: baseCommand.env } : {})
     }
   }
 
@@ -128,7 +125,7 @@ export function buildAgentStartupPlan(args: {
       baseCommand: baseCommand.command,
       agentArgs: args.agentArgs,
       prompt: trimmedPrompt,
-      agentEnv: args.agentEnv,
+      agentEnv: baseCommand.env,
       platform,
       shell,
       isRemote: args.isRemote
@@ -157,7 +154,7 @@ export function buildAgentStartupPlan(args: {
       followupPrompt: null,
       launchConfig,
       ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),
-      ...(args.agentEnv ? { env: { ...args.agentEnv } } : {})
+      ...(baseCommand.env ? { env: baseCommand.env } : {})
     }
   }
 
@@ -169,7 +166,7 @@ export function buildAgentStartupPlan(args: {
       followupPrompt: null,
       launchConfig,
       ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),
-      ...(args.agentEnv ? { env: { ...args.agentEnv } } : {})
+      ...(baseCommand.env ? { env: baseCommand.env } : {})
     }
   }
 
@@ -180,7 +177,7 @@ export function buildAgentStartupPlan(args: {
     followupPrompt: trimmedPrompt,
     launchConfig,
     ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),
-    ...(args.agentEnv ? { env: { ...args.agentEnv } } : {})
+    ...(baseCommand.env ? { env: baseCommand.env } : {})
   }
 }
 
@@ -271,17 +268,14 @@ export function buildAgentDraftLaunchPlan(args: {
     platform,
     shell,
     agentArgs: args.agentArgs,
+    agentEnv: args.agentEnv,
     sessionOptions: args.sessionOptions,
     isRemote: args.isRemote
   })
   if (!baseCommand.ok) {
     return null
   }
-  const launchConfig = buildSleepingAgentLaunchConfig({
-    ...args,
-    // Why: see the new-session path above — resume must not replay picker flags.
-    agentCommand: baseCommand.commandWithoutSessionOptions
-  })
+  const launchConfig = resolvedLaunchConfig(args, baseCommand)
   let plan: AgentDraftLaunchPlan | null = null
   if (config.draftPromptFlag) {
     const quoted = quoteStartupArg(trimmed, shell)
@@ -293,7 +287,7 @@ export function buildAgentDraftLaunchPlan(args: {
       ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),
       // Why: native draft flags carry user text on argv and must survive rc-file startup.
       ...(agent === 'codex' ? { startupCommandDelivery: 'shell-ready' as const } : {}),
-      ...(args.agentEnv ? { env: { ...args.agentEnv } } : {})
+      ...(baseCommand.env ? { env: baseCommand.env } : {})
     }
   } else if (config.draftPromptEnvVar) {
     const clearVar = clearEnvCommand(config.draftPromptEnvVar, shell)
@@ -303,7 +297,7 @@ export function buildAgentDraftLaunchPlan(args: {
       expectedProcess: config.expectedProcess,
       launchConfig,
       ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),
-      env: { ...args.agentEnv, [config.draftPromptEnvVar]: trimmed }
+      env: { ...baseCommand.env, [config.draftPromptEnvVar]: trimmed }
     }
   }
   if (

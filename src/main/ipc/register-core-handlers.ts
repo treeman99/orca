@@ -60,6 +60,7 @@ import { getPtyIdForPaneKey } from './pty'
 import { registerAgentTrustHandlers } from './agent-trust'
 import { registerClaudeAccountHandlers } from './claude-accounts'
 import { registerMiniMaxCredentialsHandlers } from './minimax-credentials'
+import { registerCorporateLlmEndpointHandlers } from './corporate-llm-endpoints'
 import { registerGrokAccountHandlers } from './grok-accounts'
 import { registerUpdaterHandlers } from '../window/attach-main-window-services'
 import {
@@ -140,6 +141,7 @@ export function registerCoreHandlers(
   registerAgentTrustHandlers()
   registerClaudeAccountHandlers(claudeAccounts)
   registerMiniMaxCredentialsHandlers(rateLimits)
+  registerCorporateLlmEndpointHandlers()
   registerGrokAccountHandlers()
   registerRateLimitHandlers(rateLimits)
   registerGitHubHandlers(store, stats)

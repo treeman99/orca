@@ -9377,6 +9377,36 @@
           "serviceManagerHelp": "Update Orca through the service manager that starts this server.",
           "unpackedHelp": "Development builds must be updated from their source checkout.",
           "legacyHelp": "Update this server manually once to enable remote updates."
+        },
+        "CorporateLlmEndpointsSection": {
+          "encryptionUnavailable": "Not saved. Orca could not reach this device’s secure credential store, so the token could not be encrypted — and Orca will not write a token to disk in plain text. Sign in to your desktop session again, then try once more.",
+          "unknownEndpoint": "Not saved. Your administrator’s policy no longer provisions this endpoint. Restart Orca to reload the policy file.",
+          "writeFailed": "Not saved. Orca could not write to your profile folder. Check that it is writable and not blocked by security software, then try again.",
+          "tokenActionFailed": "Endpoint token update failed.",
+          "tokenSaved": "Token saved",
+          "tokenNotSaved": "No token",
+          "model": "Model: {{value0}}",
+          "tokenPlaceholder": "Paste your token for this endpoint",
+          "tokenInputLabel": "Token for {{value0}}",
+          "replace": "Replace",
+          "save": "Save",
+          "forget": "Forget token",
+          "heading": "Self-hosted models",
+          "intro": "Your administrator provisions these endpoints. The token identifies you, so you enter it here: Orca encrypts it with this device’s credential store and never shows it again. You can replace it or forget it, but not read it back.",
+          "loading": "Loading…",
+          "empty": "No self-hosted endpoints are provisioned. They come from your administrator’s corporate policy file, not from this screen — ask your administrator to add one, then restart Orca."
+        },
+        "corporateLlm": {
+          "search": {
+            "title": "Self-Hosted Model Endpoints",
+            "description": "Save your personal token for each self-hosted model endpoint your administrator provisioned.",
+            "selfHosted": "자체 호스팅",
+            "endpoint": "엔드포인트",
+            "token": "토큰",
+            "corporate": "회사",
+            "policy": "정책",
+            "administrator": "관리자"
+          }
         }
       },
       "right": {
@@ -13799,6 +13829,12 @@
       "certificateChallengeChanged": "The certificate request changed. Retry the page and review the new warning.",
       "certificateChallengeUnavailable": "This certificate request is no longer available. Retry the page to request a new one.",
       "certificateProceedFailed": "Orca could not approve this certificate request. Retry the page and try again."
+    }
+  },
+  "enterprise": {
+    "corporateLlm": {
+      "appliesNextSession": "사내 LLM — 다음 세션부터 적용됩니다",
+      "tokenMissing": "사내 LLM — 설정에서 토큰을 먼저 저장하세요"
     }
   }
 }

@@ -7,6 +7,14 @@
 
 import { enterpriseLlmEndpointHost, type EnterpriseLlmEndpoint } from './enterprise-llm-endpoints'
 
+/**
+ * Set on a launch to select a policy-provisioned endpoint. Carries no secret, so
+ * it is safe in persisted launch config — which is the whole reason the selection
+ * travels as an id. Declared here rather than in main because the launch plan that
+ * writes it is built in the renderer as well.
+ */
+export const CORPORATE_LLM_ENDPOINT_ENV = 'ORCA_CORPORATE_LLM_ENDPOINT'
+
 export type CorporateLlmLaunchEnvInput = {
   endpoint: EnterpriseLlmEndpoint
   token: string

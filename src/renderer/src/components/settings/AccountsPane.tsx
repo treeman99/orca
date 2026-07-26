@@ -51,6 +51,8 @@ import {
   getAccountsOpencodeSearchEntries,
   getAccountsPaneSearchEntries
 } from './accounts-search'
+import { CorporateLlmEndpointsSection } from './CorporateLlmEndpointsSection'
+import { getCorporateLlmEndpointsSearchEntries } from './corporate-llm-endpoints-search'
 import { GrokAccountsSection } from './GrokAccountsSection'
 import { SearchableSetting } from './SearchableSetting'
 import { SettingsRow, SettingsSegmentedControl } from './SettingsFormControls'
@@ -1854,6 +1856,9 @@ export function AccountsPane({
     ) : null,
     matchesSettingsSearch(searchQuery, getAccountsGrokSearchEntries()) ? (
       <GrokAccountsSection key="grok" />
+    ) : null,
+    matchesSettingsSearch(searchQuery, getCorporateLlmEndpointsSearchEntries()) ? (
+      <CorporateLlmEndpointsSection key="corporate-llm" />
     ) : null
   ].filter(Boolean)
 

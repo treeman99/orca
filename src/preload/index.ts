@@ -10,6 +10,10 @@ import type {
   TerminalPreviewDataPayload
 } from '../shared/terminal-preview'
 import type { CliInstallStatus } from '../shared/cli-install-types'
+import type {
+  CorporateLlmEndpointStatus,
+  CorporateLlmTokenSaveResult
+} from '../shared/corporate-llm-endpoint-status'
 import type { AgentHookInstallStatus } from '../shared/agent-hook-types'
 import type { TerminalPaneSplitSource } from '../shared/feature-education-telemetry'
 import type { ProjectExecutionRuntimeResolution } from '../shared/project-execution-runtime'
@@ -4135,6 +4139,19 @@ const api = {
     clearCookie: (): Promise<{ configured: boolean }> =>
       ipcRenderer.invoke('minimaxCredentials:clearCookie')
   },
+
+  corporateLlm: {
+    listEndpoints: (): Promise<CorporateLlmEndpointStatus[]> =>
+      ipcRenderer.invoke('corporateLlmEndpoints:list'),
+    // The token travels to main and stops there; the result carries only `hasToken`.
+    saveToken: (args: {
+      endpointId: string
+      token: string
+    }): Promise<CorporateLlmTokenSaveResult> =>
+      ipcRenderer.invoke('corporateLlmEndpoints:saveToken', args),
+    clearToken: (args: { endpointId: string }): Promise<CorporateLlmTokenSaveResult> =>
+      ipcRenderer.invoke('corporateLlmEndpoints:clearToken', args)
+  } satisfies PreloadApi['corporateLlm'],
 
   grokAccounts: {
     getStatus: (): Promise<GrokAccountStatus> => ipcRenderer.invoke('grokAccounts:getStatus')

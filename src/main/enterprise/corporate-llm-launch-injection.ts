@@ -7,13 +7,15 @@
 // never part of that: main looks it up here, from the user's encrypted store,
 // and merges it into the environment on its way to the PTY.
 
-import { corporateLlmLaunchEnv } from '../../shared/corporate-llm-launch-env'
+import {
+  corporateLlmLaunchEnv,
+  CORPORATE_LLM_ENDPOINT_ENV
+} from '../../shared/corporate-llm-launch-env'
 import type { EnterpriseLlmEndpoint } from '../../shared/enterprise-llm-endpoints'
 import { getEnterprisePolicy } from './enterprise-policy-file'
 import { readCorporateLlmToken } from './corporate-llm-token-store'
 
-/** Set on a launch to select a policy-provisioned endpoint. Carries no secret. */
-export const CORPORATE_LLM_ENDPOINT_ENV = 'ORCA_CORPORATE_LLM_ENDPOINT'
+export { CORPORATE_LLM_ENDPOINT_ENV }
 
 export type CorporateLlmSelection =
   | { kind: 'none' }

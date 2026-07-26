@@ -61,12 +61,19 @@ function createSerializedApplyQueue(): <T>(fn: () => Promise<T>) => Promise<T> {
 
 function currentApply(
   ctx: SessionOptionApplyContext,
-  optionId: string
+  optionId: string,
+  targetValue?: SessionOptionValue
 ): { apply: CatalogOptionApply; modelId: string | null } | null {
   const record = ctx.getRecord()
   const modelId = typeof record.model?.value === 'string' ? record.model.value : null
   if (optionId === 'model') {
-    return { apply: ctx.catalog.modelApply, modelId }
+    // Why: a model may override the catalog-wide apply, so the TARGET decides how
+    // this switch is carried out — the current model's rules do not apply to it.
+    const target =
+      typeof targetValue === 'string'
+        ? findCatalogModel({ ...ctx.catalog, models: ctx.getModels() }, targetValue)
+        : undefined
+    return { apply: target?.apply ?? ctx.catalog.modelApply, modelId }
   }
   const model = modelId
     ? findCatalogModel({ ...ctx.catalog, models: ctx.getModels() }, modelId)
@@ -184,7 +191,7 @@ async function applySetOption(
   id: string,
   value: SessionOptionValue
 ): Promise<SessionOptionSetResult> {
-  const resolved = currentApply(ctx, id)
+  const resolved = currentApply(ctx, id, value)
   if (!resolved) {
     throw new Error(`Unknown session option: ${id}`)
   }
@@ -192,6 +199,9 @@ async function applySetOption(
   if (ctx.mode === 'live' && apply.midSession?.kind === 'agent-picker') {
     throw new Error('This option must be changed in the agent picker.')
   }
+  // Why: nothing is sent to the running agent — the pick is recorded, and the
+  // next launch of this agent is what applies it.
+  const nextLaunchOnly = apply.midSession?.kind === 'next-launch'
 
   const liveFlipOnly = ctx.mode === 'live' && isFlipOnlyMidSession(apply.midSession)
   const trackedToggle = liveFlipOnly
@@ -206,7 +216,7 @@ async function applySetOption(
     return { snapshot: ctx.publish() }
   }
   // Why: flip-only never heals via agent report — track as applied best-known.
-  const source = liveFlipOnly || ctx.mode !== 'live' ? 'applied' : 'dispatched'
+  const source = liveFlipOnly || nextLaunchOnly || ctx.mode !== 'live' ? 'applied' : 'dispatched'
 
   // Why: baseline for detecting a model switch, typed command, or agent report
   // that lands mid-dispatch, so the commit below never overwrites newer state.
@@ -216,14 +226,19 @@ async function applySetOption(
       : undefined
 
   let dispatchResult: NativeChatSessionOptionDispatchResult | void = undefined
-  if (ctx.mode === 'live') {
+  if (ctx.mode === 'live' && !nextLaunchOnly) {
     dispatchResult = await dispatchLiveCommand(ctx, {
       optionId: id,
       value,
       apply,
       modelId: previousModelId
     })
-  } else if (!apply.launchArgs && !apply.composedIntoModel) {
+  } else if (
+    ctx.mode !== 'live' &&
+    !apply.launchArgs &&
+    !apply.launchEnv &&
+    !apply.composedIntoModel
+  ) {
     throw new Error('This option is only available after the session starts.')
   }
 
