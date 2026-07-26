@@ -139,6 +139,7 @@
 | ~~11~~ | ~~**Claude OAuth 토큰 회전**~~ | ~~`platform.claude.com`~~ | — | **해소됨**: `disableManagedClaudeAccounts`가 덮습니다 (§4). 이전 판의 "정책 스위치 없음"은 더 이상 사실이 아닙니다 | 게이트 `src/main/claude-accounts/oauth-refresh.ts:131-133` |
 | 12 | **임베디드 브라우저** | 사용자가 방문하는 임의의 사이트 | 사용자 조작 | 허용목록은 `persist:` 파티션을 의도적으로 제외합니다 — 그 슬롯은 인증서 게이트가 이미 점유 중이고, 임의 사이트 열람이 이 기능의 목적이기 때문 | `enterprise-network-guard.ts:9-13` |
 | 13 | **Gitea/Forgejo 폴백 직접 fetch** | origin 리모트에서 동적 유도된 호스트 | 미지정 git 호스트를 쓸 때 | `githubEnterpriseHost`를 지정하면 GHES는 제외되지만, **그 외 모든 미지정 호스트는 여전히 Gitea로 간주**됩니다 (§1) | `src/main/gitea/repository-ref.ts:87-98`, `client.ts:91` |
+| 14 | **사내 LLM 엔드포인트로 가는 프롬프트·소스** | 관리자가 배포한 사내 호스트 | 사용자가 세션을 사내 LLM으로 돌리고 토큰을 저장했을 때 | 목적지는 사내이지만 **전송 주체가 에이전트 CLI(서브프로세스)** 라 Orca 측 통제 밖입니다. 정책 파일은 후보 목록만 통제하고 전송 내용은 통제하지 않습니다 — 감사는 엔드포인트 서비스 쪽에서 (§4) | `src/shared/corporate-llm-launch-env.ts:53-72` |
 
 **#2~#6b는 `enforceNetworkAllowlist: true`로 닫을 수 있습니다** — 메인 창은 파티션을 지정하지 않아 `session.defaultSession`을 쓰므로 렌더러 `<img>` 요청이 가드의 `onBeforeRequest`를 지나갑니다 (`createMainWindow.ts:249-255`에 `partition` 없음). #1, #7은 어떤 Orca 측 스위치로도 닫히지 않으며 망 계층에서만 통제됩니다. #10은 Electron `net.request`를 쓰므로 허용목록이 덮는지 여부가 §7 레벨 3의 미검증 항목과 같습니다.
 
@@ -288,6 +289,36 @@ Orca가 스폰하는 에이전트 CLI(claude/codex/…)의 트래픽이 아니�
 > 🔴 **읽는 방향을 헷갈리지 마세요.** 이 실패 조건은 코드에서 사라진 것이 아니라 **`disableManagedClaudeAccounts`가 켜져 있을 때만** 성립하지 않습니다. 스위치를 끄면(또는 `lockdown` 없이 배포하면) WSL Claude 세션은 예전 그대로 하드 실패합니다. **그래서 Bedrock + WSL 플릿에서 이 스위치는 권장이 아니라 필수입니다.** Windows 호스트 세션은 원래도 관리형 계정을 선택한 동안에만 스트립됩니다 (`:667`).
 
 **요점**: 손봐야 하는 건 **로컬 CLI 자격증명만으로 발동하는 사용량 폴링 4종(Claude·Codex·Grok·Kimi → `disableUsagePolling`)** 과 **관리형 Claude 계정(→ `disableManagedClaudeAccounts`)** 이며, `lockdown: true` 하나로 둘 다 켜집니다. Gemini/MiniMax/OpenCode/Kimi는 기본 opt-in이라 켜지 않으면 나가지 않고, **켜더라도 `disableUsagePolling`이 덮습니다** — 이들의 fetcher는 `runFetchAllCycle` 안에서만 호출되고 그 사이클로 들어가는 경로가 전부 게이트를 지납니다. 기능 스위치가 없는 것은 **받아쓰기 계열 두 경로**뿐입니다 — 전사(`api.openai.com`, 3중 opt-in이라 설정하지 않으면 발동하지 않음)와 로컬 모델 다운로드(`github.com`, §0.2 #10). 앞의 것은 global fetch라 `enforceNetworkAllowlist`가 덮고, 뒤의 것은 어떤 정책도 덮지 않습니다.
+
+### ✅ 신규: 사내에서 직접 서비스하는 모델 (`llmEndpoints`)
+
+이 브랜치는 Bedrock 외에 **사내 자체 호스팅 모델**을 두 번째 승인 백엔드로 지원합니다. 보안 검토에서 중요한 구분은 **호출 주체**입니다.
+
+| | |
+| --- | --- |
+| 목적지 | 관리자가 정책 파일에 배포한 **사내 호스트**. `https` 강제(루프백만 예외, `src/shared/enterprise-llm-endpoints.ts:40-46`) |
+| 호출 주체 | **에이전트 CLI(서브프로세스)**. Orca 자신은 이 엔드포인트로 아무 요청도 보내지 않습니다 |
+| 적용되는 통제 | 프록시(`NO_PROXY`에 호스트 자동 병합, `src/shared/corporate-llm-launch-env.ts:28-40`), 사내 CA(`NODE_EXTRA_CA_CERTS`), 방화벽 |
+| 적용되지 **않는** 통제 | `enforceNetworkAllowlist` — 서브프로세스 트래픽을 덮지 않습니다. 엔드포인트 호스트가 `allowedNetworkHosts`에 자동 추가되지만(`src/shared/enterprise-policy.ts:220-226`), 그것은 Orca 측 요청에만 의미가 있습니다 |
+
+#### 토큰 — 디스크에 저장되는 새 비밀
+
+| | |
+| --- | --- |
+| 위치 | `%APPDATA%\Orca\corporate-llm-tokens\<id>.token` (`src/main/enterprise/corporate-llm-token-store.ts:17`, `:28`) |
+| 보호 | Electron `safeStorage` = Windows **DPAPI**, 파일 모드 `0600` (`:94`). 사용자 계정에 묶이므로 같은 PC의 다른 프로필은 파일에 접근해도 복호화 불가 |
+| 암호화 불가 시 | **저장 거부** (`:87-90`). 평문으로 기록하지 않습니다 |
+| 배포 주체 | 관리자가 아니라 **사용자 본인**. 정책 파일은 머신 전역이라 모든 계정이 읽을 수 있어 토큰을 두기에 부적합합니다 |
+
+**검증하고 정리된 유출 경로** — 각각 코드로 확인했습니다.
+
+- **렌더러에 도달하지 않음** — IPC는 `hasToken` 불리언만 반환합니다 (`src/main/ipc/corporate-llm-endpoints.ts`). UI는 토큰을 되읽을 수 없고 교체/삭제만 가능합니다.
+- **영속 설정에 저장되지 않음** — 저장되는 것은 비밀이 아닌 `ORCA_CORPORATE_LLM_ENDPOINT=<id>`뿐입니다. 이렇게 나눈 이유가 바로 `SleepingAgentLaunchConfig`가 에이전트 환경을 **평문으로 디스크에 저장**하기 때문입니다 (`src/shared/sleeping-agent-launch-config.ts:11-14`). 토큰은 스폰 시점에 main이 암호화 저장소에서 꺼내 합칩니다 (`src/main/enterprise/corporate-llm-launch-injection.ts`).
+- **트레이스/진단에 실리지 않음** — 관측 redactor가 키 이름 기준으로 `ANTHROPIC_AUTH_TOKEN`과 `OPENAI_API_KEY`를 드롭합니다 (`src/main/observability/redactor.ts:83-84`의 normalized 분기). `ANTHROPIC_BASE_URL`은 비밀이 아니라 통과합니다 — 의도된 동작입니다.
+
+#### 잔여 위험 — 정직하게
+
+**프롬프트와 소스 코드는 에이전트 CLI가 이 엔드포인트로 보내며, Orca의 어떤 네트워크 통제도 관여하지 않습니다.** 정책 파일이 통제하는 것은 **어느 엔드포인트가 목록에 오르는지**까지이고, 사용자가 유효한 토큰을 가지면 그 엔드포인트로 소스를 보낼 수 있습니다. 전송 내용에 대한 통제는 엔드포인트 쪽 서비스의 로깅·감사에서 해야 합니다. 사용자가 임의의 URL을 스스로 추가할 수는 없다는 점(목록은 관리자 소유)이 이 위험의 경계입니다.
 
 ### AWS Bedrock으로 Claude를 쓰는 경우
 
