@@ -64,6 +64,9 @@ function isPackagedExternalSpecifier(specifier) {
   return (
     !specifier.startsWith('.') &&
     !specifier.startsWith('/') &&
+    // Why: the node: scheme is reserved for core modules, so it never needs copied
+    // node_modules — even for builtins absent from builtinModules (e.g. node:sqlite).
+    !specifier.startsWith('node:') &&
     specifier !== 'electron' &&
     !NODE_BUILTINS.has(specifier)
   )

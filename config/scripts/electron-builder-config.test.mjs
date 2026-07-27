@@ -219,6 +219,31 @@ describe('electron-builder config', () => {
     }
   })
 
+  // Why: node:sqlite is a core module absent from builtinModules, so the guard must
+  // treat the reserved node: scheme as builtin rather than a missing npm package.
+  it('accepts node: scheme builtins that are absent from builtinModules', async () => {
+    const resourcesDir = await mkdtemp(join(tmpdir(), 'orca-runtime-node-scheme-'))
+    try {
+      await writeFile(join(resourcesDir, 'app.asar'), '', 'utf8')
+
+      const sources = new Map([
+        ['out\\main\\index.js', 'const { DatabaseSync } = require("node:sqlite")'],
+        [
+          'out\\main\\agent-hooks\\managed-agent-hook-controls.js',
+          'const test = require("node:test")'
+        ]
+      ])
+      const asar = {
+        listPackage: () => [...sources.keys()].map((entry) => `\\${entry}`),
+        extractFile: (_asarPath, internalPath) => Buffer.from(sources.get(internalPath), 'utf8')
+      }
+
+      expect(() => verifyPackagedMainRuntimeDeps(resourcesDir, asar)).not.toThrow()
+    } finally {
+      await rm(resourcesDir, { recursive: true, force: true })
+    }
+  })
+
   it('normalizes host-specific asar entry separators', () => {
     expect(findAsarEntry(['\\out\\main\\index.js'], 'out/main/index.js')).toBe(
       '\\out\\main\\index.js'
