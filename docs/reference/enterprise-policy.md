@@ -143,7 +143,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 
 사내가 오픈웨이트 모델을 직접 서비스한다면, 사용자가 세션을 Bedrock 대신 그쪽으로 돌릴 수 있습니다. **엔드포인트는 관리자 소유, 토큰은 사용자 소유**로 나뉘어 있습니다.
 
-> **사용자 직접 추가(UI):** 관리자가 정책 파일에 넣지 않아도, 사용자가 **설정 → Accounts → "Self-hosted models"** 에서 URL·프로토콜·토큰을 입력해 엔드포인트를 직접 추가할 수 있습니다(`src/renderer/src/components/settings/CorporateLlmEndpointsSection.tsx`). 저장 위치는 사용자 프로파일(`%APPDATA%\Orca\corporate-llm-user-endpoints.json`, 토큰은 별도 암호화 저장)이며, 정책 엔드포인트와 동일하게 모델 피커·실행 주입 경로를 탑니다(`corporate-llm-endpoint-registry.ts`). URL은 https만 허용됩니다(루프백 예외). 단 `enforceNetworkAllowlist: true`인 경우 그 호스트가 허용목록에 없으면 차단되므로, 하드 잠금 배포에서는 관리자가 `llmEndpoints`(또는 `allowedNetworkHosts`)로 호스트를 열어줘야 합니다.
+> **사용자 직접 추가(UI):** 관리자가 정책 파일에 넣지 않아도, 사용자가 **설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"(영문 UI: Accounts → Self-hosted models)** 에서 URL·프로토콜·토큰을 입력해 엔드포인트를 직접 추가할 수 있습니다(`src/renderer/src/components/settings/CorporateLlmEndpointsSection.tsx`). 저장 위치는 사용자 프로파일(`%APPDATA%\Orca\corporate-llm-user-endpoints.json`, 토큰은 별도 암호화 저장)이며, 정책 엔드포인트와 동일하게 모델 피커·실행 주입 경로를 탑니다(`corporate-llm-endpoint-registry.ts`). URL은 https만 허용됩니다(루프백 예외). 단 `enforceNetworkAllowlist: true`인 경우 그 호스트가 허용목록에 없으면 차단되므로, 하드 잠금 배포에서는 관리자가 `llmEndpoints`(또는 `allowedNetworkHosts`)로 호스트를 열어줘야 합니다.
 
 #### 엔드포인트 항목 스키마 (`src/shared/enterprise-llm-endpoints.ts`)
 
@@ -165,7 +165,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 
 | | |
 | --- | --- |
-| 입력 위치 | **설정 → Accounts → "Self-hosted models"** (`src/renderer/src/components/settings/AccountsPane.tsx:1861`) |
+| 입력 위치 | **설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"(영문 UI: Accounts → Self-hosted models)** (`src/renderer/src/components/settings/AccountsPane.tsx:1861`) |
 | 저장 위치 | `%APPDATA%\Orca\corporate-llm-tokens\<id>.token` (`corporate-llm-token-store.ts:17`, `:28`) |
 | 암호화 | Electron `safeStorage` = **Windows에서는 DPAPI**. 사용자 계정에 묶여 다른 프로필은 파일에 접근해도 못 읽습니다. 파일 모드 `0600` (`:94`) |
 | 암호화 불가 시 | **저장을 거부합니다** (`:87-90`). 평문으로 떨어뜨리지 않습니다 |
@@ -221,7 +221,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 
 ### 3-4. 사내 GHES 로그인 — 설정 UI에서 브라우저 로그인
 
-`gh`가 회사에서 `github.com`에 닿지 못하면 사내 GHES 호스트로 `gh`를 로그인시켜야 합니다. 관리자가 `githubEnterpriseHost`를 배포하지 않았거나 사용자가 직접 로그인해야 하는 경우, **설정 → Integrations → "Company GitHub (Enterprise)"** 에서 처리할 수 있습니다 (`src/renderer/src/components/settings/GitHubEnterpriseSection.tsx`).
+`gh`가 회사에서 `github.com`에 닿지 못하면 사내 GHES 호스트로 `gh`를 로그인시켜야 합니다. 관리자가 `githubEnterpriseHost`를 배포하지 않았거나 사용자가 직접 로그인해야 하는 경우, **설정 → 연동 → "사내 GitHub (Enterprise)"(영문 UI: Integrations → Company GitHub (Enterprise))** 에서 처리할 수 있습니다 (`src/renderer/src/components/settings/GitHubEnterpriseSection.tsx`).
 
 - **호스트 입력:** 정책의 `githubEnterpriseHost`가 있으면 그 값이 기본으로 채워지고, 없으면 사용자가 사내 호스트를 입력해 저장합니다. 저장 위치는 `%APPDATA%\Orca\github-enterprise-host.json` — 정책 파일이 아니라 사용자 프로파일입니다(`src/main/github/github-enterprise-host-store.ts`). 정책 호스트가 있으면 그쪽이 기본값으로 우선합니다.
 - **브라우저 로그인(device flow):** "Sign in with browser" 버튼이 `gh auth login --hostname <host> --git-protocol https --web`를 PTY로 실행합니다(`src/main/github/github-enterprise-login.ts`). gh가 출력하는 일회용 코드를 UI에 크게 띄우고, gh가 기본 브라우저를 열어 device 인증을 진행합니다.
@@ -503,7 +503,7 @@ Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "auto_up
 
 ### 7-5. `llmEndpoints` 확인
 
-**엔드포인트가 배포됐는지**: 설정 → Accounts → "Self-hosted models"에 목록이 뜨면 정책이 읽힌 것입니다. "No self-hosted endpoints are provisioned"가 보이면 정책 파일에 항목이 없거나 전부 검증에서 버려진 것이니, §7-2 스팬의 `…warnings`를 확인하세요.
+**엔드포인트가 배포됐는지**: 설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"(영문 UI: Accounts → Self-hosted models)에 목록이 뜨면 정책이 읽힌 것입니다. "제공된 자체 호스팅 엔드포인트가 없습니다"(영문 UI: No self-hosted endpoints are provisioned)가 보이면 정책 파일에 항목이 없거나 전부 검증에서 버려진 것이니, §7-2 스팬의 `…warnings`를 확인하세요.
 
 **세션이 실제로 사내 LLM을 쓰는지**: 그 세션의 터미널에서 선택자를 직접 확인할 수 있습니다. 비밀이 아니라서 일부러 노출해 둔 값입니다.
 

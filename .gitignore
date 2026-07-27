@@ -96,6 +96,7 @@ docs/**
 !docs/reference/windows-corporate-build.md
 !docs/reference/external-integrations-audit.md
 !docs/reference/enterprise-policy.md
+!docs/reference/macos-dev-ui-check.md
 
 # Stably CLI (only docs/ are tracked)
 .stably/*
