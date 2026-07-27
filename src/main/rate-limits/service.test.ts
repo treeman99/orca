@@ -251,6 +251,27 @@ describe('RateLimitService', () => {
     expect(service.getState().grok?.status).toBe('ok')
   })
 
+  it('does not poll non-allowed vendors under a Bedrock-only allowlist', async () => {
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy({ allowedAgents: ['claude'] }))
+    vi.mocked(fetchClaudeRateLimits).mockResolvedValue(okProvider('claude', 12))
+    const service = new RateLimitService()
+
+    await service.refresh()
+
+    // Claude is the Bedrock agent — it still polls.
+    expect(fetchClaudeRateLimits).toHaveBeenCalledTimes(1)
+    // Every other vendor is off the allowlist, so none may phone home.
+    expect(fetchCodexRateLimits).not.toHaveBeenCalled()
+    expect(fetchGeminiRateLimits).not.toHaveBeenCalled()
+    expect(fetchOpenCodeGoRateLimits).not.toHaveBeenCalled()
+    expect(fetchKimiRateLimits).not.toHaveBeenCalled()
+    expect(fetchMiniMaxRateLimits).not.toHaveBeenCalled()
+    expect(fetchGrokRateLimits).not.toHaveBeenCalled()
+    expect(service.getState().claude?.status).toBe('ok')
+    expect(service.getState().codex?.status).toBe('unavailable')
+    expect(service.getState().grok?.status).toBe('unavailable')
+  })
+
   it('does not refetch Claude when a Codex account switch is queued during fetchAll', async () => {
     const service = new RateLimitService()
     const firstClaude = deferred<ProviderRateLimits>()

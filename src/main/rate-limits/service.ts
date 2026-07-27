@@ -27,7 +27,12 @@ import { hasMiniMaxSessionCookie } from '../minimax/minimax-cookie-store'
 import { fetchMiniMaxRateLimits } from './minimax-fetcher'
 import { fetchOpenCodeGoRateLimits } from './opencode-go-usage-fetcher'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
-import { settleUsagePollingDisabledProviders } from './usage-polling-disabled-providers'
+import {
+  settleUsagePollingDisabledProviders,
+  unavailableSnapshot
+} from './usage-polling-disabled-providers'
+import { isAgentAllowedByPolicy } from '../../shared/corporate-agent-access'
+import { usageProviderAgentId } from '../../shared/usage-provider-agent'
 import {
   normalizeCodexAccountSelectionTarget,
   type CodexAccountSelectionTarget,
@@ -733,6 +738,19 @@ export class RateLimitService {
   // fetch entry point — poll timer, activation retry, account switch, and manual refresh — checks this.
   private isUsagePollingDisabled(): boolean {
     return getEnterprisePolicy().disableUsagePolling
+  }
+
+  // Why: on a Bedrock-only fleet the corporate policy hides non-allowed agents, and
+  // their usage meters must not phone the vendor (e.g. Codex → chatgpt.com) at all.
+  // Claude is the Bedrock agent and is never gated here.
+  private isUsageProviderAllowed(provider: ProviderRateLimits['provider']): boolean {
+    if (provider === 'claude') {
+      return true
+    }
+    return isAgentAllowedByPolicy(
+      usageProviderAgentId(provider),
+      getEnterprisePolicy().allowedAgents
+    )
   }
 
   private startTimer(): void {
@@ -1547,10 +1565,11 @@ export class RateLimitService {
     const missingWslCodexHome = codexHomePath
       ? null
       : this.getMissingWslCodexHomeResult(codexTarget)
-    const grokResultPromise = fetchGrokRateLimits({
-      signal,
-      authReadResult: grokAuthReadResult
-    }).then(
+    const grokResultPromise = (
+      this.isUsageProviderAllowed('grok')
+        ? fetchGrokRateLimits({ signal, authReadResult: grokAuthReadResult })
+        : Promise.resolve(unavailableSnapshot('grok'))
+    ).then(
       (value) => ({ status: 'fulfilled', value }) as const,
       (reason) => ({ status: 'rejected', reason }) as const
     )
@@ -1570,26 +1589,36 @@ export class RateLimitService {
               networkProxySettings: this.networkProxySettingsResolver?.(),
               signal
             }),
-        missingWslCodexHome ??
-          fetchCodexRateLimits({
-            codexHomePath,
-            allowPtyFallback: this.shouldAllowCodexPtyFallback(),
-            signal
-          }),
-        fetchGeminiRateLimits(geminiCliOAuthEnabled),
-        fetchOpenCodeGoRateLimits(
-          cookie,
-          workspaceIdOverride || undefined,
-          this.networkProxySettingsResolver?.()
-        ),
-        fetchKimiRateLimits(),
-        miniMaxConfigResult.error
-          ? Promise.resolve(this.getMiniMaxCredentialError(miniMaxConfigResult.error))
-          : fetchMiniMaxRateLimits({
-              cookie: miniMaxCookie,
-              groupId: miniMaxGroupId,
-              models: miniMaxModels
-            })
+        !this.isUsageProviderAllowed('codex')
+          ? Promise.resolve(unavailableSnapshot('codex'))
+          : (missingWslCodexHome ??
+            fetchCodexRateLimits({
+              codexHomePath,
+              allowPtyFallback: this.shouldAllowCodexPtyFallback(),
+              signal
+            })),
+        this.isUsageProviderAllowed('gemini')
+          ? fetchGeminiRateLimits(geminiCliOAuthEnabled)
+          : Promise.resolve(unavailableSnapshot('gemini')),
+        this.isUsageProviderAllowed('opencode-go')
+          ? fetchOpenCodeGoRateLimits(
+              cookie,
+              workspaceIdOverride || undefined,
+              this.networkProxySettingsResolver?.()
+            )
+          : Promise.resolve(unavailableSnapshot('opencode-go')),
+        this.isUsageProviderAllowed('kimi')
+          ? fetchKimiRateLimits()
+          : Promise.resolve(unavailableSnapshot('kimi')),
+        !this.isUsageProviderAllowed('minimax')
+          ? Promise.resolve(unavailableSnapshot('minimax'))
+          : miniMaxConfigResult.error
+            ? Promise.resolve(this.getMiniMaxCredentialError(miniMaxConfigResult.error))
+            : fetchMiniMaxRateLimits({
+                cookie: miniMaxCookie,
+                groupId: miniMaxGroupId,
+                models: miniMaxModels
+              })
       ])
 
     if (signal.aborted) {
@@ -1783,13 +1812,15 @@ export class RateLimitService {
       ? null
       : this.getMissingWslCodexHomeResult(codexTarget)
     const codex = await (
-      missingWslCodexHome
-        ? Promise.resolve(missingWslCodexHome)
-        : fetchCodexRateLimits({
-            codexHomePath,
-            allowPtyFallback: this.shouldAllowCodexPtyFallback(),
-            signal
-          })
+      !this.isUsageProviderAllowed('codex')
+        ? Promise.resolve(unavailableSnapshot('codex'))
+        : missingWslCodexHome
+          ? Promise.resolve(missingWslCodexHome)
+          : fetchCodexRateLimits({
+              codexHomePath,
+              allowPtyFallback: this.shouldAllowCodexPtyFallback(),
+              signal
+            })
     ).catch(
       (err): ProviderRateLimits => ({
         provider: 'codex',
@@ -1901,10 +1932,11 @@ export class RateLimitService {
       grok: this.withFetchingStatus(previousState.grok, 'grok')
     })
 
-    const grok = await fetchGrokRateLimits({
-      signal,
-      authReadResult: grokAuthReadResult
-    }).catch(
+    const grok = await (
+      this.isUsageProviderAllowed('grok')
+        ? fetchGrokRateLimits({ signal, authReadResult: grokAuthReadResult })
+        : Promise.resolve(unavailableSnapshot('grok'))
+    ).catch(
       (err): ProviderRateLimits => ({
         provider: 'grok',
         session: null,

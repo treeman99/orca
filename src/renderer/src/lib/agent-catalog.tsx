@@ -15,6 +15,8 @@ import {
 import { translate } from '@/i18n/i18n'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { AGENT_FAVICON_ASSETS } from './agent-favicon-assets'
+import { filterAgentsByPolicy } from '../../../shared/corporate-agent-access'
+import { getPolicyAllowedAgents } from '../enterprise/enterprise-policy-access'
 
 export type AgentCatalogEntry = {
   id: TuiAgent
@@ -295,6 +297,13 @@ export const getAgentCatalog = createLocalizedCatalog((): AgentCatalogEntry[] =>
 
 // Why: tests and a few legacy call sites still import a catalog snapshot.
 export const AGENT_CATALOG: AgentCatalogEntry[] = getAgentCatalog()
+
+// The agents a user may CHOOSE, after the corporate policy's allowlist. Label and
+// icon lookups deliberately keep using the full catalog so an already-running agent
+// the policy now hides still renders its name/icon; only pickers use this narrowed list.
+export function getSelectableAgentCatalog(): AgentCatalogEntry[] {
+  return filterAgentsByPolicy(getAgentCatalog(), (entry) => entry.id, getPolicyAllowedAgents())
+}
 
 export function getAgentLabel(agent: TuiAgent): string {
   return getAgentCatalog().find((entry) => entry.id === agent)?.label ?? agent

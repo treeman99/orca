@@ -14,6 +14,7 @@ import type {
   CorporateLlmEndpointStatus,
   CorporateLlmTokenSaveResult
 } from '../shared/corporate-llm-endpoint-status'
+import type { EnterprisePolicyView } from '../shared/enterprise-policy-view'
 import type { AgentHookInstallStatus } from '../shared/agent-hook-types'
 import type { TerminalPaneSplitSource } from '../shared/feature-education-telemetry'
 import type { ProjectExecutionRuntimeResolution } from '../shared/project-execution-runtime'
@@ -4152,6 +4153,10 @@ const api = {
     clearToken: (args: { endpointId: string }): Promise<CorporateLlmTokenSaveResult> =>
       ipcRenderer.invoke('corporateLlmEndpoints:clearToken', args)
   } satisfies PreloadApi['corporateLlm'],
+
+  enterprisePolicy: {
+    get: (): Promise<EnterprisePolicyView> => ipcRenderer.invoke('enterprisePolicy:get')
+  } satisfies PreloadApi['enterprisePolicy'],
 
   grokAccounts: {
     getStatus: (): Promise<GrokAccountStatus> => ipcRenderer.invoke('grokAccounts:getStatus')

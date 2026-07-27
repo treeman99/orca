@@ -4,7 +4,8 @@
 import { useId, useMemo, useState } from 'react'
 import { Check, ChevronDown, ExternalLink, Info, RefreshCw, Terminal } from 'lucide-react'
 import type { GlobalSettings, TuiAgent } from '../../../../shared/types'
-import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
+import { getSelectableAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { useDetectedAgents } from '@/hooks/useDetectedAgents'
 import { useAppStore } from '@/store'
 import { Button } from '../ui/button'
@@ -679,6 +680,8 @@ export function AgentsPane({
   wslDistros,
   wslCapabilitiesLoading
 }: AgentsPaneProps): React.JSX.Element {
+  // Why: re-render when the corporate policy loads at startup so getSelectableAgentCatalog() reflects it.
+  useEnterprisePolicyView()
   const { detectedIds: detectedList, isRefreshing, refresh } = useDetectedAgents()
   // Why: refresh re-spawns the user's login shell to re-capture PATH
   // (preflight:refreshAgents on the main side). This handles the
@@ -758,11 +761,13 @@ export function AgentsPane({
   // Showing the full catalog here makes the default-agent picker flash invalid
   // options while switching between Windows and WSL detection contexts.
   const detectedAgents =
-    detectedIds === null ? [] : getAgentCatalog().filter((agent) => detectedIds.has(agent.id))
+    detectedIds === null
+      ? []
+      : getSelectableAgentCatalog().filter((agent) => detectedIds.has(agent.id))
   const enabledDetectedAgents = detectedAgents.filter((agent) =>
     isTuiAgentEnabled(agent.id, disabledAgents)
   )
-  const undetectedAgents = getAgentCatalog().filter(
+  const undetectedAgents = getSelectableAgentCatalog().filter(
     (a) => detectedIds !== null && !detectedIds.has(a.id)
   )
 

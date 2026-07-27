@@ -15,6 +15,7 @@ describe('resolveEnterprisePolicy', () => {
       enforceNetworkAllowlist: false,
       allowedNetworkHosts: [],
       githubEnterpriseHost: null,
+      allowedAgents: null,
       llmEndpoints: [],
       sourcePath: null,
       warnings: []
@@ -129,6 +130,37 @@ describe('resolveEnterprisePolicy — GitHub Enterprise host', () => {
     expect(
       resolveEnterprisePolicy({ githubEnterpriseHost: 'github.samsungds.net' }).allowedNetworkHosts
     ).toEqual(['github.samsungds.net'])
+  })
+})
+
+describe('resolveEnterprisePolicy — allowedAgents', () => {
+  it('is null (no restriction) when the key is absent', () => {
+    expect(resolveEnterprisePolicy({}).allowedAgents).toBeNull()
+  })
+
+  it('reads and dedupes a list of agent ids', () => {
+    expect(
+      resolveEnterprisePolicy({ allowedAgents: ['claude', 'claude', ' codex '] }).allowedAgents
+    ).toEqual(['claude', 'codex'])
+  })
+
+  it('warns about a non-array value and falls back to no restriction', () => {
+    const policy = resolveEnterprisePolicy({ allowedAgents: 'claude' })
+    expect(policy.allowedAgents).toBeNull()
+    expect(policy.warnings[0]).toContain('allowedAgents')
+  })
+
+  it('drops unusable entries but keeps the usable ones', () => {
+    const policy = resolveEnterprisePolicy({ allowedAgents: ['claude', 42, '  '] })
+    expect(policy.allowedAgents).toEqual(['claude'])
+    expect(policy.warnings).toHaveLength(2)
+  })
+
+  // Why: an empty allowlist would hide every agent, so a typo must not brick the picker.
+  it('treats an empty or all-invalid list as no restriction, with a warning', () => {
+    const policy = resolveEnterprisePolicy({ allowedAgents: [] })
+    expect(policy.allowedAgents).toBeNull()
+    expect(policy.warnings[0]).toContain('allowedAgents')
   })
 })
 

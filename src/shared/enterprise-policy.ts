@@ -45,6 +45,13 @@ export type EnterprisePolicy = {
   /** Private GitHub Enterprise host, e.g. "github.samsungds.net". */
   githubEnterpriseHost: string | null
   /**
+   * Agent CLIs a user may select (by TuiAgent id, e.g. "claude"). `null` means no
+   * restriction (upstream behavior); a list confines every picker to those ids so a
+   * Bedrock-only fleet can hide OpenAI/Gemini/etc. The self-hosted models are not
+   * agents — they ride the allowed agent's picker — so they need no entry here.
+   */
+  allowedAgents: readonly string[] | null
+  /**
    * Self-hosted model endpoints a user may point a session at. Administrator-owned;
    * the per-user token is never here — see enterprise-llm-endpoints.ts.
    */
@@ -76,6 +83,7 @@ const KNOWN_KEYS: ReadonlySet<string> = new Set<string>([
   '$schema',
   'lockdown',
   'githubEnterpriseHost',
+  'allowedAgents',
   'allowedNetworkHosts',
   'llmEndpoints',
   'enforceNetworkAllowlist',
@@ -154,6 +162,42 @@ function readHost(
   return host
 }
 
+// Returns null (no restriction) for an absent list, and — deliberately — also for
+// an empty or all-invalid one: a list that hides every agent would leave the picker
+// with nothing to select, so an admin typo must never brick the app that way.
+function readAgentAllowlist(
+  document: EnterprisePolicyDocument,
+  key: string,
+  warnings: string[]
+): string[] | null {
+  const raw = document[key]
+  if (raw === undefined) {
+    return null
+  }
+  if (!Array.isArray(raw)) {
+    warnings.push(`"${key}" must be an array of agent ids; ignoring it.`)
+    return null
+  }
+  const agents: string[] = []
+  const seen = new Set<string>()
+  for (const entry of raw) {
+    const id = typeof entry === 'string' ? entry.trim() : ''
+    if (!id) {
+      warnings.push(`"${key}" entry ${JSON.stringify(entry)} is not an agent id; ignoring it.`)
+      continue
+    }
+    if (!seen.has(id)) {
+      seen.add(id)
+      agents.push(id)
+    }
+  }
+  if (agents.length === 0) {
+    warnings.push(`"${key}" listed no usable agent id; ignoring it.`)
+    return null
+  }
+  return agents
+}
+
 function readHostList(
   document: EnterprisePolicyDocument,
   key: string,
@@ -213,6 +257,7 @@ export function resolveEnterprisePolicy(
 
   const githubEnterpriseHost =
     readHost(effective, 'githubEnterpriseHost', warnings) ?? normalizeHost(env.GH_HOST)
+  const allowedAgents = readAgentAllowlist(effective, 'allowedAgents', warnings)
   const allowed = new Set(readHostList(effective, 'allowedNetworkHosts', warnings))
   if (githubEnterpriseHost) {
     allowed.add(githubEnterpriseHost)
@@ -235,6 +280,7 @@ export function resolveEnterprisePolicy(
     enforceNetworkAllowlist: readBoolean(effective, 'enforceNetworkAllowlist', warnings) ?? false,
     allowedNetworkHosts: [...allowed],
     githubEnterpriseHost,
+    allowedAgents,
     llmEndpoints,
     sourcePath,
     warnings

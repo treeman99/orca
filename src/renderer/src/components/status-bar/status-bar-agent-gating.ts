@@ -1,4 +1,7 @@
+import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
 import type { StatusBarItem, TuiAgent } from '../../../../shared/types'
+import { isAgentAllowedByPolicy } from '../../../../shared/corporate-agent-access'
+import { usageProviderAgentId } from '../../../../shared/usage-provider-agent'
 
 // Why: CLI-backed usage bars are surface noise when the underlying
 // CLI isn't installed (e.g. a fresh Ubuntu install showing "Gemini Usage"
@@ -15,10 +18,33 @@ const CLI_GATED_ITEMS: ReadonlySet<StatusBarItem> = new Set([
   'grok'
 ])
 
+// Usage-meter items that map to a vendor agent, so the corporate allowlist can hide them.
+const USAGE_PROVIDER_ITEMS: ReadonlySet<StatusBarItem> = new Set([
+  'claude',
+  'codex',
+  'gemini',
+  'kimi',
+  'antigravity',
+  'grok',
+  'opencode-go',
+  'minimax'
+])
+
 export function isStatusBarItemAvailable(
   id: StatusBarItem,
-  detectedAgentIds: TuiAgent[] | null
+  detectedAgentIds: TuiAgent[] | null,
+  allowedAgents: readonly string[] | null = null
 ): boolean {
+  // A vendor the corporate policy disallows hides its meter and its visibility toggle.
+  if (
+    USAGE_PROVIDER_ITEMS.has(id) &&
+    !isAgentAllowedByPolicy(
+      usageProviderAgentId(id as ProviderRateLimits['provider']),
+      allowedAgents
+    )
+  ) {
+    return false
+  }
   if (!CLI_GATED_ITEMS.has(id)) {
     return true
   }

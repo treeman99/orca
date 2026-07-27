@@ -37,4 +37,24 @@ describe('isStatusBarItemAvailable', () => {
     expect(isStatusBarItemAvailable('antigravity', ['antigravity'])).toBe(true)
     expect(isStatusBarItemAvailable('grok', ['grok'])).toBe(true)
   })
+
+  it('leaves every provider available when the policy allowlist is null', () => {
+    expect(isStatusBarItemAvailable('codex', ['codex'], null)).toBe(true)
+    expect(isStatusBarItemAvailable('minimax', [], null)).toBe(true)
+  })
+
+  it('hides usage meters of vendors the corporate allowlist excludes', () => {
+    expect(isStatusBarItemAvailable('codex', ['codex'], ['claude'])).toBe(false)
+    expect(isStatusBarItemAvailable('gemini', ['gemini'], ['claude'])).toBe(false)
+    expect(isStatusBarItemAvailable('opencode-go', [], ['claude'])).toBe(false)
+    expect(isStatusBarItemAvailable('minimax', [], ['claude'])).toBe(false)
+    expect(isStatusBarItemAvailable('grok', ['grok'], ['claude'])).toBe(false)
+  })
+
+  it('keeps the allowed agent (Claude/Bedrock) and non-vendor items under a policy', () => {
+    expect(isStatusBarItemAvailable('claude', ['claude'], ['claude'])).toBe(true)
+    // Non-vendor items are never gated by the agent allowlist.
+    expect(isStatusBarItemAvailable('ssh', null, ['claude'])).toBe(true)
+    expect(isStatusBarItemAvailable('ports', [], ['claude'])).toBe(true)
+  })
 })

@@ -33,6 +33,8 @@ import { SettingsSwitch } from '@/components/settings/SettingsFormControls'
 import type RepoCombobox from '@/components/repo/RepoCombobox'
 import AgentCombobox from '@/components/agent/AgentCombobox'
 import { getAgentCatalog } from '@/lib/agent-catalog'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
+import { filterAgentsByPolicy } from '../../../shared/corporate-agent-access'
 import { useAppStore } from '@/store'
 import { cn } from '@/lib/utils'
 import { WORKSPACE_FILE_PATH_MIME } from '@/lib/workspace-file-drag'
@@ -1042,18 +1044,21 @@ export default function NewWorkspaceComposerCard({
     })
   }, [cancelNameInputFocusFrame, nameInputRef])
 
+  const { allowedAgents } = useEnterprisePolicyView()
   const visibleQuickAgents = React.useMemo(() => {
+    // Restrict to agents the corporate policy allows before detection/enable filtering.
+    const catalog = filterAgentsByPolicy(getAgentCatalog(), (agent) => agent.id, allowedAgents)
     const enabledIds = new Set(
       filterEnabledTuiAgents(
-        getAgentCatalog().map((agent) => agent.id),
+        catalog.map((agent) => agent.id),
         disabledTuiAgents
       )
     )
-    return getAgentCatalog().filter(
+    return catalog.filter(
       (agent) =>
         enabledIds.has(agent.id) && (detectedAgentIds === null || detectedAgentIds.has(agent.id))
     )
-  }, [detectedAgentIds, disabledTuiAgents])
+  }, [detectedAgentIds, disabledTuiAgents, allowedAgents])
 
   const handleAddRepo = React.useCallback((): void => {
     // Why: swapping activeModal would unmount the composer, so the override layers Add Project on top instead.

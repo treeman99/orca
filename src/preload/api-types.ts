@@ -25,6 +25,7 @@ import type {
   LocalLogTailWatchArgs
 } from '../shared/local-log-tail-types'
 import type { ReadClipboardTextOptions } from '../shared/clipboard-text'
+import type { EnterprisePolicyView } from '../shared/enterprise-policy-view'
 import type { AppIdentity } from '../shared/app-identity'
 import type {
   WriteTerminalRenderDesyncEvidenceArgs,
@@ -3139,6 +3140,9 @@ export type PreloadApi = {
     listEndpoints: () => Promise<CorporateLlmEndpointStatus[]>
     saveToken: (args: { endpointId: string; token: string }) => Promise<CorporateLlmTokenSaveResult>
     clearToken: (args: { endpointId: string }) => Promise<CorporateLlmTokenSaveResult>
+  }
+  enterprisePolicy: {
+    get: () => Promise<EnterprisePolicyView>
   }
   grokAccounts: {
     getStatus: () => Promise<GrokAccountStatus>

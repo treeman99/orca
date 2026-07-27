@@ -103,6 +103,7 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 | `enforceNetworkAllowlist` | boolean | **`false`** (lockdown을 상속하지 **않음**) | §5 참고. `src/shared/enterprise-policy.ts:212-214`에 이유가 주석으로 박혀 있습니다 |
 | `allowedNetworkHosts` | string[] | `[]` (+ `githubEnterpriseHost` 자동 포함) | `enforceNetworkAllowlist: true`일 때만 의미가 있습니다 |
 | `llmEndpoints` | object[] | `[]` | 사내에서 직접 서비스하는 모델의 접속 지점 목록. 사용자가 세션을 Bedrock 대신 여기로 돌릴 수 있습니다. 각 엔드포인트의 호스트는 허용목록에 자동 추가됩니다 (`src/shared/enterprise-policy.ts:216-223`). **토큰은 여기 넣지 않습니다** — §3-2 참고 |
+| `allowedAgents` | string[] | `null` (제한 없음) | 사용자가 **고를 수 있는 에이전트 CLI id 목록** (예: `"claude"`). 지정하면 에이전트/모델 피커·계정 설정·하단 사용량 미터가 이 목록으로만 좁혀지고, 나머지 벤더(codex/gpt, gemini, opencode, grok 등)는 UI에서 사라지고 사용량 폴링(예: Codex → chatgpt.com)도 하지 않습니다. 빈 배열/오타는 피커를 완전히 막지 않도록 "제한 없음"으로 처리됩니다. 사내 self-hosted 모델은 에이전트가 아니라 허용된 에이전트의 모델 피커에 얹히므로 여기 적을 필요가 없습니다. §3-3 참고 |
 | `$schema` | string | — | 알려진 키라 경고가 나지 않습니다. 에디터 편의용 (`enterprise-policy.ts:65`) |
 
 ### 3-1. `disableManagedClaudeAccounts` — Bedrock 플릿에서는 필수입니다
@@ -207,6 +208,15 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 - **모르는 키**는 무시되고 경고만 나갑니다 (`:190-194`). 오타난 키(`disableStarNagg`)는 곧 "그 스위치는 부재" = `lockdown` 상속입니다.
 - **문법이 깨진 파일은 통째로 거부**합니다 (`enterprise-policy-file.ts:145-148`). 절반만 적용되는 상태는 만들지 않습니다 — 다만 그 결과가 "잠금 강화"가 아니라 **"정책 미적용"**이라는 점을 §7-4에서 반드시 확인하세요.
 
+### 3-3. `allowedAgents` — Bedrock + 사내 모델만 남기기
+
+기본 배포판에는 Claude·Codex(gpt)·Gemini·OpenCode·Grok 등 여러 에이전트 CLI와 그 벤더 모델이 UI 곳곳에 노출됩니다. `allowedAgents`를 지정하면 **고를 수 있는 에이전트를 이 목록으로만 좁힙니다.** Bedrock 전용 플릿이라면 `["claude"]` 하나면 됩니다 — `claude` 에이전트가 `AWS_BEARER_TOKEN_BEDROCK`을 통해 Bedrock으로 말하기 때문입니다.
+
+- **좁혀지는 표면 (렌더러):** 정책은 `enterprisePolicy:get` IPC(`src/main/ipc/enterprise-policy.ts`)로 렌더러에 전달되고, 다음이 허용 목록으로 필터됩니다 — 에이전트 설정 피커(`AgentsPane`), 계정 설정 섹션(`AccountsPane`), 새 워크스페이스 에이전트 선택(`NewWorkspaceComposerCard`), 하단 사용량 미터/우클릭 토글(`status-bar-agent-gating.ts`). 이미 실행 중인 세션의 이름·아이콘은 전체 카탈로그로 계속 해석되므로 깨지지 않습니다.
+- **폴링 차단 (메인):** 허용되지 않은 벤더의 사용량 미터는 네트워크로 나가지 않습니다 — 예로 Codex는 `chatgpt.com`을 조회하지 않습니다 (`src/main/rate-limits/service.ts`의 `isUsageProviderAllowed`). `claude`는 Bedrock 에이전트라 여기서 게이트되지 않습니다 (Claude 사용량 폴링 자체를 끄려면 `disableUsagePolling`).
+- **사내 self-hosted 모델:** 에이전트가 아니라 허용된 에이전트의 **모델 피커에 얹히는** 항목이므로(`corporate-llm-session-catalog.ts`) `allowedAgents`에 적지 않아도 그대로 유지됩니다. `llmEndpoints`(§3-2)로 배포하면 됩니다.
+- **안전장치:** 빈 배열이나 전부 무효한 값은 "제한 없음(`null`)"으로 처리되고 경고가 나갑니다 (`enterprise-policy.ts`의 `readAgentAllowlist`) — 관리자의 오타가 피커를 완전히 비워 앱을 못 쓰게 만드는 사고를 막습니다. `lockdown`을 상속하지 않으므로 제한하려면 **명시**해야 합니다.
+
 ---
 
 ## 4. 예제
@@ -244,6 +254,9 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
       "model": "qwen3-coder"
     }
   ],
+
+  // Bedrock(claude) + 위 사내 모델만 쓰도록 나머지 벤더를 UI/폴링에서 제거 (§3-3).
+  "allowedAgents": ["claude"],
 
   // 하드 허용목록은 옵트인입니다. 켜기 전에 반드시 §5를 읽으세요.
   "enforceNetworkAllowlist": false,

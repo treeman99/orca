@@ -77,6 +77,8 @@ import {
 } from './provider-account-visibility'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
+import { isAgentAllowedByPolicy } from '../../../../shared/corporate-agent-access'
 import {
   emptyClaudeAccountsState,
   emptyCodexAccountsState,
@@ -92,6 +94,19 @@ export { getAccountsPaneSearchEntries }
 
 const EMPTY_WSL_DISTROS: string[] = []
 const MINIMAX_CONSOLE_URL = 'https://platform.minimax.io/console/usage'
+
+// Which vendor an account section belongs to, keyed by its render key. Sections
+// absent here (account runtime, the corporate self-hosted endpoints) are never gated
+// by the agent allowlist. MiniMax has no TuiAgent id, so a synthetic one that no
+// allowlist contains hides it under any Bedrock-only policy — the intended behavior.
+const ACCOUNT_SECTION_AGENT_BY_KEY: Record<string, string> = {
+  'claude-accounts': 'claude',
+  'codex-accounts': 'codex',
+  gemini: 'gemini',
+  'opencode-go': 'opencode',
+  minimax: 'minimax',
+  grok: 'grok'
+}
 
 function formatMiniMaxRelativeRefresh(updatedAt: number, now: number): string {
   const diffMs = Math.max(0, now - updatedAt)
@@ -328,6 +343,7 @@ export function AccountsPane({
   wslCapabilitiesLoading = false,
   accountOwnerPlatform = null
 }: AccountsPaneProps): React.JSX.Element {
+  const { allowedAgents } = useEnterprisePolicyView()
   const searchQuery = useAppStore((s) => s.settingsSearchQuery)
   const codexRateLimits = useAppStore((s) => s.rateLimits.codex)
   const codexRateLimitTarget = useAppStore((s) => s.rateLimits.codexTarget)
@@ -1860,7 +1876,14 @@ export function AccountsPane({
     matchesSettingsSearch(searchQuery, getCorporateLlmEndpointsSearchEntries()) ? (
       <CorporateLlmEndpointsSection key="corporate-llm" />
     ) : null
-  ].filter(Boolean)
+  ]
+    .filter(Boolean)
+    // Hide the account sections of vendors the corporate policy does not allow.
+    .filter((section) => {
+      const key = (section as React.ReactElement).key
+      const agentId = typeof key === 'string' ? ACCOUNT_SECTION_AGENT_BY_KEY[key] : undefined
+      return agentId === undefined || isAgentAllowedByPolicy(agentId, allowedAgents)
+    })
 
   return (
     <div className="space-y-8">

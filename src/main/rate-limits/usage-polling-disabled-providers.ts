@@ -22,7 +22,7 @@ const PROVIDER_BY_SLOT: Record<keyof UsageProviderSlots, ProviderRateLimits['pro
   grok: 'grok'
 }
 
-function unavailableSnapshot(provider: ProviderRateLimits['provider']): ProviderRateLimits {
+export function unavailableSnapshot(provider: ProviderRateLimits['provider']): ProviderRateLimits {
   // Why: leave `error` null so the renderer supplies its own localized "Unavailable" copy.
   return {
     provider,
