@@ -11,17 +11,16 @@ type DetachedHeadBadgeProps = {
   display: DetachedHeadDisplay
   label?: 'sidebar' | 'source-control'
   side?: React.ComponentProps<typeof TooltipContent>['side']
-  /** Forwarded to the badge so a caller can keep the tooltip keyboard-reachable. */
-  tabIndex?: number
   className?: string
+  tabIndex?: number
 }
 
 export function DetachedHeadBadge({
   display,
   label = 'source-control',
   side = 'right',
-  tabIndex,
-  className
+  className,
+  tabIndex
 }: DetachedHeadBadgeProps): React.JSX.Element {
   const visibleLabel = label === 'sidebar' ? display.sidebarLabel : display.sourceControlLabel
 
@@ -30,11 +29,8 @@ export function DetachedHeadBadge({
       <TooltipTrigger asChild>
         <Badge
           variant="outline"
+          aria-label={display.tooltip}
           tabIndex={tabIndex}
-          // Why: a focusable badge needs an accessible name of its own, since its
-          // tooltip is the only place the full explanation exists. Left undefined
-          // when it is not focusable so the visible label stays the name.
-          aria-label={tabIndex === undefined ? undefined : display.tooltip}
           className={cn(
             'h-[18px] shrink-0 gap-1 rounded px-1.5 text-[10px] font-medium leading-none',
             'border-[color:color-mix(in_srgb,var(--git-decoration-modified)_30%,transparent)] bg-[color:color-mix(in_srgb,var(--git-decoration-modified)_8%,transparent)] text-[color:var(--git-decoration-modified)]',
@@ -42,7 +38,7 @@ export function DetachedHeadBadge({
           )}
         >
           <GitCommitHorizontal className="size-2.5" />
-          {visibleLabel}
+          <span className="min-w-0 truncate">{visibleLabel}</span>
         </Badge>
       </TooltipTrigger>
       <TooltipContent side={side} sideOffset={8}>

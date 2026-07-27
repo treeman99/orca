@@ -95,8 +95,8 @@ ORCA_ENTERPRISE_POLICY=~/orca-dev-policy/enterprise-policy.json pnpm dev
 
 - `out/electron-dev/<hash>/Orca: <브랜치>.app`으로 Electron을 **복사·plist 수정·ad-hoc 서명**합니다(`:113-253`).
   Dock 이름이 브랜치별로 갈리고, 알림 권한은 `com.stablyai.orca.dev` 하나로 공유됩니다.
-- **userData를 격리합니다** — `~/Library/Application Support/orca-dev` (`src/main/startup/configure-process.ts:193`).
-  설치된 Orca의 프로필을 건드리지 않습니다. 격리된 새 프로필이 필요하면 `ORCA_DEV_USER_DATA_PATH`로 덮어씁니다(`:186-190`).
+- **userData를 격리합니다** — `~/Library/Application Support/orca-dev` (`src/main/startup/configure-process.ts:171`).
+  설치된 Orca의 프로필을 건드리지 않습니다. 격리된 새 프로필이 필요하면 `ORCA_DEV_USER_DATA_PATH`로 덮어씁니다(`:164-195`).
 - Keychain 항목은 `Orca Dev Safe Storage`로 고정됩니다(브랜치마다 새로 묻지 않게 — `src/main/startup/dev-instance-identity.ts:11-16`).
 - `[orca-dev] Remote debugging on http://127.0.0.1:<port>`를 찍습니다(워크트리별 결정적 포트, 충돌 시 스윕 — `:490-533`). §6에서 씁니다.
 - `out/web`이 이미 있으면 페어링용 웹 클라이언트를 다시 빌드합니다(첫 실행이 느린 이유). 없으면 건너뜁니다(`:426-440`).
@@ -106,7 +106,7 @@ ORCA_ENTERPRISE_POLICY=~/orca-dev-policy/enterprise-policy.json pnpm dev
 - **dev가 떠 있는 동안 `pnpm test`를 돌리지 마세요.** 테스트는 앞단에서 `ensure-native-runtime.mjs --runtime=node`를
   실행해 `node-pty`를 **Node ABI로 다시 컴파일**합니다. 실행 중인 Electron 인스턴스가 쓰던 `.node`가 교체되면서 창이
   닫히고 앱이 조용히 종료됩니다. 테스트를 돌린 뒤 `pnpm dev`를 다시 실행하면 `ensure:electron-runtime`이 원복합니다.
-- **dev 앱은 자기를 띄운 프로세스가 사라지면 스스로 종료합니다** (`configure-process.ts:226-255`의 부모 감시 워치독 —
+- **dev 앱은 자기를 띄운 프로세스가 사라지면 스스로 종료합니다** (`configure-process.ts:204-233`의 부모 감시 워치독 —
   Ctrl+C로 electron-vite만 죽었을 때 창이 유령처럼 남는 걸 막는 장치). **자기 터미널에서 띄우고 그 터미널을 열어 두세요.**
   스크립트·에이전트가 띄운 셸이 끝나면 앱도 같이 내려갑니다.
 

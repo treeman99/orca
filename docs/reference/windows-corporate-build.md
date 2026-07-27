@@ -42,11 +42,11 @@ NSIS 원클릭 설치 프로그램, x64, **per-user 설치**(관리자 권한 �
 
 ### 3-1. 왜 되는가 (검증된 메커니즘)
 
-패키지에 들어가는 네이티브 모듈(`node-pty`, `windows-native-registry`)은 **호스트 Node가 아니라 Electron 43 헤더로 컴파일**됩니다. `config/scripts/rebuild-native-deps.mjs:46-49`가 `node_modules/electron/package.json`에서 버전을 읽어 `@electron/rebuild`에 넘기고(:134-147), `config/electron-builder.config.cjs:395`가 이 스크립트를 `beforeBuild` 훅으로 매 빌드마다 실행합니다. 호스트 Node는 **스크립트 인터프리터 역할만** 합니다.
+패키지에 들어가는 네이티브 모듈(`node-pty`, `windows-native-registry`)은 **호스트 Node가 아니라 Electron 43 헤더로 컴파일**됩니다. `config/scripts/rebuild-native-deps.mjs:46-49`가 `node_modules/electron/package.json`에서 버전을 읽어 `@electron/rebuild`에 넘기고(:134-147), `config/electron-builder.config.cjs:401`가 이 스크립트를 `beforeBuild` 훅으로 매 빌드마다 실행합니다. 호스트 Node는 **스크립트 인터프리터 역할만** 합니다.
 
 게다가 두 모듈 모두 **N-API(Node-API) 애드온**입니다 (`node-addon-api ^7.1.0` / `^4.3.0`). N-API는 `NODE_MODULE_VERSION` ABI에 묶이지 않으므로, Electron 43(ABI 148, `node_modules/node-abi/abi_registry.json`)로 빌드한 `.node`가 Node 26(ABI 147)에서 그대로 로드됩니다. 직접 확인할 수 있습니다 — `node_modules/node-pty/build/config.gypi`의 `nodedir`가 `.electron-gyp\43.1.0`(Electron 헤더)을 가리키는 상태에서 `node -e "require('node-pty')"`가 호스트 Node 26.5.0으로 통과합니다.
 
-저장소 자체도 이를 전제로 합니다 — `config/electron-builder.config.cjs:157-161` 주석이 "it require()s the native (N-API) node-pty"라고 명시하고, 방어 분기도 런타임 버전이 아니라 **arch** 기준입니다(:162-174).
+저장소 자체도 이를 전제로 합니다 — `config/electron-builder.config.cjs:163-167` 주석이 "it require()s the native (N-API) node-pty"라고 명시하고, 방어 분기도 런타임 버전이 아니라 **arch** 기준입니다(:162-174).
 
 **빌드 경로에서 호스트 Node 버전을 검사해 실패시키는 코드는 없습니다.** 저장소 소스(node_modules 제외)의 `process.versions.node` 사용처는 두 곳뿐이고 둘 다 빌드와 무관합니다:
 
@@ -72,7 +72,7 @@ pnpm test <단위 테스트>             → 통과
 
 `pnpm install`은 `WARN Unsupported engine: wanted {"node":"24"}` 경고를 내지만 **계속 진행합니다** — `.npmrc`에 `engine-strict`가 없어 `package.json:250-252`의 `engines` 핀이 강제되지 않기 때문입니다.
 
-> **정직한 한계**: 위 실측은 macOS이고, Windows + 최신 Node 조합은 **CI에서도 저장소 이력에서도 한 번도 실행된 적이 없습니다.** 데스크톱 CI 잡은 전부 `node-version-file: package.json`으로 Node 24를 해석하고(모바일 릴리스 두 잡만 `node-version: 24`로 직접 적습니다 — `mobile-ios-release.yml:51`, `mobile-android-release.yml:44`), **릴리스** Windows 잡은 `windows-2022`에 고정되어 있습니다(`release-cut.yml:724`). 다만 Windows 러너가 전부 2022인 것은 아닙니다 — `computer-e2e.yml:190-192`의 `windows` 잡은 `windows-latest`를 씁니다.
+> **정직한 한계**: 위 실측은 macOS이고, Windows + 최신 Node 조합은 **CI에서도 저장소 이력에서도 한 번도 실행된 적이 없습니다.** 데스크톱 CI 잡은 전부 `node-version-file: package.json`으로 Node 24를 해석하고(모바일 릴리스 두 잡만 `node-version: 24`로 직접 적습니다 — `mobile-ios-release.yml:51`, `mobile-android-release.yml:44`), **릴리스** Windows 잡은 `windows-2022`에 고정되어 있습니다(`release-cut.yml:985`). 다만 Windows 러너가 전부 2022인 것은 아닙니다 — `computer-e2e.yml:190-192`의 `windows` 잡은 `windows-latest`를 씁니다.
 
 ### 3-3. 권장 운영 방식
 
@@ -91,9 +91,9 @@ node config/scripts/ensure-native-runtime.mjs --runtime=electron # 확인 + 필�
 
 **둘 다 exit 0이면 호스트 Node 버전 때문에 빌드가 깨질 일은 없습니다** — 남은 실패 요인은 §8입니다. 하나라도 최종 실패하면 그때만 빌드 머신에 nvm-windows로 Node 24를 설치하세요.
 
-> `pnpm test`도 같은 스크립트를 `--runtime=node`로 실행하지만(`package.json:19`), `ensureNodeRuntime`은 **로드 검사가 통과하면 아무것도 하지 않습니다**(`config/scripts/ensure-native-runtime.mjs:55-60`). 위의 N-API 성질 때문에 Electron ABI로 빌드된 모듈도 호스트 Node에서 로드되므로 Windows에서는 보통 no-op이고 — win32는 patched-source 재빌드 경로도 타지 않습니다(`:321-323`) — 재빌드는 로드가 실제로 깨졌을 때만 일어납니다(`:62-79`). 어느 쪽이든 패키징의 `beforeBuild`가 `--force`로 다시 Electron ABI로 컴파일하므로(`config/electron-builder.config.cjs:395` → `config/scripts/electron-builder-native-rebuild.cjs:28-38`) 테스트가 패키징 산출물의 ABI를 오염시킬 수는 없습니다. §4의 5단계는 그래서 **사전 확정 단계**이지 오염 복구 단계가 아닙니다. `pnpm build:win`은 이 단계를 `ensure:electron-runtime`이라는 이름으로 내장하고 있습니다(`package.json:43`, `:75`).
+> `pnpm test`도 같은 스크립트를 `--runtime=node`로 실행하지만(`package.json:19`), `ensureNodeRuntime`은 **로드 검사가 통과하면 아무것도 하지 않습니다**(`config/scripts/ensure-native-runtime.mjs:55-60`). 위의 N-API 성질 때문에 Electron ABI로 빌드된 모듈도 호스트 Node에서 로드되므로 Windows에서는 보통 no-op이고 — win32는 patched-source 재빌드 경로도 타지 않습니다(`:321-323`) — 재빌드는 로드가 실제로 깨졌을 때만 일어납니다(`:62-79`). 어느 쪽이든 패키징의 `beforeBuild`가 `--force`로 다시 Electron ABI로 컴파일하므로(`config/electron-builder.config.cjs:401` → `config/scripts/electron-builder-native-rebuild.cjs:28-38`) 테스트가 패키징 산출물의 ABI를 오염시킬 수는 없습니다. §4의 5단계는 그래서 **사전 확정 단계**이지 오염 복구 단계가 아닙니다. `pnpm build:win`은 이 단계를 `ensure:electron-runtime`이라는 이름으로 내장하고 있습니다(`package.json:43`, `:75`).
 
-준비 노력은 Node가 아니라 **Visual Studio에 쓰세요.** CI가 `windows-2022`를 명시적으로 고정하며 남긴 주석(`.github/workflows/release-cut.yml:722-724`)이 이유를 밝힙니다 — "windows-latest가 VS 2026 이미지로 넘어가면서 node-gyp가 VS 18을 탐지하지 못해 네이티브 설치가 깨졌다". 실제로 깨지는 건 이쪽입니다.
+준비 노력은 Node가 아니라 **Visual Studio에 쓰세요.** CI가 `windows-2022`를 명시적으로 고정하며 남긴 주석(`.github/workflows/release-cut.yml:983-985`)이 이유를 밝힙니다 — "windows-latest가 VS 2026 이미지로 넘어가면서 node-gyp가 VS 18을 탐지하지 못해 네이티브 설치가 깨졌다". 실제로 깨지는 건 이쪽입니다.
 
 `engines` 값을 `>=24` 따위로 "고치지" 마세요. 데스크톱 CI 잡이 전부 이 값에서 Node 버전을 해석하므로, 릴리스 아티팩트를 만드는 Node 버전이 조용히 바뀝니다.
 
@@ -133,7 +133,7 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 pnpm exec electron-builder --config config/electron-builder.config.cjs --win --x64 --publish never
 ```
 
-5·6번 명령은 CI의 Windows `release_command`(`release-cut.yml:726`)를 그대로 두 줄로 풀어 쓴 것입니다 — CI도 `ensure-native-runtime.mjs --runtime=electron` → `$LASTEXITCODE` 확인 → `electron-builder ... --publish never` 순서로 실행합니다. `--x64`만 안전을 위해 추가했습니다. `ORCA_STRICT_ELECTRON_INSTALL=1`은 Electron 바이너리 설치가 실패했을 때 postinstall이 경고만 남기고 통과하는 것을 막습니다(`config/scripts/rebuild-native-deps.mjs:281-291`). 폐쇄망에서 Electron 배포본을 못 받은 상태가 조용히 넘어가면 패키징 단계에서야 드러납니다.
+5·6번 명령은 CI의 Windows `release_command`(`release-cut.yml:987`)를 그대로 두 줄로 풀어 쓴 것입니다 — CI도 `ensure-native-runtime.mjs --runtime=electron` → `$LASTEXITCODE` 확인 → `electron-builder ... --publish never` 순서로 실행합니다. `--x64`만 안전을 위해 추가했습니다. `ORCA_STRICT_ELECTRON_INSTALL=1`은 Electron 바이너리 설치가 실패했을 때 postinstall이 경고만 남기고 통과하는 것을 막습니다(`config/scripts/rebuild-native-deps.mjs:281-291`). 폐쇄망에서 Electron 배포본을 못 받은 상태가 조용히 넘어가면 패키징 단계에서야 드러납니다.
 
 ### `build:release` vs `build:win`
 
@@ -149,7 +149,7 @@ pnpm exec electron-builder --config config/electron-builder.config.cjs --win --x
 
 ### 빌드 후 검증
 
-아래는 CI 검증의 **상위 집합**입니다. 패키징 직후 CI가 강제하는 것은 첫 블록(node-pty ConPTY 런타임 3종)뿐이고(`release-cut.yml:908-923`), 설치 프로그램·blockmap·`latest.yml`을 한꺼번에 확인하는 `Get-Item`은 같은 `build` 잡의 **SignPath 서명 이후 스텝**에만 있습니다(`release-cut.yml:1358`). 사내 빌드는 서명 스텝을 타지 않으므로 둘을 합쳐서 직접 돌리세요.
+아래는 CI 검증의 **상위 집합**입니다. 패키징 직후 CI가 강제하는 것은 첫 블록(node-pty ConPTY 런타임 3종)뿐이고(`release-cut.yml:1169-1184`), 설치 프로그램·blockmap·`latest.yml`을 한꺼번에 확인하는 `Get-Item`은 같은 `build` 잡의 **SignPath 서명 이후 스텝**에만 있습니다(`release-cut.yml:1619`). 사내 빌드는 서명 스텝을 타지 않으므로 둘을 합쳐서 직접 돌리세요.
 
 ```powershell
 $rt = 'dist\win-unpacked\resources\node_modules\node-pty\build\Release'
@@ -166,7 +166,7 @@ Get-Item dist\orca-windows-setup.exe, dist\orca-windows-setup.exe.blockmap, dist
 
 ### 5-1. `--publish never` 없이 패키징
 
-`config/electron-builder.config.cjs:405-413`에 publish provider가 설정되어 있습니다:
+`config/electron-builder.config.cjs:411-419`에 publish provider가 설정되어 있습니다:
 
 ```js
 publish:
@@ -190,7 +190,7 @@ publish:
 
 1. **항상 `--publish never`를 붙인다** (설정 변경 불필요, 가장 확실)
 2. 빌드 셸에서 `GH_TOKEN` / `GITHUB_TOKEN` / `GITHUB_RELEASE_TOKEN` 제거
-3. **빌드 셸에 `ORCA_DISABLE_PUBLISH_TARGET=1`을 설정한다.** 소스를 고칠 필요 없이 `publish`가 `null`이 됩니다(`config/electron-builder.config.cjs:405-413`, 의도는 `:403-404` 주석). `publish: null`이면 `getPublishConfigs`가 곧바로 `null`을 반환해(`node_modules/app-builder-lib/out/publish/PublishManager.js:354-358`) 저장소 정보로부터의 기본 github 폴백조차 타지 않고(`:212-214`), `app-update.yml`은 publish 설정이 있을 때만 기록되므로(`:87-90`) 업데이터 메타(`latest.yml`, `app-update.yml`)가 아예 나오지 않습니다. **다만 이것을 런타임 차단으로 오해하지 마십시오** — Orca는 피드 URL을 `app-update.yml`이 아니라 코드에서 직접 지정하므로(`src/main/updater.ts:1485-1488`, `setFeedURL`이 provider를 선주입해 `app-update.yml` 조회를 건너뜁니다 — `node_modules/electron-updater/out/AppUpdater.js:247`, `:382-383`), 업데이트 **조회는 그대로 업스트림에 나갑니다.** 메타가 없으면 다운로드 단계에서 `app-update.yml`을 읽다 실패할 뿐입니다(`AppUpdater.js:545`)
+3. **빌드 셸에 `ORCA_DISABLE_PUBLISH_TARGET=1`을 설정한다.** 소스를 고칠 필요 없이 `publish`가 `null`이 됩니다(`config/electron-builder.config.cjs:411-419`, 의도는 `:409-410` 주석). `publish: null`이면 `getPublishConfigs`가 곧바로 `null`을 반환해(`node_modules/app-builder-lib/out/publish/PublishManager.js:354-358`) 저장소 정보로부터의 기본 github 폴백조차 타지 않고(`:212-214`), `app-update.yml`은 publish 설정이 있을 때만 기록되므로(`:87-90`) 업데이터 메타(`latest.yml`, `app-update.yml`)가 아예 나오지 않습니다. **다만 이것을 런타임 차단으로 오해하지 마십시오** — Orca는 피드 URL을 `app-update.yml`이 아니라 코드에서 직접 지정하므로(`src/main/updater.ts:1485-1488`, `setFeedURL`이 provider를 선주입해 `app-update.yml` 조회를 건너뜁니다 — `node_modules/electron-updater/out/AppUpdater.js:247`, `:382-383`), 업데이트 **조회는 그대로 업스트림에 나갑니다.** 메타가 없으면 다운로드 단계에서 `app-update.yml`을 읽다 실패할 뿐입니다(`AppUpdater.js:545`)
 
 `ORCA_DISABLE_PUBLISH_TARGET`은 **빌드 셸 전용 변수**입니다. 앱 런타임 환경변수가 아니며 설치된 Orca는 이 값을 읽지 않습니다.
 
@@ -198,7 +198,7 @@ publish:
 
 ### 5-2. `ORCA_MAC_RELEASE` 환경변수 남겨두기
 
-`config/electron-builder.config.cjs:313`이 `forceCodeSigning: isMacRelease`이고 `isMacRelease`는 `process.env.ORCA_MAC_RELEASE === '1'`입니다(:16). Windows 빌드 셸에 이 값이 남아 있으면 서명이 실제로 이뤄지지 않았을 때 `App is not signed and "forceCodeSigning" is set to true` `InvalidConfigurationError`로 **빌드가 실패**합니다(`node_modules/app-builder-lib/out/winPackager.js:129-130`).
+`config/electron-builder.config.cjs:319`이 `forceCodeSigning: isMacRelease`이고 `isMacRelease`는 `process.env.ORCA_MAC_RELEASE === '1'`입니다(:16). Windows 빌드 셸에 이 값이 남아 있으면 서명이 실제로 이뤄지지 않았을 때 `App is not signed and "forceCodeSigning" is set to true` `InvalidConfigurationError`로 **빌드가 실패**합니다(`node_modules/app-builder-lib/out/winPackager.js:129-130`).
 
 ---
 
@@ -216,7 +216,7 @@ publish:
 
 **서명하지 않는 빌드가 폐쇄망에서 반드시 필요한 electron-builder 툴셋은 NSIS 번들뿐입니다.** 아이콘/버전 리소스 스탬핑에는 다운로드가 필요 없습니다 — 이 버전은 `rcedit.exe`를 쓰지 않고 번들된 JS 패키지 `resedit`으로 PE 리소스를 직접 편집합니다(`node_modules/app-builder-lib/out/util/resEdit.js:6-11`, 호출부 `node_modules/app-builder-lib/out/winPackager.js:196`). `getRceditBundle()`은 정의만 남아 있고 호출하는 곳이 없습니다(`node_modules/app-builder-lib/out/toolsets/windows.js:136`). `winCodeSign` 번들은 실제로 서명할 때만 받습니다 — Windows 호스트에서 `signtool.exe`가 거기서 나옵니다(`node_modules/app-builder-lib/out/toolsets/windows.js:101-102`).
 
-**빌드 시점에 음성 모델은 받지 않습니다.** sherpa-onnx 모델은 런타임에 사용자가 내려받는 구조입니다(`src/main/speech/model-catalog.ts:15-16` 외 `downloadUrl` 목록).
+**빌드 시점에 음성 모델은 받지 않습니다.** sherpa-onnx 모델은 런타임에 사용자가 내려받는 구조입니다(`src/main/speech/model-download-catalog.ts:12` — v1.4.159부터 GitHub Releases가 아니라 `huggingface.co`에서 받습니다).
 
 ### 6-2. 폐쇄망 전략
 
@@ -239,7 +239,7 @@ node_modules\
 
 인증서 설정이 전혀 없으면 electron-builder는 **서명을 건너뛴 뒤 빌드를 성공시킵니다.** `forceCodeSigning`이 `ORCA_MAC_RELEASE=1`이 아닌 한 `false`이기 때문입니다(§5-2). 건너뛴 사실은 `"no signing info identified, signing is skipped"`로 기록되지만 `log.debug` 레벨이라(`node_modules/app-builder-lib/out/codeSign/windowsSignToolManager.js:156`) 기본 출력에는 보이지 않습니다 — **로그가 조용하다고 서명된 것이 아닙니다.**
 
-업스트림의 SignPath **서명 단계**는 GitHub Actions 워크플로 안에만 있습니다 — 사내 빌드는 그 워크플로를 타지 않으므로 자동으로 건너뛰어집니다. 다만 electron-builder 설정이 SignPath와 **완전히 무관하지는 않습니다**: `win.signtoolOptions.publisherName`의 기본값이 `'SignPath Foundation'`으로 박혀 있어(`config/electron-builder.config.cjs:200-202`) 아래 자동 업데이트 주의사항으로 이어집니다.
+업스트림의 SignPath **서명 단계**는 GitHub Actions 워크플로 안에만 있습니다 — 사내 빌드는 그 워크플로를 타지 않으므로 자동으로 건너뛰어집니다. 다만 electron-builder 설정이 SignPath와 **완전히 무관하지는 않습니다**: `win.signtoolOptions.publisherName`의 기본값이 `'SignPath Foundation'`으로 박혀 있어(`config/electron-builder.config.cjs:206-208`) 아래 자동 업데이트 주의사항으로 이어집니다.
 
 ### 사내 인증서로 서명하려면
 
@@ -262,12 +262,12 @@ $env:WIN_CSC_KEY_PASSWORD = "<password>"
 | --- | --- |
 | `win-unpacked\Orca.exe` | 서명 + 아이콘/버전 리소스 스탬핑 (`winPackager.js:244-248`) |
 | `win-unpacked\` 나머지 최상위 파일 | `.exe`만. Electron이 함께 푸는 `*.dll`은 대상이 아님 (`winPackager.js:249-251`) |
-| `resources\app.asar.unpacked\**` | `walkSignableFiles`가 같은 술어로 걸러 `.exe`만 통과 (`winPackager.js:256-260`, `:266-268`). sherpa-onnx의 `onnxruntime.dll` / `sherpa-onnx-c-api.dll` / `sherpa-onnx.node` 제외 — 이 패키지는 `asarUnpack`(`config/electron-builder.config.cjs:134`)과 `extraResources`(`:206`) 양쪽에 들어가므로 두 사본 모두 미서명입니다 |
+| `resources\app.asar.unpacked\**` | `walkSignableFiles`가 같은 술어로 걸러 `.exe`만 통과 (`winPackager.js:256-260`, `:266-268`). sherpa-onnx의 `onnxruntime.dll` / `sherpa-onnx-c-api.dll` / `sherpa-onnx.node` 제외 — 이 패키지는 `asarUnpack`(`config/electron-builder.config.cjs:140`)과 `extraResources`(`:212`) 양쪽에 들어가므로 두 사본 모두 미서명입니다 |
 | `extraResources` 복사본 | 복사 트랜스포머가 `.exe`만 서명 (`winPackager.js:220-233`, 호출부 `node_modules/app-builder-lib/out/platformPackager.js:239-240`). `bin\orca.exe`, `agent-browser-win32-x64.exe`는 **서명됨**; 같은 트리의 `pty.node`, `conpty.node`, `conpty_console_list.node`, `conpty\conpty.dll`, `winpty.dll`은 **서명 안 됨** |
 
-node-pty의 `conpty\OpenConsole.exe`는 **복사 시점에 따라 갈립니다.** 리빌드가 이미 `build\Release\conpty\`를 채워 둔 상태면 extraResources 복사와 함께 트랜스포머를 통과해 서명되지만, 비어 있으면 `afterPack`이 `third_party\conpty\...\win10-x64`에서 뒤늦게 채우므로(`config/electron-builder.config.cjs:155` → `config/packaged-runtime-node-modules.cjs:397-398`, `:275-301`) 그 사본은 트랜스포머를 지나지 않아 미서명으로 남습니다. 서명 여부를 가정하지 말고 `Get-AuthenticodeSignature`로 확인하세요.
+node-pty의 `conpty\OpenConsole.exe`는 **복사 시점에 따라 갈립니다.** 리빌드가 이미 `build\Release\conpty\`를 채워 둔 상태면 extraResources 복사와 함께 트랜스포머를 통과해 서명되지만, 비어 있으면 `afterPack`이 `third_party\conpty\...\win10-x64`에서 뒤늦게 채우므로(`config/electron-builder.config.cjs:161` → `config/packaged-runtime-node-modules.cjs:397-398`, `:275-301`) 그 사본은 트랜스포머를 지나지 않아 미서명으로 남습니다. 서명 여부를 가정하지 말고 `Get-AuthenticodeSignature`로 확인하세요.
 
-즉 서명되지 않는 것은 **네이티브 애드온과 DLL**입니다. 업스트림 CI도 electron-builder만으로는 이걸 못 덮어서, 패키징 후 내부 PE 파일만 따로 모아 SignPath에 **두 번째 서명 요청**을 보내고 설치 프로그램을 다시 만듭니다(`.github/workflows/release-cut.yml:1004-1012`, 스테이징 스텝 `:1016-1053`). 그 체인이 생긴 계기가 바로 node-pty의 `conpty_console_list.node`이며, 스테이징 스텝은 지금도 그 파일명을 하드 체크합니다.
+즉 서명되지 않는 것은 **네이티브 애드온과 DLL**입니다. 업스트림 CI도 electron-builder만으로는 이걸 못 덮어서, 패키징 후 내부 PE 파일만 따로 모아 SignPath에 **두 번째 서명 요청**을 보내고 설치 프로그램을 다시 만듭니다(`.github/workflows/release-cut.yml:1265-1273`, 스테이징 스텝 `:1277-1314`). 그 체인이 생긴 계기가 바로 node-pty의 `conpty_console_list.node`이며, 스테이징 스텝은 지금도 그 파일명을 하드 체크합니다.
 
 사내 빌드에서는 그 두 단계 체인을 재현할 필요 없이 `win` 블록에 한 줄만 추가하면 됩니다:
 
@@ -280,7 +280,7 @@ win: {
 
 **왜 중요한가**: AppLocker / WDAC의 DLL 규칙은 게시자(Publisher) 기준으로 평가되므로, 경로 예외를 따로 열어 주지 않는 한 미서명 `.dll` / `.node`는 로드가 거부됩니다. node-pty의 `pty.node`나 `conpty.dll`이 막히면 터미널이 아예 뜨지 않고, 사내 백신 화이트리스트도 대개 서명자 기준이라 미서명 애드온이 격리 대상이 됩니다.
 
-> 참고: electron-builder의 서명 경로에는 "이미 서명된 파일은 건너뛴다"는 분기가 없습니다(`winPackager.js:106-122` — `signExts`/`signExecutable` 두 가지만 봅니다). 따라서 트랜스포머를 타는 한 Microsoft가 서명해 배포하는 `OpenConsole.exe`도 사내 인증서로 덧서명됩니다. 업스트림 CI는 이를 피하려고 스테이징 단계에서 `Get-AuthenticodeSignature` 상태가 `Valid`인 파일을 명시적으로 제외합니다(`release-cut.yml:1014-1015`).
+> 참고: electron-builder의 서명 경로에는 "이미 서명된 파일은 건너뛴다"는 분기가 없습니다(`winPackager.js:106-122` — `signExts`/`signExecutable` 두 가지만 봅니다). 따라서 트랜스포머를 타는 한 Microsoft가 서명해 배포하는 `OpenConsole.exe`도 사내 인증서로 덧서명됩니다. 업스트림 CI는 이를 피하려고 스테이징 단계에서 `Get-AuthenticodeSignature` 상태가 `Valid`인 파일을 명시적으로 제외합니다(`release-cut.yml:1275-1276`).
 
 ### ⚠️ 자동 업데이트와의 상호작용
 
@@ -298,7 +298,7 @@ $env:ORCA_WIN_PUBLISHER_NAME = "<사내 인증서 CN>"
 
 ## 8. 실패 지점 트러블슈팅
 
-아래 증상 중 `daemon-entry` 부팅 게이트와 패키징된 런타임 의존성 검증은 `afterPack` 훅이 강제하는 것이고(`config/electron-builder.config.cjs:136-193`), 나머지는 설치·빌드·서명 단계에서 각각 발생합니다.
+아래 증상 중 `daemon-entry` 부팅 게이트와 패키징된 런타임 의존성 검증은 `afterPack` 훅이 강제하는 것이고(`config/electron-builder.config.cjs:142-199`), 나머지는 설치·빌드·서명 단계에서 각각 발생합니다.
 
 | 증상 | 원인 / 조치 |
 | --- | --- |
@@ -319,7 +319,7 @@ $env:ORCA_WIN_PUBLISHER_NAME = "<사내 인증서 CN>"
 ## 9. 참고
 
 - CI가 실제로 하는 Windows 빌드: `.github/workflows/release-cut.yml`의 `build` 잡(`:713`부터 다음 잡 `build-mac`(`:1509`) 직전까지가 전부 한 잡), 러너/명령 매트릭스는 `:718-741`
-- 내부 PE 파일 서명 체인 (사내 빌드는 타지 않음): `.github/workflows/release-cut.yml:1004-1012`, `.github/workflows/windows-signing-rehearsal.yml`
+- 내부 PE 파일 서명 체인 (사내 빌드는 타지 않음): `.github/workflows/release-cut.yml:1265-1273`, `.github/workflows/windows-signing-rehearsal.yml`
 - 산출물 이름/타깃 설정: `config/electron-builder.config.cjs` (`win`, `nsis` 블록)
 - 네이티브 재빌드: `config/scripts/rebuild-native-deps.mjs`, `config/scripts/electron-builder-native-rebuild.cjs`
 - 네이티브 로드 점검/보정: `config/scripts/ensure-native-runtime.mjs`
