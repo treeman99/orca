@@ -217,6 +217,14 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 - **사내 self-hosted 모델:** 에이전트가 아니라 허용된 에이전트의 **모델 피커에 얹히는** 항목이므로(`corporate-llm-session-catalog.ts`) `allowedAgents`에 적지 않아도 그대로 유지됩니다. `llmEndpoints`(§3-2)로 배포하면 됩니다.
 - **안전장치:** 빈 배열이나 전부 무효한 값은 "제한 없음(`null`)"으로 처리되고 경고가 나갑니다 (`enterprise-policy.ts`의 `readAgentAllowlist`) — 관리자의 오타가 피커를 완전히 비워 앱을 못 쓰게 만드는 사고를 막습니다. `lockdown`을 상속하지 않으므로 제한하려면 **명시**해야 합니다.
 
+### 3-4. 사내 GHES 로그인 — 설정 UI에서 브라우저 로그인
+
+`gh`가 회사에서 `github.com`에 닿지 못하면 사내 GHES 호스트로 `gh`를 로그인시켜야 합니다. 관리자가 `githubEnterpriseHost`를 배포하지 않았거나 사용자가 직접 로그인해야 하는 경우, **설정 → Integrations → "Company GitHub (Enterprise)"** 에서 처리할 수 있습니다 (`src/renderer/src/components/settings/GitHubEnterpriseSection.tsx`).
+
+- **호스트 입력:** 정책의 `githubEnterpriseHost`가 있으면 그 값이 기본으로 채워지고, 없으면 사용자가 사내 호스트를 입력해 저장합니다. 저장 위치는 `%APPDATA%\Orca\github-enterprise-host.json` — 정책 파일이 아니라 사용자 프로파일입니다(`src/main/github/github-enterprise-host-store.ts`). 정책 호스트가 있으면 그쪽이 기본값으로 우선합니다.
+- **브라우저 로그인(device flow):** "Sign in with browser" 버튼이 `gh auth login --hostname <host> --git-protocol https --web`를 PTY로 실행합니다(`src/main/github/github-enterprise-login.ts`). gh가 출력하는 일회용 코드를 UI에 크게 띄우고, gh가 기본 브라우저를 열어 device 인증을 진행합니다. **토큰은 앱이 저장하지 않습니다** — `gh` 자신의 키링에 들어가므로, 로그인 후에는 기존 PR·체크·리뷰 상태 등 gh 기반 기능이 그대로 동작합니다.
+- **네트워크 잠금과 함께 쓸 때:** `enforceNetworkAllowlist: true`라면 GHES 호스트가 허용목록에 있어야 브라우저/API 호출이 통과합니다. `githubEnterpriseHost`(또는 `allowedNetworkHosts`)로 반드시 포함하세요(§5).
+
 ---
 
 ## 4. 예제

@@ -8030,7 +8030,9 @@
             "41ccade05c": "gh",
             "b79c21bd42": "GitHub",
             "7166b9090c": "gh CLI を介した GitHub 認証。",
-            "f16e41cc72": "GitHub 連携"
+            "f16e41cc72": "GitHub 連携",
+            "githubEnterpriseTitle": "Company GitHub (Enterprise)",
+            "githubEnterpriseDesc": "Set your internal GitHub Enterprise host and sign gh in through the browser."
           }
         },
         "jira": {
@@ -9407,6 +9409,29 @@
             "policy": "ポリシー",
             "administrator": "管理者"
           }
+        },
+        "GitHubEnterpriseSection": {
+          "errorNoHost": "Enter your company GitHub host first.",
+          "errorGhUnavailable": "The GitHub CLI (gh) was not found on your PATH. Install it, then try again.",
+          "errorTimeout": "Sign-in timed out before it completed in the browser. Try again.",
+          "errorCancelled": "Sign-in was cancelled.",
+          "errorFailed": "Sign-in failed. Check the host and your network, then try again.",
+          "hostSaveFailed": "Could not save the host.",
+          "logoutFailed": "Could not sign out.",
+          "heading": "Company GitHub (Enterprise)",
+          "intro": "If gh cannot reach github.com at your company, enter your internal GitHub Enterprise host and sign in through the browser. Orca stores nothing — the login goes into the gh CLI’s own keyring, so pull requests, checks, and review status start working.",
+          "ghMissing": "The GitHub CLI (gh) is not installed or not on your PATH. Install gh first, then sign in here.",
+          "hostLabel": "GitHub host",
+          "saveHost": "Save",
+          "signedInAs": "Signed in as {{value0}}",
+          "signedIn": "Signed in",
+          "notSignedIn": "Not signed in",
+          "signInAgain": "Sign in again",
+          "signInBrowser": "Sign in with browser",
+          "signOut": "Sign out",
+          "enterCodePrompt": "A browser should have opened. Enter this one-time code to authorize:",
+          "openVerification": "Open verification page",
+          "hostPlaceholder": "github.your-company.com"
         }
       },
       "right": {

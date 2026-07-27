@@ -205,5 +205,37 @@ export const getIntegrationsPaneSearchEntries = createLocalizedCatalog(() => [
         'disconnect'
       )
     ]
+  },
+  {
+    title: translate(
+      'auto.components.settings.integrations.search.githubEnterpriseTitle',
+      'Company GitHub (Enterprise)'
+    ),
+    description: translate(
+      'auto.components.settings.integrations.search.githubEnterpriseDesc',
+      'Set your internal GitHub Enterprise host and sign gh in through the browser.'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.githubEnterpriseKwGithub',
+        'github'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.githubEnterpriseKwEnterprise',
+        'enterprise'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.githubEnterpriseKwGhes',
+        'ghes'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.githubEnterpriseKwHost',
+        'host'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.integrations.search.githubEnterpriseKwLogin',
+        'login'
+      )
+    ]
   }
 ])

@@ -15,6 +15,11 @@ import type {
   CorporateLlmTokenSaveResult
 } from '../shared/corporate-llm-endpoint-status'
 import type { EnterprisePolicyView } from '../shared/enterprise-policy-view'
+import type {
+  GithubEnterpriseAuthStatus,
+  GithubEnterpriseLoginProgress,
+  GithubEnterpriseLoginResult
+} from '../shared/github-enterprise-auth'
 import type { AgentHookInstallStatus } from '../shared/agent-hook-types'
 import type { TerminalPaneSplitSource } from '../shared/feature-education-telemetry'
 import type { ProjectExecutionRuntimeResolution } from '../shared/project-execution-runtime'
@@ -4157,6 +4162,27 @@ const api = {
   enterprisePolicy: {
     get: (): Promise<EnterprisePolicyView> => ipcRenderer.invoke('enterprisePolicy:get')
   } satisfies PreloadApi['enterprisePolicy'],
+
+  githubEnterprise: {
+    getStatus: (): Promise<GithubEnterpriseAuthStatus> =>
+      ipcRenderer.invoke('githubEnterprise:getStatus'),
+    setHost: (args: { host: string }): Promise<GithubEnterpriseAuthStatus> =>
+      ipcRenderer.invoke('githubEnterprise:setHost', args),
+    login: (args: { host: string }): Promise<GithubEnterpriseLoginResult> =>
+      ipcRenderer.invoke('githubEnterprise:login', args),
+    logout: (args: { host: string }): Promise<void> =>
+      ipcRenderer.invoke('githubEnterprise:logout', args),
+    onLoginProgress: (
+      callback: (progress: GithubEnterpriseLoginProgress) => void
+    ): (() => void) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        progress: GithubEnterpriseLoginProgress
+      ) => callback(progress)
+      ipcRenderer.on('githubEnterprise:loginProgress', listener)
+      return () => ipcRenderer.removeListener('githubEnterprise:loginProgress', listener)
+    }
+  } satisfies PreloadApi['githubEnterprise'],
 
   grokAccounts: {
     getStatus: (): Promise<GrokAccountStatus> => ipcRenderer.invoke('grokAccounts:getStatus')

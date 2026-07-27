@@ -7,6 +7,7 @@ import {
 } from './source-control-integration-cards'
 import { JiraIntegrationCard, LinearIntegrationCard } from './task-tracker-integration-cards'
 import { useIntegrationProviderStatusRefresh } from './use-integration-provider-status-refresh'
+import { GitHubEnterpriseSection } from './GitHubEnterpriseSection'
 import { translate } from '@/i18n/i18n'
 export { getIntegrationsPaneSearchEntries } from './integrations-search'
 
@@ -15,6 +16,8 @@ export function IntegrationsPane(): React.JSX.Element {
 
   return (
     <div className="space-y-5">
+      <GitHubEnterpriseSection />
+
       <section className="space-y-3">
         <div className="space-y-1">
           <h3 className="text-sm font-semibold text-foreground">

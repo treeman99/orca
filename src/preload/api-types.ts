@@ -26,6 +26,11 @@ import type {
 } from '../shared/local-log-tail-types'
 import type { ReadClipboardTextOptions } from '../shared/clipboard-text'
 import type { EnterprisePolicyView } from '../shared/enterprise-policy-view'
+import type {
+  GithubEnterpriseAuthStatus,
+  GithubEnterpriseLoginProgress,
+  GithubEnterpriseLoginResult
+} from '../shared/github-enterprise-auth'
 import type { AppIdentity } from '../shared/app-identity'
 import type {
   WriteTerminalRenderDesyncEvidenceArgs,
@@ -3143,6 +3148,13 @@ export type PreloadApi = {
   }
   enterprisePolicy: {
     get: () => Promise<EnterprisePolicyView>
+  }
+  githubEnterprise: {
+    getStatus: () => Promise<GithubEnterpriseAuthStatus>
+    setHost: (args: { host: string }) => Promise<GithubEnterpriseAuthStatus>
+    login: (args: { host: string }) => Promise<GithubEnterpriseLoginResult>
+    logout: (args: { host: string }) => Promise<void>
+    onLoginProgress: (callback: (progress: GithubEnterpriseLoginProgress) => void) => () => void
   }
   grokAccounts: {
     getStatus: () => Promise<GrokAccountStatus>

@@ -62,6 +62,7 @@ import { registerClaudeAccountHandlers } from './claude-accounts'
 import { registerMiniMaxCredentialsHandlers } from './minimax-credentials'
 import { registerCorporateLlmEndpointHandlers } from './corporate-llm-endpoints'
 import { registerEnterprisePolicyHandlers } from './enterprise-policy'
+import { registerGithubEnterpriseHandlers } from './github-enterprise'
 import { registerGrokAccountHandlers } from './grok-accounts'
 import { registerUpdaterHandlers } from '../window/attach-main-window-services'
 import {
@@ -144,6 +145,7 @@ export function registerCoreHandlers(
   registerMiniMaxCredentialsHandlers(rateLimits)
   registerCorporateLlmEndpointHandlers()
   registerEnterprisePolicyHandlers()
+  registerGithubEnterpriseHandlers()
   registerGrokAccountHandlers()
   registerRateLimitHandlers(rateLimits)
   registerGitHubHandlers(store, stats)
