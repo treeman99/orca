@@ -318,6 +318,7 @@ import type { ElectronAPI } from '@electron-toolkit/preload'
 import type { BrowserSetAnnotationViewportBridgeArgs } from '../shared/browser-annotation-viewport-bridge'
 import type { CliInstallStatus } from '../shared/cli-install-types'
 import type {
+  CorporateLlmAddEndpointResult,
   CorporateLlmEndpointStatus,
   CorporateLlmTokenSaveResult
 } from '../shared/corporate-llm-endpoint-status'
@@ -3145,6 +3146,13 @@ export type PreloadApi = {
     listEndpoints: () => Promise<CorporateLlmEndpointStatus[]>
     saveToken: (args: { endpointId: string; token: string }) => Promise<CorporateLlmTokenSaveResult>
     clearToken: (args: { endpointId: string }) => Promise<CorporateLlmTokenSaveResult>
+    addUserEndpoint: (args: {
+      label: string
+      baseUrl: string
+      api: 'anthropic' | 'openai'
+      model: string | null
+    }) => Promise<CorporateLlmAddEndpointResult>
+    removeUserEndpoint: (args: { endpointId: string }) => Promise<void>
   }
   enterprisePolicy: {
     get: () => Promise<EnterprisePolicyView>
@@ -3153,6 +3161,7 @@ export type PreloadApi = {
     getStatus: () => Promise<GithubEnterpriseAuthStatus>
     setHost: (args: { host: string }) => Promise<GithubEnterpriseAuthStatus>
     login: (args: { host: string }) => Promise<GithubEnterpriseLoginResult>
+    loginWithToken: (args: { host: string; token: string }) => Promise<GithubEnterpriseLoginResult>
     logout: (args: { host: string }) => Promise<void>
     onLoginProgress: (callback: (progress: GithubEnterpriseLoginProgress) => void) => () => void
   }

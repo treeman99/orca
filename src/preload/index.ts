@@ -11,6 +11,7 @@ import type {
 } from '../shared/terminal-preview'
 import type { CliInstallStatus } from '../shared/cli-install-types'
 import type {
+  CorporateLlmAddEndpointResult,
   CorporateLlmEndpointStatus,
   CorporateLlmTokenSaveResult
 } from '../shared/corporate-llm-endpoint-status'
@@ -4156,7 +4157,16 @@ const api = {
     }): Promise<CorporateLlmTokenSaveResult> =>
       ipcRenderer.invoke('corporateLlmEndpoints:saveToken', args),
     clearToken: (args: { endpointId: string }): Promise<CorporateLlmTokenSaveResult> =>
-      ipcRenderer.invoke('corporateLlmEndpoints:clearToken', args)
+      ipcRenderer.invoke('corporateLlmEndpoints:clearToken', args),
+    addUserEndpoint: (args: {
+      label: string
+      baseUrl: string
+      api: 'anthropic' | 'openai'
+      model: string | null
+    }): Promise<CorporateLlmAddEndpointResult> =>
+      ipcRenderer.invoke('corporateLlmEndpoints:addUserEndpoint', args),
+    removeUserEndpoint: (args: { endpointId: string }): Promise<void> =>
+      ipcRenderer.invoke('corporateLlmEndpoints:removeUserEndpoint', args)
   } satisfies PreloadApi['corporateLlm'],
 
   enterprisePolicy: {
@@ -4170,6 +4180,8 @@ const api = {
       ipcRenderer.invoke('githubEnterprise:setHost', args),
     login: (args: { host: string }): Promise<GithubEnterpriseLoginResult> =>
       ipcRenderer.invoke('githubEnterprise:login', args),
+    loginWithToken: (args: { host: string; token: string }): Promise<GithubEnterpriseLoginResult> =>
+      ipcRenderer.invoke('githubEnterprise:loginWithToken', args),
     logout: (args: { host: string }): Promise<void> =>
       ipcRenderer.invoke('githubEnterprise:logout', args),
     onLoginProgress: (

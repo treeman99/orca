@@ -143,6 +143,8 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 
 사내가 오픈웨이트 모델을 직접 서비스한다면, 사용자가 세션을 Bedrock 대신 그쪽으로 돌릴 수 있습니다. **엔드포인트는 관리자 소유, 토큰은 사용자 소유**로 나뉘어 있습니다.
 
+> **사용자 직접 추가(UI):** 관리자가 정책 파일에 넣지 않아도, 사용자가 **설정 → Accounts → "Self-hosted models"** 에서 URL·프로토콜·토큰을 입력해 엔드포인트를 직접 추가할 수 있습니다(`src/renderer/src/components/settings/CorporateLlmEndpointsSection.tsx`). 저장 위치는 사용자 프로파일(`%APPDATA%\Orca\corporate-llm-user-endpoints.json`, 토큰은 별도 암호화 저장)이며, 정책 엔드포인트와 동일하게 모델 피커·실행 주입 경로를 탑니다(`corporate-llm-endpoint-registry.ts`). URL은 https만 허용됩니다(루프백 예외). 단 `enforceNetworkAllowlist: true`인 경우 그 호스트가 허용목록에 없으면 차단되므로, 하드 잠금 배포에서는 관리자가 `llmEndpoints`(또는 `allowedNetworkHosts`)로 호스트를 열어줘야 합니다.
+
 #### 엔드포인트 항목 스키마 (`src/shared/enterprise-llm-endpoints.ts`)
 
 | 필드 | 필수 | 기본값 | 설명 |
@@ -222,7 +224,9 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 `gh`가 회사에서 `github.com`에 닿지 못하면 사내 GHES 호스트로 `gh`를 로그인시켜야 합니다. 관리자가 `githubEnterpriseHost`를 배포하지 않았거나 사용자가 직접 로그인해야 하는 경우, **설정 → Integrations → "Company GitHub (Enterprise)"** 에서 처리할 수 있습니다 (`src/renderer/src/components/settings/GitHubEnterpriseSection.tsx`).
 
 - **호스트 입력:** 정책의 `githubEnterpriseHost`가 있으면 그 값이 기본으로 채워지고, 없으면 사용자가 사내 호스트를 입력해 저장합니다. 저장 위치는 `%APPDATA%\Orca\github-enterprise-host.json` — 정책 파일이 아니라 사용자 프로파일입니다(`src/main/github/github-enterprise-host-store.ts`). 정책 호스트가 있으면 그쪽이 기본값으로 우선합니다.
-- **브라우저 로그인(device flow):** "Sign in with browser" 버튼이 `gh auth login --hostname <host> --git-protocol https --web`를 PTY로 실행합니다(`src/main/github/github-enterprise-login.ts`). gh가 출력하는 일회용 코드를 UI에 크게 띄우고, gh가 기본 브라우저를 열어 device 인증을 진행합니다. **토큰은 앱이 저장하지 않습니다** — `gh` 자신의 키링에 들어가므로, 로그인 후에는 기존 PR·체크·리뷰 상태 등 gh 기반 기능이 그대로 동작합니다.
+- **브라우저 로그인(device flow):** "Sign in with browser" 버튼이 `gh auth login --hostname <host> --git-protocol https --web`를 PTY로 실행합니다(`src/main/github/github-enterprise-login.ts`). gh가 출력하는 일회용 코드를 UI에 크게 띄우고, gh가 기본 브라우저를 열어 device 인증을 진행합니다.
+- **토큰(PAT) 로그인:** 회사가 OAuth device endpoint를 막는다면, 같은 섹션의 "Connect with token"에 PAT를 붙여넣으면 `gh auth login --hostname <host> --git-protocol https --with-token`(stdin)으로 비대화식 로그인합니다.
+- **공통:** **토큰은 앱이 저장하지 않습니다** — 두 방식 모두 `gh` 자신의 키링에 들어가므로, 로그인 후에는 기존 PR·체크·리뷰 상태 등 gh 기반 기능이 그대로 동작합니다.
 - **네트워크 잠금과 함께 쓸 때:** `enforceNetworkAllowlist: true`라면 GHES 호스트가 허용목록에 있어야 브라우저/API 호출이 통과합니다. `githubEnterpriseHost`(또는 `allowedNetworkHosts`)로 반드시 포함하세요(§5).
 
 ---

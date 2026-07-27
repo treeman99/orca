@@ -32,8 +32,12 @@ const TOKEN = 'sk-corp-secret'
 
 function register(overrides: {
   endpoints?: readonly EnterpriseLlmEndpoint[]
+  userEndpoints?: readonly EnterpriseLlmEndpoint[]
   saved?: Set<string>
   write?: (endpointId: string, token: string) => CorporateLlmTokenWriteResult
+  addUserEndpoint?: (
+    input: unknown
+  ) => { ok: true; endpoint: EnterpriseLlmEndpoint } | { ok: false; message: string }
 }) {
   const saved = overrides.saved ?? new Set<string>()
   const write =
@@ -47,12 +51,32 @@ function register(overrides: {
       return { ok: true }
     })
   const writeToken = vi.fn(write)
+  const userEndpoints = overrides.userEndpoints ?? []
+  const userIds = new Set(userEndpoints.map((endpoint) => endpoint.id))
+  const allEndpoints = [...(overrides.endpoints ?? [ENDPOINT]), ...userEndpoints]
+  const addUserEndpoint = vi.fn(
+    overrides.addUserEndpoint ??
+      ((): { ok: true; endpoint: EnterpriseLlmEndpoint } => ({
+        ok: true,
+        endpoint: {
+          id: 'user-1',
+          label: 'My LLM',
+          baseUrl: 'https://x/v1',
+          api: 'openai',
+          model: null
+        }
+      }))
+  )
+  const removeUserEndpoint = vi.fn()
   registerCorporateLlmEndpointHandlers({
-    listEndpoints: () => overrides.endpoints ?? [ENDPOINT],
+    allEndpoints: () => allEndpoints,
+    isUserEndpoint: (endpointId: string) => userIds.has(endpointId),
     hasToken: (endpointId: string) => saved.has(endpointId),
-    writeToken
+    writeToken,
+    addUserEndpoint,
+    removeUserEndpoint
   })
-  return { saved, writeToken }
+  return { saved, writeToken, addUserEndpoint, removeUserEndpoint }
 }
 
 async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
@@ -68,17 +92,78 @@ describe('registerCorporateLlmEndpointHandlers', () => {
     ipcState.handleHandlers.clear()
   })
 
-  it('registers the three corporate LLM endpoint channels', () => {
+  it('registers the corporate LLM endpoint channels', () => {
     register({})
     expect(ipcState.handleHandlers.has('corporateLlmEndpoints:list')).toBe(true)
     expect(ipcState.handleHandlers.has('corporateLlmEndpoints:saveToken')).toBe(true)
     expect(ipcState.handleHandlers.has('corporateLlmEndpoints:clearToken')).toBe(true)
+    expect(ipcState.handleHandlers.has('corporateLlmEndpoints:addUserEndpoint')).toBe(true)
+    expect(ipcState.handleHandlers.has('corporateLlmEndpoints:removeUserEndpoint')).toBe(true)
   })
 
   it('lists the policy-provisioned endpoints with their saved-token state', async () => {
     register({ saved: new Set(['ds-llm']) })
     const endpoints = await invoke<CorporateLlmEndpointStatus[]>('corporateLlmEndpoints:list')
-    expect(endpoints).toEqual([{ ...ENDPOINT, hasToken: true }])
+    expect(endpoints).toEqual([{ ...ENDPOINT, hasToken: true, userManaged: false }])
+  })
+
+  it('lists user-added endpoints as userManaged, alongside policy ones', async () => {
+    const userEndpoint: EnterpriseLlmEndpoint = {
+      id: 'user-1',
+      label: 'My LLM',
+      baseUrl: 'https://llm.mine/v1',
+      api: 'openai',
+      model: null
+    }
+    register({ userEndpoints: [userEndpoint], saved: new Set(['user-1']) })
+    const endpoints = await invoke<CorporateLlmEndpointStatus[]>('corporateLlmEndpoints:list')
+    expect(endpoints).toEqual([
+      { ...ENDPOINT, hasToken: false, userManaged: false },
+      { ...userEndpoint, hasToken: true, userManaged: true }
+    ])
+  })
+
+  it('adds a user endpoint and reports it as userManaged', async () => {
+    const { addUserEndpoint } = register({})
+    const result = await invoke<{ ok: boolean; endpoint?: CorporateLlmEndpointStatus }>(
+      'corporateLlmEndpoints:addUserEndpoint',
+      { label: 'My LLM', baseUrl: 'https://llm.mine/v1', api: 'openai' }
+    )
+    expect(addUserEndpoint).toHaveBeenCalled()
+    expect(result.ok).toBe(true)
+    expect(result.endpoint?.userManaged).toBe(true)
+  })
+
+  it('reports an invalid user endpoint without persisting it', async () => {
+    const { addUserEndpoint } = register({
+      addUserEndpoint: () => ({ ok: false, message: 'A valid https base URL is required.' })
+    })
+    const result = await invoke<{ ok: boolean; reason?: string }>(
+      'corporateLlmEndpoints:addUserEndpoint',
+      { baseUrl: 'http://insecure' }
+    )
+    expect(addUserEndpoint).toHaveBeenCalled()
+    expect(result).toMatchObject({ ok: false, reason: 'invalid-endpoint' })
+  })
+
+  it('removes a user endpoint and clears its token', async () => {
+    const userEndpoint: EnterpriseLlmEndpoint = {
+      id: 'user-1',
+      label: 'My LLM',
+      baseUrl: 'https://llm.mine/v1',
+      api: 'openai',
+      model: null
+    }
+    const { removeUserEndpoint, writeToken } = register({ userEndpoints: [userEndpoint] })
+    await invoke('corporateLlmEndpoints:removeUserEndpoint', { endpointId: 'user-1' })
+    expect(removeUserEndpoint).toHaveBeenCalledWith('user-1')
+    expect(writeToken).toHaveBeenCalledWith('user-1', '')
+  })
+
+  it('does not remove a policy endpoint through the user-remove channel', async () => {
+    const { removeUserEndpoint } = register({})
+    await invoke('corporateLlmEndpoints:removeUserEndpoint', { endpointId: 'ds-llm' })
+    expect(removeUserEndpoint).not.toHaveBeenCalled()
   })
 
   it('saves a token and reports the endpoint as configured', async () => {

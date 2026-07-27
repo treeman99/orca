@@ -27,6 +27,7 @@ function makeDeps(overrides: Partial<NonNullable<Deps>> = {}): NonNullable<Deps>
     saveHost: vi.fn(),
     diagnose: vi.fn(async () => ({ ghAvailable: true, authenticated: true, account: 'dev-user' })),
     login: vi.fn(async () => ({ ok: true, account: 'dev-user' }) as GithubEnterpriseLoginResult),
+    loginWithToken: vi.fn(async () => ({ ok: true, account: null }) as GithubEnterpriseLoginResult),
     logout: vi.fn(async () => {}),
     ...overrides
   }
@@ -141,6 +142,31 @@ describe('registerGithubEnterpriseHandlers', () => {
     )
     await invoke('githubEnterprise:login', fakeSender(), { host: 'gh.corp.net' })
     expect(saveHost).not.toHaveBeenCalled()
+  })
+
+  it('logs in with a token, then saves the host on success', async () => {
+    const saveHost = vi.fn()
+    const loginWithToken = vi.fn(
+      async () => ({ ok: true, account: null }) as GithubEnterpriseLoginResult
+    )
+    registerGithubEnterpriseHandlers(makeDeps({ saveHost, loginWithToken }))
+    const result = await invoke('githubEnterprise:loginWithToken', fakeSender(), {
+      host: 'gh.corp.net',
+      token: 'ghp_secret'
+    })
+    expect(loginWithToken).toHaveBeenCalledWith('gh.corp.net', 'ghp_secret')
+    expect(saveHost).toHaveBeenCalledWith('gh.corp.net')
+    expect(result).toEqual({ ok: true, account: null })
+  })
+
+  it('refuses token login when no host is available', async () => {
+    const loginWithToken = vi.fn()
+    registerGithubEnterpriseHandlers(makeDeps({ loginWithToken }))
+    const result = await invoke('githubEnterprise:loginWithToken', fakeSender(), {
+      token: 'ghp_secret'
+    })
+    expect(result).toEqual({ ok: false, reason: 'no-host' })
+    expect(loginWithToken).not.toHaveBeenCalled()
   })
 
   it('logs out of the effective host', async () => {

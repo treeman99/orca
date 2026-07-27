@@ -53,6 +53,7 @@ export function GitHubEnterpriseSection(): React.JSX.Element {
   const [hostDraft, setHostDraft] = useState('')
   const [savingHost, setSavingHost] = useState(false)
   const [signingIn, setSigningIn] = useState(false)
+  const [tokenDraft, setTokenDraft] = useState('')
   const [progress, setProgress] = useState<GithubEnterpriseLoginProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Keep the last host the user typed so the field survives a status refresh.
@@ -112,6 +113,28 @@ export function GitHubEnterpriseSection(): React.JSX.Element {
       unsubscribe()
       setSigningIn(false)
       setProgress(null)
+    }
+  }
+
+  const handleTokenLogin = async (): Promise<void> => {
+    setSigningIn(true)
+    setError(null)
+    setProgress(null)
+    try {
+      const result = await window.api.githubEnterprise.loginWithToken({
+        host: hostDraft.trim(),
+        token: tokenDraft.trim()
+      })
+      if (result.ok) {
+        setTokenDraft('')
+        await refreshStatus()
+      } else {
+        setError(describeLoginFailure(result))
+      }
+    } catch (loginError) {
+      setError(String((loginError as Error)?.message ?? loginError))
+    } finally {
+      setSigningIn(false)
     }
   }
 
@@ -262,6 +285,45 @@ export function GitHubEnterpriseSection(): React.JSX.Element {
               {translate('auto.components.settings.GitHubEnterpriseSection.signOut', 'Sign out')}
             </Button>
           ) : null}
+        </div>
+
+        <div className="space-y-1 border-t border-border/50 pt-2">
+          <p className="text-[11px] text-muted-foreground">
+            {translate(
+              'auto.components.settings.GitHubEnterpriseSection.tokenHint',
+              'If the browser flow is blocked, paste a personal access token instead.'
+            )}
+          </p>
+          <div className="flex gap-2">
+            <Input
+              type="password"
+              value={tokenDraft}
+              onChange={(event) => setTokenDraft(event.target.value)}
+              placeholder={translate(
+                'auto.components.settings.GitHubEnterpriseSection.tokenPlaceholder',
+                'Personal access token'
+              )}
+              aria-label={translate(
+                'auto.components.settings.GitHubEnterpriseSection.tokenInputLabel',
+                'GitHub personal access token'
+              )}
+              autoComplete="off"
+              spellCheck={false}
+              className="flex-1 text-xs"
+            />
+            <Button
+              size="xs"
+              variant="secondary"
+              onClick={() => void handleTokenLogin()}
+              disabled={signingIn || !trimmedHost || !tokenDraft.trim()}
+              className="h-7 shrink-0 text-xs"
+            >
+              {translate(
+                'auto.components.settings.GitHubEnterpriseSection.connectWithToken',
+                'Connect with token'
+              )}
+            </Button>
+          </div>
         </div>
 
         {signingIn && progress?.oneTimeCode ? (

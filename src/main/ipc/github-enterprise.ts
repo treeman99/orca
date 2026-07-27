@@ -22,8 +22,15 @@ import {
   readStoredGithubEnterpriseHost,
   writeStoredGithubEnterpriseHost
 } from '../github/github-enterprise-host-store'
-import { runGithubEnterpriseDeviceLogin } from '../github/github-enterprise-login'
+import {
+  runGithubEnterpriseDeviceLogin,
+  runGithubEnterpriseTokenLogin
+} from '../github/github-enterprise-login'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
+
+// A GitHub PAT is a paste, not a document; anything longer is a mistake or an abuse
+// of the IPC surface.
+const MAX_TOKEN_LENGTH = 8192
 
 type Dependencies = {
   policyHost: () => string | null
@@ -35,6 +42,7 @@ type Dependencies = {
     account: string | null
   }>
   login: typeof runGithubEnterpriseDeviceLogin
+  loginWithToken: typeof runGithubEnterpriseTokenLogin
   logout: (host: string) => Promise<void>
 }
 
@@ -56,6 +64,7 @@ function defaultDependencies(): Dependencies {
       }
     },
     login: runGithubEnterpriseDeviceLogin,
+    loginWithToken: runGithubEnterpriseTokenLogin,
     logout: async (host) => {
       await ghExecFileAsync(['auth', 'logout', '--hostname', host], { host })
     }
@@ -69,6 +78,15 @@ function effectiveHost(dependencies: Dependencies): string | null {
 function readHostArg(raw: unknown): string | null {
   const args = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : null
   return normalizeHost(typeof args?.host === 'string' ? args.host : null)
+}
+
+function readTokenArg(raw: unknown): string {
+  const args = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : null
+  const token = typeof args?.token === 'string' ? args.token : ''
+  if (token.length > MAX_TOKEN_LENGTH) {
+    throw new Error('token is too long')
+  }
+  return token
 }
 
 async function getStatus(dependencies: Dependencies): Promise<GithubEnterpriseAuthStatus> {
@@ -115,6 +133,21 @@ async function login(
   return result
 }
 
+async function loginWithToken(
+  raw: unknown,
+  dependencies: Dependencies
+): Promise<GithubEnterpriseLoginResult> {
+  const host = readHostArg(raw) ?? effectiveHost(dependencies)
+  if (!host) {
+    return { ok: false, reason: 'no-host' }
+  }
+  const result = await dependencies.loginWithToken(host, readTokenArg(raw))
+  if (result.ok) {
+    dependencies.saveHost(host)
+  }
+  return result
+}
+
 export function registerGithubEnterpriseHandlers(
   dependencies: Dependencies = defaultDependencies()
 ): void {
@@ -137,6 +170,12 @@ export function registerGithubEnterpriseHandlers(
     'githubEnterprise:login',
     (event, raw: unknown): Promise<GithubEnterpriseLoginResult> =>
       login(event.sender, raw, dependencies)
+  )
+
+  ipcMain.handle(
+    'githubEnterprise:loginWithToken',
+    (_event, raw: unknown): Promise<GithubEnterpriseLoginResult> =>
+      loginWithToken(raw, dependencies)
   )
 
   ipcMain.handle('githubEnterprise:logout', async (_event, raw: unknown): Promise<void> => {

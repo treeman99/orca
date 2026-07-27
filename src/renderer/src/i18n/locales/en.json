@@ -9419,7 +9419,18 @@
           "heading": "Self-hosted models",
           "intro": "Your administrator provisions these endpoints. The token identifies you, so you enter it here: Orca encrypts it with this device’s credential store and never shows it again. You can replace it or forget it, but not read it back.",
           "loading": "Loading…",
-          "empty": "No self-hosted endpoints are provisioned. They come from your administrator’s corporate policy file, not from this screen — ask your administrator to add one, then restart Orca."
+          "empty": "No self-hosted endpoints are provisioned. They come from your administrator’s corporate policy file, not from this screen — ask your administrator to add one, then restart Orca.",
+          "removeEndpoint": "Remove endpoint",
+          "addHeading": "Add a self-hosted model",
+          "addLabelPlaceholder": "Display name (e.g. Company LLM)",
+          "addUrlPlaceholder": "https://llm.your-company.com/v1",
+          "addApiLabel": "API protocol",
+          "addModelPlaceholder": "Model id (optional)",
+          "addTokenPlaceholder": "Token (optional — you can add it later)",
+          "add": "Add",
+          "removeFailed": "Could not remove the endpoint.",
+          "apiOpenai": "OpenAI",
+          "apiAnthropic": "Anthropic"
         },
         "corporateLlm": {
           "search": {
@@ -9454,7 +9465,11 @@
           "signOut": "Sign out",
           "enterCodePrompt": "A browser should have opened. Enter this one-time code to authorize:",
           "openVerification": "Open verification page",
-          "hostPlaceholder": "github.your-company.com"
+          "hostPlaceholder": "github.your-company.com",
+          "tokenHint": "If the browser flow is blocked, paste a personal access token instead.",
+          "tokenPlaceholder": "Personal access token",
+          "tokenInputLabel": "GitHub personal access token",
+          "connectWithToken": "Connect with token"
         }
       },
       "right": {

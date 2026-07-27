@@ -6,6 +6,7 @@
 // polling, and let gh open the browser itself (its cross-platform default). The
 // credential lands in gh's own keyring — the app stores nothing here.
 
+import { spawn } from 'node:child_process'
 import type * as NodePty from 'node-pty'
 import type {
   GithubEnterpriseLoginProgress,
@@ -129,5 +130,52 @@ export async function runGithubEnterpriseDeviceLogin(
         message: `gh auth login exited with code ${exitCode}`
       })
     })
+  })
+}
+
+// Non-interactive login with a personal access token, for networks where the
+// browser (device) flow is blocked. `gh auth login --with-token` reads the token
+// from stdin and exits; the token lands in gh's keyring, never on our disk.
+export async function runGithubEnterpriseTokenLogin(
+  host: string,
+  token: string
+): Promise<GithubEnterpriseLoginResult> {
+  if (!token.trim()) {
+    return { ok: false, reason: 'failed', message: 'Empty token' }
+  }
+  return new Promise<GithubEnterpriseLoginResult>((resolve) => {
+    let stderr = ''
+    let settled = false
+    const settle = (result: GithubEnterpriseLoginResult): void => {
+      if (!settled) {
+        settled = true
+        resolve(result)
+      }
+    }
+
+    const child = spawn(
+      'gh',
+      ['auth', 'login', '--hostname', host, '--git-protocol', 'https', '--with-token'],
+      { env: { ...process.env, GH_NO_UPDATE_NOTIFIER: '1' } }
+    )
+    // ENOENT (gh missing) surfaces here rather than throwing from spawn.
+    child.on('error', (error) =>
+      settle({ ok: false, reason: 'gh-unavailable', message: error.message })
+    )
+    child.stderr?.on('data', (chunk) => {
+      stderr += String(chunk)
+    })
+    child.on('close', (code) => {
+      if (code === 0) {
+        settle({ ok: true, account: null })
+        return
+      }
+      settle({
+        ok: false,
+        reason: 'failed',
+        message: stderr.trim() || `gh exited with code ${code}`
+      })
+    })
+    child.stdin?.end(`${token.trim()}\n`)
   })
 }

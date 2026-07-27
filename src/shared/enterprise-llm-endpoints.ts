@@ -121,6 +121,42 @@ export function resolveEnterpriseLlmEndpoints(
   return endpoints
 }
 
+/**
+ * Validate a single user-entered endpoint (label/baseUrl/api/model) from the UI.
+ * Applies the same https-only rule as the policy parser so a user cannot leak their
+ * token over http. Returns a normalized value (without id) or a human-readable error.
+ */
+export function validateUserLlmEndpointInput(input: {
+  label?: unknown
+  baseUrl?: unknown
+  api?: unknown
+  model?: unknown
+}):
+  | {
+      ok: true
+      value: { label: string; baseUrl: string; api: EnterpriseLlmApi; model: string | null }
+    }
+  | { ok: false; message: string } {
+  const warnings: string[] = []
+  const baseUrl = readBaseUrl(input.baseUrl, 'endpoint', warnings)
+  if (!baseUrl) {
+    return { ok: false, message: warnings[0] ?? 'A valid https base URL is required.' }
+  }
+  const api = readString(input.api) ?? 'openai'
+  if (!API_VALUES.has(api)) {
+    return { ok: false, message: 'Protocol must be "anthropic" or "openai".' }
+  }
+  return {
+    ok: true,
+    value: {
+      label: readString(input.label) ?? baseUrl,
+      baseUrl,
+      api: api as EnterpriseLlmApi,
+      model: readString(input.model)
+    }
+  }
+}
+
 // Kept local rather than reusing enterprise-policy's normalizeHost: that module
 // imports this one for the policy field, and a cycle between them would be a
 // module-init hazard for a value read during startup.

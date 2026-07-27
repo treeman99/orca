@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   listEndpoints: vi.fn(),
   saveToken: vi.fn(),
   clearToken: vi.fn(),
+  addUserEndpoint: vi.fn(),
+  removeUserEndpoint: vi.fn(),
   toastError: vi.fn()
 }))
 
@@ -34,7 +36,8 @@ const ENDPOINT: CorporateLlmEndpointStatus = {
   baseUrl: 'https://llm.corp.example.com/v1',
   api: 'openai',
   model: 'llama-3.3-70b',
-  hasToken: false
+  hasToken: false,
+  userManaged: false
 }
 
 describe('CorporateLlmEndpointsSection', () => {
@@ -46,7 +49,9 @@ describe('CorporateLlmEndpointsSection', () => {
         corporateLlm: {
           listEndpoints: mocks.listEndpoints,
           saveToken: mocks.saveToken,
-          clearToken: mocks.clearToken
+          clearToken: mocks.clearToken,
+          addUserEndpoint: mocks.addUserEndpoint,
+          removeUserEndpoint: mocks.removeUserEndpoint
         }
       }
     })
@@ -95,14 +100,63 @@ describe('CorporateLlmEndpointsSection', () => {
     expect(document.body.textContent).not.toContain('sk-secret')
   })
 
-  it('renders an administrator-owned empty state instead of an inert form', async () => {
+  it('offers an add form so a user can connect a self-hosted model by URL + token', async () => {
     mocks.listEndpoints.mockResolvedValue([])
     render(<CorporateLlmEndpointsSection />)
 
-    expect(await screen.findByText(/corporate policy file/i)).toBeInTheDocument()
+    expect(
+      await screen.findByPlaceholderText('https://llm.your-company.com/v1')
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument()
+    // No per-endpoint token row exists until an endpoint is added.
     expect(
       screen.queryByPlaceholderText('Paste your token for this endpoint')
     ).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+  })
+
+  it('adds a user endpoint from URL + token, then re-lists', async () => {
+    mocks.listEndpoints.mockResolvedValue([])
+    mocks.addUserEndpoint.mockResolvedValue({
+      ok: true,
+      endpoint: {
+        id: 'user-1',
+        label: 'Mine',
+        baseUrl: 'https://llm.mine/v1',
+        api: 'openai',
+        model: null,
+        hasToken: false,
+        userManaged: true
+      }
+    })
+    mocks.saveToken.mockResolvedValue({ ok: true, hasToken: true })
+    render(<CorporateLlmEndpointsSection />)
+
+    await userEvent.type(
+      await screen.findByPlaceholderText('https://llm.your-company.com/v1'),
+      'https://llm.mine/v1'
+    )
+    await userEvent.type(
+      screen.getByPlaceholderText('Token (optional — you can add it later)'),
+      'sk-mine'
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(mocks.addUserEndpoint).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: 'https://llm.mine/v1', api: 'openai' })
+    )
+    expect(mocks.saveToken).toHaveBeenCalledWith({ endpointId: 'user-1', token: 'sk-mine' })
+    expect(document.body.textContent).not.toContain('sk-mine')
+  })
+
+  it('shows a remove control only for user-added endpoints', async () => {
+    mocks.listEndpoints.mockResolvedValue([
+      ENDPOINT,
+      { ...ENDPOINT, id: 'user-1', label: 'Mine', userManaged: true }
+    ])
+    render(<CorporateLlmEndpointsSection />)
+
+    const removeButtons = await screen.findAllByRole('button', { name: 'Remove endpoint' })
+    // One remove control, for the single user-managed endpoint.
+    expect(removeButtons).toHaveLength(1)
   })
 })

@@ -12,7 +12,7 @@ import {
   CORPORATE_LLM_ENDPOINT_ENV
 } from '../../shared/corporate-llm-launch-env'
 import type { EnterpriseLlmEndpoint } from '../../shared/enterprise-llm-endpoints'
-import { getEnterprisePolicy } from './enterprise-policy-file'
+import { getAllCorporateLlmEndpoints } from './corporate-llm-endpoint-registry'
 import { readCorporateLlmToken } from './corporate-llm-token-store'
 
 export { CORPORATE_LLM_ENDPOINT_ENV }
@@ -29,7 +29,7 @@ type Dependencies = {
 }
 
 function defaultDependencies(): Dependencies {
-  return { endpoints: getEnterprisePolicy().llmEndpoints, readToken: readCorporateLlmToken }
+  return { endpoints: getAllCorporateLlmEndpoints(), readToken: readCorporateLlmToken }
 }
 
 /**
@@ -68,7 +68,7 @@ export function describeCorporateLlmSelection(selection: CorporateLlmSelection):
     case 'applied':
       return `using corporate LLM endpoint "${selection.endpoint.id}" (${selection.endpoint.baseUrl})`
     case 'unknown-endpoint':
-      return `ignoring unknown corporate LLM endpoint "${selection.id}" — it is not in the policy file's llmEndpoints`
+      return `ignoring unknown corporate LLM endpoint "${selection.id}" — it is not a policy-provisioned or user-added endpoint`
     case 'missing-token':
       return `no token saved for corporate LLM endpoint "${selection.endpoint.id}" — the launch keeps its existing backend`
   }

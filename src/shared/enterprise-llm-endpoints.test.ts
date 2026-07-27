@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   enterpriseLlmEndpointHost,
-  resolveEnterpriseLlmEndpoints
+  resolveEnterpriseLlmEndpoints,
+  validateUserLlmEndpointInput
 } from './enterprise-llm-endpoints'
 
 function parse(raw: unknown): {
@@ -98,5 +99,43 @@ describe('enterpriseLlmEndpointHost', () => {
   it('extracts a lowercase hostname without the port', () => {
     const { endpoints } = parse([{ id: 'ds', baseUrl: 'https://LLM.samsungds.net:8443/v1' }])
     expect(enterpriseLlmEndpointHost(endpoints[0]!)).toBe('llm.samsungds.net')
+  })
+})
+
+describe('validateUserLlmEndpointInput', () => {
+  it('accepts an https endpoint and normalizes it', () => {
+    const result = validateUserLlmEndpointInput({
+      label: '  Company LLM ',
+      baseUrl: 'https://llm.mine/v1/',
+      api: 'openai',
+      model: ' qwen '
+    })
+    expect(result).toEqual({
+      ok: true,
+      value: { label: 'Company LLM', baseUrl: 'https://llm.mine/v1', api: 'openai', model: 'qwen' }
+    })
+  })
+
+  it('defaults the label to the URL and the protocol to openai', () => {
+    const result = validateUserLlmEndpointInput({ baseUrl: 'https://llm.mine/v1' })
+    expect(result).toMatchObject({
+      ok: true,
+      value: { label: 'https://llm.mine/v1', api: 'openai' }
+    })
+  })
+
+  // Why: the token is sent to this URL, so http would leak it in clear text.
+  it('rejects a non-https URL', () => {
+    const result = validateUserLlmEndpointInput({ baseUrl: 'http://insecure/v1' })
+    expect(result.ok).toBe(false)
+  })
+
+  it('rejects an unknown protocol', () => {
+    const result = validateUserLlmEndpointInput({ baseUrl: 'https://llm.mine', api: 'gemini' })
+    expect(result.ok).toBe(false)
+  })
+
+  it('rejects a missing URL', () => {
+    expect(validateUserLlmEndpointInput({}).ok).toBe(false)
   })
 })
