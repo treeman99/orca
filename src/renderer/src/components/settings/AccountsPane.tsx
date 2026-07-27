@@ -51,6 +51,8 @@ import {
   getAccountsOpencodeSearchEntries,
   getAccountsPaneSearchEntries
 } from './accounts-search'
+import { AwsSsoSection } from './AwsSsoSection'
+import { getAwsSsoSearchEntries } from './aws-sso-search'
 import { CorporateLlmEndpointsSection } from './CorporateLlmEndpointsSection'
 import { getCorporateLlmEndpointsSearchEntries } from './corporate-llm-endpoints-search'
 import { GrokAccountsSection } from './GrokAccountsSection'
@@ -1875,6 +1877,9 @@ export function AccountsPane({
     ) : null,
     matchesSettingsSearch(searchQuery, getCorporateLlmEndpointsSearchEntries()) ? (
       <CorporateLlmEndpointsSection key="corporate-llm" />
+    ) : null,
+    matchesSettingsSearch(searchQuery, getAwsSsoSearchEntries()) ? (
+      <AwsSsoSection key="aws-sso" />
     ) : null
   ]
     .filter(Boolean)

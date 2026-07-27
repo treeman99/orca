@@ -223,6 +223,15 @@ Bedrock 인증은 **Claude Code CLI 자체**가 AWS 기본 자격증명 체인�
 
 SSO는 환경 변수가 아니라 **파일**(토큰 캐시) 기반이므로 마지막 두 항목이 핵심입니다. 사전에 `aws sso login`을 한 번 끝내 두면 됩니다. named 프로필이 꼭 필요할 때만 `AWS_PROFILE`을 추가하세요 — `설정 → Agents`의 에이전트별 env로 넣는 것도 정상 동작합니다.
 
+**앱 안에서 로그인하기 (이 포크가 추가)** — 터미널을 열지 않아도 **설정 → AI 제공업체 계정 → "AWS SSO 로그인"**(영문 UI: Accounts → AWS SSO sign-in)에서 처리할 수 있습니다.
+
+- `~/.aws/config`의 **SSO 프로필 목록**을 읽어 고르게 하고(`sso-session` 방식과 레거시 `sso_start_url` 방식 모두), 선택한 프로필로 `aws sso login`을 실행합니다. 브라우저는 **AWS CLI가 직접** 띄웁니다 — 회사에서 쓰던 그 창 그대로입니다.
+- **로그인 여부와 만료 시각**을 배지로 보여줍니다. 판정 근거는 AWS CLI 자신의 토큰 캐시(`~/.aws/sso/cache`)의 `expiresAt`이며, **네트워크 호출 없이** 읽습니다. Orca는 토큰을 읽지도, 저장하지도 않습니다.
+- 브라우저가 이 PC로 돌아올 수 없는 환경(다른 기기에서 인증, 로컬 콜백 차단)에서는 **기기 코드 방식**(`--use-device-code`)을 체크하면 코드와 인증 URL을 화면에 띄워 줍니다. AWS CLI v2.22+의 기본 흐름은 로컬 콜백을 쓰는 authorization code + PKCE라서, 사내 정책에 막히면 이 옵션이 유일한 우회로입니다.
+- 프로필 이름은 **`~/.aws/config`에 실제로 존재하는 것만** CLI로 넘깁니다(`src/main/ipc/aws-sso.ts`). 화면이 하는 일은 CLI 실행과 결과 표시뿐이고, 자격증명 처리는 전부 AWS CLI 몫입니다.
+
+> **로컬 전용입니다.** 이 버튼은 이 PC의 AWS CLI를 로그인시킵니다. WSL 게스트와 SSH 원격 호스트는 각자의 토큰 캐시를 쓰므로 **그 안에서 따로** `aws sso login`을 실행해야 합니다(§3.4). `disableManagedClaudeAccounts`·`enforceNetworkAllowlist` 같은 정책 스위치는 이 경로에 관여하지 않습니다 — 자식 프로세스의 egress는 허용목록 밖입니다.
+
 ### 3.2 모델·리전·플래그는 Claude Code 설정 파일에 (버킷 C)
 
 ```jsonc

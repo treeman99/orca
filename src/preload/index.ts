@@ -15,6 +15,7 @@ import type {
   CorporateLlmEndpointStatus,
   CorporateLlmTokenSaveResult
 } from '../shared/corporate-llm-endpoint-status'
+import type { AwsSsoLoginProgress, AwsSsoLoginResult, AwsSsoStatus } from '../shared/aws-sso-auth'
 import type { EnterprisePolicyView } from '../shared/enterprise-policy-view'
 import type {
   GithubEnterpriseAuthStatus,
@@ -4172,6 +4173,22 @@ const api = {
   enterprisePolicy: {
     get: (): Promise<EnterprisePolicyView> => ipcRenderer.invoke('enterprisePolicy:get')
   } satisfies PreloadApi['enterprisePolicy'],
+
+  awsSso: {
+    getStatus: (): Promise<AwsSsoStatus> => ipcRenderer.invoke('awsSso:getStatus'),
+    setProfile: (args: { profile: string }): Promise<AwsSsoStatus> =>
+      ipcRenderer.invoke('awsSso:setProfile', args),
+    login: (args: { profile: string; useDeviceCode: boolean }): Promise<AwsSsoLoginResult> =>
+      ipcRenderer.invoke('awsSso:login', args),
+    cancelLogin: (): Promise<void> => ipcRenderer.invoke('awsSso:cancelLogin'),
+    logout: (args: { profile: string }): Promise<void> => ipcRenderer.invoke('awsSso:logout', args),
+    onLoginProgress: (callback: (progress: AwsSsoLoginProgress) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, progress: AwsSsoLoginProgress) =>
+        callback(progress)
+      ipcRenderer.on('awsSso:loginProgress', listener)
+      return () => ipcRenderer.removeListener('awsSso:loginProgress', listener)
+    }
+  } satisfies PreloadApi['awsSso'],
 
   githubEnterprise: {
     getStatus: (): Promise<GithubEnterpriseAuthStatus> =>

@@ -24,6 +24,7 @@ import type {
   LocalLogTailReadResult,
   LocalLogTailWatchArgs
 } from '../shared/local-log-tail-types'
+import type { AwsSsoLoginProgress, AwsSsoLoginResult, AwsSsoStatus } from '../shared/aws-sso-auth'
 import type { ReadClipboardTextOptions } from '../shared/clipboard-text'
 import type { EnterprisePolicyView } from '../shared/enterprise-policy-view'
 import type {
@@ -3156,6 +3157,14 @@ export type PreloadApi = {
   }
   enterprisePolicy: {
     get: () => Promise<EnterprisePolicyView>
+  }
+  awsSso: {
+    getStatus: () => Promise<AwsSsoStatus>
+    setProfile: (args: { profile: string }) => Promise<AwsSsoStatus>
+    login: (args: { profile: string; useDeviceCode: boolean }) => Promise<AwsSsoLoginResult>
+    cancelLogin: () => Promise<void>
+    logout: (args: { profile: string }) => Promise<void>
+    onLoginProgress: (callback: (progress: AwsSsoLoginProgress) => void) => () => void
   }
   githubEnterprise: {
     getStatus: () => Promise<GithubEnterpriseAuthStatus>

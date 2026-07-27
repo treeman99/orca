@@ -1,4 +1,5 @@
 import type { SettingsSearchEntry } from './settings-search'
+import { getAwsSsoSearchEntries } from './aws-sso-search'
 import { getCorporateLlmEndpointsSearchEntries } from './corporate-llm-endpoints-search'
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
@@ -221,5 +222,6 @@ export const getAccountsPaneSearchEntries = createLocalizedCatalog((): SettingsS
   ...getAccountsOpencodeSearchEntries(),
   ...getAccountsMiniMaxSearchEntries(),
   ...getAccountsGrokSearchEntries(),
-  ...getCorporateLlmEndpointsSearchEntries()
+  ...getCorporateLlmEndpointsSearchEntries(),
+  ...getAwsSsoSearchEntries()
 ])
