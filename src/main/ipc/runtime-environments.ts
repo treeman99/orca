@@ -1,5 +1,7 @@
 import { app, ipcMain } from 'electron'
 import { randomUUID } from 'node:crypto'
+import { assertRemoteOrcaServerAllowed } from '../enterprise/remote-orca-server-guard'
+import { toBinaryPayload } from './runtime-subscription-binary-payload'
 import {
   addEnvironmentFromPairingCode,
   listEnvironments,
@@ -85,9 +87,14 @@ export function registerRuntimeEnvironmentHandlers(store: Store): void {
     (
       _event,
       args: { name: string; pairingCode: string }
-    ): { environment: PublicKnownRuntimeEnvironment } => ({
-      environment: redactRuntimeEnvironment(addEnvironmentFromPairingCode(getUserDataPath(), args))
-    })
+    ): { environment: PublicKnownRuntimeEnvironment } => {
+      assertRemoteOrcaServerAllowed()
+      return {
+        environment: redactRuntimeEnvironment(
+          addEnvironmentFromPairingCode(getUserDataPath(), args)
+        )
+      }
+    }
   )
   ipcMain.handle('runtimeEnvironments:resolve', (_event, args: { selector: string }) =>
     redactRuntimeEnvironment(resolveEnvironment(getUserDataPath(), args.selector))
@@ -296,17 +303,4 @@ export function registerRuntimeEnvironmentHandlers(store: Store): void {
       }
     }
   )
-}
-
-function toBinaryPayload(value: unknown): Uint8Array<ArrayBufferLike> | null {
-  if (value instanceof Uint8Array) {
-    return value
-  }
-  if (value instanceof ArrayBuffer) {
-    return new Uint8Array(value)
-  }
-  if (ArrayBuffer.isView(value)) {
-    return new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
-  }
-  return null
 }

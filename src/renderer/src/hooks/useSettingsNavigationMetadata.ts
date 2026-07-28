@@ -80,6 +80,11 @@ import {
   useWindowsTerminalCapabilities
 } from '@/lib/windows-terminal-capabilities'
 import { getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
+import {
+  getEnterprisePolicyView,
+  useEnterprisePolicyView
+} from '@/enterprise/enterprise-policy-access'
+import type { EnterprisePolicyView } from '../../../shared/enterprise-policy-view'
 import { useLinearProviderConnected } from '@/hooks/useLinearProviderConnected'
 import { translate } from '@/i18n/i18n'
 
@@ -117,6 +122,11 @@ export function buildSettingsNavigationMetadata({
   isWebClient,
   isDev = import.meta.env.DEV,
   isLinearConnected = false,
+  // Corporate policy narrows the sidebar the same way the web client does: a pane the
+  // policy removed must not be reachable from Cmd+J either, which is why this registry
+  // — the one both surfaces read — is where the switches land. Passed in rather than
+  // read here so the hook below can subscribe to it and re-render on the startup fetch.
+  policy = getEnterprisePolicyView(),
   repos
 }: {
   isMac: boolean
@@ -125,6 +135,7 @@ export function buildSettingsNavigationMetadata({
   isWebClient: boolean
   isDev?: boolean
   isLinearConnected?: boolean
+  policy?: EnterprisePolicyView
   repos: readonly Repo[]
 }): SettingsNavSection[] {
   const showDesktopOnlySettings = !isWebClient
@@ -164,10 +175,15 @@ export function buildSettingsNavigationMetadata({
         'auto.hooks.useSettingsNavigationMetadata.f70ac54d38',
         'AI Provider Accounts'
       ),
-      description: translate(
-        'auto.hooks.useSettingsNavigationMetadata.b1c2f8b0ac',
-        'Optional account switching and usage setup for Claude, Codex, Gemini, OpenCode Go, MiniMax, and Grok.'
-      ),
+      description: policy.disableVendorProviderAccounts
+        ? translate(
+            'auto.hooks.useSettingsNavigationMetadata.accountsCorporate',
+            'AWS SSO sign-in and your organization’s self-hosted model endpoints.'
+          )
+        : translate(
+            'auto.hooks.useSettingsNavigationMetadata.b1c2f8b0ac',
+            'Optional account switching and usage setup for Claude, Codex, Gemini, OpenCode Go, MiniMax, and Grok.'
+          ),
       icon: UserCog,
       searchEntries: getAccountsPaneSearchEntries(),
       group: 'capabilities',
@@ -213,7 +229,11 @@ export function buildSettingsNavigationMetadata({
             icon: MousePointerClick,
             searchEntries: getComputerUsePaneSearchEntries(),
             group: 'capabilities'
-          },
+          }
+        ]
+      : []),
+    ...(showDesktopOnlySettings && !policy.disableVoice
+      ? [
           {
             id: 'voice',
             title: translate('auto.hooks.useSettingsNavigationMetadata.6a50cdcd7c', 'Voice'),
@@ -282,7 +302,7 @@ export function buildSettingsNavigationMetadata({
       searchEntries: getIntegrationsPaneSearchEntries(),
       group: 'setup'
     },
-    ...(showDesktopOnlySettings
+    ...(showDesktopOnlySettings && !policy.disableMobilePairing
       ? [
           {
             id: 'mobile',
@@ -475,20 +495,24 @@ export function buildSettingsNavigationMetadata({
           }
         ]
       : []),
-    {
-      id: 'servers',
-      title: translate(
-        'auto.hooks.useSettingsNavigationMetadata.de0c2907a1',
-        'Remote Orca Servers'
-      ),
-      description: isWebClient
-        ? 'Connect this browser to a saved Orca server.'
-        : 'Pair remote Orca runtimes for persistent sessions, richer remote state, and web or mobile handoff.',
-      icon: Server,
-      searchEntries: [runtimeEnvironmentsSearchEntry],
-      group: 'remote',
-      badge: translate('auto.hooks.useSettingsNavigationMetadata.40d80bad8a', 'Beta')
-    },
+    ...(policy.disableRemoteOrcaServer
+      ? []
+      : [
+          {
+            id: 'servers',
+            title: translate(
+              'auto.hooks.useSettingsNavigationMetadata.de0c2907a1',
+              'Remote Orca Servers'
+            ),
+            description: isWebClient
+              ? 'Connect this browser to a saved Orca server.'
+              : 'Pair remote Orca runtimes for persistent sessions, richer remote state, and web or mobile handoff.',
+            icon: Server,
+            searchEntries: [runtimeEnvironmentsSearchEntry],
+            group: 'remote',
+            badge: translate('auto.hooks.useSettingsNavigationMetadata.40d80bad8a', 'Beta')
+          }
+        ]),
     ...(showDesktopOnlySettings && isMac
       ? [
           {
@@ -607,6 +631,7 @@ export function useSettingsNavigationMetadata(): SettingsNavSection[] {
   const isWindows = isWindowsUserAgent()
   const isWebClient = isWebClientLocation()
   const isLinearConnected = useLinearProviderConnected()
+  const policy = useEnterprisePolicyView()
   const windowsTerminalCapabilityOwnerKey = getWindowsTerminalCapabilityOwnerKey(
     settings?.activeRuntimeEnvironmentId
   )
@@ -631,9 +656,19 @@ export function useSettingsNavigationMetadata(): SettingsNavSection[] {
         isWebClient,
         isDev: import.meta.env.DEV,
         isLinearConnected,
+        policy,
         repos
       }),
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- activeLocale is read implicitly by the translate() calls inside buildSettingsNavigationMetadata; without it the memo keeps the previous language's sections.
-    [isMac, isWindows, isWindowsTerminalHost, isWebClient, isLinearConnected, repos, activeLocale]
+    [
+      isMac,
+      isWindows,
+      isWindowsTerminalHost,
+      isWebClient,
+      isLinearConnected,
+      policy,
+      repos,
+      activeLocale
+    ]
   )
 }

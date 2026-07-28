@@ -4,6 +4,7 @@ import { getCorporateLlmEndpointsSearchEntries } from './corporate-llm-endpoints
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
+import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 
 export const getAccountsLocationSearchEntries = createLocalizedCatalog(() => [
   {
@@ -214,14 +215,22 @@ export const getAccountsGrokSearchEntries = createLocalizedCatalog(() => [
   }
 ])
 
-export const getAccountsPaneSearchEntries = createLocalizedCatalog((): SettingsSearchEntry[] => [
-  ...getAccountsLocationSearchEntries(),
+// Cmd+J must not surface a vendor row the pane no longer renders. AWS SSO and the
+// corporate endpoints stay — they are the fleet's supported path, not vendor accounts.
+const getVendorAccountSearchEntries = createLocalizedCatalog((): SettingsSearchEntry[] => [
   ...getAccountsClaudeSearchEntries(),
   ...getAccountsCodexSearchEntries(),
   ...getAccountsGeminiSearchEntries(),
   ...getAccountsOpencodeSearchEntries(),
   ...getAccountsMiniMaxSearchEntries(),
-  ...getAccountsGrokSearchEntries(),
+  ...getAccountsGrokSearchEntries()
+])
+
+export const getAccountsPaneSearchEntries = (): SettingsSearchEntry[] => [
+  ...getAccountsLocationSearchEntries(),
+  ...(getEnterprisePolicyView().disableVendorProviderAccounts
+    ? []
+    : getVendorAccountSearchEntries()),
   ...getCorporateLlmEndpointsSearchEntries(),
   ...getAwsSsoSearchEntries()
-])
+]

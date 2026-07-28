@@ -17,6 +17,11 @@
 | 설정 → 연동의 **사내 GitHub (Enterprise)** 섹션과 정책 호스트 프리필 | `gh` 자격증명 저장소(맥은 Keychain, Windows는 gh 자체 저장소) |
 | 설정 → AI 제공업체 계정의 **사내 자체 호스팅 모델** 섹션·추가·토큰 저장 | 토큰 암호화가 **DPAPI**로 되는지 (맥은 Keychain 항목 `Orca Dev Safe Storage`) |
 | `allowedAgents`로 에이전트/모델 피커가 좁혀지는지 | NSIS per-user 설치, 무서명 실행, 자동 업데이트 피드 차단 |
+| **업데이트 항목이 메뉴·트레이·설정·사이드바에서 사라지는지** (`disableAutoUpdate`) | — |
+| **설정 → 모바일 / 음성 / 원격 Orca 서버 탭이 사라지는지** | — |
+| **AI 제공업체 계정에 AWS SSO와 사내 모델만 남는지** (`disableVendorProviderAccounts`) | — |
+| **Computer Use 승인 창** — 에이전트에게 다른 앱을 클릭시키면 확인 창이 뜨는지 | Windows `runtime.ps1` 경유 동작 |
+| **설정 → 연동의 "GitHub 요청 대상" 표시** | — |
 | 잠금 상태의 화면 구성 전반(레이아웃·문구·번역) | WSL 런타임 패스스루, `powershell.exe` 기반 Computer Use |
 
 정책 스위치 대부분은 **"네트워크로 안 나가는 것"** 이라 화면에 아무 변화가 없습니다. 그건 UI가 아니라 §4의 trace로 확인하세요.
@@ -63,6 +68,12 @@ cat > ~/orca-dev-policy/enterprise-policy.json <<'JSON'
   "lockdown": true,
   "githubEnterpriseHost": "github.samsungds.net",
   "allowedAgents": ["claude"],
+  // 아래 다섯은 lockdown이 자동으로 켜지만, 화면 확인 중 하나씩 꺼 보려면 명시해 두면 편합니다.
+  "disableMobilePairing": true,
+  "disableVendorProviderAccounts": true,
+  "disableRemoteOrcaServer": true,
+  "disableVoice": true,
+  "requireComputerUseApproval": true,
   "llmEndpoints": [
     {
       "id": "ds-internal-openai",

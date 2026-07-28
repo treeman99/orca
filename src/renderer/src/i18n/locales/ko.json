@@ -736,7 +736,8 @@
         "devSearchKeywordNotification": "notification",
         "projectHostsSummary": "호스트 {{value0}}개",
         "linearTitle": "Linear",
-        "linearDescription": "Give agents the skill to read and update your linked Linear tickets."
+        "linearDescription": "Give agents the skill to read and update your linked Linear tickets.",
+        "accountsCorporate": "AWS SSO 로그인과 사내 자체 호스팅 모델 엔드포인트."
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "붙여넣기 내용이 너무 큽니다."
@@ -2211,7 +2212,7 @@
         },
         "githubIssueCloseReasons": {
           "completed": {
-            "label": "완료로 닫기",
+            "label": "GitHub 요청 대상",
             "description": "완료, 닫힘, 수정됨, 해결됨"
           },
           "notPlanned": {
@@ -9502,7 +9503,7 @@
         "AwsSsoSection": {
           "heading": "AWS SSO 로그인",
           "intro": "Bedrock 기반 Claude는 AWS 자격 증명 체인으로 인증하므로 유효한 SSO 세션이 필요합니다. 여기서 고른 프로필로 `aws sso login`을 실행하면 AWS CLI가 브라우저를 띄웁니다. 토큰은 AWS CLI 자체 캐시에 남고, Orca는 만료 시각만 읽습니다.",
-          "awsMissing": "AWS CLI(aws)가 설치되지 않았거나 PATH에 없습니다. AWS CLI v2를 먼저 설치한 뒤 여기서 로그인하세요.",
+          "awsMissing": "AWS CLI를 실행하지 못했습니다. 터미널에서 `aws --version`이 동작한다면 Orca를 재시작해 현재 PATH를 다시 읽게 하고, 그렇지 않으면 AWS CLI v2를 먼저 설치하세요.",
           "noProfiles": "AWS 설정 파일에 SSO 프로필이 없습니다. `aws configure sso`로 프로필을 한 번 만든 뒤 이 화면을 다시 열어 주세요.",
           "profileLabel": "AWS 프로필",
           "signedIn": "로그인됨",
@@ -9518,12 +9519,13 @@
           "browserPrompt": "브라우저가 열렸을 것입니다. 그쪽에서 승인을 끝내면 됩니다 — 여기서 기다립니다.",
           "openAuthPage": "인증 페이지 열기",
           "errorNoProfile": "AWS 프로필을 먼저 선택하세요.",
-          "errorAwsUnavailable": "AWS CLI(aws)를 PATH에서 찾을 수 없습니다. 설치한 뒤 다시 시도하세요.",
+          "errorAwsUnavailable": "AWS CLI를 실행하지 못했습니다. 터미널에서 `aws --version`이 동작하는지 확인한 뒤 다시 시도하세요.",
           "errorTimeout": "브라우저에서 로그인이 끝나기 전에 시간이 초과되었습니다. 다시 시도하세요.",
           "errorCancelled": "로그인이 취소되었습니다.",
           "errorFailed": "로그인에 실패했습니다. 프로필과 네트워크를 확인한 뒤 다시 시도하세요.",
           "profileSaveFailed": "프로필을 저장할 수 없습니다.",
-          "logoutFailed": "로그아웃할 수 없습니다."
+          "logoutFailed": "로그아웃할 수 없습니다.",
+          "errorPtyUnavailable": "AWS CLI를 실행할 터미널을 시작하지 못했습니다. Orca를 재시작한 뒤 다시 시도하세요."
         },
         "awsSso": {
           "search": {
@@ -9535,6 +9537,15 @@
             "profile": "프로필",
             "login": "로그인"
           }
+        },
+        "GitHubEnterpriseHostReadout": {
+          "sourceRemote": "이 워크스페이스의 git 리모트 기준",
+          "sourceEnv": "GH_HOST 환경변수 기준",
+          "sourceUser": "여기서 저장한 호스트 기준",
+          "sourcePolicy": "사내 Orca 정책 기준",
+          "sourceDefault": "gh 기본값 — 사내 호스트가 설정되어 있지 않습니다",
+          "label": "GitHub requests go to",
+          "remoteNote": "git 리모트가 다른 호스트를 가리키는 워크스페이스는 그 호스트를 사용합니다."
         }
       },
       "right": {
@@ -13975,6 +13986,14 @@
     "corporateLlm": {
       "appliesNextSession": "사내 LLM — 다음 세션부터 적용됩니다",
       "tokenMissing": "사내 LLM — 설정에서 토큰을 먼저 저장하세요"
+    }
+  },
+  "computerUse": {
+    "approval": {
+      "deny": "거부",
+      "allow": "허용",
+      "title": "에이전트가 컴퓨터를 조작하도록 허용할까요?",
+      "message": "Orca 밖의 앱을 조작하려고 합니다."
     }
   }
 }

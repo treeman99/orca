@@ -52,6 +52,7 @@ import { registerUIHandlers, setTrustedUIRendererWebContentsId } from './ui'
 import { registerEmulatorFrameStreamHandlers } from './emulator-frame-stream'
 import { registerEmulatorVideoStreamHandlers } from './emulator-video-stream'
 import { registerSpeechHandlers } from './speech'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { registerTerminalRenderDesyncEvidenceHandler } from './terminal-render-desync-evidence'
 import { registerOrcaProfileHandlers } from './orca-profiles'
 import { registerCodexAccountHandlers } from './codex-accounts'
@@ -223,5 +224,10 @@ export function registerCoreHandlers(
   registerNativeChatHandlers()
   registerClipboardHandlers(store)
   registerUpdaterHandlers(store)
-  registerSpeechHandlers(store)
+  // Not registered at all rather than refused per call: one of these channels asks macOS
+  // for microphone access, and a permission prompt for a feature the policy removed is
+  // worse than a missing channel.
+  if (!getEnterprisePolicy().disableVoice) {
+    registerSpeechHandlers(store)
+  }
 }

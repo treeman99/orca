@@ -80,6 +80,7 @@ import {
   useWindowsTerminalCapabilities
 } from '@/lib/windows-terminal-capabilities'
 import { getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { getShortcutPlatform } from '@/lib/shortcut-platform'
 import { keybindingMatchesAction } from '../../../../shared/keybindings'
 import {
@@ -329,6 +330,8 @@ function Settings(): React.JSX.Element {
   const isMac = isMacUserAgent()
   const isWebClient = isWebClientLocation()
   const showDesktopOnlySettings = !isWebClient
+  // Mirrors useSettingsNavigationMetadata: sidebar entry and section must vanish together.
+  const enterprisePolicy = useEnterprisePolicyView()
   // Why: mirror the nav registry's gate so the Linear sidebar entry and section appear/disappear together.
   const linearConnected = useLinearProviderConnected()
   const activeSkillRuntime = useActiveProjectSkillRuntime()
@@ -350,6 +353,7 @@ function Settings(): React.JSX.Element {
   const { inventory: skillFreshnessInventory } = useSkillFreshness()
   const skillFreshnessApplies = activeSkillRuntime.agentRuntime?.runtime !== 'wsl'
   const [voiceModelStatesLoading, setVoiceModelStatesLoading] = useState(showDesktopOnlySettings)
+
   // Why: trim platform-only Terminal entries from the shared search index so search never reveals hidden controls.
   const [scrollbackMode, setScrollbackMode] = useState<'preset' | 'custom'>('preset')
   const [prevScrollbackRows, setPrevScrollbackRows] = useState(settings?.terminalScrollbackRows)
@@ -510,7 +514,9 @@ function Settings(): React.JSX.Element {
   }, [fetchKeybindings, fetchSettings])
 
   useEffect(() => {
-    if (!showDesktopOnlySettings) {
+    // Also skipped under the policy: registerSpeechHandlers is not registered when voice
+    // is disabled, so this scan would reject with "No handler registered".
+    if (!showDesktopOnlySettings || enterprisePolicy.disableVoice) {
       setVoiceModelStatesLoading(false)
       return
     }
@@ -525,7 +531,7 @@ function Settings(): React.JSX.Element {
     return () => {
       canceled = true
     }
-  }, [refreshModelStates, showDesktopOnlySettings])
+  }, [enterprisePolicy.disableVoice, refreshModelStates, showDesktopOnlySettings])
 
   useEffect(() => {
     const hasVisibleOverlay = (): boolean =>
@@ -1261,19 +1267,21 @@ function Settings(): React.JSX.Element {
                       {isSectionMounted('computer-use') ? <ComputerUsePane /> : null}
                     </SettingsSection>
 
-                    <SettingsSection
-                      id="voice"
-                      title={translate('auto.components.settings.Settings.5063bb47a5', 'Voice')}
-                      description={translate(
-                        'auto.components.settings.Settings.eb1176a14e',
-                        'Local speech-to-text dictation with on-device models.'
-                      )}
-                      searchEntries={getSectionSearchEntries('voice')}
-                    >
-                      {isSectionMounted('voice') ? (
-                        <VoicePane settings={settings} updateSettings={updateSettings} />
-                      ) : null}
-                    </SettingsSection>
+                    {enterprisePolicy.disableVoice ? null : (
+                      <SettingsSection
+                        id="voice"
+                        title={translate('auto.components.settings.Settings.5063bb47a5', 'Voice')}
+                        description={translate(
+                          'auto.components.settings.Settings.eb1176a14e',
+                          'Local speech-to-text dictation with on-device models.'
+                        )}
+                        searchEntries={getSectionSearchEntries('voice')}
+                      >
+                        {isSectionMounted('voice') ? (
+                          <VoicePane settings={settings} updateSettings={updateSettings} />
+                        ) : null}
+                      </SettingsSection>
+                    )}
                   </>
                 ) : null}
 
@@ -1329,7 +1337,7 @@ function Settings(): React.JSX.Element {
                   {isSectionMounted('integrations') ? <IntegrationsPane /> : null}
                 </SettingsSection>
 
-                {showDesktopOnlySettings ? (
+                {showDesktopOnlySettings && !enterprisePolicy.disableMobilePairing ? (
                   <SettingsSection
                     id="mobile"
                     title={translate('auto.components.settings.Settings.c40dadaac8', 'Mobile')}
@@ -1591,36 +1599,40 @@ function Settings(): React.JSX.Element {
                   {isSectionMounted('stats') ? <StatsPane /> : null}
                 </SettingsSection>
 
-                <SettingsSection
-                  id="servers"
-                  title={translate(
-                    'auto.components.settings.Settings.bd0181eeca',
-                    'Remote Orca Servers'
-                  )}
-                  badge="Beta"
-                  description={
-                    isWebClient
-                      ? translate(
-                          'auto.components.settings.Settings.7686cb5c36',
-                          'Connect this browser to a saved Orca server.'
-                        )
-                      : translate(
-                          'auto.components.settings.Settings.b5ee17826b',
-                          'Pair remote Orca runtimes for persistent sessions, richer remote state, and web or mobile handoff.'
-                        )
-                  }
-                  searchEntries={getSectionSearchEntries('servers')}
-                >
-                  {isSectionMounted('servers') ? (
-                    <RuntimeEnvironmentsPane
-                      settings={settings}
-                      setActiveRuntimeEnvironmentPreference={setActiveRuntimeEnvironmentPreference}
-                      canGeneratePairingUrl={!isWebClient}
-                      allowLocalRuntime={!isWebClient}
-                      addServerIntentSignal={remoteServerAddIntentSignal}
-                    />
-                  ) : null}
-                </SettingsSection>
+                {enterprisePolicy.disableRemoteOrcaServer ? null : (
+                  <SettingsSection
+                    id="servers"
+                    title={translate(
+                      'auto.components.settings.Settings.bd0181eeca',
+                      'Remote Orca Servers'
+                    )}
+                    badge="Beta"
+                    description={
+                      isWebClient
+                        ? translate(
+                            'auto.components.settings.Settings.7686cb5c36',
+                            'Connect this browser to a saved Orca server.'
+                          )
+                        : translate(
+                            'auto.components.settings.Settings.b5ee17826b',
+                            'Pair remote Orca runtimes for persistent sessions, richer remote state, and web or mobile handoff.'
+                          )
+                    }
+                    searchEntries={getSectionSearchEntries('servers')}
+                  >
+                    {isSectionMounted('servers') ? (
+                      <RuntimeEnvironmentsPane
+                        settings={settings}
+                        setActiveRuntimeEnvironmentPreference={
+                          setActiveRuntimeEnvironmentPreference
+                        }
+                        canGeneratePairingUrl={!isWebClient}
+                        allowLocalRuntime={!isWebClient}
+                        addServerIntentSignal={remoteServerAddIntentSignal}
+                      />
+                    ) : null}
+                  </SettingsSection>
+                )}
 
                 {showDesktopOnlySettings ? (
                   <SettingsSection

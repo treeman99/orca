@@ -25,6 +25,8 @@ export type FeatureTip = {
 export type CompletedFeatureTipState = {
   cliInstalled: boolean
   voiceDictationEnabled: boolean
+  /** Corporate policy removed dictation; the tip would offer a pane that is not there. */
+  voiceUnavailable?: boolean
   featureInteractions?: FeatureInteractionState
 }
 
@@ -90,7 +92,7 @@ export function getCompletedFeatureTipIds(state: CompletedFeatureTipState): Set<
   if (state.cliInstalled) {
     completedIds.add('orca-cli')
   }
-  if (state.voiceDictationEnabled) {
+  if (state.voiceDictationEnabled || state.voiceUnavailable) {
     completedIds.add('voice-dictation')
   }
   for (const tip of FEATURE_TIPS) {

@@ -350,7 +350,7 @@ export function AccountsPane({
   wslCapabilitiesLoading = false,
   accountOwnerPlatform = null
 }: AccountsPaneProps): React.JSX.Element {
-  const { allowedAgents } = useEnterprisePolicyView()
+  const { allowedAgents, disableVendorProviderAccounts } = useEnterprisePolicyView()
   const searchQuery = useAppStore((s) => s.settingsSearchQuery)
   const codexRateLimits = useAppStore((s) => s.rateLimits.codex)
   const codexRateLimitTarget = useAppStore((s) => s.rateLimits.codexTarget)
@@ -1967,10 +1967,17 @@ export function AccountsPane({
   ]
     .filter(Boolean)
     // Hide the account sections of vendors the corporate policy does not allow.
+    //
+    // Two separate rules, because agents and vendor credentials are different axes: a
+    // Bedrock fleet needs `allowedAgents: ["claude"]` — the CLI binary — while forbidding
+    // the platform.claude.com login that shares its name. Only the second rule removes it.
     .filter((section) => {
       const key = (section as React.ReactElement).key
       const agentId = typeof key === 'string' ? ACCOUNT_SECTION_AGENT_BY_KEY[key] : undefined
-      return agentId === undefined || isAgentAllowedByPolicy(agentId, allowedAgents)
+      if (agentId === undefined) {
+        return true
+      }
+      return !disableVendorProviderAccounts && isAgentAllowedByPolicy(agentId, allowedAgents)
     })
 
   return (

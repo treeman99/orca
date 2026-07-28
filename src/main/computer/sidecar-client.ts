@@ -9,6 +9,7 @@ import type {
 } from '../../shared/runtime-types'
 import { normalizeComputerActionResult } from './computer-action-verification-normalization'
 import { validateComputerSidecarPasteText } from './computer-sidecar-paste-validation'
+import { requireComputerUseApproval } from './computer-use-action-approval'
 import { RuntimeClientError } from './runtime-client-error'
 
 type ComputerSidecarMethod =
@@ -79,6 +80,12 @@ export async function callComputerSidecarAction(
   const validation = validateComputerSidecarPasteText(method, params)
   if (validation) {
     await validation
+  }
+  // After validation so a malformed action is rejected without bothering the user, and
+  // before the sidecar call so nothing has happened yet if they say no.
+  const approval = requireComputerUseApproval(method, params)
+  if (approval) {
+    await approval
   }
   return normalizeComputerActionResult(
     (await getComputerSidecar().call(method, params)) as ComputerActionResult

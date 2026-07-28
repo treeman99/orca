@@ -8,6 +8,7 @@ import {
   type FeatureTip,
   type FeatureTipId
 } from '../../../../shared/feature-tips'
+import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 
 export function getFeatureTipForModal(args: {
   cliInstalled: boolean
@@ -26,6 +27,7 @@ export function getFeatureTipForModal(args: {
     completedTipIds: getCompletedFeatureTipIds({
       cliInstalled: args.cliInstalled,
       voiceDictationEnabled: args.settings?.voice?.enabled === true,
+      voiceUnavailable: getEnterprisePolicyView().disableVoice,
       featureInteractions: args.featureInteractions
     })
   })

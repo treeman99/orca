@@ -14,6 +14,8 @@ import {
   parseAwsSsoVerificationUrl
 } from '../../shared/aws-sso-cli-output'
 import type { AwsSsoLoginProgress, AwsSsoLoginResult } from '../../shared/aws-sso-auth'
+import { getSpawnArgsForWindows } from '../win32-utils'
+import { buildAwsCommandEnv, resolveAwsCommand } from './aws-cli-command'
 
 // The user has to switch to a browser and authorize, so allow a generous window.
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000
@@ -44,13 +46,17 @@ export async function runAwsSsoLogin(
   try {
     pty = await import('node-pty')
   } catch {
-    return { ok: false, reason: 'aws-unavailable', message: 'PTY runtime unavailable' }
+    // Distinct from 'aws-unavailable': collapsing the two made a broken native module
+    // read as a missing AWS CLI, which sent users looking in entirely the wrong place.
+    return { ok: false, reason: 'pty-unavailable', message: 'PTY runtime unavailable' }
   }
 
   const args = ['sso', 'login', '--profile', profile]
   if (options.useDeviceCode) {
     args.push('--use-device-code')
   }
+  const env = buildAwsCommandEnv(process.env)
+  const resolved = getSpawnArgsForWindows(resolveAwsCommand(env), args)
 
   return new Promise<AwsSsoLoginResult>((resolve) => {
     let output = ''
@@ -61,13 +67,11 @@ export async function runAwsSsoLogin(
 
     let term: NodePty.IPty
     try {
-      term = pty.spawn('aws', args, {
+      term = pty.spawn(resolved.spawnCmd, resolved.spawnArgs, {
         name: 'xterm-256color',
         cols: PTY_COLUMNS,
         rows: 40,
-        // Why AWS_PAGER='': the CLI pipes output through a pager when one is
-        // configured, which would hold the URL and the code hostage.
-        env: { ...process.env, TERM: 'xterm-256color', AWS_PAGER: '' }
+        env: { ...env, TERM: 'xterm-256color' }
       })
     } catch (error) {
       // node-pty throws synchronously when the binary is missing.

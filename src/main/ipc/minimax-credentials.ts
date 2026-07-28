@@ -5,6 +5,7 @@ import {
   saveMiniMaxSessionCookie
 } from '../minimax/minimax-cookie-store'
 import { clearMiniMaxSessionCookieJar } from '../rate-limits/minimax-request-context'
+import { assertVendorAccountRegistrationAllowed } from '../enterprise/vendor-account-registration-guard'
 import type { RateLimitService } from '../rate-limits/service'
 
 export type MiniMaxCredentialsStatus = {
@@ -30,6 +31,7 @@ function refreshAfterMiniMaxCredentialChange(
 export function registerMiniMaxCredentialsHandlers(rateLimits: RateLimitService | null): void {
   ipcMain.handle('minimaxCredentials:getStatus', () => getMiniMaxCredentialsStatus())
   ipcMain.handle('minimaxCredentials:saveCookie', (_event, cookie: string) => {
+    assertVendorAccountRegistrationAllowed()
     // Validate the IPC argument in the main process; the renderer-declared type
     // is compile-time only and the value arrives as unknown over IPC.
     if (typeof cookie !== 'string') {

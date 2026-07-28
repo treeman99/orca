@@ -1,17 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeHost, resolveEnterprisePolicy } from './enterprise-policy'
+import {
+  LOCKDOWN_INHERITING_KEYS,
+  normalizeHost,
+  resolveEnterprisePolicy
+} from './enterprise-policy'
+
+// Driven off the key list rather than spelled out, so adding a switch cannot leave this
+// asserting the old, smaller set while silently passing.
+const allSwitchesOff = Object.fromEntries(LOCKDOWN_INHERITING_KEYS.map((key) => [key, false]))
 
 describe('resolveEnterprisePolicy', () => {
   it('defaults everything off when there is no policy file', () => {
     expect(resolveEnterprisePolicy(null)).toEqual({
+      ...allSwitchesOff,
       lockdown: false,
-      disableTelemetry: false,
-      disableAutoUpdate: false,
-      disableStarNag: false,
-      disableCloudRelay: false,
-      disableUsagePolling: false,
-      disableManagedClaudeAccounts: false,
-      disableSpellcheck: false,
       enforceNetworkAllowlist: false,
       allowedNetworkHosts: [],
       githubEnterpriseHost: null,
@@ -24,14 +26,28 @@ describe('resolveEnterprisePolicy', () => {
 
   it('master lockdown turns on every inheriting switch', () => {
     const policy = resolveEnterprisePolicy({ lockdown: true })
-    expect(policy.disableTelemetry).toBe(true)
-    expect(policy.disableAutoUpdate).toBe(true)
-    expect(policy.disableStarNag).toBe(true)
-    expect(policy.disableCloudRelay).toBe(true)
-    expect(policy.disableUsagePolling).toBe(true)
-    expect(policy.disableManagedClaudeAccounts).toBe(true)
-    expect(policy.disableSpellcheck).toBe(true)
+    for (const key of LOCKDOWN_INHERITING_KEYS) {
+      expect(policy[key], key).toBe(true)
+    }
     expect(policy.warnings).toEqual([])
+  })
+
+  // The list is the contract an admin reads; a rename or a drop is a silent unlock.
+  it('inherits lockdown for exactly the documented switches', () => {
+    expect([...LOCKDOWN_INHERITING_KEYS]).toEqual([
+      'disableTelemetry',
+      'disableAutoUpdate',
+      'disableStarNag',
+      'disableCloudRelay',
+      'disableUsagePolling',
+      'disableManagedClaudeAccounts',
+      'disableSpellcheck',
+      'disableMobilePairing',
+      'disableVendorProviderAccounts',
+      'disableRemoteOrcaServer',
+      'disableVoice',
+      'requireComputerUseApproval'
+    ])
   })
 
   it('keeps the network allowlist opt-in even under lockdown', () => {

@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, nativeTheme } from 'electron'
 import type { Store } from '../persistence'
 import type { GlobalSettings, PersistedState } from '../../shared/types'
 import { listSystemFontFamilies } from '../system-fonts'
+import { isRemoteOrcaServerDisabled } from '../enterprise/remote-orca-server-guard'
 import { previewGhosttyImport } from '../ghostty/index'
 import { previewWarpThemeImport } from '../warp-themes'
 import { setMainUiLanguage } from '../i18n/main-i18n'
@@ -217,8 +218,12 @@ export function registerSettingsHandlers(
         throw new Error('Invalid Active Server preference')
       }
       const requestedId = requestedEnvironmentId?.trim() || null
+      // Forced back to local rather than throwing: a machine that saved a remote before
+      // the policy landed must still boot, and hydration replays this preference.
       const environmentId =
-        requestedId === null ? null : resolveEnvironment(app.getPath('userData'), requestedId).id
+        requestedId === null || isRemoteOrcaServerDisabled()
+          ? null
+          : resolveEnvironment(app.getPath('userData'), requestedId).id
       return store.updateSettings(
         { activeRuntimeEnvironmentId: environmentId },
         { notifyListeners: true, originWebContentsId: event.sender.id }

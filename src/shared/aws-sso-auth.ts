@@ -53,6 +53,12 @@ export type AwsSsoLoginResult =
   | { ok: true; profile: string }
   | {
       ok: false
-      reason: 'no-profile' | 'aws-unavailable' | 'timeout' | 'failed' | 'cancelled'
+      reason:
+        | 'no-profile'
+        | 'aws-unavailable'
+        | 'pty-unavailable'
+        | 'timeout'
+        | 'failed'
+        | 'cancelled'
       message?: string
     }

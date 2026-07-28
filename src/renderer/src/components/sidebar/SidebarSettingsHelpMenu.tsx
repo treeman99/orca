@@ -34,6 +34,7 @@ import { useSetupGuideProgress } from '../setup-guide/use-setup-guide-progress'
 import { SidebarFeedbackDialog } from './SidebarFeedbackDialog'
 import { translate } from '@/i18n/i18n'
 import { getUpdateCheckClickOptions, getUpdateCheckHint } from '@/lib/update-check-click-options'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 
 const DOCS_URL = 'https://www.onorca.dev/docs'
 const CHANGELOG_URL = 'https://onorca.dev/changelog'
@@ -85,6 +86,7 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const updateStatus = useAppStore((s) => s.updateStatus)
+  const { disableAutoUpdate } = useEnterprisePolicyView()
   const setupProgress = useSetupGuideProgress(true, false, false)
 
   const settingsShortcut = useShortcutKeyDetails('app.settings')
@@ -310,23 +312,29 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
               {translate('auto.components.sidebar.SidebarSettingsHelpMenu.c4f8e1b72a', 'X')}
               <ExternalLink className="ml-auto size-3 text-muted-foreground" />
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={updateStatus.state === 'checking' || updateStatus.state === 'downloading'}
-              onPointerDown={handleCheckForUpdatesPointerDown}
-              onSelect={handleCheckForUpdates}
-              title={updateCheckHint}
-            >
-              {updateStatus.state === 'checking' ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="size-3.5" />
-              )}
-              {translate(
-                'auto.components.sidebar.SidebarSettingsHelpMenu.29c56f30ee',
-                'Check for Updates'
-              )}
-            </DropdownMenuItem>
+            {disableAutoUpdate ? null : (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled={
+                    updateStatus.state === 'checking' || updateStatus.state === 'downloading'
+                  }
+                  onPointerDown={handleCheckForUpdatesPointerDown}
+                  onSelect={handleCheckForUpdates}
+                  title={updateCheckHint}
+                >
+                  {updateStatus.state === 'checking' ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="size-3.5" />
+                  )}
+                  {translate(
+                    'auto.components.sidebar.SidebarSettingsHelpMenu.29c56f30ee',
+                    'Check for Updates'
+                  )}
+                </DropdownMenuItem>
+              </>
+            )}
             {showAdminOptions ? (
               <>
                 <DropdownMenuSeparator />

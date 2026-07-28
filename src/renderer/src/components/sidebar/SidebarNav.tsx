@@ -24,6 +24,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { SetupGuideSidebarEntry } from './SetupGuideSidebarEntry'
 import { SidebarTaskNavButton } from './SidebarTaskNavButton'
 import { HideSidebarMenu } from './sidebar-nav-controls'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { translate } from '@/i18n/i18n'
 
 export { getSetupGuideSidebarEntryReady, shouldShowSetupGuideEntry } from './SetupGuideSidebarEntry'
@@ -154,7 +155,9 @@ const SidebarNav = React.memo(function SidebarNav() {
   const showAgentsButton = useAppStore((s) => shouldShowAgentsButton(s.settings))
   const showAgentDashboardButton = useAppStore((s) => shouldShowAgentDashboardButton(s.settings))
   const showAutomationsButton = useAppStore((s) => shouldShowAutomationsButton(s.settings))
-  const showMobileButton = useAppStore((s) => shouldShowMobileButton(s.settings))
+  const { disableMobilePairing } = useEnterprisePolicyView()
+  const showMobileButton =
+    useAppStore((s) => shouldShowMobileButton(s.settings)) && !disableMobilePairing
   const automationsActive = activeView === 'automations'
   const activityActive = activeView === 'activity'
   const mobileActive = activeView === 'mobile'

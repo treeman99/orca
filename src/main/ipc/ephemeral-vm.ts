@@ -1,5 +1,6 @@
 import { app, ipcMain } from 'electron'
 import type { Store } from '../persistence'
+import { assertRemoteOrcaServerAllowed } from '../enterprise/remote-orca-server-guard'
 import { loadHooks } from '../hooks'
 import {
   getEphemeralVmRecipeResultConnection,
@@ -102,6 +103,9 @@ export function registerEphemeralVmHandlers(store: Store): void {
         provisionId?: string
       }
     ): Promise<EphemeralVmProvisionIpcResult> => {
+      // Provisioning ends in addEnvironmentFromPairingCode, so this is the same
+      // "attach to another Orca" the policy forbids — just reached without the IPC above.
+      assertRemoteOrcaServerAllowed()
       const repo = getRecipeRepo(store, args.repoId)
       if (!repo.ok) {
         return { ok: false, error: repo.message, stdout: '', stderr: '' }

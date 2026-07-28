@@ -1,5 +1,6 @@
 import type React from 'react'
 import type { GlobalSettings } from '../../../../shared/types'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { useAppStore } from '../../store'
 import { Separator } from '../ui/separator'
 import { CliSection } from './CliSection'
@@ -98,6 +99,7 @@ export function GeneralPane({
   wslCapabilitiesLoading
 }: GeneralPaneProps): React.JSX.Element {
   const searchQuery = useAppStore((s) => s.settingsSearchQuery)
+  const { disableAutoUpdate } = useEnterprisePolicyView()
   const generalNavigationSearchEntries = getGeneralNavigationSearchEntries()
   const tabOrderKeywords = getTabOrderControlSearchKeywords(generalNavigationSearchEntries)
   const projectRuntimeSearchEntries = wslSupportedPlatform
@@ -195,7 +197,7 @@ export function GeneralPane({
         wslCapabilitiesLoading={wslCapabilitiesLoading}
       />
     ) : null,
-    matchesSettingsSearch(searchQuery, getGeneralUpdateSearchEntries()) ? (
+    !disableAutoUpdate && matchesSettingsSearch(searchQuery, getGeneralUpdateSearchEntries()) ? (
       <GeneralUpdateSettingsSection key="updates" />
     ) : null
     // Note: the Support section is rendered outside this array so it can own

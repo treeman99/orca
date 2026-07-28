@@ -3338,5 +3338,54 @@ describe('updater', () => {
         url: 'https://github.com/stablyai/orca/releases/download/v1.0.52'
       })
     })
+
+    // A status can be 'available' from a check that ran before the policy file landed,
+    // and the relayed remote-server download reaches downloadUpdate() without a check.
+    it('downloads nothing even when an update is already known to be available', async () => {
+      fetchNewerReleaseTagsMock.mockResolvedValue({ tags: ['v1.0.61'], state: 'ready' })
+      autoUpdaterMock.checkForUpdates.mockImplementation(() => {
+        autoUpdaterMock.emit('checking-for-update')
+        queueMicrotask(() => {
+          autoUpdaterMock.emit('update-available', { version: '1.0.61' })
+        })
+        return Promise.resolve(undefined)
+      })
+      const sendMock = vi.fn()
+      const mainWindow = { webContents: { send: sendMock } }
+
+      const { setupAutoUpdater, checkForUpdatesFromMenu, downloadUpdate } =
+        await import('./updater')
+      setupAutoUpdater(mainWindow as never, { getLastUpdateCheckAt: () => Date.now() })
+      checkForUpdatesFromMenu()
+      // The state the ungated path needs; without it this case would pass vacuously.
+      await vi.waitFor(() => {
+        expect(sendMock).toHaveBeenCalledWith('updater:status', {
+          state: 'available',
+          version: '1.0.61',
+          changelog: null
+        })
+      })
+
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+      downloadUpdate()
+      await flush()
+
+      expect(autoUpdaterMock.downloadUpdate).not.toHaveBeenCalled()
+    })
+
+    // An artifact downloaded before the policy landed must not still install itself.
+    // Timers are advanced past the deferral so "nothing happened" is a real result.
+    it('installs nothing on quitAndInstall', async () => {
+      vi.useFakeTimers()
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+      const mainWindow = { webContents: { send: vi.fn() } }
+
+      const { setupAutoUpdater, quitAndInstall } = await import('./updater')
+      setupAutoUpdater(mainWindow as never)
+      quitAndInstall()
+      await vi.advanceTimersByTimeAsync(5_000)
+
+      expect(autoUpdaterMock.quitAndInstall).not.toHaveBeenCalled()
+    })
   })
 })

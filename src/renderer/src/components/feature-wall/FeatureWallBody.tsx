@@ -19,6 +19,7 @@ import { GitHubRow, LinearRow } from '../onboarding/IntegrationsStep'
 import { OrchestrationSetupCard } from '../settings/OrchestrationSetupCard'
 import { BrowserUseSkillSetupCard } from './BrowserUseSkillSetupCard'
 import { UsageAccountsCard } from './agents-orchestration/UsageAccountsCard'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { AiCommitPrSettingsCard } from './AiCommitPrSettingsCard'
 import { KeepAwakeCard } from './KeepAwakeCard'
 import { translate } from '@/i18n/i18n'
@@ -53,6 +54,7 @@ export function FeatureWallBody(props: {
     browserUseSkill,
     onUsageAccountStateChange
   } = props
+  const { disableVendorProviderAccounts } = useEnterprisePolicyView()
   const isWorkspaces = selected.id === 'workspaces'
   const isTasks = selected.id === 'tasks'
   const isAgents = selected.id === 'agents-orchestration'
@@ -125,7 +127,9 @@ export function FeatureWallBody(props: {
     </div>
   ) : isAgentsStatuses && props.settings ? (
     <KeepAwakeCard settings={props.settings} updateSettings={props.updateSettings} />
-  ) : isAgentsUsage ? (
+  ) : isAgentsUsage && !disableVendorProviderAccounts ? (
+    // This card is a second sign-in door into the same vendor OAuth flows the Accounts
+    // pane hides, so it has to disappear with them.
     <UsageAccountsCard onAccountStateChange={onUsageAccountStateChange} />
   ) : isAgentsOrchestration ? (
     <OrchestrationSetupCard

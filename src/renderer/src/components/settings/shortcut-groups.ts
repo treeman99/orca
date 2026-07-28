@@ -6,6 +6,7 @@ import {
 } from '../../../../shared/keybindings'
 import { normalizeDisabledTuiAgents } from '../../../../shared/tui-agent-selection'
 import type { TuiAgent } from '../../../../shared/types'
+import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 
 export type ShortcutGroup = {
   title: string
@@ -27,6 +28,11 @@ export function groupDefinitions(disabledTuiAgents: readonly TuiAgent[]): Shortc
   const hiddenAgentActionIds = new Set<KeybindingActionId>(
     disabledAgentTabActionIds(disabledTuiAgents)
   )
+  // Same reasoning for corporate policy: a rebindable chord for a feature the policy
+  // removed is a row the user can edit but never fire.
+  if (getEnterprisePolicyView().disableVoice) {
+    hiddenAgentActionIds.add('voice.dictation')
+  }
   const groups = new Map<string, KeybindingDefinition[]>()
   for (const definition of KEYBINDING_DEFINITIONS) {
     if (hiddenAgentActionIds.has(definition.id)) {

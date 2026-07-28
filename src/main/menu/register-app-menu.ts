@@ -6,6 +6,7 @@ import {
   type KeybindingOverrides
 } from '../../shared/keybindings'
 import type { UpdateCheckOptions } from '../../shared/types'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { translateMain } from '../i18n/main-i18n'
 
 export type AppearanceMenuState = {
@@ -102,10 +103,17 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     onCheckForUpdates({ includePrerelease, includePerfPrerelease })
   }
 
-  const checkForUpdatesItem: Electron.MenuItemConstructorOptions = {
-    label: translateMain('menu.checkForUpdates', 'Check for Updates...'),
-    click: checkForUpdatesClick
-  }
+  // Removed rather than disabled: the updater already refuses under policy, so leaving
+  // the item would answer "You're up to date" — a claim the build cannot make.
+  const checkForUpdatesItems: Electron.MenuItemConstructorOptions[] = getEnterprisePolicy()
+    .disableAutoUpdate
+    ? []
+    : [
+        {
+          label: translateMain('menu.checkForUpdates', 'Check for Updates...'),
+          click: checkForUpdatesClick
+        }
+      ]
 
   const settingsItem: Electron.MenuItemConstructorOptions = {
     label: `${translateMain('menu.settings', 'Settings')}\t${shortcutLabel('app.settings')}`,
@@ -136,7 +144,7 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     label: options.appMenuLabel ?? app.name,
     submenu: [
       { role: 'about' },
-      checkForUpdatesItem,
+      ...checkForUpdatesItems,
       settingsItem,
       { type: 'separator' },
       { role: 'services' },
@@ -226,12 +234,16 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
         checked: appearance.showAutomationsButton,
         click: () => onToggleAppearance('showAutomationsButton')
       },
-      {
-        label: translateMain('menu.showMobileButton', 'Show Orca Mobile Button'),
-        type: 'checkbox',
-        checked: appearance.showMobileButton,
-        click: () => onToggleAppearance('showMobileButton')
-      },
+      ...(getEnterprisePolicy().disableMobilePairing
+        ? []
+        : ([
+            {
+              label: translateMain('menu.showMobileButton', 'Show Orca Mobile Button'),
+              type: 'checkbox',
+              checked: appearance.showMobileButton,
+              click: () => onToggleAppearance('showMobileButton')
+            }
+          ] satisfies Electron.MenuItemConstructorOptions[])),
       {
         label: translateMain('menu.showTitlebarAppName', 'Show Titlebar App Name'),
         type: 'checkbox',
@@ -299,7 +311,7 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
         : ([
             { type: 'separator' },
             { role: 'about' },
-            checkForUpdatesItem
+            ...checkForUpdatesItems
           ] satisfies Electron.MenuItemConstructorOptions[]))
     ]
   }

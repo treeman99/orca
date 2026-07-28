@@ -27,6 +27,7 @@ import {
   runGithubEnterpriseTokenLogin
 } from '../github/github-enterprise-login'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
+import { resolveEffectiveGitHubHost } from '../github/effective-github-host'
 
 // A GitHub PAT is a paste, not a document; anything longer is a mistake or an abuse
 // of the IPC surface.
@@ -35,6 +36,7 @@ const MAX_TOKEN_LENGTH = 8192
 type Dependencies = {
   policyHost: () => string | null
   storedHost: () => string | null
+  ghHostEnv: () => string | null
   saveHost: (host: string | null) => void
   diagnose: (host: string) => Promise<{
     ghAvailable: boolean
@@ -53,6 +55,7 @@ function defaultDependencies(): Dependencies {
   return {
     policyHost: () => getEnterprisePolicy().githubEnterpriseHost,
     storedHost: readStoredGithubEnterpriseHost,
+    ghHostEnv: () => process.env.GH_HOST ?? null,
     saveHost: writeStoredGithubEnterpriseHost,
     diagnose: async (host) => {
       const result = await diagnoseGhAuth(host)
@@ -90,12 +93,33 @@ function readTokenArg(raw: unknown): string {
 }
 
 async function getStatus(dependencies: Dependencies): Promise<GithubEnterpriseAuthStatus> {
+  // What gh will actually target — not the same value as the login host, and the
+  // difference is exactly what a user reading this pane needs to see.
+  const effective = resolveEffectiveGitHubHost({
+    ghHostEnv: dependencies.ghHostEnv(),
+    storedHost: dependencies.storedHost(),
+    policyHost: dependencies.policyHost()
+  })
   const host = effectiveHost(dependencies)
   if (!host) {
-    return { ghAvailable: true, host: null, authenticated: false, account: null }
+    return {
+      ghAvailable: true,
+      host: null,
+      authenticated: false,
+      account: null,
+      effectiveHost: effective.host,
+      effectiveHostSource: effective.source
+    }
   }
   const { ghAvailable, authenticated, account } = await dependencies.diagnose(host)
-  return { ghAvailable, host, authenticated, account }
+  return {
+    ghAvailable,
+    host,
+    authenticated,
+    account,
+    effectiveHost: effective.host,
+    effectiveHostSource: effective.source
+  }
 }
 
 async function login(
@@ -158,11 +182,18 @@ export function registerGithubEnterpriseHandlers(
 
   ipcMain.handle('githubEnterprise:setHost', (_event, raw: unknown): GithubEnterpriseAuthStatus => {
     dependencies.saveHost(readHostArg(raw))
+    const effective = resolveEffectiveGitHubHost({
+      ghHostEnv: dependencies.ghHostEnv(),
+      storedHost: dependencies.storedHost(),
+      policyHost: dependencies.policyHost()
+    })
     return {
       ghAvailable: true,
       host: effectiveHost(dependencies),
       authenticated: false,
-      account: null
+      account: null,
+      effectiveHost: effective.host,
+      effectiveHostSource: effective.source
     }
   })
 

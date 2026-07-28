@@ -17,6 +17,7 @@ import type {
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
+import { GitHubEnterpriseHostReadout } from './GitHubEnterpriseHostReadout'
 
 function describeLoginFailure(result: Extract<GithubEnterpriseLoginResult, { ok: false }>): string {
   switch (result.reason) {
@@ -177,6 +178,8 @@ export function GitHubEnterpriseSection(): React.JSX.Element {
           )}
         </p>
       </div>
+
+      <GitHubEnterpriseHostReadout status={status} />
 
       {ghUnavailable ? (
         <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">

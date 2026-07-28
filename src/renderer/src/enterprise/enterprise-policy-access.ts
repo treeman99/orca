@@ -9,7 +9,16 @@
 import { useSyncExternalStore } from 'react'
 import type { EnterprisePolicyView } from '../../../shared/enterprise-policy-view'
 
-const UNRESTRICTED: EnterprisePolicyView = { allowedAgents: null, lockdown: false }
+const UNRESTRICTED: EnterprisePolicyView = {
+  allowedAgents: null,
+  lockdown: false,
+  disableAutoUpdate: false,
+  disableMobilePairing: false,
+  disableVendorProviderAccounts: false,
+  disableRemoteOrcaServer: false,
+  disableVoice: false,
+  requireComputerUseApproval: false
+}
 
 let current: EnterprisePolicyView = UNRESTRICTED
 const listeners = new Set<() => void>()
@@ -28,6 +37,11 @@ function subscribe(listener: () => void): () => void {
 /** The agent-restriction list, or null when unrestricted. Safe to read outside React. */
 export function getPolicyAllowedAgents(): readonly string[] | null {
   return current.allowedAgents
+}
+
+/** The cached policy, for the pure search catalogs that cannot call a hook. */
+export function getEnterprisePolicyView(): EnterprisePolicyView {
+  return current
 }
 
 /** React-reactive view of the cached policy; re-renders when it loads at startup. */

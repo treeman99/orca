@@ -19,6 +19,8 @@ import type {
   AwsSsoProfileStatus,
   AwsSsoStatus
 } from '../../shared/aws-sso-auth'
+import { getSpawnArgsForWindows } from '../win32-utils'
+import { buildAwsCommandEnv, resolveAwsCommand } from '../aws/aws-cli-command'
 import { detectAwsCli } from '../aws/aws-cli-availability'
 import { readAwsSsoProfiles } from '../aws/aws-sso-config-file'
 import { runAwsSsoLogin } from '../aws/aws-sso-login'
@@ -55,10 +57,17 @@ function defaultDependencies(): AwsSsoDependencies {
     login: runAwsSsoLogin,
     logout: (profile) =>
       new Promise<void>((resolve, reject) => {
+        const env = buildAwsCommandEnv()
+        const { spawnCmd, spawnArgs } = getSpawnArgsForWindows(resolveAwsCommand(env), [
+          'sso',
+          'logout',
+          '--profile',
+          profile
+        ])
         execFile(
-          'aws',
-          ['sso', 'logout', '--profile', profile],
-          { timeout: LOGOUT_TIMEOUT_MS, windowsHide: true },
+          spawnCmd,
+          spawnArgs,
+          { timeout: LOGOUT_TIMEOUT_MS, windowsHide: true, env },
           (error) => (error ? reject(error) : resolve())
         )
       }),

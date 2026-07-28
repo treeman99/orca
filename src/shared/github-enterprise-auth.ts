@@ -11,7 +11,21 @@ export type GithubEnterpriseAuthStatus = {
   authenticated: boolean
   /** The logged-in username for `host`, when gh reports one. */
   account: string | null
+  /**
+   * The host `gh` actually targets when a workspace has no remote of its own, and where
+   * that value came from. Distinct from `host`: the policy's `githubEnterpriseHost` does
+   * not redirect gh, and `GH_HOST` outranks both.
+   */
+  effectiveHost: string
+  effectiveHostSource: EffectiveGitHubHostSource
 }
+
+export type EffectiveGitHubHostSource =
+  | 'repository-remote'
+  | 'gh-host-env'
+  | 'user-setting'
+  | 'enterprise-policy'
+  | 'default'
 
 /** Live progress emitted while `gh auth login --web` runs. */
 export type GithubEnterpriseLoginProgress = {

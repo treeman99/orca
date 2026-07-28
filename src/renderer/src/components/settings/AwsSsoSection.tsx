@@ -30,7 +30,12 @@ function describeLoginFailure(result: Extract<AwsSsoLoginResult, { ok: false }>)
     case 'aws-unavailable':
       return translate(
         'auto.components.settings.AwsSsoSection.errorAwsUnavailable',
-        'The AWS CLI (aws) was not found on your PATH. Install it, then try again.'
+        'Orca could not run the AWS CLI. Confirm `aws --version` works in a terminal, then try again.'
+      )
+    case 'pty-unavailable':
+      return translate(
+        'auto.components.settings.AwsSsoSection.errorPtyUnavailable',
+        'Orca could not start a terminal to run the AWS CLI. Restart Orca, then try again.'
       )
     case 'timeout':
       return translate(
@@ -199,7 +204,7 @@ export function AwsSsoSection(): React.JSX.Element {
           <span>
             {translate(
               'auto.components.settings.AwsSsoSection.awsMissing',
-              'The AWS CLI (aws) is not installed or not on your PATH. Install AWS CLI v2 first, then sign in here.'
+              'Orca could not run the AWS CLI. If `aws --version` works in a terminal, restart Orca so it picks up the current PATH; otherwise install AWS CLI v2 first.'
             )}
           </span>
         </div>

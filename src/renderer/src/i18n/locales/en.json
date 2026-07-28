@@ -759,7 +759,8 @@
         "devSearchKeywordNotification": "notification",
         "projectHostsSummary": "{{value0}} hosts",
         "linearTitle": "Linear",
-        "linearDescription": "Give agents the skill to read and update your linked Linear tickets."
+        "linearDescription": "Give agents the skill to read and update your linked Linear tickets.",
+        "accountsCorporate": "AWS SSO sign-in and your organization’s self-hosted model endpoints."
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "Paste is too large."
@@ -9525,7 +9526,7 @@
         "AwsSsoSection": {
           "heading": "AWS SSO sign-in",
           "intro": "Claude on Bedrock authenticates through the AWS credential chain, which needs a live SSO session. This runs `aws sso login` for the profile you pick and lets the AWS CLI open your browser. The token stays in the CLI’s own cache — Orca reads only when it expires.",
-          "awsMissing": "The AWS CLI (aws) is not installed or not on your PATH. Install AWS CLI v2 first, then sign in here.",
+          "awsMissing": "Orca could not run the AWS CLI. If `aws --version` works in a terminal, restart Orca so it picks up the current PATH; otherwise install AWS CLI v2 first.",
           "noProfiles": "No SSO profiles in your AWS config. Run `aws configure sso` once to create one, then reopen this pane.",
           "profileLabel": "AWS profile",
           "signedIn": "Signed in",
@@ -9541,12 +9542,13 @@
           "browserPrompt": "A browser should have opened. Finish the authorization there — this waits for it.",
           "openAuthPage": "Open authorization page",
           "errorNoProfile": "Pick an AWS profile first.",
-          "errorAwsUnavailable": "The AWS CLI (aws) was not found on your PATH. Install it, then try again.",
+          "errorAwsUnavailable": "Orca could not run the AWS CLI. Confirm `aws --version` works in a terminal, then try again.",
           "errorTimeout": "Sign-in timed out before it completed in the browser. Try again.",
           "errorCancelled": "Sign-in was cancelled.",
           "errorFailed": "Sign-in failed. Check the profile and your network, then try again.",
           "profileSaveFailed": "Could not save the profile.",
-          "logoutFailed": "Could not sign out."
+          "logoutFailed": "Could not sign out.",
+          "errorPtyUnavailable": "Orca could not start a terminal to run the AWS CLI. Restart Orca, then try again."
         },
         "awsSso": {
           "search": {
@@ -9558,6 +9560,15 @@
             "profile": "profile",
             "login": "login"
           }
+        },
+        "GitHubEnterpriseHostReadout": {
+          "sourceRemote": "from this workspace’s git remote",
+          "sourceEnv": "from the GH_HOST environment variable",
+          "sourceUser": "from the host you saved here",
+          "sourcePolicy": "from your organization’s Orca policy",
+          "sourceDefault": "the gh default — no corporate host is configured",
+          "label": "GitHub requests go to",
+          "remoteNote": "A workspace whose git remote points at another host uses that host instead."
         }
       },
       "right": {
@@ -13975,6 +13986,14 @@
     "corporateLlm": {
       "appliesNextSession": "Company-hosted model — applies from the next session",
       "tokenMissing": "Company-hosted model — save your token in Settings first"
+    }
+  },
+  "computerUse": {
+    "approval": {
+      "deny": "Deny",
+      "allow": "Allow",
+      "title": "Allow agent to control your computer?",
+      "message": "An agent wants to act on an app outside Orca."
     }
   }
 }

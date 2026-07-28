@@ -2,6 +2,7 @@ import { ArrowUp, Mic, Plus, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import type {
   SessionOptionDescriptor,
   SessionOptionsSurface
@@ -41,6 +42,7 @@ export function NativeChatComposerActions({
   sessionOptionsSurface,
   sessionOptionsSnapshot
 }: NativeChatComposerActionsProps): React.JSX.Element {
+  const { disableVoice } = useEnterprisePolicyView()
   const dictationLabel = isDictating
     ? translate('components.native-chat.composer.stopDictation', 'Stop dictation')
     : translate('components.native-chat.composer.startDictation', 'Start dictation')
@@ -74,50 +76,52 @@ export function NativeChatComposerActions({
           snapshot={sessionOptionsSnapshot}
           isWorking={isWorking}
         />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant={isDictating ? 'secondary' : 'ghost'}
-              size="icon-sm"
-              aria-label={dictationLabel}
-              disabled={dictationDisabled}
-              onClick={isDictationHoldMode ? undefined : onDictationToggle}
-              onPointerDown={(event) => {
-                if (!isDictationHoldMode || dictationDisabled) {
-                  return
-                }
-                event.preventDefault()
-                onDictationHoldStart()
-              }}
-              onPointerUp={() => {
-                if (isDictationHoldMode && !dictationDisabled) {
-                  onDictationHoldEnd()
-                }
-              }}
-              onPointerCancel={() => {
-                if (isDictationHoldMode && !dictationDisabled) {
-                  onDictationHoldEnd()
-                }
-              }}
-              onPointerLeave={(event) => {
-                if (isDictationHoldMode && event.buttons === 1 && !dictationDisabled) {
-                  onDictationHoldEnd()
-                }
-              }}
-              className="pointer-coarse:size-11"
-            >
-              {isDictating ? (
-                <Square className="size-3.5 fill-current" />
-              ) : (
-                <Mic className="size-4" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={4}>
-            {dictationLabel}
-          </TooltipContent>
-        </Tooltip>
+        {disableVoice ? null : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant={isDictating ? 'secondary' : 'ghost'}
+                size="icon-sm"
+                aria-label={dictationLabel}
+                disabled={dictationDisabled}
+                onClick={isDictationHoldMode ? undefined : onDictationToggle}
+                onPointerDown={(event) => {
+                  if (!isDictationHoldMode || dictationDisabled) {
+                    return
+                  }
+                  event.preventDefault()
+                  onDictationHoldStart()
+                }}
+                onPointerUp={() => {
+                  if (isDictationHoldMode && !dictationDisabled) {
+                    onDictationHoldEnd()
+                  }
+                }}
+                onPointerCancel={() => {
+                  if (isDictationHoldMode && !dictationDisabled) {
+                    onDictationHoldEnd()
+                  }
+                }}
+                onPointerLeave={(event) => {
+                  if (isDictationHoldMode && event.buttons === 1 && !dictationDisabled) {
+                    onDictationHoldEnd()
+                  }
+                }}
+                className="pointer-coarse:size-11"
+              >
+                {isDictating ? (
+                  <Square className="size-3.5 fill-current" />
+                ) : (
+                  <Mic className="size-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" sideOffset={4}>
+              {dictationLabel}
+            </TooltipContent>
+          </Tooltip>
+        )}
         <Button
           type="button"
           aria-label={

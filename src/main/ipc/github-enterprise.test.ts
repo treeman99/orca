@@ -24,6 +24,7 @@ function makeDeps(overrides: Partial<NonNullable<Deps>> = {}): NonNullable<Deps>
   return {
     policyHost: () => null,
     storedHost: () => null,
+    ghHostEnv: () => null,
     saveHost: vi.fn(),
     diagnose: vi.fn(async () => ({ ghAvailable: true, authenticated: true, account: 'dev-user' })),
     login: vi.fn(async () => ({ ok: true, account: 'dev-user' }) as GithubEnterpriseLoginResult),
@@ -56,7 +57,9 @@ describe('registerGithubEnterpriseHandlers', () => {
       ghAvailable: true,
       host: null,
       authenticated: false,
-      account: null
+      account: null,
+      effectiveHost: 'github.com',
+      effectiveHostSource: 'default'
     })
   })
 
@@ -77,9 +80,37 @@ describe('registerGithubEnterpriseHandlers', () => {
       ghAvailable: true,
       host: 'stored.corp.net',
       authenticated: true,
-      account: 'dev-user'
+      account: 'dev-user',
+      effectiveHost: 'stored.corp.net',
+      effectiveHostSource: 'user-setting'
     })
     expect(diagnose).toHaveBeenCalledWith('stored.corp.net')
+  })
+
+  // GH_HOST is gh's own variable and outranks anything Orca stores, so the readout must
+  // report it — telling a user their requests go to the policy host when gh disagrees
+  // would be worse than showing nothing.
+  it('reports GH_HOST ahead of the stored and policy hosts', async () => {
+    registerGithubEnterpriseHandlers(
+      makeDeps({
+        ghHostEnv: () => 'ghhost.corp.net',
+        storedHost: () => 'stored.corp.net',
+        policyHost: () => 'policy.corp.net'
+      })
+    )
+    expect(await invoke('githubEnterprise:getStatus', fakeSender())).toMatchObject({
+      host: 'stored.corp.net',
+      effectiveHost: 'ghhost.corp.net',
+      effectiveHostSource: 'gh-host-env'
+    })
+  })
+
+  it('reports the policy host as the effective one when nothing outranks it', async () => {
+    registerGithubEnterpriseHandlers(makeDeps({ policyHost: () => 'policy.corp.net' }))
+    expect(await invoke('githubEnterprise:getStatus', fakeSender())).toMatchObject({
+      effectiveHost: 'policy.corp.net',
+      effectiveHostSource: 'enterprise-policy'
+    })
   })
 
   it('falls back to the policy host when the user saved none', async () => {

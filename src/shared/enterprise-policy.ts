@@ -38,6 +38,40 @@ export type EnterprisePolicy = {
   disableManagedClaudeAccounts: boolean
   /** Turn off Chromium's spellchecker, which downloads dictionaries from a CDN. */
   disableSpellcheck: boolean
+  /**
+   * Refuse mobile pairing outright. `disableCloudRelay` only removes the vendor-hosted
+   * relay; the LAN/Tailscale offer keeps working without it, so a locked-down machine
+   * still hands out a QR code that pairs a personal phone to a corporate workspace.
+   */
+  disableMobilePairing: boolean
+  /**
+   * Refuse to register a vendor AI account (Claude subscription, Codex, Grok, MiniMax).
+   * Distinct from `allowedAgents`, which restricts which CLI a session may run: agents
+   * and vendor credentials are different axes, and a Bedrock fleet needs `claude` the
+   * binary while forbidding the platform.claude.com login that shares its name.
+   * Listing, selecting, and removing already-stored accounts stay available — taking
+   * away the only way to clear a credential would be worse than leaving it.
+   */
+  disableVendorProviderAccounts: boolean
+  /**
+   * Refuse to attach this desktop to another Orca instance (Settings → Runtime
+   * Environments, pairing codes, and the hydration that would restore one at boot).
+   * Scoped to the outbound direction; SSH hosts and the inbound `orca serve` listener
+   * are separate lanes and are deliberately untouched.
+   */
+  disableRemoteOrcaServer: boolean
+  /**
+   * Turn off dictation end to end: the local STT runtime, its model downloads, the
+   * composer's microphone, and the mobile client's remote dictation toggle.
+   */
+  disableVoice: boolean
+  /**
+   * Make Computer Use ask the person at the keyboard before it changes anything —
+   * clicks, typing, scrolls, drags. Reads (accessibility tree, screenshots) still run
+   * unprompted; the agent is otherwise free to drive any app on the machine, and
+   * whatever is on screen lands in the model request.
+   */
+  requireComputerUseApproval: boolean
   /** Opt-in hard allowlist over renderer + main-process HTTP. Never inherited. */
   enforceNetworkAllowlist: boolean
   /** Hosts the allowlist permits, normalized. Always includes the GHES host. */
@@ -74,7 +108,12 @@ export const LOCKDOWN_INHERITING_KEYS = [
   'disableCloudRelay',
   'disableUsagePolling',
   'disableManagedClaudeAccounts',
-  'disableSpellcheck'
+  'disableSpellcheck',
+  'disableMobilePairing',
+  'disableVendorProviderAccounts',
+  'disableRemoteOrcaServer',
+  'disableVoice',
+  'requireComputerUseApproval'
 ] as const
 
 type LockdownInheritingKey = (typeof LOCKDOWN_INHERITING_KEYS)[number]

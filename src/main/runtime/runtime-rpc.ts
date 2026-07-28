@@ -37,6 +37,7 @@ import type {
 } from '../../shared/mobile-relay-credential-contract'
 import { encodePairingOffer, PAIRING_OFFER_VERSION } from '../../shared/pairing'
 import { resolveAdvertisedPairingEndpoint } from './pairing-endpoint'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import {
   decodeTerminalStreamFrame,
   type TerminalStreamFrame
@@ -64,6 +65,7 @@ export type PairingOfferUnavailableReason =
   | 'device_registry_unavailable'
   | 'e2ee_key_unavailable'
   | 'invalid_advertised_endpoint'
+  | 'disabled_by_policy'
 
 export type PairingOfferUnavailable = {
   available: false
@@ -82,6 +84,8 @@ function pairingUnavailable(
   return { available: false, reason, guidance }
 }
 
+const MOBILE_PAIRING_DISABLED_GUIDANCE =
+  'Mobile pairing is turned off by your organization’s Orca policy.'
 const DEVICE_REGISTRY_UNAVAILABLE_GUIDANCE =
   'The pairing registry is unavailable. Verify that the Orca data directory is writable.'
 const E2EE_KEY_UNAVAILABLE_GUIDANCE =
@@ -630,6 +634,13 @@ export class OrcaRuntimeRpcServer {
     const endpoint = advertised.endpoint
     const deviceName = args.name ?? `CLI ${new Date().toLocaleDateString()}`
     const scope = args.scope ?? 'runtime'
+    // Why here: every mobile QR — Settings, `orca serve --mobile-pairing`, and the
+    // relay-backed offer — funnels through this one call. `disableCloudRelay` only
+    // removes the vendor relay, and the LAN offer it leaves behind pairs a phone just
+    // as well, so mobile needs its own refusal.
+    if (scope === 'mobile' && getEnterprisePolicy().disableMobilePairing) {
+      return pairingUnavailable('disabled_by_policy', MOBILE_PAIRING_DISABLED_GUIDANCE)
+    }
     let device: DeviceEntry
     try {
       device = args.rotate
@@ -1151,6 +1162,14 @@ export class OrcaRuntimeRpcServer {
     const device = this.deviceRegistry?.validateToken(token)
     if (!device) {
       reply(JSON.stringify(this.buildError(request.id, 'unauthorized', 'Invalid device token')))
+      return
+    }
+    // A phone paired before the policy landed keeps a valid token; refusing only new
+    // offers would leave it connected indefinitely.
+    if (device.scope === 'mobile' && getEnterprisePolicy().disableMobilePairing) {
+      reply(
+        JSON.stringify(this.buildError(request.id, 'forbidden', MOBILE_PAIRING_DISABLED_GUIDANCE))
+      )
       return
     }
     if (device.scope === 'mobile' && !MOBILE_RPC_METHOD_ALLOWLIST.has(request.method)) {

@@ -96,10 +96,15 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 | `disableTelemetry` | boolean | `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88-90`) **및** 진단/크래시 번들 업로드 — 컨센트 계산은 `src/main/observability/index.ts:103, 120-134`이고 실제 거부는 메인의 IPC 게이트(`src/main/ipc/diagnostics.ts:221`(수집), `:253`·`:263`(업로드))와 크래시 피드백 첨부(`src/main/crash-reporting/crash-feedback-diagnostic-bundle.ts:33`)에서 일어납니다. 번들 목적지는 `https://www.onorca.dev/v1/feedback` (`src/main/ipc/feedback.ts:10`) — v1.4.159에서 upstream이 `api.onorca.dev` 폴백 엔드포인트를 삭제해 목적지가 하나로 줄었습니다. **로컬 NDJSON 로깅은 그대로 유지됩니다** (`observability/index.ts:129-133`) |
 | `disableAutoUpdate` | boolean | `lockdown` | `runBackgroundUpdateCheck()` 초크포인트 (`src/main/updater.ts:1179`), 메뉴의 수동 체크 `checkForUpdatesFromMenu()` (`:1251`), `setupAutoUpdater()` (`:1458`). 세 번째가 핵심 — 넛지 스케줄러(`:1536-1537`)와 `powerMonitor`/포커스 리스너(`:1556-1557`)가 **아예 등록되지 않습니다** |
 | `disableStarNag` | boolean | `lockdown` | `checkOrcaStarred()`는 "이미 star함"으로 응답(`src/main/github/client.ts:233-235`), `starOrca()`는 실패로 응답(`:419-421`). 도달 경로 4개를 모두 덮습니다 — `star-nag/service.ts:121`, `star-nag/agent-value-moment.ts:46`, `star-nag/direct-star-attempt.ts:9`, `ipc/github.ts:1174-1175`(랜딩/설정 화면) |
-| `disableCloudRelay` | boolean | `lockdown` | `getOrcaCloudAuthConfig()`가 not-configured를 반환 (`src/main/orca-profiles/profile-cloud-auth-config.ts:73-78`). 결과로 Orca Cloud 로그인, **모바일 페어링 릴레이 미기동**(`src/main/index.ts:2478-2506`), `orcaProfiles:connectCurrent` / `createCloudLinked` / `selectOrg` 3개 IPC가 한 번에 `unconfigured` (`profile-cloud-service.ts:68, 152, 207`) |
+| `disableCloudRelay` | boolean | `lockdown` | `getOrcaCloudAuthConfig()`가 not-configured를 반환 (`src/main/orca-profiles/profile-cloud-auth-config.ts:73-78`). 결과로 Orca Cloud 로그인, **모바일 페어링 릴레이 미기동**(`src/main/index.ts:2478-2506`), `orcaProfiles:connectCurrent` / `createCloudLinked` / `selectOrg` 3개 IPC가 한 번에 `unconfigured` (`profile-cloud-service.ts:68, 152, 207`). ⚠️ **모바일 페어링을 막지 않습니다** — 벤더 릴레이만 꺼질 뿐 LAN/Tailscale 페어링은 그대로 동작합니다. 모바일을 막으려면 `disableMobilePairing`을 쓰세요 |
 | `disableUsagePolling` | boolean | `lockdown` | AI 벤더 사용량/rate-limit 폴링. 게이트 1곳(`src/main/rate-limits/service.ts:760-761`)을 진입점 전부에서 호출 — `start()`(`:310`), `fetchAll()`(`:921`), `fetchCodexOnly()`(`:986`), `fetchClaudeOnly()`(`:1048`), `fetchGrokOnly()`(`:1113`), 계정 스위처 프리뷰 2개(`fetchInactiveClaudeAccountsOnOpen` `:497`, `fetchInactiveCodexAccountsOnOpen` `:606`), Codex 리셋 크레딧 POST(`:428`, 에러 throw), 상태칩은 `unavailable`로 고정(`:1461`) |
-| `disableManagedClaudeAccounts` | boolean | `lockdown` | 관리형 Claude 계정의 **런타임 효과 전체** — `platform.claude.com` 토큰 회전, 활성 계정 선택, 에이전트 환경변수 재작성. 설정 UI에서 계정을 추가·선택하는 것 자체는 막지 않습니다(`claudeAccounts:add`/`select` IPC에 게이트 없음). §3-1 참고 |
+| `disableManagedClaudeAccounts` | boolean | `lockdown` | 관리형 Claude 계정의 **런타임 효과 전체** — `platform.claude.com` 토큰 회전, 활성 계정 선택, 에이전트 환경변수 재작성. 설정 UI에서 계정을 추가·선택하는 것 자체는 막지 않습니다 — 그건 `disableVendorProviderAccounts`의 역할이고, 둘은 중복이 아니라 상보 관계입니다(전자는 런타임, 후자는 등록 표면). §3-1 참고 |
 | `disableSpellcheck` | boolean | `lockdown` | Chromium 맞춤법 검사기. Electron 기본값이 on이라 Windows/Linux에서 Google CDN으로 hunspell 사전을 받습니다. 메인 윈도(`src/main/window/createMainWindow.ts:299`)와 `will-attach-webview` 게스트 하드닝(`:471`) 양쪽 |
+| `disableMobilePairing` | boolean | `lockdown` | Orca 모바일 페어링 **자체**를 거부합니다. `disableCloudRelay`는 벤더 릴레이만 껐고 **LAN/Tailscale 페어링은 그대로 동작**했습니다 — 오히려 lockdown 상태에서 모든 QR이 "동작하는 local-only QR"로 정상 발급됐습니다. 게이트는 `createPairingOffer()`의 `scope === 'mobile'`(`src/main/runtime/runtime-rpc.ts`)이라 설정 QR·`orca serve --mobile-pairing`·릴레이 경유 오퍼를 한 번에 덮고, 이미 페어링된 폰의 RPC 디스패치도 거부합니다. UI에서는 설정 → 모바일 탭, 사이드바 버튼, Cmd+J 항목, 앱 메뉴 토글이 사라집니다 |
+| `disableVendorProviderAccounts` | boolean | `lockdown` | 벤더 AI 계정 **등록**을 거부합니다 (Claude 구독/Codex/Grok/MiniMax). `allowedAgents`로는 표현할 수 없습니다 — Bedrock 플릿은 `allowedAgents: ["claude"]`(= CLI 바이너리)가 필요한데 그 값이 이름이 같은 `platform.claude.com` 로그인 섹션을 통과시켰습니다. **AWS SSO와 사내 self-hosted 엔드포인트는 대상이 아닙니다.** `list`/`select`/`remove`도 막지 않습니다 — 이미 저장된 자격증명을 지울 길이 사라지면 오히려 위험합니다. 게이트: `src/main/ipc/{claude,codex}-accounts.ts`, `minimax-credentials.ts`의 add/reauthenticate/saveCookie |
+| `disableRemoteOrcaServer` | boolean | `lockdown` | 이 데스크톱이 **다른 Orca에 붙는 것**(아웃바운드)을 거부합니다 — 설정 → 원격 Orca 서버, 페어링 코드 등록, ephemeral VM, 부팅 시 저장된 원격을 활성 런타임으로 복원하는 hydration. **SSH 호스트와 인바운드 `orca serve` 리스너는 대상이 아닙니다** — 원격 개발을 통째로 없애지 않습니다. 게이트: `src/main/ipc/runtime-environment-transport-routing.ts`의 status/call/subscribe 3개 진입점 |
+| `disableVoice` | boolean | `lockdown` | 받아쓰기를 끝에서 끝까지 끕니다 — 로컬 STT 런타임, 모델 다운로드(HuggingFace CDN), 컴포저 마이크 버튼, 단축키, 모바일 클라이언트의 원격 받아쓰기 토글. 게이트: `src/main/speech/speech-runtime-service.ts`의 두 게터 + `registerSpeechHandlers` 미등록(macOS 마이크 권한 프롬프트가 뜨지 않게). **macOS 마이크 entitlement는 제거하지 않습니다** — 내장 브라우저의 WebRTC와 공유되기 때문입니다 |
+| `requireComputerUseApproval` | boolean | `lockdown` | Computer Use가 **무언가를 바꾸기 전에** 사용자에게 네이티브 확인 창을 띄웁니다 (클릭/타이핑/키/드래그/스크롤/붙여넣기/값 입력). 읽기(접근성 트리·스크린샷)는 묻지 않습니다. 창에는 대상 앱과 입력될 텍스트가 표시되고, 기본 버튼과 Esc는 **거부**입니다. 띄울 창이 없으면(헤드리스 `orca serve`) 거부합니다. 게이트: `callComputerSidecarAction`(`src/main/computer/sidecar-client.ts`) — 변경 동작 9개가 전부 지나가는 유일한 지점 |
 | `enforceNetworkAllowlist` | boolean | **`false`** (lockdown을 상속하지 **않음**) | §5 참고. `src/shared/enterprise-policy.ts:212-214`에 이유가 주석으로 박혀 있습니다 |
 | `allowedNetworkHosts` | string[] | `[]` (+ `githubEnterpriseHost` 자동 포함) | `enforceNetworkAllowlist: true`일 때만 의미가 있습니다 |
 | `llmEndpoints` | object[] | `[]` | 사내에서 직접 서비스하는 모델의 접속 지점 목록. 사용자가 세션을 Bedrock 대신 여기로 돌릴 수 있습니다. 각 엔드포인트의 호스트는 허용목록에 자동 추가됩니다 (`src/shared/enterprise-policy.ts:216-223`). **토큰은 여기 넣지 않습니다** — §3-2 참고 |
@@ -254,6 +259,11 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
   "disableUsagePolling": true, // AI 벤더 사용량/rate-limit 폴링
   "disableManagedClaudeAccounts": true, // platform.claude.com OAuth 회전 + Bedrock 자격증명 스트립 (§3-1)
   "disableSpellcheck": true,   // Chromium 사전 CDN 다운로드
+  "disableMobilePairing": true,          // 모바일 페어링 자체 (LAN 경로 포함 — disableCloudRelay로는 부족)
+  "disableVendorProviderAccounts": true, // 벤더 AI 계정 등록 (AWS SSO·사내 엔드포인트는 제외)
+  "disableRemoteOrcaServer": true,       // 다른 Orca에 붙기 (SSH 호스트는 제외)
+  "disableVoice": true,                  // 받아쓰기 전체
+  "requireComputerUseApproval": true,    // Computer Use 변경 동작 전 사용자 확인
 
   // 사내에서 직접 서비스하는 모델 (§3-2). 토큰은 여기 넣지 않습니다 — 사용자가 앱에서 입력합니다.
   // 호스트는 allowedNetworkHosts에 자동 추가되므로 아래에 또 적을 필요가 없습니다.
@@ -436,7 +446,12 @@ Ansible/Puppet/Salt의 file 리소스로 관리하거나, 사내 `.deb`/`.rpm`�
 | 확인 대상 | 방법 | 기대 결과 |
 | --- | --- | --- |
 | `disableCloudRelay` | 설정에서 Orca Cloud 프로필 연결 시도 | 토스트 `Orca Cloud sign-in is not configured` + 설명 **`Orca Cloud sign-in is disabled by an enterprise policy.`** (`profile-cloud-auth-config.ts:76` → `src/renderer/src/store/slices/orca-profiles-auth-actions.ts:89-98`) |
-| `disableAutoUpdate` | 메뉴의 `Check for Updates` | 조회 없이 즉시 "최신"으로 종료 (`updater.ts:1251-1254`) + 로그에 브레드크럼(§7-2) |
+| `disableAutoUpdate` | 앱/Help 메뉴, 트레이, 사이드바 Help 메뉴, 설정 → 일반 | **"업데이트 확인" 항목이 아예 없습니다.** 예전에는 항목이 남아 "최신 버전입니다"라고 거짓 응답했습니다. 다운로드·설치도 각각 차단됩니다(`updater.ts` `downloadUpdate` / `quitAndInstall`) |
+| `disableMobilePairing` | 사이드바·설정 → 모바일, Cmd+J에 `mobile` | 진입점이 전부 사라집니다. 이미 페어링된 폰은 RPC가 `forbidden`으로 거부됩니다 |
+| `disableVendorProviderAccounts` | 설정 → AI 제공업체 계정 | Claude 구독/Codex/Gemini/OpenCode/MiniMax/Grok 섹션이 사라지고 **AWS SSO와 사내 자체 호스팅 모델만** 남습니다. 이미 등록된 계정의 제거는 계속 가능합니다 |
+| `disableRemoteOrcaServer` | 설정 → 원격 Orca 서버, 새 워크스페이스의 실행 대상 피커 | 섹션과 "Add Remote Orca Server" 항목이 사라집니다. **설정 → SSH 호스트는 그대로 남아야 정상입니다** |
+| `disableVoice` | 설정 → 음성, 컴포저의 마이크 버튼, `Mod+E` | 탭·버튼·단축키 행이 모두 사라집니다 |
+| `requireComputerUseApproval` | 에이전트에게 다른 앱을 클릭/입력하라고 지시 | 동작 직전에 네이티브 확인 창. **거부가 기본 버튼이고 Esc도 거부**입니다. 읽기(스크린샷·트리)는 묻지 않습니다 |
 | `disableTelemetry` | 설정 → Privacy | 진단 비활성 안내 박스 표시 (`src/renderer/src/components/settings/PrivacyDiagnosticsSection.tsx:240-241`) |
 | `disableUsagePolling` | 상태바 사용량 칩 | 영구 스피너 없이 `unavailable` 상태 (`rate-limits/service.ts:1535-1461`) |
 | `disableSpellcheck` | 입력창에 오타 입력 | 빨간 물결 밑줄이 생기지 않음 (`createMainWindow.ts:299`) |

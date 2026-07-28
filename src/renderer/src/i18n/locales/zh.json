@@ -736,7 +736,8 @@
         "devSearchKeywordNotification": "notification",
         "projectHostsSummary": "{{value0}} 个主机",
         "linearTitle": "Linear",
-        "linearDescription": "Give agents the skill to read and update your linked Linear tickets."
+        "linearDescription": "Give agents the skill to read and update your linked Linear tickets.",
+        "accountsCorporate": "AWS SSO sign-in and your organization’s self-hosted model endpoints."
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "粘贴内容过大。"
@@ -9523,7 +9524,8 @@
           "errorCancelled": "Sign-in was cancelled.",
           "errorFailed": "Sign-in failed. Check the profile and your network, then try again.",
           "profileSaveFailed": "Could not save the profile.",
-          "logoutFailed": "Could not sign out."
+          "logoutFailed": "Could not sign out.",
+          "errorPtyUnavailable": "Orca could not start a terminal to run the AWS CLI. Restart Orca, then try again."
         },
         "awsSso": {
           "search": {
@@ -9535,6 +9537,15 @@
             "profile": "profile",
             "login": "login"
           }
+        },
+        "GitHubEnterpriseHostReadout": {
+          "sourceRemote": "from this workspace’s git remote",
+          "sourceEnv": "from the GH_HOST environment variable",
+          "sourceUser": "from the host you saved here",
+          "sourcePolicy": "from your organization’s Orca policy",
+          "sourceDefault": "the gh default — no corporate host is configured",
+          "label": "GitHub requests go to",
+          "remoteNote": "A workspace whose git remote points at another host uses that host instead."
         }
       },
       "right": {
@@ -13975,6 +13986,14 @@
     "corporateLlm": {
       "appliesNextSession": "公司自建模型 — 从下一个会话开始生效",
       "tokenMissing": "公司自建模型 — 请先在设置中保存令牌"
+    }
+  },
+  "computerUse": {
+    "approval": {
+      "deny": "Deny",
+      "allow": "Allow",
+      "title": "Allow agent to control your computer?",
+      "message": "An agent wants to act on an app outside Orca."
     }
   }
 }

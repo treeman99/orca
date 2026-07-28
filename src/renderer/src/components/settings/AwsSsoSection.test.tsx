@@ -178,7 +178,7 @@ describe('AwsSsoSection', () => {
     mocks.getStatus.mockResolvedValue(makeStatus({ awsAvailable: false }))
     render(<AwsSsoSection />)
 
-    expect(await screen.findByText(/AWS CLI \(aws\) is not installed/)).toBeInTheDocument()
+    expect(await screen.findByText(/could not run the AWS CLI/)).toBeInTheDocument()
   })
 
   it('explains how to create a profile when the config has none', async () => {

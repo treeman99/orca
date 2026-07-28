@@ -2,6 +2,7 @@
 import type { StateCreator } from 'zustand'
 import type { AppState } from '../types'
 import { normalizeRightSidebarRoute } from '../right-sidebar-route'
+import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import {
   findPrevLiveNonTaskStackHistoryIndex,
   findPrevLiveWorktreeHistoryIndex
@@ -1471,11 +1472,18 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
       activeView: state.previousViewBeforeSkills
     })),
   openMobilePage: () =>
-    set((state) => ({
-      activeView: 'mobile',
-      previousViewBeforeMobile:
-        state.activeView === 'mobile' ? state.previousViewBeforeMobile : state.activeView
-    })),
+    set((state) => {
+      // The single door into the Mobile view — sidebar button, Toolbox, and the IPC
+      // menu event all land here, so one refusal covers callers a rebase may add.
+      if (getEnterprisePolicyView().disableMobilePairing) {
+        return {}
+      }
+      return {
+        activeView: 'mobile',
+        previousViewBeforeMobile:
+          state.activeView === 'mobile' ? state.previousViewBeforeMobile : state.activeView
+      }
+    }),
   closeMobilePage: () =>
     set((state) => ({
       activeView: state.previousViewBeforeMobile

@@ -94,6 +94,7 @@ import { useEditorExternalWatch } from './hooks/useEditorExternalWatch'
 import { useAutoAckViewedAgent } from './hooks/useAutoAckViewedAgent'
 import { useDashboardPopoutBridge } from './components/dashboard/useDashboardPopoutBridge'
 import { useUnreadDockBadge } from './hooks/useUnreadDockBadge'
+import { useEnterprisePolicyView } from './enterprise/enterprise-policy-access'
 import {
   resolvePrimarySelectionMiddleClickPaste,
   usePrimarySelectionPaste
@@ -406,8 +407,8 @@ function applyRemoteWorkspacePatchStatus(
   })
 }
 
-function shouldMountUpdateCardForStatus(status: UpdateStatus): boolean {
-  if (status.state === 'idle') {
+function shouldMountUpdateCardForStatus(status: UpdateStatus, disabled: boolean): boolean {
+  if (disabled || status.state === 'idle') {
     return false
   }
   if (status.state === 'checking' || status.state === 'not-available') {
@@ -647,7 +648,11 @@ function App(): React.JSX.Element {
   const shouldMountContextualTourOverlay = activeContextualTourId !== null
   useOsc52ClipboardDefaultOnNotice(persistedUIReady)
   const shouldMountSetupGuideTelemetryObserver = persistedUIReady
-  const shouldMountUpdateCard = shouldMountUpdateCardForStatus(updateStatus)
+  const enterprisePolicy = useEnterprisePolicyView()
+  const shouldMountUpdateCard = shouldMountUpdateCardForStatus(
+    updateStatus,
+    enterprisePolicy.disableAutoUpdate
+  )
   const rightSidebarWidth = useAppStore((s) => s.rightSidebarWidth)
   const markdownTocPanelWidth = useAppStore((s) => s.markdownTocPanelWidth)
   const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
@@ -662,8 +667,11 @@ function App(): React.JSX.Element {
   ) as React.CSSProperties | undefined
   const dictationState = useAppStore((s) => s.dictationState)
   const hasSshCredentialRequest = useAppStore((s) => s.sshCredentialQueue.length > 0)
+  // Not mounting the controller takes out all three entry paths at once: the keyboard
+  // shortcut, the hold gesture, and the DOM events it listens for.
   const shouldMountDictationController =
-    settings?.voice?.enabled === true || dictationState !== 'idle'
+    !enterprisePolicy.disableVoice &&
+    (settings?.voice?.enabled === true || dictationState !== 'idle')
   const primarySelectionMiddleClickPaste = resolvePrimarySelectionMiddleClickPaste(
     settings?.primarySelectionMiddleClickPaste
   )

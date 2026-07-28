@@ -376,6 +376,7 @@ function WorkspaceRunTargetCombobox({
   onAddSshHost,
   onConnectHost
 }: WorkspaceRunTargetComboboxProps): React.JSX.Element {
+  const { disableRemoteOrcaServer } = useEnterprisePolicyView()
   const [open, setOpen] = React.useState(false)
   const [vmRecipesOpen, setVmRecipesOpen] = React.useState(false)
   const [hostActionsOpen, setHostActionsOpen] = React.useState(false)
@@ -759,27 +760,29 @@ function WorkspaceRunTargetCombobox({
                         </div>
                       </div>
                     </CommandItem>
-                    <CommandItem
-                      value="add-remote-orca-server"
-                      onSelect={handleAddRemoteServer}
-                      className="items-center gap-2 px-3 py-1.5"
-                    >
-                      <Cloud className="size-3.5 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm">
-                          {translate(
-                            'auto.components.NewWorkspaceComposerCard.addRemoteOrcaServer',
-                            'Add Remote Orca Server'
-                          )}
+                    {disableRemoteOrcaServer ? null : (
+                      <CommandItem
+                        value="add-remote-orca-server"
+                        onSelect={handleAddRemoteServer}
+                        className="items-center gap-2 px-3 py-1.5"
+                      >
+                        <Cloud className="size-3.5 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm">
+                            {translate(
+                              'auto.components.NewWorkspaceComposerCard.addRemoteOrcaServer',
+                              'Add Remote Orca Server'
+                            )}
+                          </div>
+                          <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                            {translate(
+                              'auto.components.NewWorkspaceComposerCard.addRemoteOrcaServerHint',
+                              'Pair another Orca runtime'
+                            )}
+                          </div>
                         </div>
-                        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                          {translate(
-                            'auto.components.NewWorkspaceComposerCard.addRemoteOrcaServerHint',
-                            'Pair another Orca runtime'
-                          )}
-                        </div>
-                      </div>
-                    </CommandItem>
+                      </CommandItem>
+                    )}
                   </CommandList>
                 </Command>
               </PopoverContent>

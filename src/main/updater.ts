@@ -1322,6 +1322,10 @@ export function isQuittingForUpdate(): boolean {
 }
 
 export function quitAndInstall(): void {
+  // An artifact downloaded before the policy was deployed must not still be installed.
+  if (getEnterprisePolicy().disableAutoUpdate) {
+    return
+  }
   if (pendingQuitAndInstallTimer || quitAndInstallInProgress) {
     return
   }
@@ -1569,6 +1573,12 @@ export function setupAutoUpdater(
 }
 
 export function downloadUpdate(): void {
+  // Why here and not only at the check: a status cached before the policy landed, a
+  // relayed remote-server download, or a renderer that still has the button can each
+  // reach this without passing runBackgroundUpdateCheck.
+  if (getEnterprisePolicy().disableAutoUpdate) {
+    return
+  }
   if (downloadInFlight) {
     return
   }

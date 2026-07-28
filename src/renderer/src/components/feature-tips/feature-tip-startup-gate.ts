@@ -7,6 +7,7 @@ import type { CliInstallStatus } from '../../../../shared/cli-install-types'
 import type { FeatureInteractionState } from '../../../../shared/feature-interactions'
 import type { GlobalSettings, OnboardingState } from '../../../../shared/types'
 import { shouldShowOnboarding } from '../onboarding/should-show-onboarding'
+import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 
 export type FeatureTipsAppOpenDecision =
   | { kind: 'open'; tipId: FeatureTipId }
@@ -52,6 +53,7 @@ export function getFeatureTipsAppOpenDecision(args: {
     completedTipIds: getCompletedFeatureTipIds({
       cliInstalled: args.cliInstalled,
       voiceDictationEnabled: args.settings.voice?.enabled === true,
+      voiceUnavailable: getEnterprisePolicyView().disableVoice,
       featureInteractions: args.featureInteractions
     })
   })

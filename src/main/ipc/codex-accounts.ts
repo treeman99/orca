@@ -1,15 +1,18 @@
 import { ipcMain } from 'electron'
 import type { CodexAccountAddTarget, CodexAccountService } from '../codex-accounts/service'
 import type { CodexAccountSelectionTarget } from '../codex-accounts/runtime-selection'
+import { assertVendorAccountRegistrationAllowed } from '../enterprise/vendor-account-registration-guard'
 
 export function registerCodexAccountHandlers(codexAccounts: CodexAccountService): void {
   ipcMain.handle('codexAccounts:list', () => codexAccounts.listAccounts())
-  ipcMain.handle('codexAccounts:add', (_event, args?: CodexAccountAddTarget) =>
-    codexAccounts.addAccount(args)
-  )
-  ipcMain.handle('codexAccounts:reauthenticate', (_event, args: { accountId: string }) =>
-    codexAccounts.reauthenticateAccount(args.accountId)
-  )
+  ipcMain.handle('codexAccounts:add', (_event, args?: CodexAccountAddTarget) => {
+    assertVendorAccountRegistrationAllowed()
+    return codexAccounts.addAccount(args)
+  })
+  ipcMain.handle('codexAccounts:reauthenticate', (_event, args: { accountId: string }) => {
+    assertVendorAccountRegistrationAllowed()
+    return codexAccounts.reauthenticateAccount(args.accountId)
+  })
   ipcMain.handle('codexAccounts:remove', (_event, args: { accountId: string }) =>
     codexAccounts.removeAccount(args.accountId)
   )

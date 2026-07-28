@@ -5,6 +5,7 @@ import { searchKeywords, translateSearchKeyword } from './settings-search-keywor
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { getGeneralProjectRuntimeSearchEntries } from './general-project-runtime-search'
 import { getGeneralSupportSearchEntries } from './general-support-search'
+import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 
 export { getGeneralEditorSearchEntries } from './general-editor-search'
 export { getGeneralSupportSearchEntries } from './general-support-search'
@@ -235,7 +236,9 @@ export function getGeneralPaneSearchEntries(
     ...(options.includeProjectRuntime === false ? [] : getGeneralProjectRuntimeSearchEntries()),
     ...getGeneralEditorSearchEntries(),
     ...getGeneralCliSearchEntries(),
-    ...getGeneralUpdateSearchEntries(),
+    // Cmd+J is a second door into the same rows; leaving it open would surface an
+    // "Check for Updates" result that lands on a section the policy removed.
+    ...(getEnterprisePolicyView().disableAutoUpdate ? [] : getGeneralUpdateSearchEntries()),
     ...getGeneralSupportSearchEntries()
   ]
 }

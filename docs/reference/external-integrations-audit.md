@@ -17,7 +17,7 @@
 | **텔레메트리 / 진단 / 크래시** | opt-in(기본 꺼짐) + 공식 빌드에서만 전송 | ✅ `disableTelemetry` | 없음 (로컬 NDJSON 로깅은 유지, 망 밖으로 안 나감) |
 | **자동 업데이트 / 넛지 (onorca.dev, github.com)** | 로그인 무관하게 나감 | ✅ `disableAutoUpdate` | 없음 (3개 진입점 전부 차단, §3) |
 | **star-nag (github.com SaaS 고정)** | 랜딩·설정 화면 진입, 에이전트 완료, 온보딩 완료, 스폰 임계치에서 발동 | ✅ `disableStarNag` | 없음 (`gh` 호출 함수 자체에서 차단, §1) |
-| **Orca Cloud 로그인 / 모바일 페어링 릴레이** | 로그인 안 하면 안 나감 | ✅ `disableCloudRelay` | 없음 |
+| **Orca Cloud 로그인 / 모바일 페어링 릴레이** | 로그인 안 하면 안 나감 | ✅ `disableCloudRelay` | **`disableCloudRelay`만으로는 모바일이 열려 있습니다** — 벤더 릴레이는 죽지만 LAN/Tailscale 페어링 QR은 정상 발급됩니다. `disableMobilePairing`으로 닫습니다 |
 | **AI 벤더 사용량 폴링 (Claude/Codex/Grok/…)** | 🔴 **Orca 계정 연동과 무관 — 로컬 벤더 CLI 자격증명만 있으면 15분마다 폴링** | ✅ `disableUsagePolling` | 없음 (§4) |
 | **Claude OAuth 토큰 회전 (platform.claude.com)** | Orca 관리 Claude 계정을 쓸 때만 | ✅ `disableManagedClaudeAccounts` | egress는 없음. 단 이 스위치는 **Bedrock 플릿에서 선택이 아니라 필수**입니다 — 끄면 WSL 세션이 관리형 계정 없이도 인증 env를 스트립하고, 런치 env에 `AWS_BEARER_TOKEN_BEDROCK` 등이 있으면 스폰이 하드 실패합니다 (§4) |
 | **git 호스팅 (GitHub/GitLab/…)** | 사용자 열람 + 일부 자동 폴링 | ➖ `githubEnterpriseHost`는 **Gitea 폴백 오인만 차단**(호스트 전환도, 트래픽 차단도 아님) | `gh` 목적지는 여전히 `GH_HOST`/origin 리모트가 결정 (§1, §7 레벨 2) |
@@ -80,7 +80,7 @@
 | `disableTelemetry` | boolean | = `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88`) **및** 진단/크래시 번들 업로드 (`src/main/observability/index.ts:103,120-133`). 로컬 NDJSON 로깅은 유지(`localFileEnabled: true`, `:130`) |
 | `disableAutoUpdate` | boolean | = `lockdown` | `runBackgroundUpdateCheck()` (`src/main/updater.ts:1173,1179`) + `checkForUpdatesFromMenu()` (`:1244,1251`) + `setupAutoUpdater()` (`:1415,1458`). 마지막 하나가 넛지 스케줄러(`:1537`)와 `powerMonitor` 리스너(`:1556`)의 무장 자체를 막습니다 |
 | `disableStarNag` | boolean | = `lockdown` | `checkOrcaStarred()` (`src/main/github/client.ts:233`) / `starOrca()` (`:419`) |
-| `disableCloudRelay` | boolean | = `lockdown` | `getOrcaCloudAuthConfig()`가 "미구성"을 반환 (`src/main/orca-profiles/profile-cloud-auth-config.ts:73`) → 이 한 함수에 의존하는 클라우드 경로 전부(로그인·프로필 연결·조직 멤버 IPC 5종)가 죽고, 모바일 페어링 릴레이는 `configured`일 때만 생성되므로 아예 기동하지 않습니다 (`src/main/index.ts:2478-2479`) |
+| `disableCloudRelay` | boolean | = `lockdown` | `getOrcaCloudAuthConfig()`가 "미구성"을 반환 (`src/main/orca-profiles/profile-cloud-auth-config.ts:73`) → 이 한 함수에 의존하는 클라우드 경로 전부(로그인·프로필 연결·조직 멤버 IPC 5종)가 죽고, 모바일 페어링 릴레이는 `configured`일 때만 생성되므로 아예 기동하지 않습니다 (`src/main/index.ts:2478-2479`). ⚠️ 릴레이가 없어도 LAN 전용 페어링은 계속 동작합니다 — 모바일 자체를 막는 건 `disableMobilePairing`입니다 |
 | `disableUsagePolling` | boolean | = `lockdown` | `src/main/rate-limits/service.ts:760`의 술어를 `start()`(`:310`), `fetchAll`/`fetchCodexOnly`/`fetchClaudeOnly`/`fetchGrokOnly`(`:895,960,1022,1087`), 계정 스위처 프리뷰 2종(`:500,580`), Codex 리셋 크레딧 POST(`:428`)에서 검사 |
 | `disableManagedClaudeAccounts` | boolean | = `lockdown` | Orca 관리형 Claude 계정. 게이트 3곳: `platform.claude.com` 회전 함수 진입부(`src/main/claude-accounts/oauth-refresh.ts:131-133`), 인증 준비에서 활성 계정을 `null`로 고정(`src/main/claude-accounts/runtime-auth-service.ts:613-616`), 환경 스트립 최후 방어선(`src/main/claude-accounts/environment.ts:22`) (§4) |
 | `disableSpellcheck` | boolean | = `lockdown` | `webPreferences.spellcheck`를 끄는 지점 **5곳**: 메인 창(`src/main/window/createMainWindow.ts:299`), `will-attach-webview` 게스트(`:471`), 대시보드 팝아웃 창(`src/main/window/dashboard-popout-window.ts:176`), 오프스크린 브라우저 백엔드(`src/main/browser/offscreen-browser-backend.ts:45`), PDF 내보내기 WebContents(`src/main/lib/html-to-pdf.ts:46`) |
@@ -135,7 +135,7 @@
 | 7 | **SSH 릴레이의 원격 `npm install`** | 원격 호스트의 npm 레지스트리 (기본 `registry.npmjs.org`) | 원격 호스트 최초 연결 시 | 릴레이 번들은 SCP로 보내지만 `node-pty`/`@parcel/watcher`는 네이티브 애드온이라 **원격에서 설치**합니다. 정책 파일은 원격 머신에 없습니다 | `src/main/ssh/ssh-relay-deploy.ts:743-744,725,737` |
 | 8 | **Node `fetch` / `node:https` 프록시 우회** | 아래 §5 목록 | 해당 기능 사용 시 | `proxy-settings.ts`는 **Electron 세션에만** 프록시를 겁니다 | `src/main/network/proxy-settings.ts:41-79` |
 | ~~9~~ | ~~**scrcpy 서버 jar 다운로드**~~ | ~~`github.com/Genymobile/scrcpy/releases`~~ | — | **해소됨**: `node:https`를 직접 쓰는 것은 맞지만, 다운로드 직전에 `lockdown`(또는 허용목록 밖 호스트)이면 거부하고 `EmulatorError`를 던집니다. 관리자가 미리 배치한 jar은 그대로 씁니다 | 가드 `src/main/enterprise/enterprise-direct-download-guard.ts:17-32`, 적용부 `src/main/emulator/android/scrcpy-server-download.ts:42-46` |
-| 10 | **STT(sherpa-onnx) 모델 다운로드** | `huggingface.co/<repo>/resolve/<revision>` (v1.4.159에서 GitHub Releases → Hugging Face로 이전) | 사용자가 로컬 받아쓰기 모델을 명시적으로 내려받을 때 | 코드 차단 없음 — 위 #9의 다운로드 거부 가드는 scrcpy 한 곳에만 배선돼 있고 이 경로는 호출하지 않습니다. 다만 Electron `net.request`를 쓰므로 §5 프록시는 탑니다 | `src/main/speech/model-download-catalog.ts:12`(URL 조립), `model-manager.ts:2,778`(`net.request`) (가드 미사용) |
+| 10 | **STT(sherpa-onnx) 모델 다운로드** | `huggingface.co/<repo>/resolve/<revision>` (v1.4.159에서 GitHub Releases → Hugging Face로 이전) | 사용자가 로컬 받아쓰기 모델을 명시적으로 내려받을 때 | ✅ `disableVoice` — `getSpeechModelManager()`가 정책 확인 후 던지므로 `ModelManager` 자체가 생성되지 않습니다 (`src/main/speech/speech-runtime-service.ts`). 스위치를 끄면 여전히 가드가 없고, Electron `net.request`를 쓰므로 §5 프록시는 탑니다 | `src/main/speech/model-download-catalog.ts:12`(URL 조립), `model-manager.ts:2,778`(`net.request`) (가드 미사용) |
 | ~~11~~ | ~~**Claude OAuth 토큰 회전**~~ | ~~`platform.claude.com`~~ | — | **해소됨**: `disableManagedClaudeAccounts`가 덮습니다 (§4). 이전 판의 "정책 스위치 없음"은 더 이상 사실이 아닙니다 | 게이트 `src/main/claude-accounts/oauth-refresh.ts:131-133` |
 | 12 | **임베디드 브라우저** | 사용자가 방문하는 임의의 사이트 | 사용자 조작 | 허용목록은 `persist:` 파티션을 의도적으로 제외합니다 — 그 슬롯은 인증서 게이트가 이미 점유 중이고, 임의 사이트 열람이 이 기능의 목적이기 때문 | `enterprise-network-guard.ts:9-13` |
 | 13 | **Gitea/Forgejo 폴백 직접 fetch** | origin 리모트에서 동적 유도된 호스트 | 미지정 git 호스트를 쓸 때 | `githubEnterpriseHost`를 지정하면 GHES는 제외되지만, **그 외 모든 미지정 호스트는 여전히 Gitea로 간주**됩니다 (§1) | `src/main/gitea/repository-ref.ts:87-98`, `client.ts:91` |
@@ -259,7 +259,7 @@ Orca가 스폰하는 에이전트 CLI(claude/codex/…)의 트래픽이 아니�
 | Gemini CLI 쿼터 + Google OAuth 갱신 | `cloudcode-pa.googleapis.com`, `oauth2.googleapis.com` (`src/main/rate-limits/gemini-usage-fetcher.ts:19`, `gemini-oauth-sources.ts:9-10`) | **기본 꺼짐** — `geminiCliOAuthEnabled: false` (opt-in, `src/shared/constants.ts:323`) | ✅ `disableUsagePolling` |
 | MiniMax 사용량 | `platform.minimax.io` (`src/main/rate-limits/minimax-request-context.ts:4`) | **기본 꺼짐** — 세션 쿠키 미설정 시 무전송 | ✅ `disableUsagePolling` |
 | OpenCode 사용량 | `opencode.ai/_server` (`src/main/rate-limits/opencode-go-usage-fetcher.ts:12`) | **기본 꺼짐** — 세션 쿠키 필요 | ✅ `disableUsagePolling` |
-| 🔴 **받아쓰기(STT) → OpenAI** | `api.openai.com` (`src/main/speech/openai-transcription-client.ts:118`, global fetch) | **기본 꺼짐** — `voice.enabled: false` + 모델 미선택 + API 키 미설정, 3중 게이트 | ❌ 기능 스위치 없음. 단 global fetch라서 opt-in `enforceNetworkAllowlist`는 이 호출을 덮습니다 (§5 표) |
+| 🔴 **받아쓰기(STT) → OpenAI** | `api.openai.com` (`src/main/speech/openai-transcription-client.ts:118`, global fetch) | **기본 꺼짐** — `voice.enabled: false` + 모델 미선택 + API 키 미설정, 3중 게이트 | ✅ `disableVoice`. STT 런타임이 아예 생성되지 않고 `registerSpeechHandlers`도 등록되지 않습니다. global fetch라서 opt-in `enforceNetworkAllowlist`도 덮습니다 (§5 표) |
 
 ### 🔴 정정: 사용량 폴링은 “Orca 계정 연동에 종속”되지 않습니다
 
@@ -288,7 +288,7 @@ Orca가 스폰하는 에이전트 CLI(claude/codex/…)의 트래픽이 아니�
 
 > 🔴 **읽는 방향을 헷갈리지 마세요.** 이 실패 조건은 코드에서 사라진 것이 아니라 **`disableManagedClaudeAccounts`가 켜져 있을 때만** 성립하지 않습니다. 스위치를 끄면(또는 `lockdown` 없이 배포하면) WSL Claude 세션은 예전 그대로 하드 실패합니다. **그래서 Bedrock + WSL 플릿에서 이 스위치는 권장이 아니라 필수입니다.** Windows 호스트 세션은 원래도 관리형 계정을 선택한 동안에만 스트립됩니다 (`:689`).
 
-**요점**: 손봐야 하는 건 **로컬 CLI 자격증명만으로 발동하는 사용량 폴링 4종(Claude·Codex·Grok·Kimi → `disableUsagePolling`)** 과 **관리형 Claude 계정(→ `disableManagedClaudeAccounts`)** 이며, `lockdown: true` 하나로 둘 다 켜집니다. Gemini/MiniMax/OpenCode/Kimi는 기본 opt-in이라 켜지 않으면 나가지 않고, **켜더라도 `disableUsagePolling`이 덮습니다** — 이들의 fetcher는 `runFetchAllCycle` 안에서만 호출되고 그 사이클로 들어가는 경로가 전부 게이트를 지납니다. 기능 스위치가 없는 것은 **받아쓰기 계열 두 경로**뿐입니다 — 전사(`api.openai.com`, 3중 opt-in이라 설정하지 않으면 발동하지 않음)와 로컬 모델 다운로드(`github.com`, §0.2 #10). 앞의 것은 global fetch라 `enforceNetworkAllowlist`가 덮고, 뒤의 것은 어떤 정책도 덮지 않습니다.
+**요점**: 손봐야 하는 건 **로컬 CLI 자격증명만으로 발동하는 사용량 폴링 4종(Claude·Codex·Grok·Kimi → `disableUsagePolling`)** 과 **관리형 Claude 계정(→ `disableManagedClaudeAccounts`)** 이며, `lockdown: true` 하나로 둘 다 켜집니다. Gemini/MiniMax/OpenCode/Kimi는 기본 opt-in이라 켜지 않으면 나가지 않고, **켜더라도 `disableUsagePolling`이 덮습니다** — 이들의 fetcher는 `runFetchAllCycle` 안에서만 호출되고 그 사이클로 들어가는 경로가 전부 게이트를 지납니다. **받아쓰기 계열 두 경로**(전사 `api.openai.com`, 로컬 모델 다운로드 `huggingface.co` — §0.2 #10)는 이제 `disableVoice`가 덮습니다. 두 경로 모두 STT 런타임/모델 매니저를 거치는데, `disableVoice`면 그 두 게터가 생성 전에 던지기 때문입니다.
 
 ### ✅ 신규: 사내에서 직접 서비스하는 모델 (`llmEndpoints`)
 
@@ -500,6 +500,9 @@ Electron의 `configureHostResolver`는 `secureDnsMode`가 기본 `'automatic'`�
 
 ### ⚠️ 남은 미검증
 
+- **`enforceNetworkAllowlist`는 WebSocket을 검사하지 않습니다.** 가드는 `http:`/`https:` URL만 보고 `globalThis.fetch`만 래핑합니다 (`src/main/enterprise/enterprise-network-guard.ts:66`). 원격 Orca 런타임과 모바일 페어링은 WebSocket이므로 **허용목록으로는 막히지 않습니다** — 그래서 `disableRemoteOrcaServer` / `disableMobilePairing`이 별도 스위치로 존재합니다. 허용목록만 켜고 두 스위치를 끄면 구멍이 남습니다.
+- **웹 클라이언트(`orca serve` / `pnpm dev:web`)에는 정책이 전달되지 않습니다.** `src/renderer/src/web/web-preload-api.ts`에 `enterprisePolicy` 키가 없어 렌더러 캐시가 "제한 없음"으로 남습니다. **UI 차단만 무력화되고 메인 프로세스 게이트는 그대로 유효**하므로 실제 egress는 막히지만, 화면에는 정책이 지운 섹션이 보입니다. 데스크톱 앱에는 해당하지 않습니다.
+- **Computer Use 승인은 창이 있을 때만 물을 수 있습니다.** `requireComputerUseApproval`은 띄울 창이 없으면 **거부**로 처리하므로 헤드리스 경로에서 무단 실행되지는 않지만, 그 경로에서는 Computer Use가 사실상 사용 불가가 됩니다.
 - **Chromium 컴포넌트 업데이터.** 이 브랜치는 관련 스위치를 걸지 않습니다 — `disable-features`에 들어가는 값은 `IntensiveWakeUpThrottling` 하나뿐이고(`src/main/startup/configure-process.ts:304-310`), 프로덕션 `appendSwitch` 호출 10곳(`configure-process.ts` 6곳, `index.ts:1381`, `startup/ensure-virtual-display.ts:22,25`, `startup/renderer-heap-headroom.ts:101`) 어디에도 컴포넌트 관련 항목이 없습니다. **통제 수단이 없다는 것은 확인했으나, Electron 런타임이 실제로 컴포넌트 업데이트 요청을 내는지는 패킷 캡처로 확인하지 못했습니다.** 배포 전 실측 권장.
 
 ---
