@@ -136,6 +136,21 @@ describe('GitPane', () => {
     expect(markup).not.toContain('Refresh Local Base Ref')
   })
 
+  it('renders the effective Git host in Git settings', () => {
+    const markup = renderGitPane('git host')
+
+    expect(markup).toContain(
+      translate('auto.components.settings.GitPane.effectiveGitHubHostTitle', 'Git Host')
+    )
+  })
+
+  it('finds the Git host section by the words used to look for a git address', () => {
+    expect(matchesSettingsSearch('git address', getGitPaneSearchEntries())).toBe(true)
+    expect(matchesSettingsSearch('git url', getGitPaneSearchEntries())).toBe(true)
+    expect(matchesSettingsSearch('ghes', getGitPaneSearchEntries())).toBe(true)
+    expect(matchesSettingsSearch('enterprise', getGitPaneSearchEntries())).toBe(true)
+  })
+
   it('renders Source Control group order in Git settings', () => {
     const markup = renderGitPane('group order')
 

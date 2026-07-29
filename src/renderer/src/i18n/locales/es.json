@@ -5784,7 +5784,10 @@
           "compareAgainstUpstreamTitle": "Base de comparación predeterminada",
           "compareAgainstUpstreamDescription": "Elige qué base usa Control de código fuente de forma predeterminada para las comparaciones de cambios confirmados. El upstream de la rama sigue automáticamente la rama actual y recurre a la rama predeterminada del repositorio cuando no hay upstream. Aun así, puedes cambiar la base de comparación por worktree desde el panel Git de ese worktree. Los objetivos de Pull Request y rebase no cambian.",
           "compareBaseRepositoryDefault": "Predeterminada del repositorio",
-          "compareBaseBranchUpstream": "Upstream de la rama"
+          "compareBaseBranchUpstream": "Upstream de la rama",
+          "effectiveGitHubHostTitle": "Git Host",
+          "effectiveGitHubHostDescription": "The GitHub host Orca sends pull request, check, and review requests to. Change it under Integrations → Company GitHub (Enterprise).",
+          "effectiveGitHubHostLoading": "Checking…"
         },
         "HiddenExperimentalGroup": {
           "d0f914a528": "Alternar marcador de posición",
@@ -8004,7 +8007,19 @@
             "defaultCompareBase": "base de comparación predeterminada",
             "defaultBranch": "rama predeterminada",
             "repositoryDefault": "predeterminada del repositorio",
-            "branchUpstream": "upstream de la rama"
+            "branchUpstream": "upstream de la rama",
+            "effectiveGitHubHostTitle": "Git Host",
+            "effectiveGitHubHostDescription": "The GitHub host Orca sends pull request, check, and review requests to. Change it under Integrations → Company GitHub (Enterprise).",
+            "gitHost": "git host",
+            "githubHost": "github host",
+            "gitAddress": "git address",
+            "gitUrl": "git url",
+            "remoteHost": "remote host",
+            "enterprise": "enterprise",
+            "ghes": "ghes",
+            "ghHostEnv": "gh_host",
+            "githubCom": "github.com",
+            "whereRequestsGo": "where requests go"
           }
         },
         "input": {

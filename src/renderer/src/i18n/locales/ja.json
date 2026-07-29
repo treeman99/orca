@@ -5806,7 +5806,10 @@
           "compareAgainstUpstreamTitle": "既定の比較ベース",
           "compareAgainstUpstreamDescription": "ソース管理がコミット済み変更の比較に既定で使うベースを選択します。ブランチの上流は現在のブランチに自動的に追従し、上流がない場合はリポジトリの既定ブランチにフォールバックします。比較ベースは各 worktree の Git パネルから worktree ごとに変更できます。Pull Request やリベースの対象は変更されません。",
           "compareBaseRepositoryDefault": "リポジトリ既定",
-          "compareBaseBranchUpstream": "ブランチの上流"
+          "compareBaseBranchUpstream": "ブランチの上流",
+          "effectiveGitHubHostTitle": "Git Host",
+          "effectiveGitHubHostDescription": "The GitHub host Orca sends pull request, check, and review requests to. Change it under Integrations → Company GitHub (Enterprise).",
+          "effectiveGitHubHostLoading": "Checking…"
         },
         "HiddenExperimentalGroup": {
           "d0f914a528": "プレースホルダーの切り替え",
@@ -8026,7 +8029,19 @@
             "defaultCompareBase": "既定の比較ベース",
             "defaultBranch": "既定ブランチ",
             "repositoryDefault": "リポジトリ既定",
-            "branchUpstream": "ブランチ上流"
+            "branchUpstream": "ブランチ上流",
+            "effectiveGitHubHostTitle": "Git Host",
+            "effectiveGitHubHostDescription": "The GitHub host Orca sends pull request, check, and review requests to. Change it under Integrations → Company GitHub (Enterprise).",
+            "gitHost": "git host",
+            "githubHost": "github host",
+            "gitAddress": "git address",
+            "gitUrl": "git url",
+            "remoteHost": "remote host",
+            "enterprise": "enterprise",
+            "ghes": "ghes",
+            "ghHostEnv": "gh_host",
+            "githubCom": "github.com",
+            "whereRequestsGo": "where requests go"
           }
         },
         "input": {

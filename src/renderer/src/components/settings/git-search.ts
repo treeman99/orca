@@ -5,6 +5,32 @@ import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 
 export const getGitPaneSearchEntries = createLocalizedCatalog(() => [
   {
+    title: translate('auto.components.settings.git.search.effectiveGitHubHostTitle', 'Git Host'),
+    description: translate(
+      'auto.components.settings.git.search.effectiveGitHubHostDescription',
+      'The GitHub host Orca sends pull request, check, and review requests to. Change it under Integrations → Company GitHub (Enterprise).'
+    ),
+    keywords: [
+      ...translateSearchKeyword('auto.components.settings.git.search.gitHost', 'git host'),
+      ...translateSearchKeyword('auto.components.settings.git.search.githubHost', 'github host'),
+      ...translateSearchKeyword('auto.components.settings.git.search.gitAddress', 'git address'),
+      ...translateSearchKeyword('auto.components.settings.git.search.gitUrl', 'git url'),
+      ...translateSearchKeyword('auto.components.settings.git.search.remoteHost', 'remote host'),
+      ...translateSearchKeyword('auto.components.settings.git.search.enterprise', 'enterprise'),
+      ...translateSearchKeyword('auto.components.settings.git.search.ghes', 'ghes'),
+      ...translateSearchKeyword('auto.components.settings.git.search.ghHostEnv', 'gh_host'),
+      ...translateSearchKeyword('auto.components.settings.git.search.githubCom', 'github.com'),
+      ...translateSearchKeyword(
+        'auto.components.settings.git.search.sourceControl',
+        'source control'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.git.search.whereRequestsGo',
+        'where requests go'
+      )
+    ]
+  },
+  {
     title: translate('auto.components.settings.git.search.68bd65fdb8', 'Branch Prefix'),
     description: translate(
       'auto.components.settings.git.search.5ecd91c5ef',

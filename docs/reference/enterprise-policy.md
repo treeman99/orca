@@ -233,6 +233,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 - **토큰(PAT) 로그인:** 회사가 OAuth device endpoint를 막는다면, 같은 섹션의 "Connect with token"에 PAT를 붙여넣으면 `gh auth login --hostname <host> --git-protocol https --with-token`(stdin)으로 비대화식 로그인합니다.
 - **공통:** **토큰은 앱이 저장하지 않습니다** — 두 방식 모두 `gh` 자신의 키링에 들어가므로, 로그인 후에는 기존 PR·체크·리뷰 상태 등 gh 기반 기능이 그대로 동작합니다.
 - **네트워크 잠금과 함께 쓸 때:** `enforceNetworkAllowlist: true`라면 GHES 호스트가 허용목록에 있어야 브라우저/API 호출이 통과합니다. `githubEnterpriseHost`(또는 `allowedNetworkHosts`)로 반드시 포함하세요(§5).
+- **"요청이 실제로 어디로 가는지" 확인:** 같은 읽기 전용 표시가 **설정 → Git 및 소스 제어**의 "Git 호스트" 항목에도 있습니다(`EffectiveGitHubHostSetting.tsx`). 입력 필드가 있는 §3-4 화면과 달리 이쪽은 표시만 하며, 사용자가 "내 코드가 어디로 나가나"를 확인하려고 여는 화면이 보통 이쪽이라 양쪽에 둡니다. 표시되는 값은 정책의 `githubEnterpriseHost`가 아니라 **`gh`가 실제로 향하는 호스트**이고(정책 호스트는 `gh`를 리다이렉트하지 않으며 `GH_HOST`가 둘보다 우선), 출처(정책/`GH_HOST`/사용자 저장/기본값)를 함께 적습니다.
 
 ---
 

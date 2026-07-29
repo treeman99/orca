@@ -5844,7 +5844,10 @@
           "compareAgainstUpstreamTitle": "Default Compare Base",
           "compareAgainstUpstreamDescription": "Choose which base Source Control uses by default for committed-change comparisons. Branch upstream follows the current branch automatically and falls back to the repository default branch when no upstream exists. You can still change the compare base per worktree from that worktree's Git panel. Pull Request and rebase targets don't change.",
           "compareBaseRepositoryDefault": "Repository default",
-          "compareBaseBranchUpstream": "Branch upstream"
+          "compareBaseBranchUpstream": "Branch upstream",
+          "effectiveGitHubHostTitle": "Git Host",
+          "effectiveGitHubHostDescription": "The GitHub host Orca sends pull request, check, and review requests to. Change it under Integrations → Company GitHub (Enterprise).",
+          "effectiveGitHubHostLoading": "Checking…"
         },
         "HiddenExperimentalGroup": {
           "d0f914a528": "Placeholder toggle",
@@ -8064,7 +8067,19 @@
             "upstream": "upstream",
             "localChanges": "local changes",
             "originMaster": "origin/master",
-            "committedChanges": "committed changes"
+            "committedChanges": "committed changes",
+            "effectiveGitHubHostTitle": "Git Host",
+            "effectiveGitHubHostDescription": "The GitHub host Orca sends pull request, check, and review requests to. Change it under Integrations → Company GitHub (Enterprise).",
+            "gitHost": "git host",
+            "githubHost": "github host",
+            "gitAddress": "git address",
+            "gitUrl": "git url",
+            "remoteHost": "remote host",
+            "enterprise": "enterprise",
+            "ghes": "ghes",
+            "ghHostEnv": "gh_host",
+            "githubCom": "github.com",
+            "whereRequestsGo": "where requests go"
           }
         },
         "input": {

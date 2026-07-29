@@ -21,7 +21,7 @@
 | **설정 → 모바일 / 음성 / 원격 Orca 서버 탭이 사라지는지** | — |
 | **AI 제공업체 계정에 AWS SSO와 사내 모델만 남는지** (`disableVendorProviderAccounts`) | — |
 | **Computer Use 승인 창** — 에이전트에게 다른 앱을 클릭시키면 확인 창이 뜨는지 | Windows `runtime.ps1` 경유 동작 |
-| **설정 → 연동의 "GitHub 요청 대상" 표시** | — |
+| **"GitHub 요청이 가는 곳" 표시 — 설정 → 연동, 그리고 설정 → Git 및 소스 제어** | — |
 | 잠금 상태의 화면 구성 전반(레이아웃·문구·번역) | WSL 런타임 패스스루, `powershell.exe` 기반 Computer Use |
 
 정책 스위치 대부분은 **"네트워크로 안 나가는 것"** 이라 화면에 아무 변화가 없습니다. 그건 UI가 아니라 §4의 trace로 확인하세요.
