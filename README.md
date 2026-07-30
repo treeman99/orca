@@ -457,32 +457,29 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`는 태그 **`v1.4.155`** 위에 사내 커밋이 얹혀 있습니다(`git log --oneline v1.4.155..HEAD`로 확인). 원본이 예컨대 `v1.4.160`을 릴리스했다면 사내 커밋들을 그 태그 위로 재생합니다.
+현재 `enterprise/samsungds`에는 **`v1.4.162`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). 여기까지 v1.4.159·v1.4.162 두 번 모두 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
-git fetch upstream --tags
+git fetch upstream --tags --prune
 git checkout enterprise/samsungds
-git rebase v1.4.160                 # 사내 커밋만 새 태그 위로 재생
+git merge v1.4.165                  # 예: 새 릴리스 태그
 # 충돌 해결 후:
-git add -A ; git rebase --continue
-git push --force-with-lease origin enterprise/samsungds
+git add -A ; git commit
+git push origin enterprise/samsungds
 ```
 
-- `rebase`는 히스토리를 깨끗하게 유지하지만 강제 푸시(`--force-with-lease`)가 필요합니다. 강제 푸시를 피하려면 대신 병합하세요:
-  ```powershell
-  git checkout enterprise/samsungds
-  git merge v1.4.160
-  git push origin enterprise/samsungds
-  ```
-- exe는 항상 이 `enterprise/samsungds` 브랜치(또는 재배치한 릴리스 태그)에서 빌드합니다.
-- 리베이스 직후에는 **문서의 `file:line` 인용이 전부 밀립니다.** 이 README와 `docs/reference/*.md`의 인용을 재검증하는 것을 리베이스 체크리스트에 넣으세요.
+- **릴리스 태그는 서로 조상 관계가 아닙니다.** upstream은 릴리스마다 `main`에서 새로 분기해 픽스를 체리픽하므로 `v1.4.159`는 `v1.4.162`의 조상이 아니고, `--ff-only`로는 절대 올라가지 않습니다. 그래서 `main`은 **`upstream/main` 미러로만** 두고, 릴리스 태그는 이 브랜치에 병합합니다.
+- `rebase`로도 되지만 강제 푸시(`--force-with-lease`)가 필요하고, 위 이유로 재생 대상이 릴리스 태그일 때는 충돌이 더 큽니다.
+- exe는 항상 이 `enterprise/samsungds` 브랜치(또는 사내 릴리스 태그 `v1.4.x-samsungds`)에서 빌드합니다.
+- 병합 직후에는 **문서의 `file:line` 인용이 전부 밀립니다.** 이 README와 `docs/reference/*.md`의 인용을 재검증하는 것을 체크리스트에 넣으세요.
+- 병합 후 `pnpm install`을 **반드시** 다시 돌리세요. v1.4.162는 신규 런타임 의존성(`emojibase-data`)을 추가했고, 없으면 `pnpm typecheck`가 먼저 깨집니다.
 
 #### 충돌 예상 지점 — 솔직한 현황
 
-사내 변경은 "신규 파일 몇 개"가 아닙니다. 이 문서 작성 시점의 `v1.4.155..HEAD` 기준으로 **신규 파일 22개, 기존 upstream 파일 수정 56개**입니다. 최신 수치는 직접 확인하세요:
+사내 변경은 "신규 파일 몇 개"가 아닙니다. `v1.4.162` 기준으로 **신규 파일 108개, 기존 upstream 파일 수정 146개, upstream 파일 삭제 4개**(잠금으로 없앤 설정 팬)입니다. 최신 수치는 직접 확인하세요:
 
 ```powershell
-git diff --name-status v1.4.155..HEAD   # A=신규, M=upstream 파일 수정
+git diff --name-status v1.4.162..HEAD   # A=신규, M=upstream 파일 수정, D=삭제
 ```
 
 | 성격 | 파일 | 리베이스 충돌 |

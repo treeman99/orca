@@ -1,44 +1,26 @@
-// Does this remote runtime speak the shared-control protocol?
-//
-// Split out of runtime-environment-transport-routing so the routing module stays about
-// routing. The cache is keyed by pairing/runtime identity, not just environment id: the
-// same saved host can be re-paired or point at a different runtime binary over time.
-
+import { REMOTE_RUNTIME_SHARED_CONTROL_CAPABILITY } from '../../shared/protocol-version'
+import { sendRemoteRuntimeRequest } from '../../shared/remote-runtime-client'
+import { markEnvironmentUsed } from '../../shared/runtime-environment-store'
 import type {
   getPreferredPairingOffer,
   KnownRuntimeEnvironment
 } from '../../shared/runtime-environments'
-import { markEnvironmentUsed } from '../../shared/runtime-environment-store'
-import { REMOTE_RUNTIME_SHARED_CONTROL_CAPABILITY } from '../../shared/protocol-version'
-import { sendRemoteRuntimeRequest } from '../../shared/remote-runtime-client'
 import type { RuntimeStatus } from '../../shared/runtime-types'
-
-type PairingOffer = ReturnType<typeof getPreferredPairingOffer>
 
 const sharedControlSupport = new Map<string, { cacheKey: string; check: Promise<boolean> }>()
 
-export const resetSharedControlSupport = (): void => sharedControlSupport.clear()
+export function resetSharedControlSupport(): void {
+  sharedControlSupport.clear()
+}
 
-export const clearSharedControlSupport = (environmentId: string): void =>
-  void sharedControlSupport.delete(environmentId)
-
-function getSharedControlSupportCacheKey(
-  environment: KnownRuntimeEnvironment,
-  pairing: PairingOffer,
-  runtimeId = environment.runtimeId
-): string {
-  return [
-    runtimeId ?? 'unknown-runtime',
-    pairing.endpoint,
-    pairing.deviceToken,
-    pairing.publicKeyB64
-  ].join('\0')
+export function clearSharedControlSupport(environmentId: string): void {
+  sharedControlSupport.delete(environmentId)
 }
 
 export async function supportsSharedControl(
   userDataPath: string,
   environment: KnownRuntimeEnvironment,
-  pairing: PairingOffer,
+  pairing: ReturnType<typeof getPreferredPairingOffer>,
   timeoutMs: number
 ): Promise<boolean> {
   const cacheKey = getSharedControlSupportCacheKey(environment, pairing)
@@ -67,6 +49,7 @@ export async function supportsSharedControl(
     }
     return false
   })()
+  // Why: support belongs to the saved pairing/runtime identity, not its mutable display name.
   sharedControlSupport.set(environment.id, { cacheKey, check })
   try {
     const supported = await check
@@ -81,4 +64,17 @@ export async function supportsSharedControl(
     }
     throw error
   }
+}
+
+function getSharedControlSupportCacheKey(
+  environment: KnownRuntimeEnvironment,
+  pairing: ReturnType<typeof getPreferredPairingOffer>,
+  runtimeId = environment.runtimeId
+): string {
+  return [
+    runtimeId ?? 'unknown-runtime',
+    pairing.endpoint,
+    pairing.deviceToken,
+    pairing.publicKeyB64
+  ].join('\0')
 }

@@ -54,7 +54,6 @@ import type {
   AutomationRun,
   AutomationUpdateInput
 } from '../../../../shared/automations-types'
-import type { TuiAgent } from '../../../../shared/types'
 import { getAutomationRunRepoId } from '../../../../shared/automation-run-identity'
 import {
   getLocalExecutionHostLabel,
@@ -66,7 +65,7 @@ import { TASK_SOURCE_CONTEXT_RUNTIME_CAPABILITY } from '../../../../shared/proto
 import type { PreflightStatus } from '../../../../preload/api-types'
 import type { RuntimeStatus } from '../../../../shared/runtime-types'
 import type { TaskSourceContext } from '../../../../shared/task-source-context'
-import type { OrcaHooks, Repo, Worktree } from '../../../../shared/types'
+import type { OrcaHooks, Repo, TuiAgent, Worktree } from '../../../../shared/types'
 import { getWorktreePathBasenameFromId } from '../../../../shared/worktree-id'
 import {
   buildAutomationCronSchedule,

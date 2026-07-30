@@ -17,6 +17,7 @@ import type { RuntimeRpcResponse } from '../../shared/runtime-rpc-envelope'
 import type { RemoteRuntimeSubscription } from '../../shared/remote-runtime-client'
 import type { Store } from '../persistence'
 import { closeRemoteRuntimeRequestConnection } from './runtime-environment-request-connections'
+import { registerRuntimeEnvironmentRecoveryHandler } from './runtime-environment-recovery-handler'
 import {
   advanceRuntimeEnvironmentTransportGeneration,
   getRuntimeEnvironmentTransportGeneration
@@ -129,6 +130,7 @@ export function registerRuntimeEnvironmentHandlers(store: Store): void {
       return { disconnected: redactRuntimeEnvironment(environment) }
     }
   )
+  registerRuntimeEnvironmentRecoveryHandler()
   ipcMain.handle(
     'runtimeEnvironments:getStatus',
     async (

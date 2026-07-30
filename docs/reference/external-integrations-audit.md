@@ -79,7 +79,7 @@
 | `lockdown` | boolean | `false` | 마스터 스위치. 아래 7개 스위치의 기본값이 됩니다 (`src/shared/enterprise-policy.ts:52-60`, `:196-200`) |
 | `githubEnterpriseHost` | string | `GH_HOST` 폴백 | 해당 호스트를 Gitea 후보에서 제외 → 폴백 오인 방지 (`src/main/gitea/repository-ref.ts:87-98`) + 허용목록에 자동 추가 (`enterprise-policy.ts:204-207`). **`gh`의 대상 호스트는 바꾸지 않습니다** (§7 레벨 2) |
 | `disableTelemetry` | boolean | = `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88`) **및** 진단/크래시 번들 업로드 (`src/main/observability/index.ts:103,120-133`). 로컬 NDJSON 로깅은 유지(`localFileEnabled: true`, `:130`) |
-| `disableAutoUpdate` | boolean | = `lockdown` | `runBackgroundUpdateCheck()` (`src/main/updater.ts:1173,1179`) + `checkForUpdatesFromMenu()` (`:1244,1251`) + `setupAutoUpdater()` (`:1415,1458`). 마지막 하나가 넛지 스케줄러(`:1537`)와 `powerMonitor` 리스너(`:1556`)의 무장 자체를 막습니다 |
+| `disableAutoUpdate` | boolean | = `lockdown` | `runBackgroundUpdateCheck()` (`src/main/updater.ts:1267,1273`) + `checkForUpdatesFromMenu()` (`:1342,1350`) + `quitAndInstall()` (`:1490`) + `setupAutoUpdater()` (`:1601,1644`) + `downloadUpdate()` (`:1769`). `setupAutoUpdater()`가 넛지 스케줄러(`:1572`)와 `powerMonitor` 리스너(`:1750`)의 무장 자체를 막습니다. v1.4.162의 macOS 로컬 빌드 교체 경로도 `checkForUpdatesFromMenu()` 게이트 뒤에 있습니다 |
 | `disableStarNag` | boolean | = `lockdown` | `checkOrcaStarred()` (`src/main/github/client.ts:233`) / `starOrca()` (`:419`) |
 | `disableCloudRelay` | boolean | = `lockdown` | `getOrcaCloudAuthConfig()`가 "미구성"을 반환 (`src/main/orca-profiles/profile-cloud-auth-config.ts:73`) → 이 한 함수에 의존하는 클라우드 경로 전부(로그인·프로필 연결·조직 멤버 IPC 5종)가 죽고, 모바일 페어링 릴레이는 `configured`일 때만 생성되므로 아예 기동하지 않습니다 (`src/main/index.ts:2478-2479`). ⚠️ 릴레이가 없어도 LAN 전용 페어링은 계속 동작합니다 — 모바일 자체를 막는 건 `disableMobilePairing`입니다 |
 | `disableUsagePolling` | boolean | = `lockdown` | `src/main/rate-limits/service.ts:760`의 술어를 `start()`(`:310`), `fetchAll`/`fetchCodexOnly`/`fetchClaudeOnly`/`fetchGrokOnly`(`:895,960,1022,1087`), 계정 스위처 프리뷰 2종(`:500,580`), Codex 리셋 크레딧 POST(`:428`)에서 검사 |
@@ -230,8 +230,8 @@ PostHog 레인 (`src/main/telemetry/consent.ts:77-96`):
 
 | 기능 | 호스트 | 주기 | 차단 |
 | --- | --- | --- | --- |
-| electron-updater 자동 업데이트 피드 | `github.com`, `objects.githubusercontent.com` (`publish.provider: 'github'`, `config/electron-builder.config.cjs:415-418`) | 24시간 주기 + 실패 시 1시간에서 최대 6시간까지 배수 증가하는 재시도 (`src/main/updater.ts:59-62`) + 절전복귀 | ✅ `disableAutoUpdate` |
-| 업데이트 넛지(강제 업데이트 체크) | `onorca.dev/whats-new/nudge.json` (`src/main/updater-nudge.ts:12`) | **30분마다** (`src/main/updater.ts:63`) + 창 포커스/절전복귀 | ✅ `disableAutoUpdate` |
+| electron-updater 자동 업데이트 피드 | `github.com`, `objects.githubusercontent.com` (`publish.provider: 'github'`, `config/electron-builder.config.cjs:415-418`) | 24시간 주기 + 실패 시 1시간에서 최대 6시간까지 배수 증가하는 재시도 (`src/main/updater.ts:71-74`) + 절전복귀 | ✅ `disableAutoUpdate` |
+| 업데이트 넛지(강제 업데이트 체크) | `onorca.dev/whats-new/nudge.json` (`src/main/updater-nudge.ts:12`) | **30분마다** (`src/main/updater.ts:75`) + 창 포커스/절전복귀 | ✅ `disableAutoUpdate` |
 | 릴리스 매니페스트/프리릴리스 피드 | `github.com/stablyai/orca/releases/download` (`src/main/updater-prerelease-feed.ts:6`) | 체크 시 | ✅ `disableAutoUpdate` |
 | 변경사항("what's new") fetch | `onorca.dev/whats-new/changelog.json` (`src/main/updater-changelog.ts:45`) | 업데이트 이벤트 시 | ✅ `disableAutoUpdate` (업데이트 체크가 죽으면 이벤트가 발생하지 않음) |
 

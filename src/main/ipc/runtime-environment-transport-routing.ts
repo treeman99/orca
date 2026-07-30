@@ -1,6 +1,9 @@
 import { getPreferredPairingOffer } from '../../shared/runtime-environments'
 import { resolveEnvironment, markEnvironmentUsed } from '../../shared/runtime-environment-store'
-import type { RuntimeRpcResponse } from '../../shared/runtime-rpc-envelope'
+import type {
+  RuntimeOrchestrationEnvelope,
+  RuntimeRpcResponse
+} from '../../shared/runtime-rpc-envelope'
 import type { RuntimeStatus } from '../../shared/runtime-types'
 import {
   sendRemoteRuntimeRequest,
@@ -18,18 +21,19 @@ import {
 import { attachRemoteControlDiagnostics } from './runtime-environment-status-diagnostics'
 import { runtimeEnvironmentRevisionFailure } from './runtime-environment-revision-guard'
 import { withTailscaleHintForResponse } from './runtime-environment-tailscale-response'
-import { supportsSharedControl } from './runtime-environment-shared-control-support'
+import {
+  clearSharedControlSupport,
+  resetSharedControlSupport,
+  supportsSharedControl
+} from './runtime-environment-shared-control-support'
 import {
   assertRemoteOrcaServerAllowed,
   remoteOrcaServerRefusal
 } from '../enterprise/remote-orca-server-guard'
 
-export {
-  clearSharedControlSupport,
-  resetSharedControlSupport
-} from './runtime-environment-shared-control-support'
-
 const DEFAULT_REMOTE_RUNTIME_TIMEOUT_MS = 15_000
+
+export { clearSharedControlSupport, resetSharedControlSupport }
 
 export async function getRuntimeEnvironmentStatus(
   userDataPath: string,
@@ -88,7 +92,8 @@ export async function callRuntimeEnvironment(
   method: string,
   params: unknown,
   timeoutMs?: number,
-  expectedEnvironmentPairingRevision?: number
+  expectedEnvironmentPairingRevision?: number,
+  envelope?: RuntimeOrchestrationEnvelope
 ): Promise<RuntimeRpcResponse<unknown>> {
   const refusal = remoteOrcaServerRefusal<unknown>()
   if (refusal) {
@@ -115,6 +120,17 @@ export async function callRuntimeEnvironment(
       const pairing = getPreferredPairingOffer(currentEnvironment)
       endpoint = pairing.endpoint
       const effectiveTimeoutMs = timeoutMs ?? DEFAULT_REMOTE_RUNTIME_TIMEOUT_MS
+      if (envelope) {
+        const response = await sendRemoteRuntimeRequest(
+          pairing,
+          method,
+          params,
+          effectiveTimeoutMs,
+          envelope
+        )
+        markEnvironmentUsedFromResponse(userDataPath, currentEnvironment.id, response)
+        return response
+      }
       if (shouldUseCachedRequestConnection(method)) {
         const response = await sendRemoteRuntimeConnectionRequest(
           currentEnvironment.id,

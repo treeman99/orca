@@ -23,7 +23,10 @@ export function disabledAgentTabActionIds(
   return normalizeDisabledTuiAgents(disabledTuiAgents).map((agent) => agentTabActionId(agent))
 }
 
-export function groupDefinitions(disabledTuiAgents: readonly TuiAgent[]): ShortcutGroup[] {
+export function groupDefinitions(
+  disabledTuiAgents: readonly TuiAgent[],
+  additionalDefinitions: readonly KeybindingDefinition[] = []
+): ShortcutGroup[] {
   // Why: per-agent launch rows only make sense for agents the user keeps
   // enabled in Settings → Agents; hiding disabled ones keeps the Agents group
   // scoped to what the chord could actually launch.
@@ -47,7 +50,7 @@ export function groupDefinitions(disabledTuiAgents: readonly TuiAgent[]): Shortc
     }
   }
   const groups = new Map<string, KeybindingDefinition[]>()
-  for (const definition of KEYBINDING_DEFINITIONS) {
+  for (const definition of [...KEYBINDING_DEFINITIONS, ...additionalDefinitions]) {
     if (hiddenAgentActionIds.has(definition.id)) {
       continue
     }
