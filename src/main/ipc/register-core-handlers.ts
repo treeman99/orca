@@ -196,7 +196,11 @@ export function registerCoreHandlers(
       void pluginService?.reconcileActivationState()
     })
   }
-  if (pluginService) {
+  // Not registered at all rather than refused per call: `plugins:install` and
+  // `plugins:refreshMarketplaces` clone Git URLs without consulting the feature flag, so
+  // removing the channels is what actually closes that lane for every renderer — including
+  // the web client, which never receives the policy view.
+  if (pluginService && !getEnterprisePolicy().disablePlugins) {
     registerPluginHandlers(store, pluginService, runtime, marketplaceServices)
   }
   registerTelemetryHandlers(store)

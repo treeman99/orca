@@ -1765,7 +1765,7 @@ function Settings(): React.JSX.Element {
                   ) : null}
                 </SettingsSection>
 
-                {showDesktopOnlySettings ? (
+                {showDesktopOnlySettings && !enterprisePolicy.disablePlugins ? (
                   <PluginsSettingsSection
                     mounted={isSectionMounted('plugins')}
                     settings={settings}

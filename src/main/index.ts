@@ -245,6 +245,8 @@ import { resolveBundledPluginRoot } from './plugins/plugin-bundled-bootstrap'
 import { resolvePluginHostEntryPath } from './plugins/plugin-host-process'
 import { applyPluginConsent, applyPluginEnablement } from './plugins/plugin-enablement'
 import { setPluginServiceForRpc } from './runtime/rpc/methods/plugins'
+import { isPluginSystemAllowed } from './plugins/plugin-system-policy'
+import { getEnterprisePolicy } from './enterprise/enterprise-policy-file'
 import {
   normalizePluginConsents,
   normalizePluginIdList
@@ -2370,7 +2372,7 @@ void app.whenReady().then(async () => {
     getKillListEntry: (pluginKey) => pluginKillListService?.find(pluginKey) ?? null
   })
   const requestOfficialMarketplaceSeed = (): void => {
-    if (store?.getSettings().pluginSystemEnabled !== true) {
+    if (!isPluginSystemAllowed(store?.getSettings().pluginSystemEnabled)) {
       return
     }
     void pluginMarketplaceService?.seedOfficialSource().catch((error) => {
@@ -2388,7 +2390,7 @@ void app.whenReady().then(async () => {
     hostVersion: app.getVersion(),
     // Feature flag: with the setting off, discovery returns nothing and no
     // plugin code path runs at all.
-    isPluginSystemEnabled: () => store?.getSettings().pluginSystemEnabled === true,
+    isPluginSystemEnabled: () => isPluginSystemAllowed(store?.getSettings().pluginSystemEnabled),
     getDisabledPlugins: () => normalizePluginIdList(store?.getSettings().disabledPlugins),
     getPluginConsents: () => normalizePluginConsents(store?.getSettings().pluginConsents),
     getDevPluginPaths: () => normalizePluginIdList(store?.getSettings().devPluginPaths),
@@ -2404,7 +2406,7 @@ void app.whenReady().then(async () => {
     }),
     userDataPath: app.getPath('userData'),
     hostVersion: app.getVersion(),
-    isEnabled: () => store?.getSettings().pluginSystemEnabled === true,
+    isEnabled: () => isPluginSystemAllowed(store?.getSettings().pluginSystemEnabled),
     blockedPluginReason: (pluginKey) => pluginKillListService?.reason(pluginKey) ?? null,
     refreshPlugins: () => pluginService?.refresh() ?? Promise.resolve()
   })
@@ -2426,11 +2428,11 @@ void app.whenReady().then(async () => {
     })
   })
   store.onSettingsChanged((updates) => {
-    if (updates.pluginSystemEnabled === true) {
+    if (isPluginSystemAllowed(updates.pluginSystemEnabled)) {
       requestBundledPluginBootstrap()
       requestOfficialMarketplaceSeed()
     }
-    if (app.isPackaged && updates.pluginSystemEnabled === true) {
+    if (app.isPackaged && isPluginSystemAllowed(updates.pluginSystemEnabled)) {
       void pluginKillListService?.refresh().catch((error) => {
         console.warn('[plugins] failed to refresh plugin safety list; using cached state:', error)
       })
@@ -2439,12 +2441,18 @@ void app.whenReady().then(async () => {
   // Why: headless `orca serve` clients reach plugins through the runtime RPC
   // methods, which resolve the service via this module-level setter. Consent
   // over RPC uses the same hash-keyed write path as the desktop dialog.
-  setPluginServiceForRpc(pluginService, {
-    applyConsent: (request) =>
-      applyPluginConsent({ store: store!, pluginService: pluginService!, ...request }),
-    applyEnablement: (pluginKey, enabled) =>
-      applyPluginEnablement({ store: store!, pluginService: pluginService!, pluginKey, enabled })
-  })
+  //
+  // Left unset under policy so the whole `plugins.*` RPC namespace refuses: that lane
+  // has no renderer to hide a button in, and the web/mobile clients never receive the
+  // policy view at all (see docs/reference/external-integrations-audit.md §0.2 #18).
+  if (!getEnterprisePolicy().disablePlugins) {
+    setPluginServiceForRpc(pluginService, {
+      applyConsent: (request) =>
+        applyPluginConsent({ store: store!, pluginService: pluginService!, ...request }),
+      applyEnablement: (pluginKey, enabled) =>
+        applyPluginEnablement({ store: store!, pluginService: pluginService!, pluginKey, enabled })
+    })
+  }
   // Lazy kernel: initialize() only discovers manifests — no worker forks, no
   // panel reads. Zero plugin code runs before an explicit trigger.
   void pluginService
@@ -2458,7 +2466,7 @@ void app.whenReady().then(async () => {
     .catch((error) => {
       console.warn('[plugins] failed to initialize plugin service:', error)
     })
-  if (app.isPackaged && store?.getSettings().pluginSystemEnabled === true) {
+  if (app.isPackaged && isPluginSystemAllowed(store?.getSettings().pluginSystemEnabled)) {
     void pluginKillListService.refresh().catch((error) => {
       console.warn('[plugins] failed to refresh plugin safety list; using cached state:', error)
     })

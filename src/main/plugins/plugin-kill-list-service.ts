@@ -6,6 +6,7 @@ import {
   type PluginKillListEntry
 } from '../../shared/plugins/plugin-kill-list'
 import { PluginKillListStore } from './plugin-kill-list-store'
+import { assertPluginSystemAllowed } from './plugin-system-policy'
 
 export const PLUGIN_KILL_LIST_URL = 'https://onorca.dev/plugins/kill-list.json'
 const PLUGIN_KILL_LIST_DOWNLOAD_LIMIT = 4 * 1024 * 1024
@@ -98,6 +99,9 @@ export async function fetchPluginKillList(
   fetcher: typeof fetch = fetch,
   url = PLUGIN_KILL_LIST_URL
 ): Promise<PluginKillList> {
+  // The vendor's only plugin-lane endpoint; refused at the call itself so a cached
+  // status or a future caller cannot reach onorca.dev under a locked-down policy.
+  assertPluginSystemAllowed()
   const response = await fetcher(url, { cache: 'no-store' })
   if (!response.ok) {
     throw new Error(`plugin kill-list request failed with HTTP ${response.status}`)

@@ -16,6 +16,7 @@ const UNRESTRICTED: EnterprisePolicyView = {
   disableVendorProviderAccounts: false,
   disableRemoteOrcaServer: false,
   disableVoice: false,
+  disablePlugins: false,
   requireComputerUseApproval: false
 }
 
@@ -41,7 +42,15 @@ function navIds(policy: EnterprisePolicyView): string[] {
 
 describe('isSettingsPaneHiddenByPolicy', () => {
   it('hides nothing without a policy', () => {
-    for (const pane of ['stats', 'mobile-emulator', 'mobile', 'voice', 'servers', 'agents']) {
+    for (const pane of [
+      'stats',
+      'mobile-emulator',
+      'mobile',
+      'voice',
+      'servers',
+      'plugins',
+      'agents'
+    ]) {
       expect(isSettingsPaneHiddenByPolicy(pane, UNRESTRICTED), pane).toBe(false)
     }
   })
@@ -75,7 +84,8 @@ describe('deep-link guard agrees with the settings nav registry', () => {
     ['mobile-emulator', { disableMobileEmulator: true }],
     ['mobile', { disableMobilePairing: true }],
     ['voice', { disableVoice: true }],
-    ['servers', { disableRemoteOrcaServer: true }]
+    ['servers', { disableRemoteOrcaServer: true }],
+    ['plugins', { disablePlugins: true }]
   ] as const)('drops %s from the registry and refuses the deep link', (pane, overrides) => {
     const policy = { ...UNRESTRICTED, ...overrides }
     expect(navIds(UNRESTRICTED)).toContain(pane)

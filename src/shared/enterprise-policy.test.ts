@@ -49,6 +49,7 @@ describe('resolveEnterprisePolicy', () => {
       'disableVendorProviderAccounts',
       'disableRemoteOrcaServer',
       'disableVoice',
+      'disablePlugins',
       'requireComputerUseApproval'
     ])
   })

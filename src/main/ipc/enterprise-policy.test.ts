@@ -27,6 +27,7 @@ const VIEW_FIELDS = [
   'disableExternalAutomations',
   'disableMobileEmulator',
   'disableMobilePairing',
+  'disablePlugins',
   'disableRemoteOrcaServer',
   'disableUsagePolling',
   'disableVendorProviderAccounts',
@@ -70,6 +71,7 @@ describe('registerEnterprisePolicyHandlers', () => {
       disableVendorProviderAccounts: false,
       disableRemoteOrcaServer: false,
       disableVoice: false,
+      disablePlugins: false,
       requireComputerUseApproval: false
     })
   })
@@ -90,6 +92,7 @@ describe('registerEnterprisePolicyHandlers', () => {
       disableVendorProviderAccounts: true,
       disableRemoteOrcaServer: true,
       disableVoice: true,
+      disablePlugins: true,
       requireComputerUseApproval: true
     })
   })

@@ -89,6 +89,14 @@ export type EnterprisePolicy = {
    */
   disableVoice: boolean
   /**
+   * Refuse the plugin system end to end. Unlike the other switches this one overrides a
+   * *user* setting (`pluginSystemEnabled`), because that toggle is what upstream gates
+   * the whole feature on — and it opens two egress lanes the allowlist cannot see: a
+   * `git` subprocess clone of the vendor marketplace and a `fetch` of the vendor's
+   * kill-list. Plugin workers are ordinary child processes with unrestricted network.
+   */
+  disablePlugins: boolean
+  /**
    * Make Computer Use ask the person at the keyboard before it changes anything —
    * clicks, typing, scrolls, drags. Reads (accessibility tree, screenshots) still run
    * unprompted; the agent is otherwise free to drive any app on the machine, and
@@ -139,6 +147,7 @@ export const LOCKDOWN_INHERITING_KEYS = [
   'disableVendorProviderAccounts',
   'disableRemoteOrcaServer',
   'disableVoice',
+  'disablePlugins',
   'requireComputerUseApproval'
 ] as const
 

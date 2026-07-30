@@ -20,6 +20,7 @@ const UNLOCKED: EnterprisePolicy = {
   disableVendorProviderAccounts: false,
   disableRemoteOrcaServer: false,
   disableVoice: false,
+  disablePlugins: false,
   requireComputerUseApproval: false,
   enforceNetworkAllowlist: false,
   allowedNetworkHosts: [],
@@ -54,6 +55,7 @@ export function makeLockdownPolicy(overrides: Partial<EnterprisePolicy> = {}): E
     disableVendorProviderAccounts: true,
     disableRemoteOrcaServer: true,
     disableVoice: true,
+    disablePlugins: true,
     requireComputerUseApproval: true,
     sourcePath: '/etc/orca/enterprise-policy.json',
     ...overrides

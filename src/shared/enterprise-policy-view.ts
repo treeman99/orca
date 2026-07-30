@@ -29,6 +29,8 @@ export type EnterprisePolicyView = {
   disableRemoteOrcaServer: boolean
   /** Hide the Voice pane, the composer microphone, and the dictation shortcut. */
   disableVoice: boolean
+  /** Hide Settings → Plugins and every installed plugin's panel. */
+  disablePlugins: boolean
   /** Computer Use must confirm with the user before it changes anything. */
   requireComputerUseApproval: boolean
 }

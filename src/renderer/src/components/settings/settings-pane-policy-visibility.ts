@@ -18,7 +18,8 @@ const PANE_POLICY_KEYS: Readonly<Record<string, keyof EnterprisePolicyView>> = {
   'mobile-emulator': 'disableMobileEmulator',
   mobile: 'disableMobilePairing',
   voice: 'disableVoice',
-  servers: 'disableRemoteOrcaServer'
+  servers: 'disableRemoteOrcaServer',
+  plugins: 'disablePlugins'
 }
 
 export function isSettingsPaneHiddenByPolicy(

@@ -4,6 +4,7 @@ import {
   isAllowedPluginGitUrl,
   PLUGIN_COMMIT_PATTERN
 } from '../../shared/plugins/plugin-install-lockfile'
+import { assertPluginSystemAllowed } from './plugin-system-policy'
 
 const execFileAsync = promisify(execFile)
 const PLUGIN_GIT_TIMEOUT_MS = 120_000
@@ -11,6 +12,10 @@ const PLUGIN_GIT_TIMEOUT_MS = 120_000
 /** Runs system Git with argv-only invocation so credential helpers and SSH
  * remotes work without exposing an executable remote-helper surface. */
 export async function runPluginGit(args: string[], cwd: string): Promise<string> {
+  // Why here and not at the callers: marketplace refresh and plugin install both reach
+  // Git without consulting `pluginSystemEnabled`, and this subprocess is invisible to
+  // `enforceNetworkAllowlist` (it wraps the Electron session and global fetch only).
+  assertPluginSystemAllowed()
   const { stdout } = await execFileAsync('git', args, {
     cwd,
     timeout: PLUGIN_GIT_TIMEOUT_MS,

@@ -586,7 +586,7 @@ export function buildSettingsNavigationMetadata({
       searchEntries: getExperimentalPaneSearchEntries(),
       group: 'experimental'
     },
-    ...(showDesktopOnlySettings
+    ...(showDesktopOnlySettings && !policy.disablePlugins
       ? [
           {
             id: 'plugins',

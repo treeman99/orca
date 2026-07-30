@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Plug, Files, GitBranch, ListChecks, PanelRight, Workflow } from 'lucide-react'
 import { useAppStore } from '@/store'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import type { ActiveRightSidebarTab, ActivityBarPosition } from '@/store/slices/editor'
 import { useRepoById } from '@/store/selectors'
 import { cn } from '@/lib/utils'
@@ -90,7 +91,13 @@ function RightSidebarInner(): React.JSX.Element {
   const isFolderWorkspace = activeWorkspaceScope?.type === 'folder'
   const isFolder = isFolderWorkspace || (activeRepo ? isFolderRepo(activeRepo) : false)
   const isSshRepo = Boolean(activeRepo?.connectionId)
-  const pluginSystemEnabled = useAppStore((s) => s.settings?.pluginSystemEnabled === true)
+  // Why the policy is read here too: a machine that enabled plugins before the policy
+  // landed keeps `pluginSystemEnabled: true` in its settings file, and main no longer
+  // registers the plugin IPC — so without this the sidebar would render tabs whose reads
+  // reject on a missing channel.
+  const pluginsDisabledByPolicy = useEnterprisePolicyView().disablePlugins
+  const pluginSystemEnabled =
+    useAppStore((s) => s.settings?.pluginSystemEnabled === true) && !pluginsDisabledByPolicy
   const pluginPanels = usePluginPanels()
   const visiblePluginPanels = useMemo(
     () => (pluginSystemEnabled ? pluginPanels : []),
