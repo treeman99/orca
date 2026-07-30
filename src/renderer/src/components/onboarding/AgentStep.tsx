@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Check, ExternalLink, Info } from 'lucide-react'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { getAgentCatalog, AgentIcon, type AgentCatalogEntry } from '@/lib/agent-catalog'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -67,14 +68,24 @@ export function AgentStep({
   yoloPermissions = true,
   onYoloPermissionsChange
 }: AgentStepProps) {
+  const { disableAgentInstallSuggestions } = useEnterprisePolicyView()
   const agentCatalog = getAgentCatalog()
   const detected = agentCatalog.filter((agent) => detectedSet.has(agent.id))
   const rest = agentCatalog.filter((agent) => !detectedSet.has(agent.id))
   const hasDetected = detected.length > 0
-  const primary = hasDetected ? detected : agentCatalog.slice(0, 6)
-  const fallbackRest = hasDetected ? rest : agentCatalog.slice(6)
+  // Under policy this step offers only what is actually installed. Otherwise, with nothing
+  // detected, the first six of the catalog get promoted to "Popular agents" — an install
+  // pitch for vendor CLIs, reachable from three places (onboarding, the feature-wall
+  // checklist, and Settings → Setup Guide).
+  const primary =
+    hasDetected || disableAgentInstallSuggestions ? detected : agentCatalog.slice(0, 6)
+  const fallbackRest = disableAgentInstallSuggestions
+    ? []
+    : hasDetected
+      ? rest
+      : agentCatalog.slice(6)
   const selectedEntry =
-    selectedAgent && !detectedSet.has(selectedAgent)
+    selectedAgent && !detectedSet.has(selectedAgent) && !disableAgentInstallSuggestions
       ? agentCatalog.find((a) => a.id === selectedAgent)
       : undefined
   // Why: keep the collapsed bucket open when the selected agent lives there, so
@@ -113,10 +124,15 @@ export function AgentStep({
     <div className="flex min-h-0 flex-1 flex-col gap-5">
       {!hasDetected && !isDetecting && (
         <div className="shrink-0 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-200/90">
-          {translate(
-            'auto.components.onboarding.AgentStep.1eee1c7bd8',
-            'No agents detected on your PATH. Pick one to install later, or continue with a blank terminal.'
-          )}
+          {disableAgentInstallSuggestions
+            ? translate(
+                'auto.components.onboarding.AgentStep.corporateNoAgentsDetected',
+                'No agent CLIs were detected. Follow your organization’s installation process, or continue with a blank terminal.'
+              )
+            : translate(
+                'auto.components.onboarding.AgentStep.1eee1c7bd8',
+                'No agents detected on your PATH. Pick one to install later, or continue with a blank terminal.'
+              )}
         </div>
       )}
       {selectedEntry && (

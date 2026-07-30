@@ -4,6 +4,7 @@ import { EmulatorDeviceFrame } from './emulator-device-frame'
 import { MobileEmulatorAgentSetupGuideLayer } from './MobileEmulatorAgentSetupGuideLayer'
 import { useEmulatorPaneSession } from './use-emulator-pane-session'
 import { translate } from '@/i18n/i18n'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 
 type EmulatorPaneProps = {
   tab?: Tab
@@ -12,7 +13,27 @@ type EmulatorPaneProps = {
   isActive?: boolean
 }
 
-export default function EmulatorPane({ tab, worktreeId, isActive = true }: EmulatorPaneProps) {
+/**
+ * Refuses to mount when the corporate policy removed the emulator.
+ *
+ * A separate component, not an early return in the body below: the policy flips
+ * false -> true when the startup IPC resolves, and returning before
+ * useEmulatorPaneSession would change the hook count mid-lifetime.
+ *
+ * Why here rather than at the callers: both EmulatorPaneOverlayLayer and
+ * FloatingTerminalPanel mount this for any persisted `simulator` tab with no check
+ * of their own, so a machine that had an emulator tab open before the policy landed
+ * would otherwise re-attach on the next launch.
+ */
+export default function EmulatorPane(props: EmulatorPaneProps): React.JSX.Element | null {
+  const { disableMobileEmulator } = useEnterprisePolicyView()
+  if (disableMobileEmulator) {
+    return null
+  }
+  return <EmulatorPaneInner {...props} />
+}
+
+function EmulatorPaneInner({ tab, worktreeId, isActive = true }: EmulatorPaneProps) {
   const {
     devices,
     selectedUdid,

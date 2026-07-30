@@ -703,7 +703,7 @@
         "85f4fd7710": "작업 소스",
         "ab4b21b58e": "브랜치 이름 지정, 기본 참조, 속성 및 Git AI Author.",
         "09607cb0fe": "Git 및 소스 제어",
-        "33a5e1d597": "GitHub, GitLab, Linear 및 소스 호스팅 서비스를 연결하세요.",
+        "33a5e1d597": "Orca가 Pull Request·체크·리뷰에 사용할 사내 GitHub 호스트를 연결하세요.",
         "2b043783ef": "연동",
         "2cd4ea75da": "워크스페이스 기본값, 앱 설정 및 유지 관리.",
         "13241992bd": "일반",
@@ -5146,7 +5146,8 @@
           "03e1a5081a": "on {{value0}}",
           "25a41a9aad": "Re-detect agents installed on the active server",
           "remoteDetectionFailed": "Couldn’t detect installed agents. Check the host connection and try again.",
-          "retryDetection": "Retry"
+          "retryDetection": "Retry",
+          "corporateNoAgentsDetected": "에이전트 CLI가 감지되지 않았습니다. 사내 소프트웨어 배포를 통해 설치한 뒤 새로 고침하세요."
         },
         "AppIconSelector": {
           "d5a112dc9b": "다음 아이콘",
@@ -5858,7 +5859,7 @@
           "f7eb5f0b24": "설치되지 않음",
           "3ba07f933b": "Orca가 작업을 탐색하고 연결된 컨텍스트로 워크스페이스를 시작하는 데 사용할 이슈 트래커를 연결합니다.",
           "70e885705b": "작업 제공자",
-          "1683acbac4": "Orca가 PR, MR, 체크, 리뷰 상태에 사용할 소스 호스트를 연결합니다.",
+          "1683acbac4": "Orca가 Pull Request, 체크, 리뷰 상태에 사용할 소스 호스트를 연결합니다.",
           "298c65ecac": "리뷰 제공자"
         },
         "KagiSessionLinkForm": {
@@ -6588,7 +6589,7 @@
           "11faa2f7dd": "작업 소스",
           "cfa34f4465": "브랜치 이름 지정, 기본 참조, 속성 및 Git AI Author.",
           "70100f94c7": "Git 및 소스 제어",
-          "b07041697f": "GitHub, GitLab, Linear 및 소스 호스팅 서비스를 연결하세요.",
+          "b07041697f": "Orca가 Pull Request·체크·리뷰에 사용할 사내 GitHub 호스트를 연결하세요.",
           "c9ca101a3b": "연동",
           "f9b77539fd": "워크스페이스 기본값, 앱 설정 및 유지 관리.",
           "7807c11c4d": "일반",
@@ -9556,6 +9557,7 @@
         "GitHubEnterpriseHostReadout": {
           "sourceRemote": "이 워크스페이스의 git 리모트 기준",
           "sourceEnv": "GH_HOST 환경변수 기준",
+          "sourceGhConfig": "gh가 로그인되어 있는 호스트에서",
           "sourceUser": "여기서 저장한 호스트 기준",
           "sourcePolicy": "사내 Orca 정책 기준",
           "sourceDefault": "gh 기본값 — 사내 호스트가 설정되어 있지 않습니다",
@@ -10903,7 +10905,8 @@
           "showMoreAgents": "agents {{value0}}개 더 보기→",
           "yoloPermissionsLabel": "Yolo / 권한 확인 위험하게 건너뛰기",
           "yoloPermissionsInfo": "Agent 권한 정보",
-          "yoloPermissionsTooltip": "중단을 줄이기 위해 agents 권한 확인을 건너뜁니다."
+          "yoloPermissionsTooltip": "중단을 줄이기 위해 agents 권한 확인을 건너뜁니다.",
+          "corporateNoAgentsDetected": "에이전트 CLI가 감지되지 않았습니다. 사내 설치 절차를 따르거나 빈 터미널로 계속하세요."
         },
         "FeatureSetupChecklist": {
           "77f74946f5": "Agents는 서로 메시지를 보내고, 작업을 수행하고, 핸드오프를 조정할 수 있습니다.",

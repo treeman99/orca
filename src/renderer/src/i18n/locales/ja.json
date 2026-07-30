@@ -703,7 +703,7 @@
         "85f4fd7710": "タスクソース",
         "ab4b21b58e": "ブランチの名前、基本参照、帰属、および Git AI 作成者。",
         "09607cb0fe": "Git とソース管理",
-        "33a5e1d597": "GitHub、GitLab、Linear、およびソース ホスティング サービスを接続します。",
+        "33a5e1d597": "Orca が Pull Request・チェック・レビューに使用する社内 GitHub ホストを接続します。",
         "2b043783ef": "連携",
         "2cd4ea75da": "ワークスペースのデフォルト、アプリのセットアップ、メンテナンス。",
         "13241992bd": "一般",
@@ -5146,7 +5146,8 @@
           "03e1a5081a": "on {{value0}}",
           "25a41a9aad": "Re-detect agents installed on the active server",
           "remoteDetectionFailed": "Couldn’t detect installed agents. Check the host connection and try again.",
-          "retryDetection": "Retry"
+          "retryDetection": "Retry",
+          "corporateNoAgentsDetected": "エージェント CLI が検出されませんでした。社内のソフトウェア配布を通じてインストールしてから再読み込みしてください。"
         },
         "AppIconSelector": {
           "d5a112dc9b": "次へのアイコン",
@@ -5895,7 +5896,7 @@
           "f7eb5f0b24": "未インストール",
           "3ba07f933b": "Connect issue trackers Orca can use to browse tasks and start workspaces with linked context.",
           "70e885705b": "Task providers",
-          "1683acbac4": "Connect the source hosts Orca can use for pull requests, merge requests, checks, and review status.",
+          "1683acbac4": "Orca が Pull Request、チェック、レビュー状態に使用するソース ホストを接続します。",
           "298c65ecac": "Review providers"
         },
         "KagiSessionLinkForm": {
@@ -6625,7 +6626,7 @@
           "11faa2f7dd": "タスクソース",
           "cfa34f4465": "ブランチの名前、基本参照、帰属、および Git AI 作成者。",
           "70100f94c7": "Git とソース管理",
-          "b07041697f": "GitHub、GitLab、Linear、およびソース ホスティング サービスを接続します。",
+          "b07041697f": "Orca が Pull Request・チェック・レビューに使用する社内 GitHub ホストを接続します。",
           "c9ca101a3b": "連携",
           "f9b77539fd": "ワークスペースのデフォルト、アプリのセットアップ、メンテナンス。",
           "7807c11c4d": "一般",
@@ -9556,6 +9557,7 @@
         "GitHubEnterpriseHostReadout": {
           "sourceRemote": "from this workspace’s git remote",
           "sourceEnv": "from the GH_HOST environment variable",
+          "sourceGhConfig": "gh がサインインしているホストから",
           "sourceUser": "from the host you saved here",
           "sourcePolicy": "from your organization’s Orca policy",
           "sourceDefault": "the gh default — no corporate host is configured",
@@ -10903,7 +10905,8 @@
           "showMoreAgents": "{{value0}} 件の agents をさらに表示→",
           "yoloPermissionsLabel": "Yolo / Dangerously skip permissions",
           "yoloPermissionsInfo": "Agent permission info",
-          "yoloPermissionsTooltip": "Skip permission checks for agents for less interruptions"
+          "yoloPermissionsTooltip": "Skip permission checks for agents for less interruptions",
+          "corporateNoAgentsDetected": "エージェント CLI が検出されませんでした。社内のインストール手順に従うか、空のターミナルで続行してください。"
         },
         "FeatureSetupChecklist": {
           "77f74946f5": "Agents は相互にメッセージを送信し、タスクを実行し、引き継ぎを調整できます。",

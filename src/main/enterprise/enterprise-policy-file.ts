@@ -15,6 +15,7 @@ import path from 'node:path'
 import { app } from 'electron'
 import { parse as parseJsonc, type ParseError } from 'jsonc-parser'
 import { registerCorporateLlmEndpoints } from '../../shared/corporate-llm-session-catalog'
+import { readGhConfiguredHost } from '../github/gh-config-host'
 import {
   resolveEnterprisePolicy,
   type EnterprisePolicy,
@@ -27,6 +28,14 @@ export const ENTERPRISE_POLICY_FILE_NAME = 'enterprise-policy.json'
 // Explicit "there is no policy here" values, so a test runner or a CI image can
 // neutralize a machine-wide file without deleting it.
 const DISABLED_VALUES: ReadonlySet<string> = new Set(['off', 'none', 'disabled', 'false', '0'])
+
+// True when the environment switched discovery off and this build honors that. Callers use
+// it to skip deriving policy *inputs* too — half-applying a policy that was turned off is
+// worse than not having one.
+function policyDiscoveryDisabled(env: PolicyEnv, allowEnvOverride: boolean): boolean {
+  const explicit = env[ENTERPRISE_POLICY_PATH_ENV]?.trim()
+  return allowEnvOverride && explicit !== undefined && DISABLED_VALUES.has(explicit.toLowerCase())
+}
 
 // Why: `platform` is not always the host's (tests, and the Windows machines that
 // build this fork run the suite for every platform), so join with that
@@ -183,15 +192,25 @@ export function getEnterprisePolicy(): EnterprisePolicy {
     return cached
   }
   const env = process.env as PolicyEnv
+  const allowEnvOverride = environmentMayOverridePolicy()
   const candidates = enterprisePolicySearchPaths(
     env,
     process.platform,
     currentUserDataDir(),
-    environmentMayOverridePolicy()
+    allowEnvOverride
   )
   searchedPaths = candidates
   const loaded = readPolicyDocument(candidates)
-  const policy = resolveEnterprisePolicy(loaded?.document ?? null, env, loaded?.sourcePath ?? null)
+  // Why read gh's config at all: a GUI-launched app never inherits a shell rc, so `GH_HOST`
+  // is routinely absent on exactly the machines that DID run `gh auth login --hostname`.
+  const policy = resolveEnterprisePolicy(
+    loaded?.document ?? null,
+    env,
+    loaded?.sourcePath ?? null,
+    policyDiscoveryDisabled(env, allowEnvOverride)
+      ? () => null
+      : () => readGhConfiguredHost(env, process.platform)
+  )
   for (const message of policy.warnings) {
     warn(`${loaded?.sourcePath ?? '(no file)'}: ${message}`)
   }

@@ -136,6 +136,7 @@ import { translate } from '@/i18n/i18n'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { getResolvedExecutionHostIdForWorktree } from '@/lib/resolved-worktree-execution-host'
 import { browserWorkspaceHasRemoteOwner } from '@/runtime/remote-browser-tab-ownership'
+import { isMobileEmulatorAvailable } from '@/lib/mobile-emulator-availability'
 
 const EditorPanel = lazy(() => import('./editor/EditorPanel'))
 
@@ -293,7 +294,7 @@ function Terminal(): React.JSX.Element | null {
   const terminalShortcutPolicy = useAppStore(
     (s) => s.settings?.terminalShortcutPolicy ?? 'orca-first'
   )
-  const mobileEmulatorEnabled = useAppStore((s) => s.settings?.mobileEmulatorEnabled !== false)
+  const mobileEmulatorEnabled = useAppStore((s) => isMobileEmulatorAvailable(s.settings))
   const setActiveTabType = useAppStore((s) => s.setActiveTabType)
   const setActiveFile = useAppStore((s) => s.setActiveFile)
   const closeFile = useAppStore((s) => s.closeFile)

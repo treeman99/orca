@@ -24,6 +24,11 @@ function describeSource(source: EffectiveGitHubHostSource): string {
         'auto.components.settings.GitHubEnterpriseHostReadout.sourceEnv',
         'from the GH_HOST environment variable'
       )
+    case 'gh-config-host':
+      return translate(
+        'auto.components.settings.GitHubEnterpriseHostReadout.sourceGhConfig',
+        'from the host gh is signed in to'
+      )
     case 'user-setting':
       return translate(
         'auto.components.settings.GitHubEnterpriseHostReadout.sourceUser',

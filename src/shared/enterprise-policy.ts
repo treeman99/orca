@@ -45,6 +45,29 @@ export type EnterprisePolicy = {
    */
   disableMobilePairing: boolean
   /**
+   * Refuse the mobile *emulator*: streaming a local iOS Simulator or Android AVD into a
+   * tab, its Settings pane, and the `orca emulator` CLI. Deliberately NOT the same switch
+   * as `disableMobilePairing`, which is about a physical phone attaching to this desktop —
+   * the two features share no code, and a fleet needs to express one without the other.
+   */
+  disableMobileEmulator: boolean
+  /**
+   * Refuse the third-party automation runners (`hermes`, `openclaw`): discovery, run
+   * history, and the create/edit/pause/run paths that spawn the vendor CLI on a schedule.
+   * `allowedAgents` covers the same providers when it is set, but it does not inherit
+   * `lockdown` — and an unattended agent run with nobody at the keyboard is the last thing
+   * a bare `"lockdown": true` should leave live.
+   */
+  disableExternalAutomations: boolean
+  /**
+   * Stop suggesting that a user install an agent CLI themselves: the "Available to
+   * install" section in Settings → Agents and the onboarding step's install banner.
+   * A different axis from `allowedAgents` — that one says which agents may be selected,
+   * this one says whether "go install it yourself" is sound advice. On a fleet where CLIs
+   * arrive through corporate software distribution it is simply the wrong instruction.
+   */
+  disableAgentInstallSuggestions: boolean
+  /**
    * Refuse to register a vendor AI account (Claude subscription, Codex, Grok, MiniMax).
    * Distinct from `allowedAgents`, which restricts which CLI a session may run: agents
    * and vendor credentials are different axes, and a Bedrock fleet needs `claude` the
@@ -110,6 +133,9 @@ export const LOCKDOWN_INHERITING_KEYS = [
   'disableManagedClaudeAccounts',
   'disableSpellcheck',
   'disableMobilePairing',
+  'disableMobileEmulator',
+  'disableExternalAutomations',
+  'disableAgentInstallSuggestions',
   'disableVendorProviderAccounts',
   'disableRemoteOrcaServer',
   'disableVoice',
@@ -268,11 +294,20 @@ function readHostList(
  * `env` is consulted for exactly one thing: `GH_HOST`, which is the `gh` CLI's
  * own variable and is therefore already present on these machines — the fork
  * does not invent it. Pass `null` for the document when no policy file exists.
+ *
+ * `ghConfigHost` reads the host gh's own config file names (see
+ * src/main/github/gh-config-host.ts). It is the last-resort fallback for
+ * `githubEnterpriseHost`, because `gh auth login --hostname <ghes>` is how these
+ * machines are actually pointed at the company host, and reading only `GH_HOST`
+ * meant that never reached the Gitea mis-fallback guard or the network allowlist.
+ * A thunk, not a value: it touches the filesystem, so the two sources above it
+ * must be able to short-circuit it away.
  */
 export function resolveEnterprisePolicy(
   document: unknown = null,
   env: PolicyEnv = {},
-  sourcePath: string | null = null
+  sourcePath: string | null = null,
+  ghConfigHost: () => string | null = () => null
 ): EnterprisePolicy {
   const warnings: string[] = []
   let effective: EnterprisePolicyDocument = {}
@@ -295,7 +330,9 @@ export function resolveEnterprisePolicy(
   }
 
   const githubEnterpriseHost =
-    readHost(effective, 'githubEnterpriseHost', warnings) ?? normalizeHost(env.GH_HOST)
+    readHost(effective, 'githubEnterpriseHost', warnings) ??
+    normalizeHost(env.GH_HOST) ??
+    normalizeHost(ghConfigHost())
   const allowedAgents = readAgentAllowlist(effective, 'allowedAgents', warnings)
   const allowed = new Set(readHostList(effective, 'allowedNetworkHosts', warnings))
   if (githubEnterpriseHost) {

@@ -31,7 +31,14 @@ const ENTERPRISE_POLICY_DISABLED_VALUE = 'off'
 // Unlike RESTRICTED_ENV_KEYS these are neutralized, not forbidden — a spec may
 // still set either deliberately through launchEnv/extraEnv to cover the
 // locked-down behavior itself.
-const NEUTRALIZED_HOST_ENV_KEYS = new Set([ENTERPRISE_POLICY_PATH_ENV, 'GH_HOST'])
+// GH_CONFIG_DIR rides along for the same reason: the GHES host also falls back to the single
+// host gh's own config names, so a developer's ~/.config/gh must not reach a spawned child.
+const NEUTRALIZED_HOST_ENV_KEYS = new Set([
+  ENTERPRISE_POLICY_PATH_ENV,
+  'GH_HOST',
+  'GH_CONFIG_DIR',
+  'XDG_CONFIG_HOME'
+])
 
 type ElectronHomeIsolationOptions = {
   inheritedEnv: NodeJS.ProcessEnv

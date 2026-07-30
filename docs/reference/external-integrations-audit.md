@@ -47,7 +47,8 @@
 
 이 포크가 **추가하지 않는** 것 중 여전히 유효한 값:
 
-- `GH_HOST` — `gh` CLI 자신의 변수. `githubEnterpriseHost`가 비었을 때 폴백으로 읽습니다 (`src/shared/enterprise-policy.ts:203`).
+- `GH_HOST` — `gh` CLI 자신의 변수. `githubEnterpriseHost`가 비었을 때 폴백으로 읽습니다 (`src/shared/enterprise-policy.ts`).
+- `GH_CONFIG_DIR` / `XDG_CONFIG_HOME` — `gh` CLI 자신의 변수. `GH_HOST`도 없을 때 **`gh`의 `hosts.yml` 위치**를 결정하고, 그 파일에 로그인된 호스트가 정확히 하나면 `githubEnterpriseHost`의 마지막 폴백이 됩니다 (`src/main/github/gh-config-host.ts`). 읽기 전용이며 이 포크가 설정하지 않습니다.
 - `DO_NOT_TRACK`, `ORCA_TELEMETRY_DISABLED` — 업스트림 원래의 텔레메트리 킬스위치. 이 브랜치가 건드리지 않았습니다 (`src/main/telemetry/consent.ts:79,83`).
 - `ORCA_DIAGNOSTICS_DISABLED` — 업스트림 변수. 위 둘보다 강해서 **로컬 NDJSON 기록까지** 끕니다 (`src/main/observability/index.ts:102,113-119`).
 
@@ -141,6 +142,11 @@
 | 13 | **Gitea/Forgejo 폴백 직접 fetch** | origin 리모트에서 동적 유도된 호스트 | 미지정 git 호스트를 쓸 때 | `githubEnterpriseHost`를 지정하면 GHES는 제외되지만, **그 외 모든 미지정 호스트는 여전히 Gitea로 간주**됩니다 (§1) | `src/main/gitea/repository-ref.ts:87-98`, `client.ts:91` |
 | 14 | **사내 LLM 엔드포인트로 가는 프롬프트·소스** | 관리자가 배포한 사내 호스트 | 사용자가 세션을 사내 LLM으로 돌리고 토큰을 저장했을 때 | 목적지는 사내이지만 **전송 주체가 에이전트 CLI(서브프로세스)** 라 Orca 측 통제 밖입니다. 정책 파일은 후보 목록만 통제하고 전송 내용은 통제하지 않습니다 — 감사는 엔드포인트 서비스 쪽에서 (§4) | `src/shared/corporate-llm-launch-env.ts:53-72` |
 
+| 15 | **외부 자동화 CLI를 스케줄로 실행** (`hermes`, `openclaw`) | 해당 벤더가 정한 목적지 (Orca는 목적지를 모릅니다) | 자동화 페이지에서 외부 잡을 만들거나, 이미 등록된 잡의 크론 시각이 되었을 때 | ✅ `disableExternalAutomations`(또는 `allowedAgents`)가 **Orca 쪽 진입점**(발견·생성·수정·실행)을 전부 거부합니다 (`src/main/automations/external-manager.ts`). 🔴 **잔여**: Orca는 스케줄러가 아니라 조작 UI일 뿐이므로, 이미 `~/.hermes/cron`에 등록된 잡은 **Hermes 자신의 스케줄러로 계속 실행됩니다** — Orca를 잠근 뒤에도 남아 있는 잡은 `hermes cron rm`으로 직접 제거해야 하고, 잠근 뒤에는 앱 안에서 그 목록을 볼 수 없습니다. 로컬 읽기(`~/.hermes/cron/jobs.json`, `state.db`, 출력 마크다운)와 SSH 호스트별 릴레이 레인도 같은 게이트로 함께 닫힙니다 | 게이트 `external-manager.ts`의 `isExternalAutomationProviderAllowed`, 릴레이 레인 `src/relay/external-automations-handler.ts` |
+| 16 | **사용량 통계를 X(구 Twitter)로 공유** | `x.com/intent/post` (사용자의 **기본 브라우저**로 열림) | 설정 → 통계 및 사용량에서 공유 버튼을 눌렀을 때 | ✅ `disableUsagePolling`이 그 팬을 없애므로 **도달 불가**가 됩니다. 🔴 `shell.openExternal` 경로 자체에는 정책 게이트가 없고, 기본 브라우저로 나가므로 `enforceNetworkAllowlist`가 **원리적으로 볼 수 없습니다** — 스위치를 끄면 토큰 사용량과 추정 비용이 URL 쿼리로 벤더 사이트에 실립니다 | `ShareUsageButton.tsx`, `src/main/ipc/shell.ts` |
+| 17 | **에이전트 벤더 홈페이지 링크** | 각 에이전트 CLI의 홈페이지 | 설정 → 에이전트 / 온보딩에서 링크 클릭 | ✅ `disableAgentInstallSuggestions`가 "설치 가능" 목록과 온보딩 설치 안내를 없애 링크 수를 크게 줄입니다. 🔴 **잔여**: Orca가 에이전트 CLI를 직접 내려받는 코드는 없고 링크만 열지만, **감지된** 에이전트 행의 링크는 `Docs`로 남아 그대로 클릭 가능하며 `shell.openExternal`에는 정책 게이트가 없습니다. `npx skills add`(`src/shared/agent-feature-install-commands.ts`)는 별개 레인이고 이 스위치가 덮지 않습니다 | `AgentsPane.tsx`(행의 `<a href>`), `src/main/window/privileged-window-navigation.ts` |
+| 18 | **렌더러 게이트가 보이지 않는 클라이언트** | — (도달 범위 문제) | `pnpm dev:web`, `orca serve`의 브라우저 클라이언트 | 웹 preload에는 `enterprisePolicy` API가 **없어서** 정책 뷰가 항상 "제한 없음"으로 떨어집니다. `disableVoice`·`disableMobilePairing`·`disableRemoteOrcaServer`·`disableUsagePolling` 등 **표시 게이트 전부**가 그 클라이언트에서는 무효입니다 — 그래서 메인 쪽 거부(에이전트 탐지 필터, 에뮬레이터 RPC 거부, 외부 자동화 거부)가 belt-and-braces가 아니라 **유일한 방어선**입니다 | `src/renderer/src/web/web-preload-api.ts`(해당 키 없음), `src/renderer/src/enterprise/enterprise-policy-access.ts` |
+
 **#2~#6b는 `enforceNetworkAllowlist: true`로 닫을 수 있습니다** — 메인 창은 파티션을 지정하지 않아 `session.defaultSession`을 쓰므로 렌더러 `<img>` 요청이 가드의 `onBeforeRequest`를 지나갑니다 (`createMainWindow.ts:295-301`에 `partition` 없음). #1, #7은 어떤 Orca 측 스위치로도 닫히지 않으며 망 계층에서만 통제됩니다. #10은 Electron `net.request`를 쓰므로 허용목록이 덮는지 여부가 §7 레벨 3의 미검증 항목과 같습니다.
 
 ---
@@ -157,6 +163,8 @@
 ### ⚠️ 주의 1: GHES 감지가 `gh auth status`에 의존
 
 사내 GHES가 `gh`에 로그인돼 있지 않으면 GHES 감지(`src/main/github/github-enterprise-repository.ts:156`)가 실패하고 **Gitea 폴백 경로로 떨어질 수 있습니다**. → 배포 시 `gh auth login --hostname github.samsungds.net`을 선행하세요. 정책 파일의 `githubEnterpriseHost`는 Gitea 폴백 오인을 별도로 막아 주지만(아래), `gh` 로그인 자체를 대신하지는 않습니다.
+
+반대 방향도 정리됐습니다: **`gh`만 사내 호스트로 로그인하고 정책 파일은 없는 기계**에서, 이제 `githubEnterpriseHost`가 `gh`의 `hosts.yml`을 마지막 폴백으로 읽습니다(`src/main/github/gh-config-host.ts`). `gh auth login --hostname`은 환경변수가 아니라 그 파일에만 쓰고, GUI로 실행된 Electron 앱은 셸 rc의 `export GH_HOST`를 상속하지 않으므로 — 사내에서 가장 흔한 설치 순서에서 이 경로가 유일한 단서였습니다. 로그인된 호스트가 **둘 이상이면 채택하지 않습니다**(`gh` 자신의 `DefaultHost()`와 동일하게 `github.com`으로 떨어집니다). 확정적으로 못 박으려면 여전히 정책 파일에 `githubEnterpriseHost`를 적는 것이 유일한 방법입니다 — 추론에 의존하지 않기 때문입니다.
 
 ### ✅ 주의 2 (해결됨): star-nag의 github.com 고정 호출 — 게이트는 `gh` 호출 함수 자체에 있음
 

@@ -28,6 +28,7 @@ import { ensureSimulatorTab, getSimulatorTabForWorktree } from '@/lib/ensure-sim
 import { buildDuplicatedBrowserTabOptions } from '@/lib/duplicate-browser-tab-options'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { browserWorkspaceHasRemoteOwner } from '@/runtime/remote-browser-tab-ownership'
+import { isMobileEmulatorAvailable } from '@/lib/mobile-emulator-availability'
 
 export function recordTerminalTabGroupSplit(createdTerminal: TerminalTab | null | undefined): void {
   if (!createdTerminal) {
@@ -67,7 +68,7 @@ export function useTabGroupWorkspaceModel({
       expandedPaneByTabId: state.expandedPaneByTabId,
       terminalLayoutsByTabId: state.terminalLayoutsByTabId ?? EMPTY_TERMINAL_LAYOUTS_BY_TAB_ID,
       generatedTabTitlesEnabled: state.settings?.tabAutoGenerateTitle === true,
-      mobileEmulatorEnabled: state.settings?.mobileEmulatorEnabled !== false
+      mobileEmulatorEnabled: isMobileEmulatorAvailable(state.settings)
     }))
   )
 

@@ -26,6 +26,8 @@ import {
   KNOWN_TUI_AGENT_DETECTION_COMMANDS,
   resolveDetectedTuiAgentIds
 } from './tui-agent-detection-commands'
+import { filterAgentsByPolicy } from '../../shared/corporate-agent-access'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 
 export type PreflightStatus = {
   git: { installed: boolean }
@@ -84,6 +86,18 @@ async function detectCommandRuntime(
   return { installed: false }
 }
 
+/**
+ * Drop agents the corporate policy does not allow from a detection result.
+ *
+ * This is the chokepoint for the whole agent axis, not a display filter: "which agents are
+ * detected" is what feeds every picker, every auto-pick fallback, and the quick-launch and
+ * keyboard-shortcut rows — and it is the answer the web client, the mobile client, the CLI
+ * and paired desktops receive too, none of which see the renderer-side policy view at all.
+ */
+function filterAgentsByEnterprisePolicy(agents: readonly string[]): string[] {
+  return filterAgentsByPolicy(agents, (agent) => agent, getEnterprisePolicy().allowedAgents)
+}
+
 export async function detectInstalledAgents(context?: PreflightRuntimeContext): Promise<string[]> {
   const wslTarget = getPreflightWslTarget(context)
   if (wslTarget) {
@@ -91,7 +105,9 @@ export async function detectInstalledAgents(context?: PreflightRuntimeContext): 
       wslTarget,
       getTuiAgentDetectionProbeCommands(KNOWN_TUI_AGENT_DETECTION_COMMANDS, 'wsl')
     )
-    return resolveDetectedTuiAgentIds(KNOWN_TUI_AGENT_DETECTION_COMMANDS, foundCommands, 'wsl')
+    return filterAgentsByEnterprisePolicy(
+      resolveDetectedTuiAgentIds(KNOWN_TUI_AGENT_DETECTION_COMMANDS, foundCommands, 'wsl')
+    )
   }
 
   const probeCommands = getTuiAgentDetectionProbeCommands(
@@ -113,10 +129,8 @@ export async function detectInstalledAgents(context?: PreflightRuntimeContext): 
       .filter(({ cmd, installedOnPath }) => installedOnPath || installDirCommands.has(cmd))
       .map(({ cmd }) => cmd)
   )
-  return resolveDetectedTuiAgentIds(
-    KNOWN_TUI_AGENT_DETECTION_COMMANDS,
-    foundCommands,
-    process.platform
+  return filterAgentsByEnterprisePolicy(
+    resolveDetectedTuiAgentIds(KNOWN_TUI_AGENT_DETECTION_COMMANDS, foundCommands, process.platform)
   )
 }
 
@@ -186,7 +200,7 @@ export async function detectRemoteAgents(args: { connectionId: string }): Promis
   const result = (await mux.request('preflight.detectAgents', {
     commands: KNOWN_TUI_AGENT_DETECTION_COMMANDS
   })) as { agents: string[] }
-  return uniqueAgentIds(result.agents)
+  return filterAgentsByEnterprisePolicy(uniqueAgentIds(result.agents))
 }
 
 async function isGhAuthenticated(wslTarget?: WslPreflightTarget): Promise<boolean> {

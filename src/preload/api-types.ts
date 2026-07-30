@@ -3185,6 +3185,8 @@ export type PreloadApi = {
   }
   enterprisePolicy: {
     get: () => Promise<EnterprisePolicyView>
+    /** Blocking read for gates evaluated before the async one can resolve. */
+    getSync: () => EnterprisePolicyView | null
   }
   awsSso: {
     getStatus: () => Promise<AwsSsoStatus>

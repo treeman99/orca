@@ -15,6 +15,14 @@ export type EnterprisePolicyView = {
   disableAutoUpdate: boolean
   /** Hide the Mobile pane, its sidebar entry, and the pairing QR. */
   disableMobilePairing: boolean
+  /** Hide the Mobile Emulator pane, the New Mobile Emulator tab action, and the pane itself. */
+  disableMobileEmulator: boolean
+  /** Hide the external (hermes/openclaw) automation sources and their create targets. */
+  disableExternalAutomations: boolean
+  /** Hide the "Available to install" agent list and the onboarding install banner. */
+  disableAgentInstallSuggestions: boolean
+  /** Hide Settings → Stats & Usage — the pane whose data this policy refuses to fetch. */
+  disableUsagePolling: boolean
   /** Hide the vendor account sections in Settings → AI provider accounts. */
   disableVendorProviderAccounts: boolean
   /** Hide Settings → Runtime Environments and the remote pickers that feed it. */

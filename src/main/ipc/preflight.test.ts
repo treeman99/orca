@@ -15,7 +15,8 @@ const {
   getGiteaAuthStatusMock,
   resolveCliCommandsMock,
   isCommandOnLocalPathMock,
-  mergePersistedWindowsPathMock
+  mergePersistedWindowsPathMock,
+  getEnterprisePolicyMock
 } = vi.hoisted(() => ({
   handleMock: vi.fn(),
   execFileMock: vi.fn(),
@@ -28,7 +29,8 @@ const {
   getGiteaAuthStatusMock: vi.fn(),
   resolveCliCommandsMock: vi.fn(),
   isCommandOnLocalPathMock: vi.fn(),
-  mergePersistedWindowsPathMock: vi.fn()
+  mergePersistedWindowsPathMock: vi.fn(),
+  getEnterprisePolicyMock: vi.fn()
 }))
 
 vi.mock('electron', () => ({
@@ -83,6 +85,11 @@ vi.mock('../gitea/client', () => ({
   getGiteaAuthStatus: getGiteaAuthStatusMock
 }))
 
+vi.mock('../enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: () => getEnterprisePolicyMock()
+}))
+
+import { makeEnterprisePolicy } from '../enterprise/enterprise-policy-fixture'
 import {
   _resetPreflightCache,
   detectInstalledAgents,
@@ -113,6 +120,8 @@ describe('preflight', () => {
   }
 
   beforeEach(() => {
+    getEnterprisePolicyMock.mockReset()
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
     handleMock.mockReset()
     execFileAsyncMock.mockReset()
     hydrateShellPathMock.mockReset()
@@ -599,6 +608,70 @@ describe('preflight', () => {
 
     await expect(detectInstalledAgents()).resolves.toEqual(['claude', 'codex', 'opencode'])
     expect(resolveCliCommandsMock).toHaveBeenCalledTimes(1)
+  })
+
+  // Why the detection result and not each picker: "which agents are detected" is what feeds
+  // every picker, the auto-pick fallback, the quick-launch rows and the keyboard chords — and
+  // it is the same answer the web client, the mobile client and the CLI receive, none of which
+  // can see the renderer-side policy view at all.
+  it('drops agents the enterprise policy does not allow from local detection', async () => {
+    getEnterprisePolicyMock.mockReturnValue(
+      makeEnterprisePolicy({ allowedAgents: ['claude', 'opencode'] })
+    )
+    execFileAsyncMock.mockImplementation(async (command, args) => {
+      if (command !== 'which') {
+        throw new Error(`unexpected command ${String(command)}`)
+      }
+      const target = String(args[0])
+      if (target === 'claude' || target === 'codex' || target === 'opencode') {
+        return { stdout: `/Users/test/.local/bin/${target}\n` }
+      }
+      throw new Error('not found')
+    })
+    resolveCliCommandsMock.mockImplementation(() => new Map())
+
+    // Both allowed agents survive — the allowlist narrows, it does not pick a winner. This is
+    // the fleet's expected result: claude and opencode visible, codex gone.
+    await expect(detectInstalledAgents()).resolves.toEqual(['claude', 'opencode'])
+  })
+
+  // The other half of the same contract, and the case a developer machine usually shows:
+  // an allowed agent that is not installed simply is not detected. "Allowed" is not "present",
+  // so an empty-looking picker here means the CLI is missing, not that the policy hid it.
+  it('reports only the allowed agents that are actually installed', async () => {
+    getEnterprisePolicyMock.mockReturnValue(
+      makeEnterprisePolicy({ allowedAgents: ['claude', 'opencode'] })
+    )
+    execFileAsyncMock.mockImplementation(async (command, args) => {
+      if (command !== 'which') {
+        throw new Error(`unexpected command ${String(command)}`)
+      }
+      if (String(args[0]) === 'claude') {
+        return { stdout: '/Users/test/.local/bin/claude\n' }
+      }
+      throw new Error('not found')
+    })
+    resolveCliCommandsMock.mockImplementation(() => new Map())
+
+    await expect(detectInstalledAgents()).resolves.toEqual(['claude'])
+  })
+
+  it('leaves detection unrestricted when the policy sets no allowlist', async () => {
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy({ lockdown: true }))
+    execFileAsyncMock.mockImplementation(async (command, args) => {
+      if (command !== 'which') {
+        throw new Error(`unexpected command ${String(command)}`)
+      }
+      const target = String(args[0])
+      if (target === 'claude' || target === 'codex') {
+        return { stdout: `/Users/test/.local/bin/${target}\n` }
+      }
+      throw new Error('not found')
+    })
+    resolveCliCommandsMock.mockImplementation(() => new Map())
+
+    // allowedAgents deliberately does not inherit lockdown — an admin must name the agents.
+    await expect(detectInstalledAgents()).resolves.toEqual(['claude', 'codex'])
   })
 
   it('does not double-count an agent already found on PATH via the install-dir resolver', async () => {

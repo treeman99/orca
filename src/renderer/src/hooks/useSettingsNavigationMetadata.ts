@@ -15,7 +15,6 @@ import {
   GitBranch,
   Globe,
   Keyboard,
-  ListChecks,
   Lock,
   Mic,
   MousePointerClick,
@@ -45,9 +44,7 @@ import { getAgentsPaneSearchEntries } from '@/components/settings/agents-search'
 import { getAccountsPaneSearchEntries } from '@/components/settings/accounts-search'
 import { getIntegrationsPaneSearchEntries } from '@/components/settings/integrations-search'
 import { getGitPaneSearchEntries } from '@/components/settings/git-search'
-import { getGitProviderApiBudgetSearchEntries } from '@/components/settings/git-provider-api-budget-search'
 import { getCommitMessageAiPaneSearchEntries } from '@/components/settings/commit-message-ai-search'
-import { getTasksPaneSearchEntries } from '@/components/settings/tasks-search'
 import { getFloatingWorkspaceSearchEntries } from '@/components/settings/floating-workspace-search'
 import { getAppearancePaneSearchEntries } from '@/components/settings/appearance-search'
 import { getInputPaneSearchEntries } from '@/components/settings/input-search'
@@ -296,7 +293,7 @@ export function buildSettingsNavigationMetadata({
       title: translate('auto.hooks.useSettingsNavigationMetadata.2b043783ef', 'Integrations'),
       description: translate(
         'auto.hooks.useSettingsNavigationMetadata.33a5e1d597',
-        'Connect GitHub, GitLab, Linear, and source-hosting services.'
+        'Connect the company GitHub host Orca uses for pull requests, checks, and reviews.'
       ),
       icon: Blocks,
       searchEntries: getIntegrationsPaneSearchEntries(),
@@ -330,22 +327,7 @@ export function buildSettingsNavigationMetadata({
       icon: GitBranch,
       // Why: Git AI Author is rendered inside Git, so shared
       // metadata must search both surfaces wherever Git appears.
-      searchEntries: [
-        ...getGitPaneSearchEntries(),
-        ...getCommitMessageAiPaneSearchEntries(),
-        ...getGitProviderApiBudgetSearchEntries()
-      ],
-      group: 'workflows'
-    },
-    {
-      id: 'tasks',
-      title: translate('auto.hooks.useSettingsNavigationMetadata.85f4fd7710', 'Task Sources'),
-      description: translate(
-        'auto.hooks.useSettingsNavigationMetadata.5235c215ca',
-        'Choose which task providers appear in the Tasks page and sidebar.'
-      ),
-      icon: ListChecks,
-      searchEntries: getTasksPaneSearchEntries(),
+      searchEntries: [...getGitPaneSearchEntries(), ...getCommitMessageAiPaneSearchEntries()],
       group: 'workflows'
     },
     {
@@ -385,7 +367,7 @@ export function buildSettingsNavigationMetadata({
           }
         ]
       : []),
-    ...(showDesktopOnlySettings
+    ...(showDesktopOnlySettings && !policy.disableMobileEmulator
       ? [
           {
             id: 'mobile-emulator',
@@ -469,17 +451,26 @@ export function buildSettingsNavigationMetadata({
       searchEntries: getShortcutsPaneSearchEntries(),
       group: 'interface'
     },
-    {
-      id: 'stats',
-      title: translate('auto.hooks.useSettingsNavigationMetadata.d72a58b5b9', 'Stats & Usage'),
-      description: translate(
-        'auto.hooks.useSettingsNavigationMetadata.b351014180',
-        'Orca stats plus Claude, Codex, OpenCode token analytics and Grok subscription usage.'
-      ),
-      icon: BarChart3,
-      searchEntries: getStatsPaneSearchEntries(),
-      group: 'interface'
-    },
+    // Dropped, not disabled, under disableUsagePolling: the policy refuses to fetch what
+    // every tab in there displays, so keeping it leaves five tabs reading "unavailable".
+    ...(policy.disableUsagePolling
+      ? []
+      : [
+          {
+            id: 'stats',
+            title: translate(
+              'auto.hooks.useSettingsNavigationMetadata.d72a58b5b9',
+              'Stats & Usage'
+            ),
+            description: translate(
+              'auto.hooks.useSettingsNavigationMetadata.b351014180',
+              'Orca stats plus Claude, Codex, OpenCode token analytics and Grok subscription usage.'
+            ),
+            icon: BarChart3,
+            searchEntries: getStatsPaneSearchEntries(),
+            group: 'interface'
+          }
+        ]),
     ...(showDesktopOnlySettings
       ? [
           {

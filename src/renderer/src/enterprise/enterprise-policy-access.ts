@@ -14,13 +14,34 @@ const UNRESTRICTED: EnterprisePolicyView = {
   lockdown: false,
   disableAutoUpdate: false,
   disableMobilePairing: false,
+  disableMobileEmulator: false,
+  disableExternalAutomations: false,
+  disableAgentInstallSuggestions: false,
+  disableUsagePolling: false,
   disableVendorProviderAccounts: false,
   disableRemoteOrcaServer: false,
   disableVoice: false,
   requireComputerUseApproval: false
 }
 
-let current: EnterprisePolicyView = UNRESTRICTED
+// Read at module evaluation, synchronously, before anything can memoize an answer.
+//
+// Why this is not just an optimization: several gates are module-scope constants or live
+// inside builders memoized on their first call (the localized catalogs). Waiting for the
+// async IPC leaves those frozen at UNRESTRICTED for the process lifetime — a gate that
+// passes its tests and hides nothing. The async sync() below still runs, so a build with
+// only the async channel (or neither) keeps working.
+function readPolicySync(): EnterprisePolicyView {
+  try {
+    return window.api?.enterprisePolicy?.getSync?.() ?? UNRESTRICTED
+  } catch {
+    // The web client has no such channel; it stays unrestricted, which is why the real
+    // refusals live in main.
+    return UNRESTRICTED
+  }
+}
+
+let current: EnterprisePolicyView = readPolicySync()
 const listeners = new Set<() => void>()
 
 function getSnapshot(): EnterprisePolicyView {

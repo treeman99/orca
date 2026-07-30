@@ -703,7 +703,7 @@
         "85f4fd7710": "Fuentes de tareas",
         "ab4b21b58e": "Nombres de ramas, refs base, atribución y Git AI Author.",
         "09607cb0fe": "Git y Source Control",
-        "33a5e1d597": "Conecta GitHub, GitLab, Linear y servicios de hosting de código.",
+        "33a5e1d597": "Conecta el host de GitHub corporativo que Orca usa para pull requests, checks y revisiones.",
         "2b043783ef": "Integraciones",
         "2cd4ea75da": "Ajustes predeterminados del espacio de trabajo, configuración de la app y mantenimiento.",
         "13241992bd": "General",
@@ -5161,7 +5161,8 @@
           "03e1a5081a": "on {{value0}}",
           "25a41a9aad": "Re-detect agents installed on the active server",
           "remoteDetectionFailed": "Couldn’t detect installed agents. Check the host connection and try again.",
-          "retryDetection": "Retry"
+          "retryDetection": "Retry",
+          "corporateNoAgentsDetected": "No se detectó ninguna CLI de agente. Instálala mediante la distribución de software de tu organización y vuelve a actualizar."
         },
         "AppIconSelector": {
           "d5a112dc9b": "Icono siguiente",
@@ -5873,7 +5874,7 @@
           "f7eb5f0b24": "No instalado",
           "3ba07f933b": "Conecta issue trackers que Orca puede usar para explorar tareas e iniciar espacios de trabajo con contexto vinculado.",
           "70e885705b": "Proveedores de tareas",
-          "1683acbac4": "Conecta los hosts de código que Orca puede usar para pull requests, merge requests, checks y estado de revisión.",
+          "1683acbac4": "Conecta el host de código que Orca puede usar para pull requests, checks y estado de revisión.",
           "298c65ecac": "Proveedores de revisión"
         },
         "KagiSessionLinkForm": {
@@ -6603,7 +6604,7 @@
           "11faa2f7dd": "Fuentes de tareas",
           "cfa34f4465": "Nombres de rama, refs base, atribución y Git AI Author.",
           "70100f94c7": "Git y control de código fuente",
-          "b07041697f": "Conecta GitHub, GitLab, Linear y servicios de alojamiento de código fuente.",
+          "b07041697f": "Conecta el host de GitHub corporativo que Orca usa para pull requests, checks y revisiones.",
           "c9ca101a3b": "Integraciones",
           "f9b77539fd": "Valores predeterminados del workspace, configuración de la app y mantenimiento.",
           "7807c11c4d": "General",
@@ -9556,6 +9557,7 @@
         "GitHubEnterpriseHostReadout": {
           "sourceRemote": "from this workspace’s git remote",
           "sourceEnv": "from the GH_HOST environment variable",
+          "sourceGhConfig": "del host en el que gh tiene la sesión iniciada",
           "sourceUser": "from the host you saved here",
           "sourcePolicy": "from your organization’s Orca policy",
           "sourceDefault": "the gh default — no corporate host is configured",
@@ -10903,7 +10905,8 @@
           "showMoreAgents": "Mostrar {{value0}} agentes más→",
           "yoloPermissionsLabel": "Yolo / Omitir permisos de forma peligrosa",
           "yoloPermissionsInfo": "Información de permisos del agente",
-          "yoloPermissionsTooltip": "Omite las comprobaciones de permisos de los agentes para reducir interrupciones"
+          "yoloPermissionsTooltip": "Omite las comprobaciones de permisos de los agentes para reducir interrupciones",
+          "corporateNoAgentsDetected": "No se detectó ninguna CLI de agente. Sigue el proceso de instalación de tu organización o continúa con una terminal vacía."
         },
         "FeatureSetupChecklist": {
           "77f74946f5": "Los agentes pueden enviarse mensajes entre sí, tomar tareas y coordinar handoffs.",

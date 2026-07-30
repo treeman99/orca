@@ -46,7 +46,6 @@ import { useWarpThemeImport } from './useWarpThemeImport'
 import { RepositoryPane } from './RepositoryPane'
 import { GitPane } from './GitPane'
 import { CommitMessageAiPane } from './CommitMessageAiPane'
-import { GitProviderApiBudgetPane } from './GitProviderApiBudgetPane'
 import { NotificationsPane } from './NotificationsPane'
 import { VoicePane } from './VoicePane'
 import { SshPane } from './SshPane'
@@ -56,8 +55,8 @@ import { OrchestrationPane } from './OrchestrationPane'
 import { LinearAgentSkillPane } from './LinearAgentSkillPane'
 import { AccountsPane } from './AccountsPane'
 import { StatsPane } from '../stats/StatsPane'
+import { isSettingsPaneHiddenByPolicy } from './settings-pane-policy-visibility'
 import { IntegrationsPane } from './IntegrationsPane'
-import { TasksPane } from './TasksPane'
 import { QuickCommandsPane } from './QuickCommandsPane'
 import { DeveloperPermissionsPane } from './DeveloperPermissionsPane'
 import { ComputerUsePane } from './ComputerUsePane'
@@ -648,6 +647,13 @@ function Settings(): React.JSX.Element {
       if (hostSelection) {
         setSettingsProjectHostSelection(hostSelection.projectId, hostSelection.hostId)
       }
+    }
+    // Why here and not only in the nav registry: this effect force-mounts the pane id, so a
+    // registry-removed pane would still mount (and MobileEmulatorSettingsPane would probe
+    // simctl/adb) on a deep link from the status bar or a menu item.
+    if (isSettingsPaneHiddenByPolicy(paneSectionId)) {
+      clearSettingsTarget()
+      return
     }
     pendingNavSectionRef.current = paneSectionId
     pendingScrollTargetRef.current = settingsNavigationTarget.sectionId ?? paneSectionId
@@ -1329,7 +1335,7 @@ function Settings(): React.JSX.Element {
                   title={translate('auto.components.settings.Settings.c9ca101a3b', 'Integrations')}
                   description={translate(
                     'auto.components.settings.Settings.b07041697f',
-                    'Connect GitHub, GitLab, Linear, and source-hosting services.'
+                    'Connect the company GitHub host Orca uses for pull requests, checks, and reviews.'
                   )}
                   searchEntries={getSectionSearchEntries('integrations')}
                   bodyClassName="rounded-none border-0 bg-transparent p-0 shadow-none"
@@ -1385,22 +1391,7 @@ function Settings(): React.JSX.Element {
                         customPromptDiscardSignal={sourceControlAiPromptDiscardSignal}
                         settingsSearchQuery={settingsSearchQuery}
                       />
-                      <GitProviderApiBudgetPane settingsSearchQuery={settingsSearchQuery} />
                     </>
-                  ) : null}
-                </SettingsSection>
-
-                <SettingsSection
-                  id="tasks"
-                  title={translate('auto.components.settings.Settings.11faa2f7dd', 'Task Sources')}
-                  description={translate(
-                    'auto.components.settings.Settings.dd72ed437a',
-                    'Choose which task providers appear in the Tasks page and sidebar.'
-                  )}
-                  searchEntries={getSectionSearchEntries('tasks')}
-                >
-                  {isSectionMounted('tasks') ? (
-                    <TasksPane settings={settings} updateSettings={updateSettings} />
                   ) : null}
                 </SettingsSection>
 
@@ -1470,7 +1461,7 @@ function Settings(): React.JSX.Element {
                   </SettingsSection>
                 ) : null}
 
-                {showDesktopOnlySettings ? (
+                {showDesktopOnlySettings && !enterprisePolicy.disableMobileEmulator ? (
                   <SettingsSection
                     id="mobile-emulator"
                     title={translate(
@@ -1587,17 +1578,24 @@ function Settings(): React.JSX.Element {
                   {isSectionMounted('shortcuts') ? <ShortcutsPane /> : null}
                 </SettingsSection>
 
-                <SettingsSection
-                  id="stats"
-                  title={translate('auto.components.settings.Settings.954a8f5aef', 'Stats & Usage')}
-                  description={translate(
-                    'auto.components.settings.Settings.8acf3f22e0',
-                    'Orca stats plus Claude, Codex, OpenCode token analytics and Grok subscription usage.'
-                  )}
-                  searchEntries={getSectionSearchEntries('stats')}
-                >
-                  {isSectionMounted('stats') ? <StatsPane /> : null}
-                </SettingsSection>
+                {/* Gated here too, not just in the nav registry: a deep link force-mounts a
+                    pane id without consulting it (see the pending-section effect above). */}
+                {enterprisePolicy.disableUsagePolling ? null : (
+                  <SettingsSection
+                    id="stats"
+                    title={translate(
+                      'auto.components.settings.Settings.954a8f5aef',
+                      'Stats & Usage'
+                    )}
+                    description={translate(
+                      'auto.components.settings.Settings.8acf3f22e0',
+                      'Orca stats plus Claude, Codex, OpenCode token analytics and Grok subscription usage.'
+                    )}
+                    searchEntries={getSectionSearchEntries('stats')}
+                  >
+                    {isSectionMounted('stats') ? <StatsPane /> : null}
+                  </SettingsSection>
+                )}
 
                 {enterprisePolicy.disableRemoteOrcaServer ? null : (
                   <SettingsSection

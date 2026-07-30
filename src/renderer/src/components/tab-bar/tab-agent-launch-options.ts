@@ -1,4 +1,4 @@
-import { getAgentCatalog } from '@/lib/agent-catalog'
+import { getAgentCatalog, getFullAgentCatalog } from '@/lib/agent-catalog'
 import { normalizeMatchQuery, tokenizeMatchValue } from './query-token-match'
 import type { TuiAgent } from '../../../../shared/types'
 
@@ -17,7 +17,7 @@ function compactAgentAlias(value: string): string {
 }
 
 function getCatalogEntry(agent: TuiAgent): { id: TuiAgent; label: string; cmd: string } | null {
-  return getAgentCatalog().find((entry) => entry.id === agent) ?? null
+  return getFullAgentCatalog().find((entry) => entry.id === agent) ?? null
 }
 
 export function orderTabLaunchAgents(

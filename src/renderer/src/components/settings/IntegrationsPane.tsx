@@ -1,11 +1,8 @@
-import {
-  AzureDevOpsIntegrationCard,
-  BitbucketIntegrationCard,
-  GiteaIntegrationCard,
-  GitHubIntegrationCard,
-  GitLabIntegrationCard
-} from './source-control-integration-cards'
-import { JiraIntegrationCard, LinearIntegrationCard } from './task-tracker-integration-cards'
+// Only GitHub is offered in this corporate fork: the fleet's code and issues live on the
+// company GHES host, so the other providers are sign-in forms for services nobody can reach.
+// The cards themselves are kept in source (source-control-integration-cards.tsx,
+// task-tracker-integration-cards.tsx) so an upstream rebase does not conflict on deletions.
+import { GitHubIntegrationCard } from './source-control-integration-cards'
 import { useIntegrationProviderStatusRefresh } from './use-integration-provider-status-refresh'
 import { GitHubEnterpriseSection } from './GitHubEnterpriseSection'
 import { translate } from '@/i18n/i18n'
@@ -26,34 +23,12 @@ export function IntegrationsPane(): React.JSX.Element {
           <p className="text-xs text-muted-foreground">
             {translate(
               'auto.components.settings.IntegrationsPane.1683acbac4',
-              'Connect the source hosts Orca can use for pull requests, merge requests, checks, and review status.'
+              'Connect the source host Orca can use for pull requests, checks, and review status.'
             )}
           </p>
         </div>
         <div className="space-y-3">
           <GitHubIntegrationCard />
-          <GitLabIntegrationCard />
-          <BitbucketIntegrationCard />
-          <AzureDevOpsIntegrationCard />
-          <GiteaIntegrationCard />
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="space-y-1">
-          <h3 className="text-sm font-semibold text-foreground">
-            {translate('auto.components.settings.IntegrationsPane.70e885705b', 'Task providers')}
-          </h3>
-          <p className="text-xs text-muted-foreground">
-            {translate(
-              'auto.components.settings.IntegrationsPane.3ba07f933b',
-              'Connect issue trackers Orca can use to browse tasks and start workspaces with linked context.'
-            )}
-          </p>
-        </div>
-        <div className="space-y-3">
-          <LinearIntegrationCard />
-          <JiraIntegrationCard />
         </div>
       </section>
     </div>

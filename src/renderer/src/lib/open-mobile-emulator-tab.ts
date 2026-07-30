@@ -16,6 +16,7 @@ import {
   cancelPendingSimulatorPaneShutdown,
   shutdownManagedSimulatorIfNoPane
 } from './simulator-pane-shutdown-scheduler'
+import { isMobileEmulatorAvailable } from './mobile-emulator-availability'
 
 type OpenMobileEmulatorTabOptions = {
   targetGroupId?: string
@@ -55,7 +56,7 @@ export async function openMobileEmulatorTab(
   options: OpenMobileEmulatorTabOptions = {}
 ): Promise<string | null> {
   const store = useAppStore.getState()
-  if (store.settings?.mobileEmulatorEnabled === false) {
+  if (!isMobileEmulatorAvailable(store.settings)) {
     return null
   }
   const existingTab = getSimulatorTabForWorktree(worktreeId)

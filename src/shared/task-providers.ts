@@ -1,6 +1,17 @@
 export type TaskProvider = 'github' | 'gitlab' | 'linear' | 'jira'
 
-export const TASK_PROVIDERS: readonly TaskProvider[] = ['github', 'gitlab', 'linear', 'jira']
+/**
+ * Task providers this corporate fork offers. GitHub only — the fleet's issues live on the
+ * company GHES host, and GitLab/Linear/Jira would send task titles and bodies to vendors
+ * that are not part of the deployment.
+ *
+ * The `TaskProvider` union deliberately keeps all four members: they still appear in
+ * persisted profiles and telemetry rows written before this narrowed, and shrinking a union
+ * fights every upstream rebase. This list is what decides what a user can reach — a value
+ * outside it fails `isTaskProvider`, so an old profile naming `linear` normalizes back to
+ * GitHub instead of resurrecting a hidden provider.
+ */
+export const TASK_PROVIDERS: readonly TaskProvider[] = ['github']
 
 const TASK_PROVIDER_SET = new Set<TaskProvider>(TASK_PROVIDERS)
 

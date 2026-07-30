@@ -10,6 +10,7 @@ import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { normalizeHost } from '../../shared/enterprise-policy'
+import { isVendorGitHubHost } from './effective-github-host'
 
 const FILE_NAME = 'github-enterprise-host.json'
 
@@ -36,14 +37,22 @@ export function readStoredGithubEnterpriseHost(): string | null {
   }
 }
 
-/** Persist (or, with a blank/invalid host, clear) the user's GHES host. */
+/**
+ * Persist (or, with a blank/invalid host, clear) the user's GHES host.
+ *
+ * The vendor SaaS host clears instead of storing. This file outranks the administrator's
+ * `githubEnterpriseHost`, has no TTL, and is written on every successful sign-in — so a
+ * single github.com login used to pin the app to github.com permanently, and deleting
+ * userData (i.e. reinstalling) was the only way out. "github.com" carries no information
+ * here anyway: it is what everything below this falls back to.
+ */
 export function writeStoredGithubEnterpriseHost(host: string | null): void {
   const filePath = hostFilePath()
   if (!filePath) {
     return
   }
   const normalized = normalizeHost(host)
-  if (!normalized) {
+  if (!normalized || isVendorGitHubHost(normalized)) {
     rmSync(filePath, { force: true })
     return
   }

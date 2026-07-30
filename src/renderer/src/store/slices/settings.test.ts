@@ -159,7 +159,7 @@ describe('createSettingsSlice runtime switching', () => {
     })
 
     expect(settingsSet).toHaveBeenCalledWith({
-      visibleTaskProviders: ['github', 'linear'],
+      visibleTaskProviders: ['github'],
       defaultTaskSource: 'github'
     })
   })

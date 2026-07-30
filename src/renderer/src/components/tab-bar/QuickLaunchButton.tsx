@@ -2,7 +2,7 @@ import React, { useCallback } from 'react'
 import { Settings as SettingsIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { DropdownMenuItem, DropdownMenuShortcut } from '@/components/ui/dropdown-menu'
-import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
+import { getAgentCatalog, getFullAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
 import { useAppStore } from '@/store'
 import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import { useDetectedAgents } from '@/hooks/useDetectedAgents'
@@ -35,7 +35,7 @@ export type QuickLaunchAgentMenuItemsProps = {
 }
 
 function getCatalogEntry(agent: TuiAgent): { id: TuiAgent; label: string } | null {
-  return getAgentCatalog().find((a) => a.id === agent) ?? null
+  return getFullAgentCatalog().find((a) => a.id === agent) ?? null
 }
 
 function orderAgents(

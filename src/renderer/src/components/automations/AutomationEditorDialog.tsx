@@ -1,6 +1,6 @@
 import React from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { getAgentCatalog } from '@/lib/agent-catalog'
+import { getFullAgentCatalog } from '@/lib/agent-catalog'
 import { filterEnabledTuiAgents } from '../../../../shared/tui-agent-selection'
 import type {
   AutomationSchedulePreset,
@@ -22,6 +22,11 @@ import {
 import { Field } from './automation-page-parts'
 import { AutomationEditorDialogFooter } from './AutomationEditorDialogFooter'
 import { AutomationEditorDialogHeader } from './AutomationEditorDialogHeader'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
+import {
+  filterAgentsByPolicy,
+  isAgentAllowedByPolicy
+} from '../../../../shared/corporate-agent-access'
 import { AutomationEditorPromptSection } from './AutomationEditorPromptSection'
 import { AutomationSchedulePicker } from './AutomationSchedulePicker'
 import { getAutomationTemplates, type AutomationTemplate } from './automation-templates'
@@ -104,20 +109,31 @@ export function AutomationEditorDialog({
   onSave
 }: AutomationEditorDialogProps): React.JSX.Element {
   const [templateOpen, setTemplateOpen] = React.useState(false)
+  const { allowedAgents, disableExternalAutomations } = useEnterprisePolicyView()
+  // 'orca' is unconditional — it is this app's own scheduler, not a vendor CLI.
+  const createTargets = React.useMemo<AutomationCreateTarget[]>(
+    () =>
+      disableExternalAutomations || !isAgentAllowedByPolicy('hermes', allowedAgents)
+        ? ['orca']
+        : ['orca', 'hermes'],
+    [allowedAgents, disableExternalAutomations]
+  )
   const isHermesTarget = createTarget === 'hermes'
   const isCreateMode = !isEditing && !isEditingExternal
   const isHermesCreate = isCreateMode && isHermesTarget
   const visibleAgents = React.useMemo(() => {
+    // Filtered from the reactive policy value: getAgentCatalog() applies the same allowlist
+    // but reads a non-reactive cache, so the memo would not re-run when the policy arrives.
+    const catalog = filterAgentsByPolicy(getFullAgentCatalog(), (agent) => agent.id, allowedAgents)
     const enabledIds = new Set(
       filterEnabledTuiAgents(
-        getAgentCatalog().map((agent) => agent.id),
+        catalog.map((agent) => agent.id),
         settings?.disabledTuiAgents
       )
     )
-    return getAgentCatalog().filter(
-      (agent) => enabledIds.has(agent.id) || agent.id === draft.agentId
-    )
-  }, [draft.agentId, settings?.disabledTuiAgents])
+    // The draft's own agent stays selectable so editing a pre-existing automation still shows it.
+    return catalog.filter((agent) => enabledIds.has(agent.id) || agent.id === draft.agentId)
+  }, [draft.agentId, settings?.disabledTuiAgents, allowedAgents])
   const scheduleField = (
     <Field
       label={translate('auto.components.automations.AutomationEditorDialog.c4b19094c2', 'Schedule')}
@@ -147,6 +163,7 @@ export function AutomationEditorDialog({
           isHermesCreate={isHermesCreate}
           isCreateMode={isCreateMode}
           createTarget={createTarget}
+          createTargets={createTargets}
           draftName={draft.name}
           templateOpen={templateOpen}
           templates={getAutomationTemplates()}

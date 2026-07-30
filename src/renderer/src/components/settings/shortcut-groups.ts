@@ -7,6 +7,8 @@ import {
 import { normalizeDisabledTuiAgents } from '../../../../shared/tui-agent-selection'
 import type { TuiAgent } from '../../../../shared/types'
 import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
+import { getFullAgentCatalog } from '@/lib/agent-catalog'
+import { isAgentAllowedByPolicy } from '../../../../shared/corporate-agent-access'
 
 export type ShortcutGroup = {
   title: string
@@ -30,8 +32,19 @@ export function groupDefinitions(disabledTuiAgents: readonly TuiAgent[]): Shortc
   )
   // Same reasoning for corporate policy: a rebindable chord for a feature the policy
   // removed is a row the user can edit but never fire.
-  if (getEnterprisePolicyView().disableVoice) {
+  const policy = getEnterprisePolicyView()
+  if (policy.disableVoice) {
     hiddenAgentActionIds.add('voice.dictation')
+  }
+  if (policy.disableMobileEmulator) {
+    hiddenAgentActionIds.add('tab.newSimulator')
+  }
+  // Why the full catalog and not the detected set: a chord bound to a blocked agent fires
+  // without detection (see the launch path in Terminal.tsx), so the row must go too.
+  for (const agent of getFullAgentCatalog()) {
+    if (!isAgentAllowedByPolicy(agent.id, policy.allowedAgents)) {
+      hiddenAgentActionIds.add(agentTabActionId(agent.id))
+    }
   }
   const groups = new Map<string, KeybindingDefinition[]>()
   for (const definition of KEYBINDING_DEFINITIONS) {

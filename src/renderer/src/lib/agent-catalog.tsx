@@ -45,7 +45,7 @@ function getCatalogPlatform(): NodeJS.Platform {
   return typeof process === 'undefined' ? 'linux' : process.platform
 }
 
-export const getAgentCatalog = createLocalizedCatalog((): AgentCatalogEntry[] => [
+export const getFullAgentCatalog = createLocalizedCatalog((): AgentCatalogEntry[] => [
   {
     id: 'claude',
     label: translate('auto.lib.agent.catalog.0708ed89f1', 'Claude'),
@@ -296,17 +296,19 @@ export const getAgentCatalog = createLocalizedCatalog((): AgentCatalogEntry[] =>
 ])
 
 // Why: tests and a few legacy call sites still import a catalog snapshot.
-export const AGENT_CATALOG: AgentCatalogEntry[] = getAgentCatalog()
+export const AGENT_CATALOG: AgentCatalogEntry[] = getFullAgentCatalog()
 
-// The agents a user may CHOOSE, after the corporate policy's allowlist. Label and
-// icon lookups deliberately keep using the full catalog so an already-running agent
-// the policy now hides still renders its name/icon; only pickers use this narrowed list.
-export function getSelectableAgentCatalog(): AgentCatalogEntry[] {
-  return filterAgentsByPolicy(getAgentCatalog(), (entry) => entry.id, getPolicyAllowedAgents())
+// The agents a user may CHOOSE, after the corporate policy's allowlist — and the
+// default every picker gets, so a picker added by a later upstream rebase is gated
+// without anyone remembering to. Name/icon lookups go through getAgentLabel() and
+// AgentIcon, which read the full catalog: an already-running agent the policy now
+// hides must still render its own name instead of a bare id.
+export function getAgentCatalog(): AgentCatalogEntry[] {
+  return filterAgentsByPolicy(getFullAgentCatalog(), (entry) => entry.id, getPolicyAllowedAgents())
 }
 
 export function getAgentLabel(agent: TuiAgent): string {
-  return getAgentCatalog().find((entry) => entry.id === agent)?.label ?? agent
+  return getFullAgentCatalog().find((entry) => entry.id === agent)?.label ?? agent
 }
 
 export function AgentIcon({
@@ -350,7 +352,7 @@ export function AgentIcon({
   if (agent === 'opencode') {
     return <OpenCodeIcon size={size} />
   }
-  const catalogEntry = getAgentCatalog().find((a) => a.id === agent)
+  const catalogEntry = getFullAgentCatalog().find((a) => a.id === agent)
   // Why: prefer the favicon bundled at build time so the icon renders without a
   // live network request — Google's favicon service is unreachable in some
   // regions and offline, which left these icons broken (#8451).

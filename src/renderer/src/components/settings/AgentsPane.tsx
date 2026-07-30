@@ -12,7 +12,7 @@ import {
   Terminal
 } from 'lucide-react'
 import type { GlobalSettings, TuiAgent } from '../../../../shared/types'
-import { getSelectableAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
+import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { useDetectedAgents, type AgentDetectionTarget } from '@/hooks/useDetectedAgents'
 import { useAppStore } from '@/store'
@@ -688,8 +688,10 @@ export function AgentsPane({
   wslDistros,
   wslCapabilitiesLoading
 }: AgentsPaneProps): React.JSX.Element {
-  // Why: re-render when the corporate policy loads at startup so getSelectableAgentCatalog() reflects it.
-  useEnterprisePolicyView()
+  // Why the read is kept even where the value is unused: getAgentCatalog() applies the
+  // corporate allowlist itself but is not reactive, so this subscription is what re-renders
+  // the pane once the policy lands at startup.
+  const { disableAgentInstallSuggestions } = useEnterprisePolicyView()
   // Why: the Active Server routes agent launches and provider checks through
   // that server, so this pane must list what THAT host can launch — detecting
   // on the client showed a Windows machine's agents while paired to a Linux
@@ -793,15 +795,16 @@ export function AgentsPane({
   // Showing the full catalog here makes the default-agent picker flash invalid
   // options while switching between Windows and WSL detection contexts.
   const detectedAgents =
-    detectedIds === null
-      ? []
-      : getSelectableAgentCatalog().filter((agent) => detectedIds.has(agent.id))
+    detectedIds === null ? [] : getAgentCatalog().filter((agent) => detectedIds.has(agent.id))
   const enabledDetectedAgents = detectedAgents.filter((agent) =>
     isTuiAgentEnabled(agent.id, disabledAgents)
   )
-  const undetectedAgents = getSelectableAgentCatalog().filter(
-    (a) => detectedIds !== null && !detectedIds.has(a.id)
-  )
+  // Empty under policy: on a fleet where CLIs arrive through corporate software
+  // distribution, "go install this yourself" is the wrong instruction — and each row
+  // links out to the vendor's site to do it.
+  const undetectedAgents = disableAgentInstallSuggestions
+    ? []
+    : getAgentCatalog().filter((a) => detectedIds !== null && !detectedIds.has(a.id))
 
   // Why: 'blank' is an explicit no-agent preference, not an auto fallback,
   // so the Auto pill should only light up when the default is null OR when a
@@ -1009,6 +1012,20 @@ export function AgentsPane({
           )}
         </div>
       )}
+
+      {/* Without this the pane is simply empty below Agent Permissions when detection
+          succeeded and found nothing, which reads as a broken screen rather than a policy. */}
+      {disableAgentInstallSuggestions &&
+        detectedIds !== null &&
+        !detectionFailed &&
+        detectedAgents.length === 0 && (
+          <div className="flex items-center justify-center rounded-md border border-dashed border-border/50 px-4 py-6 text-center text-sm text-muted-foreground">
+            {translate(
+              'auto.components.settings.AgentsPane.corporateNoAgentsDetected',
+              'No agent CLIs were detected. Install them through your organization’s software distribution, then refresh.'
+            )}
+          </div>
+        )}
 
       {detectionFailed && (
         <div className="flex items-start justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">

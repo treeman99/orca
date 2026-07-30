@@ -1997,7 +1997,7 @@ describe('createUISlice settings navigation', () => {
     )
   })
 
-  it('prefetches direct Linear task opens with their source context', () => {
+  it('does not prefetch a direct Linear open, because this fork does not offer Linear', () => {
     const store = createUIStore()
     const prefetchLinearIssues = vi.fn()
     const linearIssue = makeLinearIssue()
@@ -2024,10 +2024,9 @@ describe('createUISlice settings navigation', () => {
       openLinearSourceContext: sourceContext
     })
 
-    expect(prefetchLinearIssues).toHaveBeenCalledWith(
-      { kind: 'list', filter: 'all', limit: expect.any(Number) },
-      { sourceContext }
-    )
+    // visibleTaskProviders normalizes to ['github'] (src/shared/task-providers.ts), so the
+    // resolved source is never 'linear' and the vendor prefetch never fires.
+    expect(prefetchLinearIssues).not.toHaveBeenCalled()
   })
 
   it('returns to the tasks page after visiting settings from an in-progress draft', () => {

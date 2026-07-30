@@ -1969,7 +1969,7 @@ function useStatusBarMenuFocusHandoff(): {
 
 function StatusBarInner({ floatingTerminalOpen }: StatusBarProps): React.JSX.Element | null {
   const floatingTerminalShortcut = useShortcutLabel('floatingTerminal.toggle')
-  const { allowedAgents } = useEnterprisePolicyView()
+  const { allowedAgents, disableUsagePolling } = useEnterprisePolicyView()
   const rateLimits = useAppStore((s) => s.rateLimits)
   const settings = useAppStore((s) => s.settings)
   const refreshRateLimits = useAppStore((s) => s.refreshRateLimits)
@@ -2135,7 +2135,11 @@ function StatusBarInner({ floatingTerminalOpen }: StatusBarProps): React.JSX.Ele
     usageSettings
   )
   // Why: one-time nudge — once dismissed, stays hidden even if providers reconnect later.
-  const showEmptyUsageCta = isEmptyUsageState && !usageEmptyStateDismissed
+  // Why the policy is here too: this CTA teaches "connect an AI provider account to see usage",
+  // and under disableUsagePolling both halves of that sentence are gone — the accounts sections
+  // it routes to are hidden and nothing is polled. A teaching prompt for a removed feature is
+  // the disableAutoUpdate mistake the policy doc already confesses to.
+  const showEmptyUsageCta = isEmptyUsageState && !usageEmptyStateDismissed && !disableUsagePolling
   const anyFetching =
     claude?.status === 'fetching' ||
     codex?.status === 'fetching' ||
@@ -2272,7 +2276,7 @@ function StatusBarInner({ floatingTerminalOpen }: StatusBarProps): React.JSX.Ele
                   onSignIn={handleOpenProviderAccounts}
                   canSignIn={(provider) => getUsageProviderAccountsSectionId(provider) !== null}
                   onManageAccounts={handleManageAccounts}
-                  onUsageDetails={handleUsageDetails}
+                  onUsageDetails={disableUsagePolling ? undefined : handleUsageDetails}
                   renderRow={(p, rowNode) => {
                     // Every provider drills into its detail panel (parity with the
                     // per-provider dropdowns on main); Claude/Codex additionally get

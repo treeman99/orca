@@ -10,7 +10,7 @@ import {
   isCustomAgentId,
   listCommitMessageAgentCapabilities
 } from '../../../../shared/commit-message-agent-spec'
-import { getAgentCatalog, type AgentCatalogEntry } from '@/lib/agent-catalog'
+import { getAgentCatalog, getAgentLabel, type AgentCatalogEntry } from '@/lib/agent-catalog'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { translate } from '@/i18n/i18n'
 
@@ -143,7 +143,7 @@ export function getSourceControlActionAgentWarningText(
     if (TEXT_GENERATION_AGENT_ID_SET.has(selectedAgent)) {
       return null
     }
-    const agentLabel = getAgentCatalog().find((agent) => agent.id === selectedAgent)?.label
+    const agentLabel = getAgentLabel(selectedAgent)
     return translate(
       'auto.components.settings.source.control.action.recipe.options.unsupportedSavedAgent',
       '{{value0}} cannot run this text-generation recipe. Pick one of the supported agents below.',

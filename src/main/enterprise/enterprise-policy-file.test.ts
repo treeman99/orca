@@ -252,10 +252,14 @@ describe('getEnterprisePolicy', () => {
     expect(readFileSyncMock).not.toHaveBeenCalled()
   })
 
+  // Counts reads of the policy path specifically: resolving also consults gh's own
+  // hosts.yml for the GHES host fallback, which is a different file and a different read.
   it('reads the file once and caches the result', () => {
     vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '/opt/policy.json')
     readFileSyncMock.mockReturnValue('{ "lockdown": true }')
     expect(getEnterprisePolicy()).toBe(getEnterprisePolicy())
-    expect(readFileSyncMock).toHaveBeenCalledTimes(1)
+    expect(
+      readFileSyncMock.mock.calls.filter(([target]) => target === '/opt/policy.json')
+    ).toHaveLength(1)
   })
 })

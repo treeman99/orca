@@ -44,4 +44,20 @@ describe('github enterprise host store', () => {
     writeStoredGithubEnterpriseHost('   ')
     expect(readStoredGithubEnterpriseHost()).toBeNull()
   })
+
+  // This file outranks the administrator's githubEnterpriseHost and has no TTL, so a single
+  // github.com sign-in used to pin the app to the vendor host until userData was wiped —
+  // which is why "delete and reinstall" was the only fix people found.
+  it('refuses to store the vendor host, so it cannot mask the corporate one', () => {
+    writeStoredGithubEnterpriseHost('github.com')
+    expect(readStoredGithubEnterpriseHost()).toBeNull()
+    writeStoredGithubEnterpriseHost('https://API.GitHub.com/')
+    expect(readStoredGithubEnterpriseHost()).toBeNull()
+  })
+
+  it('clears an already-stored corporate host when the vendor host is saved over it', () => {
+    writeStoredGithubEnterpriseHost('github.samsungds.net')
+    writeStoredGithubEnterpriseHost('github.com')
+    expect(readStoredGithubEnterpriseHost()).toBeNull()
+  })
 })

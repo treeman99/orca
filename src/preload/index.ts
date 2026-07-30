@@ -4220,7 +4220,9 @@ const api = {
   } satisfies PreloadApi['corporateLlm'],
 
   enterprisePolicy: {
-    get: (): Promise<EnterprisePolicyView> => ipcRenderer.invoke('enterprisePolicy:get')
+    get: (): Promise<EnterprisePolicyView> => ipcRenderer.invoke('enterprisePolicy:get'),
+    getSync: (): EnterprisePolicyView | null =>
+      ipcRenderer.sendSync('enterprisePolicy:get-sync') as EnterprisePolicyView | null
   } satisfies PreloadApi['enterprisePolicy'],
 
   awsSso: {

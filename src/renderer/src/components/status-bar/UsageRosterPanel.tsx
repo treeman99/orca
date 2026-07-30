@@ -183,7 +183,8 @@ export function UsageRosterPanel({
   onSignIn: (provider: ProviderId) => void
   canSignIn: (provider: ProviderId) => boolean
   onManageAccounts: () => void
-  onUsageDetails: () => void
+  /** Omitted when the policy removed the Stats & Usage pane this navigates to. */
+  onUsageDetails?: () => void
   // Lets the host wrap a provider's row in a richer control (e.g. the
   // Claude/Codex account-switch drill-in submenu); return null to use the
   // default clickable row.
@@ -296,16 +297,18 @@ export function UsageRosterPanel({
         )
       })}
       <div className="border-t border-border/70" />
-      <DropdownMenuItem
-        onSelect={onUsageDetails}
-        className="w-full cursor-pointer justify-between rounded-none px-3.5 py-2.5 text-[13px] text-foreground"
-      >
-        {translate(
-          'auto.components.status.bar.UsageRosterPanel.usageDetails',
-          'Usage details & history'
-        )}
-        <ChevronRight size={14} className="text-muted-foreground" />
-      </DropdownMenuItem>
+      {onUsageDetails ? (
+        <DropdownMenuItem
+          onSelect={onUsageDetails}
+          className="w-full cursor-pointer justify-between rounded-none px-3.5 py-2.5 text-[13px] text-foreground"
+        >
+          {translate(
+            'auto.components.status.bar.UsageRosterPanel.usageDetails',
+            'Usage details & history'
+          )}
+          <ChevronRight size={14} className="text-muted-foreground" />
+        </DropdownMenuItem>
+      ) : null}
       <DropdownMenuItem
         onSelect={onManageAccounts}
         className="w-full cursor-pointer justify-between rounded-none px-3.5 py-2.5 text-[13px] text-foreground"

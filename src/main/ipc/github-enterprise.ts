@@ -7,8 +7,10 @@
 //                                back on githubEnterprise:loginProgress; resolves on exit.
 //   githubEnterprise:logout    — `gh auth logout --hostname <host>`.
 //
-// gh owns the credential in its keyring; nothing here stores a token. The effective
-// host is the user's saved host, else the corporate policy host.
+// gh owns the credential in its keyring; nothing here stores a token. The host is the
+// user's saved host, else the corporate policy host, else the single host gh is already
+// logged in to — reading gh's own state is what makes a `gh auth login --hostname <ghes>`
+// run after installation visible here at all.
 
 import { ipcMain, type WebContents } from 'electron'
 import { normalizeHost } from '../../shared/enterprise-policy'
@@ -27,22 +29,28 @@ import {
   runGithubEnterpriseTokenLogin
 } from '../github/github-enterprise-login'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
-import { resolveEffectiveGitHubHost } from '../github/effective-github-host'
+import {
+  ghConfiguredDefaultHost,
+  resolveEffectiveGitHubHost
+} from '../github/effective-github-host'
 
 // A GitHub PAT is a paste, not a document; anything longer is a mistake or an abuse
 // of the IPC surface.
 const MAX_TOKEN_LENGTH = 8192
+
+type GhAuthProbe = {
+  ghAvailable: boolean
+  /** Every host gh reports a login for, with the account name it shows. */
+  accounts: readonly { host: string; user: string | null }[]
+}
 
 type Dependencies = {
   policyHost: () => string | null
   storedHost: () => string | null
   ghHostEnv: () => string | null
   saveHost: (host: string | null) => void
-  diagnose: (host: string) => Promise<{
-    ghAvailable: boolean
-    authenticated: boolean
-    account: string | null
-  }>
+  /** Host-less on purpose: the host we should report is partly derived from the answer. */
+  diagnose: () => Promise<GhAuthProbe>
   login: typeof runGithubEnterpriseDeviceLogin
   loginWithToken: typeof runGithubEnterpriseTokenLogin
   logout: (host: string) => Promise<void>
@@ -57,13 +65,11 @@ function defaultDependencies(): Dependencies {
     storedHost: readStoredGithubEnterpriseHost,
     ghHostEnv: () => process.env.GH_HOST ?? null,
     saveHost: writeStoredGithubEnterpriseHost,
-    diagnose: async (host) => {
-      const result = await diagnoseGhAuth(host)
-      const account = result.accounts.find((entry) => entry.host === host)?.user ?? null
+    diagnose: async () => {
+      const result = await diagnoseGhAuth()
       return {
         ghAvailable: result.ghAvailable,
-        authenticated: result.requiredHostAuthenticated === true,
-        account
+        accounts: result.accounts.map((entry) => ({ host: entry.host, user: entry.user }))
       }
     },
     login: runGithubEnterpriseDeviceLogin,
@@ -74,7 +80,8 @@ function defaultDependencies(): Dependencies {
   }
 }
 
-function effectiveHost(dependencies: Dependencies): string | null {
+/** The host a sign-in/sign-out targets: what Orca was told, never what gh inferred. */
+function configuredHost(dependencies: Dependencies): string | null {
   return dependencies.storedHost() ?? dependencies.policyHost()
 }
 
@@ -93,30 +100,28 @@ function readTokenArg(raw: unknown): string {
 }
 
 async function getStatus(dependencies: Dependencies): Promise<GithubEnterpriseAuthStatus> {
+  const probe = await dependencies.diagnose()
+  const ghConfigHost = ghConfiguredDefaultHost(probe.accounts)
   // What gh will actually target — not the same value as the login host, and the
   // difference is exactly what a user reading this pane needs to see.
   const effective = resolveEffectiveGitHubHost({
     ghHostEnv: dependencies.ghHostEnv(),
+    ghConfigHost,
     storedHost: dependencies.storedHost(),
     policyHost: dependencies.policyHost()
   })
-  const host = effectiveHost(dependencies)
-  if (!host) {
-    return {
-      ghAvailable: true,
-      host: null,
-      authenticated: false,
-      account: null,
-      effectiveHost: effective.host,
-      effectiveHostSource: effective.source
-    }
-  }
-  const { ghAvailable, authenticated, account } = await dependencies.diagnose(host)
+  // Why gh's own host is a fallback here too: on a machine where only
+  // `gh auth login --hostname <ghes>` ran, the company host *is* configured — just not
+  // by us — and reporting "none" sent people to re-enter it or reinstall the app.
+  const host = configuredHost(dependencies) ?? ghConfigHost
+  const account = host
+    ? (probe.accounts.find((entry) => normalizeHost(entry.host) === host) ?? null)
+    : null
   return {
-    ghAvailable,
+    ghAvailable: probe.ghAvailable,
     host,
-    authenticated,
-    account,
+    authenticated: account !== null,
+    account: account?.user ?? null,
     effectiveHost: effective.host,
     effectiveHostSource: effective.source
   }
@@ -129,7 +134,7 @@ async function login(
 ): Promise<GithubEnterpriseLoginResult> {
   // A host passed with the request (the field the user just typed) wins, so login
   // works before setHost round-trips; fall back to the effective host otherwise.
-  const host = readHostArg(raw) ?? effectiveHost(dependencies)
+  const host = readHostArg(raw) ?? configuredHost(dependencies)
   if (!host) {
     return { ok: false, reason: 'no-host' }
   }
@@ -161,7 +166,7 @@ async function loginWithToken(
   raw: unknown,
   dependencies: Dependencies
 ): Promise<GithubEnterpriseLoginResult> {
-  const host = readHostArg(raw) ?? effectiveHost(dependencies)
+  const host = readHostArg(raw) ?? configuredHost(dependencies)
   if (!host) {
     return { ok: false, reason: 'no-host' }
   }
@@ -180,22 +185,15 @@ export function registerGithubEnterpriseHandlers(
     (): Promise<GithubEnterpriseAuthStatus> => getStatus(dependencies)
   )
 
-  ipcMain.handle('githubEnterprise:setHost', (_event, raw: unknown): GithubEnterpriseAuthStatus => {
-    dependencies.saveHost(readHostArg(raw))
-    const effective = resolveEffectiveGitHubHost({
-      ghHostEnv: dependencies.ghHostEnv(),
-      storedHost: dependencies.storedHost(),
-      policyHost: dependencies.policyHost()
-    })
-    return {
-      ghAvailable: true,
-      host: effectiveHost(dependencies),
-      authenticated: false,
-      account: null,
-      effectiveHost: effective.host,
-      effectiveHostSource: effective.source
+  // Re-reads gh rather than returning a stub: the host the user just typed may already
+  // be signed in, and claiming otherwise is what made this pane look stuck.
+  ipcMain.handle(
+    'githubEnterprise:setHost',
+    (_event, raw: unknown): Promise<GithubEnterpriseAuthStatus> => {
+      dependencies.saveHost(readHostArg(raw))
+      return getStatus(dependencies)
     }
-  })
+  )
 
   ipcMain.handle(
     'githubEnterprise:login',
@@ -210,7 +208,7 @@ export function registerGithubEnterpriseHandlers(
   )
 
   ipcMain.handle('githubEnterprise:logout', async (_event, raw: unknown): Promise<void> => {
-    const host = readHostArg(raw) ?? effectiveHost(dependencies)
+    const host = readHostArg(raw) ?? configuredHost(dependencies)
     if (host) {
       await dependencies.logout(host)
     }

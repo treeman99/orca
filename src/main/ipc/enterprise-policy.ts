@@ -16,6 +16,10 @@ const VIEW_KEYS = [
   'lockdown',
   'disableAutoUpdate',
   'disableMobilePairing',
+  'disableMobileEmulator',
+  'disableExternalAutomations',
+  'disableAgentInstallSuggestions',
+  'disableUsagePolling',
   'disableVendorProviderAccounts',
   'disableRemoteOrcaServer',
   'disableVoice',
@@ -25,20 +29,35 @@ const VIEW_KEYS = [
 type ViewKey = (typeof VIEW_KEYS)[number]
 type PolicySource = () => Pick<ReturnType<typeof getEnterprisePolicy>, ViewKey>
 
+function projectPolicyView(
+  policy: Pick<ReturnType<typeof getEnterprisePolicy>, ViewKey>
+): EnterprisePolicyView {
+  return {
+    allowedAgents: policy.allowedAgents,
+    lockdown: policy.lockdown,
+    disableAutoUpdate: policy.disableAutoUpdate,
+    disableMobilePairing: policy.disableMobilePairing,
+    disableMobileEmulator: policy.disableMobileEmulator,
+    disableExternalAutomations: policy.disableExternalAutomations,
+    disableAgentInstallSuggestions: policy.disableAgentInstallSuggestions,
+    disableUsagePolling: policy.disableUsagePolling,
+    disableVendorProviderAccounts: policy.disableVendorProviderAccounts,
+    disableRemoteOrcaServer: policy.disableRemoteOrcaServer,
+    disableVoice: policy.disableVoice,
+    requireComputerUseApproval: policy.requireComputerUseApproval
+  }
+}
+
 export function registerEnterprisePolicyHandlers(
   getPolicy: PolicySource = getEnterprisePolicy
 ): void {
-  ipcMain.handle('enterprisePolicy:get', (): EnterprisePolicyView => {
-    const policy = getPolicy()
-    return {
-      allowedAgents: policy.allowedAgents,
-      lockdown: policy.lockdown,
-      disableAutoUpdate: policy.disableAutoUpdate,
-      disableMobilePairing: policy.disableMobilePairing,
-      disableVendorProviderAccounts: policy.disableVendorProviderAccounts,
-      disableRemoteOrcaServer: policy.disableRemoteOrcaServer,
-      disableVoice: policy.disableVoice,
-      requireComputerUseApproval: policy.requireComputerUseApproval
-    }
+  ipcMain.handle('enterprisePolicy:get', (): EnterprisePolicyView => projectPolicyView(getPolicy()))
+
+  // Why a synchronous channel too: the renderer gates are read from module-scope
+  // constants and from builders memoized on first call, so a policy that arrives one
+  // async tick later leaves those frozen at "unrestricted" for the process lifetime —
+  // a gate that passes its tests and changes nothing. Precedent: settings:get-sync.
+  ipcMain.on('enterprisePolicy:get-sync', (event) => {
+    event.returnValue = projectPolicyView(getPolicy())
   })
 }

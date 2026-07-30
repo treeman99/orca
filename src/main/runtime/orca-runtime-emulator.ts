@@ -1,6 +1,7 @@
 import type { BrowserWindow } from 'electron'
 import type { EmulatorBridge } from '../emulator/emulator-bridge'
-import { EmulatorError } from '../emulator/emulator-errors'
+import { EmulatorError, MOBILE_EMULATOR_DISABLED_GUIDANCE } from '../emulator/emulator-errors'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import {
   inspectEmulatorAvailability,
   type EmulatorAvailability
@@ -33,6 +34,11 @@ export class RuntimeEmulatorCommands {
   constructor(private readonly host: RuntimeEmulatorCommandHost) {}
 
   private requireEmulatorBridge(): EmulatorBridge {
+    // The one funnel all 19 emulator RPC handlers pass through — so this also covers the
+    // `orca emulator` CLI, headless `orca serve`, and any method a later rebase adds.
+    if (getEnterprisePolicy().disableMobileEmulator) {
+      throw new EmulatorError('emulator_disabled_by_policy', MOBILE_EMULATOR_DISABLED_GUIDANCE)
+    }
     const bridge = this.host.getEmulatorBridge()
     if (!bridge) {
       throw new EmulatorError('emulator_no_active', 'No emulator session is active')

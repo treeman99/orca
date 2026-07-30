@@ -3,6 +3,7 @@ import { findReusableRightSplitGroupId } from './emulator-right-split-target'
 import { cancelPendingSimulatorPaneShutdown } from './simulator-pane-shutdown-scheduler'
 import { shouldShutdownSimulatorForPaneUnmountFromTabs } from './simulator-tab-shutdown'
 import { translate } from '@/i18n/i18n'
+import { isMobileEmulatorAvailable } from './mobile-emulator-availability'
 
 export const isMacOsHost = typeof navigator !== 'undefined' && navigator.userAgent.includes('Mac')
 
@@ -33,7 +34,7 @@ export function ensureSimulatorTab(
   options?: EnsureSimulatorTabOptions
 ): string | null {
   const store = useAppStore.getState()
-  if (store.settings?.mobileEmulatorEnabled === false) {
+  if (!isMobileEmulatorAvailable(store.settings)) {
     return null
   }
   const sourceGroupId =

@@ -14,6 +14,8 @@ type AutomationEditorDialogHeaderProps = {
   isHermesCreate: boolean
   isCreateMode: boolean
   createTarget: AutomationCreateTarget
+  /** Targets the corporate policy leaves selectable; the toggle disappears below two. */
+  createTargets: readonly AutomationCreateTarget[]
   draftName: string
   templateOpen: boolean
   templates: AutomationTemplate[]
@@ -53,6 +55,7 @@ export function AutomationEditorDialogHeader({
   isHermesCreate,
   isCreateMode,
   createTarget,
+  createTargets,
   draftName,
   templateOpen,
   templates,
@@ -104,29 +107,35 @@ export function AutomationEditorDialogHeader({
         </div>
         {isCreateMode ? (
           <div className="flex shrink-0 items-center gap-2">
-            <ToggleGroup
-              type="single"
-              value={createTarget}
-              onValueChange={(value) =>
-                value && onCreateTargetChange(value as AutomationCreateTarget)
-              }
-              variant="outline"
-              size="sm"
-              className="grid grid-cols-2"
-            >
-              <ToggleGroupItem value="orca" className={modeToggleItemClassName}>
-                {translate(
-                  'auto.components.automations.AutomationEditorDialogHeader.6f309eef8d',
-                  'Orca'
-                )}
-              </ToggleGroupItem>
-              <ToggleGroupItem value="hermes" className={modeToggleItemClassName}>
-                {translate(
-                  'auto.components.automations.AutomationEditorDialogHeader.7e35393632',
-                  'Hermes'
-                )}
-              </ToggleGroupItem>
-            </ToggleGroup>
+            {/* Why a length check and not just hiding one item: this toggle renders from
+                isCreateMode alone, so it offered Hermes on machines with no Hermes at all.
+                With a single target left there is nothing to choose between. */}
+            {createTargets.length > 1 ? (
+              <ToggleGroup
+                type="single"
+                value={createTarget}
+                onValueChange={(value) =>
+                  value && onCreateTargetChange(value as AutomationCreateTarget)
+                }
+                variant="outline"
+                size="sm"
+                className="grid grid-cols-2"
+              >
+                {createTargets.map((target) => (
+                  <ToggleGroupItem key={target} value={target} className={modeToggleItemClassName}>
+                    {target === 'orca'
+                      ? translate(
+                          'auto.components.automations.AutomationEditorDialogHeader.6f309eef8d',
+                          'Orca'
+                        )
+                      : translate(
+                          'auto.components.automations.AutomationEditorDialogHeader.7e35393632',
+                          'Hermes'
+                        )}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            ) : null}
             <Popover open={templateOpen} onOpenChange={onTemplateOpenChange}>
               <PopoverTrigger asChild>
                 <Button

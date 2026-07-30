@@ -18,6 +18,7 @@ import { getAgentCacheTimerSearchEntries } from './agent-cache-timer-search'
 import { translate } from '@/i18n/i18n'
 import { searchKeywords, translateSearchKeyword, uniqueKeywords } from './settings-search-keywords'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
+import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 
 function buildAgentSettingsKeywords(): string[] {
   const keywords = searchKeywords([
@@ -25,7 +26,9 @@ function buildAgentSettingsKeywords(): string[] {
     { key: 'auto.components.settings.agents.search.d8f3a8b8a0', fallback: 'default' },
     { key: 'auto.components.settings.agents.search.167daeb5e9', fallback: 'command' },
     { key: 'auto.components.settings.agents.search.be59907510', fallback: 'override' },
-    { key: 'auto.components.settings.agents.search.a6d594c17d', fallback: 'install' },
+    ...(getEnterprisePolicyView().disableAgentInstallSuggestions
+      ? []
+      : [{ key: 'auto.components.settings.agents.search.a6d594c17d', fallback: 'install' }]),
     { key: 'auto.components.settings.agents.search.f2932bf22b', fallback: 'detected' },
     { key: 'auto.components.settings.agents.search.2afd3b5858', fallback: 'enable' },
     { key: 'auto.components.settings.agents.search.60393e1b17', fallback: 'disable' },

@@ -1685,7 +1685,9 @@ describe('OrcaRuntimeRpcServer', () => {
         id: 'req_settings_update',
         method: 'settings.update',
         deviceToken: mobile.token,
-        params: { defaultTaskSource: 'linear' }
+        // 'github' rather than 'linear': this case asserts the method is reachable from a
+        // mobile token, and a provider this fork no longer offers is rejected on validation.
+        params: { defaultTaskSource: 'github' }
       }),
       (response) => replies.push(JSON.parse(response) as Record<string, unknown>),
       () => {}

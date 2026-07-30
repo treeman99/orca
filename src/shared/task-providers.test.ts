@@ -8,18 +8,26 @@ import {
 } from './task-providers'
 
 describe('task providers', () => {
-  it('normalizes provider lists while preserving supported order', () => {
-    expect(normalizeVisibleTaskProviders(['gitlab', 'unknown', 'gitlab', 'linear'])).toEqual([
-      'gitlab',
-      'linear'
+  // This fork offers GitHub only (see TASK_PROVIDERS). The union still names the other three
+  // because persisted profiles and telemetry rows written before that narrowed still carry
+  // them — so the contract that matters is that they normalize AWAY rather than resurface.
+  it('drops providers this fork does not offer, including legacy saved ones', () => {
+    expect(normalizeVisibleTaskProviders(['gitlab', 'unknown', 'linear', 'jira'])).toEqual([
+      'github'
     ])
   })
 
-  it('falls back to all providers when none are visible', () => {
-    expect(normalizeVisibleTaskProviders([])).toEqual(['github', 'gitlab', 'linear', 'jira'])
+  it('keeps the supported provider when it is already saved', () => {
+    expect(normalizeVisibleTaskProviders(['github'])).toEqual(['github'])
   })
 
-  it('restores a valid saved default when provider settings drifted', () => {
+  it('falls back to the offered providers when none are visible', () => {
+    expect(normalizeVisibleTaskProviders([])).toEqual(['github'])
+  })
+
+  // A profile from before this fork narrowed: the saved list and default both name providers
+  // that are gone. Neither may survive normalization.
+  it('repairs a legacy profile back to the offered provider', () => {
     expect(
       normalizeTaskProviderSettings({
         visibleTaskProviders: ['linear'],
@@ -27,19 +35,19 @@ describe('task providers', () => {
       })
     ).toEqual({
       defaultTaskSource: 'github',
-      visibleTaskProviders: ['github', 'linear']
+      visibleTaskProviders: ['github']
     })
   })
 
-  it('normalizes invalid saved defaults to the first visible provider', () => {
+  it('normalizes an invalid saved default to the first visible provider', () => {
     expect(
       normalizeTaskProviderSettings({
         visibleTaskProviders: ['gitlab'],
         defaultTaskSource: 'bitbucket'
       })
     ).toEqual({
-      defaultTaskSource: 'gitlab',
-      visibleTaskProviders: ['gitlab']
+      defaultTaskSource: 'github',
+      visibleTaskProviders: ['github']
     })
   })
 
@@ -56,7 +64,7 @@ describe('task providers', () => {
     ).toEqual(['github', 'linear'])
   })
 
-  it('keeps an available saved default visible when provider visibility drifted', () => {
+  it('restores the saved default without readmitting a provider this fork removed', () => {
     expect(
       restoreAvailableDefaultTaskProvider(
         ['linear'],
@@ -66,7 +74,7 @@ describe('task providers', () => {
         },
         'github'
       )
-    ).toEqual(['github', 'linear'])
+    ).toEqual(['github'])
   })
 
   it('preserves intentionally narrowed providers when the saved default matches them', () => {

@@ -726,7 +726,7 @@
         "85f4fd7710": "Task Sources",
         "ab4b21b58e": "Branch naming, base refs, attribution, and Git AI Author.",
         "09607cb0fe": "Git & Source Control",
-        "33a5e1d597": "Connect GitHub, GitLab, Linear, and source-hosting services.",
+        "33a5e1d597": "Connect the company GitHub host Orca uses for pull requests, checks, and reviews.",
         "2b043783ef": "Integrations",
         "2cd4ea75da": "Workspace defaults, app setup, and maintenance.",
         "13241992bd": "General",
@@ -5184,7 +5184,8 @@
           "3f1bdf3cb4": "Environment text is too large to parse safely.",
           "codexSessionSource": "Codex home to import from",
           "codexSessionSourceInfo": "About importing Codex history",
-          "codexSessionSourceTooltip": "Orca runs Codex in an isolated home. Point this at your existing Codex home to import that session history. Empty uses ~/.codex."
+          "codexSessionSourceTooltip": "Orca runs Codex in an isolated home. Point this at your existing Codex home to import that session history. Empty uses ~/.codex.",
+          "corporateNoAgentsDetected": "No agent CLIs were detected. Install them through your organization’s software distribution, then refresh."
         },
         "AppIconSelector": {
           "d5a112dc9b": "Next icon",
@@ -5933,7 +5934,7 @@
           "f7eb5f0b24": "Not installed",
           "3ba07f933b": "Connect issue trackers Orca can use to browse tasks and start workspaces with linked context.",
           "70e885705b": "Task providers",
-          "1683acbac4": "Connect the source hosts Orca can use for pull requests, merge requests, checks, and review status.",
+          "1683acbac4": "Connect the source host Orca can use for pull requests, checks, and review status.",
           "298c65ecac": "Review providers"
         },
         "KagiSessionLinkForm": {
@@ -6663,7 +6664,7 @@
           "11faa2f7dd": "Task Sources",
           "cfa34f4465": "Branch naming, base refs, attribution, and Git AI Author.",
           "70100f94c7": "Git & Source Control",
-          "b07041697f": "Connect GitHub, GitLab, Linear, and source-hosting services.",
+          "b07041697f": "Connect the company GitHub host Orca uses for pull requests, checks, and reviews.",
           "c9ca101a3b": "Integrations",
           "f9b77539fd": "Workspace defaults, app setup, and maintenance.",
           "7807c11c4d": "General",
@@ -9579,6 +9580,7 @@
         "GitHubEnterpriseHostReadout": {
           "sourceRemote": "from this workspace’s git remote",
           "sourceEnv": "from the GH_HOST environment variable",
+          "sourceGhConfig": "from the host gh is signed in to",
           "sourceUser": "from the host you saved here",
           "sourcePolicy": "from your organization’s Orca policy",
           "sourceDefault": "the gh default — no corporate host is configured",
@@ -10926,7 +10928,8 @@
           "showMoreAgents": "Show {{value0}} more agents→",
           "yoloPermissionsLabel": "Yolo / Dangerously skip permissions",
           "yoloPermissionsInfo": "Agent permission info",
-          "yoloPermissionsTooltip": "Skip permission checks for agents for less interruptions"
+          "yoloPermissionsTooltip": "Skip permission checks for agents for less interruptions",
+          "corporateNoAgentsDetected": "No agent CLIs were detected. Follow your organization’s installation process, or continue with a blank terminal."
         },
         "FeatureSetupChecklist": {
           "77f74946f5": "Agents can message each other, take tasks, and coordinate handoffs.",

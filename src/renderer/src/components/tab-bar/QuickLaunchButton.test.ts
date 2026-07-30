@@ -52,12 +52,18 @@ vi.mock('@/lib/agent-catalog', async () => {
     createElement: typeof React.createElement
   }
 
+  const catalog = [
+    { id: 'claude', label: 'Claude' },
+    { id: 'codex', label: 'Codex' },
+    { id: 'gemini', label: 'Gemini' }
+  ]
+
   return {
-    getAgentCatalog: () => [
-      { id: 'claude', label: 'Claude' },
-      { id: 'codex', label: 'Codex' },
-      { id: 'gemini', label: 'Gemini' }
-    ],
+    // getAgentCatalog is the policy-narrowed list the menu offers; getFullAgentCatalog is the
+    // unfiltered one label/icon lookups use. Same fixture here — these cases are about
+    // ordering, not about the allowlist (see agent-policy-gating.test.ts for that).
+    getAgentCatalog: () => catalog,
+    getFullAgentCatalog: () => catalog,
     AgentIcon: ({ agent }: { agent: string }) => ReactActual.createElement('span', null, agent)
   }
 })

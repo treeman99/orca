@@ -19,6 +19,7 @@ import type {
 } from '../../shared/github-enterprise-auth'
 
 type Deps = Parameters<typeof registerGithubEnterpriseHandlers>[0]
+type GhAccount = { host: string; user: string | null }
 
 function makeDeps(overrides: Partial<NonNullable<Deps>> = {}): NonNullable<Deps> {
   return {
@@ -26,7 +27,7 @@ function makeDeps(overrides: Partial<NonNullable<Deps>> = {}): NonNullable<Deps>
     storedHost: () => null,
     ghHostEnv: () => null,
     saveHost: vi.fn(),
-    diagnose: vi.fn(async () => ({ ghAvailable: true, authenticated: true, account: 'dev-user' })),
+    diagnose: vi.fn(async () => ({ ghAvailable: true, accounts: [] as GhAccount[] })),
     login: vi.fn(async () => ({ ok: true, account: 'dev-user' }) as GithubEnterpriseLoginResult),
     loginWithToken: vi.fn(async () => ({ ok: true, account: null }) as GithubEnterpriseLoginResult),
     logout: vi.fn(async () => {}),
@@ -64,16 +65,17 @@ describe('registerGithubEnterpriseHandlers', () => {
   })
 
   it('diagnoses the effective host, preferring the stored host over the policy host', async () => {
-    const diagnose = vi.fn(async () => ({
-      ghAvailable: true,
-      authenticated: true,
-      account: 'dev-user'
-    }))
     registerGithubEnterpriseHandlers(
       makeDeps({
         storedHost: () => 'stored.corp.net',
         policyHost: () => 'policy.corp.net',
-        diagnose
+        diagnose: vi.fn(async () => ({
+          ghAvailable: true,
+          accounts: [
+            { host: 'stored.corp.net', user: 'dev-user' },
+            { host: 'github.com', user: 'someone-else' }
+          ] as GhAccount[]
+        }))
       })
     )
     expect(await invoke('githubEnterprise:getStatus', fakeSender())).toEqual({
@@ -84,7 +86,111 @@ describe('registerGithubEnterpriseHandlers', () => {
       effectiveHost: 'stored.corp.net',
       effectiveHostSource: 'user-setting'
     })
-    expect(diagnose).toHaveBeenCalledWith('stored.corp.net')
+  })
+
+  // The bug this fixes: install Orca, THEN run `gh auth login --hostname <ghes>`. gh writes
+  // its own config, not the environment, so with nothing read from gh the pane reported
+  // "no host" and github.com forever — a userData wipe (reinstall) was the only cure.
+  it('reports the single host gh is logged in to when neither the user nor the policy set one', async () => {
+    registerGithubEnterpriseHandlers(
+      makeDeps({
+        diagnose: vi.fn(async () => ({
+          ghAvailable: true,
+          accounts: [{ host: 'github.samsungds.net', user: 'dev-user' }] as GhAccount[]
+        }))
+      })
+    )
+    expect(await invoke('githubEnterprise:getStatus', fakeSender())).toEqual({
+      ghAvailable: true,
+      host: 'github.samsungds.net',
+      authenticated: true,
+      account: 'dev-user',
+      effectiveHost: 'github.samsungds.net',
+      effectiveHostSource: 'gh-config-host'
+    })
+  })
+
+  // Mirrors gh's own DefaultHost(): two logins are ambiguous, so gh falls back to
+  // github.com and so must the readout — guessing the corporate one would mislabel
+  // requests that really do leave for the vendor.
+  it('does not infer a host when gh is logged in to more than one', async () => {
+    registerGithubEnterpriseHandlers(
+      makeDeps({
+        diagnose: vi.fn(async () => ({
+          ghAvailable: true,
+          accounts: [
+            { host: 'github.com', user: 'dev-user' },
+            { host: 'github.samsungds.net', user: 'dev-user' }
+          ] as GhAccount[]
+        }))
+      })
+    )
+    expect(await invoke('githubEnterprise:getStatus', fakeSender())).toMatchObject({
+      host: null,
+      effectiveHost: 'github.com',
+      effectiveHostSource: 'default'
+    })
+  })
+
+  // GH_HOST is gh's own override and outranks gh's config, exactly as gh resolves it.
+  it('reports GH_HOST ahead of the host gh is logged in to', async () => {
+    registerGithubEnterpriseHandlers(
+      makeDeps({
+        ghHostEnv: () => 'ghhost.corp.net',
+        diagnose: vi.fn(async () => ({
+          ghAvailable: true,
+          accounts: [{ host: 'github.samsungds.net', user: 'dev-user' }] as GhAccount[]
+        }))
+      })
+    )
+    expect(await invoke('githubEnterprise:getStatus', fakeSender())).toMatchObject({
+      effectiveHost: 'ghhost.corp.net',
+      effectiveHostSource: 'gh-host-env'
+    })
+  })
+
+  // gh obeys its own config, not ours: reporting the stored host while gh sends
+  // elsewhere is the mislabel this readout exists to prevent.
+  it('reports the gh-configured host ahead of the stored and policy hosts', async () => {
+    registerGithubEnterpriseHandlers(
+      makeDeps({
+        storedHost: () => 'stored.corp.net',
+        policyHost: () => 'policy.corp.net',
+        diagnose: vi.fn(async () => ({
+          ghAvailable: true,
+          accounts: [{ host: 'github.samsungds.net', user: 'dev-user' }] as GhAccount[]
+        }))
+      })
+    )
+    expect(await invoke('githubEnterprise:getStatus', fakeSender())).toMatchObject({
+      host: 'stored.corp.net',
+      authenticated: false,
+      effectiveHost: 'github.samsungds.net',
+      effectiveHostSource: 'gh-config-host'
+    })
+  })
+
+  it('re-reads gh on setHost so an already signed-in host reports as authenticated', async () => {
+    let stored: string | null = null
+    registerGithubEnterpriseHandlers(
+      makeDeps({
+        storedHost: () => stored,
+        saveHost: (host) => {
+          stored = host
+        },
+        diagnose: vi.fn(async () => ({
+          ghAvailable: true,
+          accounts: [{ host: 'github.samsungds.net', user: 'dev-user' }] as GhAccount[]
+        }))
+      })
+    )
+    expect(
+      await invoke('githubEnterprise:setHost', fakeSender(), { host: 'github.samsungds.net' })
+    ).toMatchObject({
+      host: 'github.samsungds.net',
+      authenticated: true,
+      account: 'dev-user'
+    })
   })
 
   // GH_HOST is gh's own variable and outranks anything Orca stores, so the readout must
@@ -105,6 +211,20 @@ describe('registerGithubEnterpriseHandlers', () => {
     })
   })
 
+  it('reports gh as unavailable when the probe could not run it', async () => {
+    registerGithubEnterpriseHandlers(
+      makeDeps({
+        storedHost: () => 'stored.corp.net',
+        diagnose: vi.fn(async () => ({ ghAvailable: false, accounts: [] as GhAccount[] }))
+      })
+    )
+    expect(await invoke('githubEnterprise:getStatus', fakeSender())).toMatchObject({
+      ghAvailable: false,
+      host: 'stored.corp.net',
+      authenticated: false
+    })
+  })
+
   it('reports the policy host as the effective one when nothing outranks it', async () => {
     registerGithubEnterpriseHandlers(makeDeps({ policyHost: () => 'policy.corp.net' }))
     expect(await invoke('githubEnterprise:getStatus', fakeSender())).toMatchObject({
@@ -114,10 +234,11 @@ describe('registerGithubEnterpriseHandlers', () => {
   })
 
   it('falls back to the policy host when the user saved none', async () => {
-    const diagnose = vi.fn(async () => ({ ghAvailable: true, authenticated: false, account: null }))
-    registerGithubEnterpriseHandlers(makeDeps({ policyHost: () => 'policy.corp.net', diagnose }))
-    await invoke('githubEnterprise:getStatus', fakeSender())
-    expect(diagnose).toHaveBeenCalledWith('policy.corp.net')
+    registerGithubEnterpriseHandlers(makeDeps({ policyHost: () => 'policy.corp.net' }))
+    expect(await invoke('githubEnterprise:getStatus', fakeSender())).toMatchObject({
+      host: 'policy.corp.net',
+      authenticated: false
+    })
   })
 
   it('persists a normalized host on setHost', async () => {

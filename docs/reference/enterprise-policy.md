@@ -91,16 +91,19 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 
 | 키 | 타입 | 기본값 | 실제로 끄는 것 (게이트 위치) |
 | --- | --- | --- | --- |
-| `lockdown` | boolean | `false` | 마스터 스위치. 아래 7개 스위치의 **기본값**이 됩니다 (`src/shared/enterprise-policy.ts:52-60`, `:196-200`). 그 자체로 직접 끄는 기능은 없습니다 |
-| `githubEnterpriseHost` | string | `GH_HOST` → 없으면 `null` | 해당 호스트를 GitHub로 인식시켜 **Gitea 오폴백**(`<host>/api/v1/...` 직접 fetch)을 막습니다 (`src/main/gitea/repository-ref.ts:91-99`). 허용목록에도 자동 추가 (`enterprise-policy.ts:204-207`) |
+| `lockdown` | boolean | `false` | 마스터 스위치. 아래 상속 스위치 전부(`LOCKDOWN_INHERITING_KEYS`, 현재 15개)의 **기본값**이 됩니다 (`src/shared/enterprise-policy.ts:52-60`, `:196-200`). 그 자체로 직접 끄는 기능은 없습니다 |
+| `githubEnterpriseHost` | string | `GH_HOST` → `gh`의 `hosts.yml` → 없으면 `null` | 해당 호스트를 GitHub로 인식시켜 **Gitea 오폴백**(`<host>/api/v1/...` 직접 fetch)을 막습니다 (`src/main/gitea/repository-ref.ts:91-99`). 허용목록에도 자동 추가 (`enterprise-policy.ts:204-207`). **폴백 3순위가 `gh` 자신의 설정 파일입니다** — `gh auth login --hostname <ghes>`는 환경변수가 아니라 `hosts.yml`에 쓰므로, GUI로 실행된 앱이 셸 rc의 `GH_HOST`를 못 보는 흔한 상황에서 이 경로가 유일한 단서입니다 (`src/main/github/gh-config-host.ts`). 로그인된 호스트가 **정확히 하나일 때만** 채택합니다(gh의 `DefaultHost()`와 동일) |
 | `disableTelemetry` | boolean | `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88-90`) **및** 진단/크래시 번들 업로드 — 컨센트 계산은 `src/main/observability/index.ts:103, 120-134`이고 실제 거부는 메인의 IPC 게이트(`src/main/ipc/diagnostics.ts:221`(수집), `:253`·`:263`(업로드))와 크래시 피드백 첨부(`src/main/crash-reporting/crash-feedback-diagnostic-bundle.ts:33`)에서 일어납니다. 번들 목적지는 `https://www.onorca.dev/v1/feedback` (`src/main/ipc/feedback.ts:10`) — v1.4.159에서 upstream이 `api.onorca.dev` 폴백 엔드포인트를 삭제해 목적지가 하나로 줄었습니다. **로컬 NDJSON 로깅은 그대로 유지됩니다** (`observability/index.ts:129-133`) |
 | `disableAutoUpdate` | boolean | `lockdown` | `runBackgroundUpdateCheck()` 초크포인트 (`src/main/updater.ts:1179`), 메뉴의 수동 체크 `checkForUpdatesFromMenu()` (`:1251`), `setupAutoUpdater()` (`:1458`). 세 번째가 핵심 — 넛지 스케줄러(`:1536-1537`)와 `powerMonitor`/포커스 리스너(`:1556-1557`)가 **아예 등록되지 않습니다** |
 | `disableStarNag` | boolean | `lockdown` | `checkOrcaStarred()`는 "이미 star함"으로 응답(`src/main/github/client.ts:233-235`), `starOrca()`는 실패로 응답(`:419-421`). 도달 경로 4개를 모두 덮습니다 — `star-nag/service.ts:121`, `star-nag/agent-value-moment.ts:46`, `star-nag/direct-star-attempt.ts:9`, `ipc/github.ts:1174-1175`(랜딩/설정 화면) |
 | `disableCloudRelay` | boolean | `lockdown` | `getOrcaCloudAuthConfig()`가 not-configured를 반환 (`src/main/orca-profiles/profile-cloud-auth-config.ts:73-78`). 결과로 Orca Cloud 로그인, **모바일 페어링 릴레이 미기동**(`src/main/index.ts:2478-2506`), `orcaProfiles:connectCurrent` / `createCloudLinked` / `selectOrg` 3개 IPC가 한 번에 `unconfigured` (`profile-cloud-service.ts:68, 152, 207`). ⚠️ **모바일 페어링을 막지 않습니다** — 벤더 릴레이만 꺼질 뿐 LAN/Tailscale 페어링은 그대로 동작합니다. 모바일을 막으려면 `disableMobilePairing`을 쓰세요 |
-| `disableUsagePolling` | boolean | `lockdown` | AI 벤더 사용량/rate-limit 폴링. 게이트 1곳(`src/main/rate-limits/service.ts:760-761`)을 진입점 전부에서 호출 — `start()`(`:310`), `fetchAll()`(`:921`), `fetchCodexOnly()`(`:986`), `fetchClaudeOnly()`(`:1048`), `fetchGrokOnly()`(`:1113`), 계정 스위처 프리뷰 2개(`fetchInactiveClaudeAccountsOnOpen` `:497`, `fetchInactiveCodexAccountsOnOpen` `:606`), Codex 리셋 크레딧 POST(`:428`, 에러 throw), 상태칩은 `unavailable`로 고정(`:1461`) |
+| `disableUsagePolling` | boolean | `lockdown` | AI 벤더 사용량/rate-limit 폴링 **및 그 데이터를 보여주는 UI**. 폴링 게이트 1곳(`src/main/rate-limits/service.ts:760-761`)을 진입점 전부에서 호출 — `start()`(`:310`), `fetchAll()`(`:921`), `fetchCodexOnly()`(`:986`), `fetchClaudeOnly()`(`:1048`), `fetchGrokOnly()`(`:1113`), 계정 스위처 프리뷰 2개(`fetchInactiveClaudeAccountsOnOpen` `:497`, `fetchInactiveCodexAccountsOnOpen` `:606`), Codex 리셋 크레딧 POST(`:428`, 에러 throw), 상태칩은 `unavailable`로 고정(`:1461`). **UI**: 설정 → **통계 및 사용량** 팬이 사이드바·Cmd+J 팔레트·설정 검색에서 함께 사라지고(`useSettingsNavigationMetadata.ts`의 `stats` 항목 + `Settings.tsx`의 섹션 + 딥링크 가드 `settings-pane-policy-visibility.ts`), 상태바 팝오버의 "Usage details & history" 항목도 없어집니다(`UsageRosterPanel.tsx`). ⚠️ 이 팬에는 **Orca 자체 로컬 통계**(에이전트 실행 수·작업 시간·PR 수, 네트워크 없음)도 들어 있어 함께 사라집니다 — 그것만 남기고 싶다면 이 스위치를 `false`로 두고 §7-1의 확인 절차로 폴링만 끄는 조합을 검토하세요. 이 팬 안에만 있던 `x.com/intent/post` 사용량 공유 버튼도 함께 도달 불가가 됩니다 |
 | `disableManagedClaudeAccounts` | boolean | `lockdown` | 관리형 Claude 계정의 **런타임 효과 전체** — `platform.claude.com` 토큰 회전, 활성 계정 선택, 에이전트 환경변수 재작성. 설정 UI에서 계정을 추가·선택하는 것 자체는 막지 않습니다 — 그건 `disableVendorProviderAccounts`의 역할이고, 둘은 중복이 아니라 상보 관계입니다(전자는 런타임, 후자는 등록 표면). §3-1 참고 |
 | `disableSpellcheck` | boolean | `lockdown` | Chromium 맞춤법 검사기. Electron 기본값이 on이라 Windows/Linux에서 Google CDN으로 hunspell 사전을 받습니다. 메인 윈도(`src/main/window/createMainWindow.ts:299`)와 `will-attach-webview` 게스트 하드닝(`:471`) 양쪽 |
 | `disableMobilePairing` | boolean | `lockdown` | Orca 모바일 페어링 **자체**를 거부합니다. `disableCloudRelay`는 벤더 릴레이만 껐고 **LAN/Tailscale 페어링은 그대로 동작**했습니다 — 오히려 lockdown 상태에서 모든 QR이 "동작하는 local-only QR"로 정상 발급됐습니다. 게이트는 `createPairingOffer()`의 `scope === 'mobile'`(`src/main/runtime/runtime-rpc.ts`)이라 설정 QR·`orca serve --mobile-pairing`·릴레이 경유 오퍼를 한 번에 덮고, 이미 페어링된 폰의 RPC 디스패치도 거부합니다. UI에서는 설정 → 모바일 탭, 사이드바 버튼, Cmd+J 항목, 앱 메뉴 토글이 사라집니다 |
+| `disableMobileEmulator` | boolean | `lockdown` | 로컬 iOS 시뮬레이터 / Android AVD를 탭으로 스트리밍하는 **모바일 에뮬레이터**를 거부합니다. ⚠️ **`disableMobilePairing`과 다른 스위치입니다** — 저쪽은 실제 폰을 이 데스크톱에 페어링하는 기능이고, 이쪽은 이 기계 안의 시뮬레이터를 화면에 띄우는 기능입니다. 코드가 겹치지 않아(RPC 네임스페이스 `emulator.*` vs `scope === 'mobile'`, 설정 팬 id `mobile-emulator` vs `mobile`) 한쪽만 끄고 싶은 플릿이 존재합니다. 하드 게이트 2곳: `RuntimeEmulatorCommands.requireEmulatorBridge()`(`src/main/runtime/orca-runtime-emulator.ts`, 19개 RPC 핸들러가 모두 지나감 → 렌더러 팬·`orca emulator` CLI·헤드리스 `orca serve` 전부 `emulator_disabled_by_policy`로 거부)와 RPC 디스패처를 우회하는 MJPEG/H.264 스트림 채널 2개의 **미등록**(`register-core-handlers.ts`). UI에서는 설정 → 모바일 에뮬레이터 팬, `+` 메뉴의 New Mobile Emulator, 단축키 설정의 해당 행, 그리고 **이전에 열려 있던 시뮬레이터 탭까지** 사라집니다. scrcpy jar 다운로드는 이미 `enterprise-direct-download-guard.ts`가 막고 있으므로 이 스위치는 egress가 아니라 **도달 가능성**에 관한 것입니다 |
+| `disableExternalAutomations` | boolean | `lockdown` | 자동화 페이지의 **외부 자동화 소스**(`hermes`, `openclaw`)를 거부합니다 — 발견(PATH 탐지 + `~/.hermes` 읽기), 실행 이력, 그리고 벤더 CLI를 스케줄로 띄우는 create/edit/pause/run 전부. 게이트 1곳(`src/main/automations/external-manager.ts`의 `isExternalAutomationProviderAllowed`)이 발견 경로와 렌더러가 provider를 넘기는 4개 진입점을 함께 덮습니다. `allowedAgents`로도 같은 결과가 나오지만(두 provider id가 곧 에이전트 CLI id) 그쪽은 `lockdown`을 상속하지 않으므로, **아무도 안 보는 상태에서 벤더 에이전트가 크론으로 도는 레인**을 마스터 스위치만으로 끄고 싶다면 이 키가 필요합니다. ⚠️ 잔여 위험: Orca는 스케줄러가 아니라 목록/조작 UI일 뿐이므로, 이미 등록된 `~/.hermes` 크론 잡은 Hermes 자신의 스케줄러로 계속 실행됩니다 — 제거는 `hermes cron rm`으로 해야 합니다 |
+| `disableAgentInstallSuggestions` | boolean | `lockdown` | 사용자에게 **에이전트 CLI를 직접 설치하라고 권하는 표면**을 없앱니다: 설정 → 에이전트의 "설치 가능" 섹션(각 행이 벤더 홈페이지로 나가는 링크를 답니다), 온보딩 에이전트 스텝의 설치 안내 배너·"Install instructions" 버튼·"N개 더 보기" 목록(온보딩·Feature Wall 체크리스트·설정 → Setup Guide **3경로**에서 같은 컴포넌트가 렌더됩니다), 설정 검색의 `install` 키워드. `allowedAgents`와 **다른 축**입니다 — 저쪽은 "무엇을 고를 수 있나", 이쪽은 "직접 설치하라고 안내해도 되나"이고, 사내 소프트웨어 배포로 CLI를 깔아주는 플릿에서는 후자가 틀린 지시입니다. 허용된 에이전트가 아직 PATH에 없어도 설치 권유는 나오지 않고, 대신 "사내 배포로 설치한 뒤 새로 고침하세요" 안내가 뜹니다. ⚠️ 설치를 **막지는 못합니다** — 사용자가 터미널에서 직접 설치하는 것은 `allowedAgents`(실행 제한)의 몫입니다 |
 | `disableVendorProviderAccounts` | boolean | `lockdown` | 벤더 AI 계정 **등록**을 거부합니다 (Claude 구독/Codex/Grok/MiniMax). `allowedAgents`로는 표현할 수 없습니다 — Bedrock 플릿은 `allowedAgents: ["claude"]`(= CLI 바이너리)가 필요한데 그 값이 이름이 같은 `platform.claude.com` 로그인 섹션을 통과시켰습니다. **AWS SSO와 사내 self-hosted 엔드포인트는 대상이 아닙니다.** `list`/`select`/`remove`도 막지 않습니다 — 이미 저장된 자격증명을 지울 길이 사라지면 오히려 위험합니다. 게이트: `src/main/ipc/{claude,codex}-accounts.ts`, `minimax-credentials.ts`의 add/reauthenticate/saveCookie |
 | `disableRemoteOrcaServer` | boolean | `lockdown` | 이 데스크톱이 **다른 Orca에 붙는 것**(아웃바운드)을 거부합니다 — 설정 → 원격 Orca 서버, 페어링 코드 등록, ephemeral VM, 부팅 시 저장된 원격을 활성 런타임으로 복원하는 hydration. **SSH 호스트와 인바운드 `orca serve` 리스너는 대상이 아닙니다** — 원격 개발을 통째로 없애지 않습니다. 게이트: `src/main/ipc/runtime-environment-transport-routing.ts`의 status/call/subscribe 3개 진입점 |
 | `disableVoice` | boolean | `lockdown` | 받아쓰기를 끝에서 끝까지 끕니다 — 로컬 STT 런타임, 모델 다운로드(HuggingFace CDN), 컴포저 마이크 버튼, 단축키, 모바일 클라이언트의 원격 받아쓰기 토글. 게이트: `src/main/speech/speech-runtime-service.ts`의 두 게터 + `registerSpeechHandlers` 미등록(macOS 마이크 권한 프롬프트가 뜨지 않게). **macOS 마이크 entitlement는 제거하지 않습니다** — 내장 브라우저의 WebRTC와 공유되기 때문입니다 |
@@ -219,7 +222,10 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 
 기본 배포판에는 Claude·Codex(gpt)·Gemini·OpenCode·Grok 등 여러 에이전트 CLI와 그 벤더 모델이 UI 곳곳에 노출됩니다. `allowedAgents`를 지정하면 **고를 수 있는 에이전트를 이 목록으로만 좁힙니다.** Bedrock 전용 플릿이라면 `["claude"]` 하나면 됩니다 — `claude` 에이전트가 `AWS_BEARER_TOKEN_BEDROCK`을 통해 Bedrock으로 말하기 때문입니다.
 
-- **좁혀지는 표면 (렌더러):** 정책은 `enterprisePolicy:get` IPC(`src/main/ipc/enterprise-policy.ts`)로 렌더러에 전달되고, 다음이 허용 목록으로 필터됩니다 — 에이전트 설정 피커(`AgentsPane`), 계정 설정 섹션(`AccountsPane`), 새 워크스페이스 에이전트 선택(`NewWorkspaceComposerCard`), 하단 사용량 미터/우클릭 토글(`status-bar-agent-gating.ts`). 이미 실행 중인 세션의 이름·아이콘은 전체 카탈로그로 계속 해석되므로 깨지지 않습니다.
+- **탐지 결과에서 제거 (메인 — 이게 본체입니다):** 허용되지 않은 에이전트는 **에이전트 탐지 결과 자체에서 빠집니다** (`src/main/ipc/preflight.ts`의 `detectInstalledAgents` / `detectRemoteAgents`). "무엇이 감지되었나"가 모든 피커·자동 선택·퀵런치·키보드 단축키의 입력이고, 웹 클라이언트·모바일 클라이언트·CLI·페어링된 데스크톱이 받는 답도 같은 값입니다 — 이들은 렌더러 정책 뷰를 **아예 보지 못하므로**(웹 preload에 `enterprisePolicy` API가 없습니다) 메인 쪽 게이트가 유일한 방어선입니다.
+- **좁혀지는 표면 (렌더러):** 정책은 `enterprisePolicy:get`(+ 동기 채널 `:get-sync`) IPC로 렌더러에 전달되고, **에이전트 카탈로그 자체**가 허용 목록으로 필터됩니다 (`src/renderer/src/lib/agent-catalog.tsx`의 `getAgentCatalog()`). 즉 피커를 새로 추가한 코드가 별도 조치 없이도 게이트를 물려받습니다 — 설정 → 에이전트, 계정 설정, 새 워크스페이스/워크트리 생성, `+` 탭 메뉴와 퀵런치, 자동화 에디터의 에이전트 피커, 온보딩, 소스컨트롤 AI 액션, 터미널 Quick Command, 설정 검색 키워드, 설정 → 단축키의 에이전트별 행이 모두 여기서 나옵니다. 이름·아이콘 조회는 의도적으로 **전체 카탈로그**(`getFullAgentCatalog()` / `getAgentLabel()`)를 쓰므로, 정책이 방금 숨긴 에이전트가 이미 실행 중이어도 자기 이름을 그대로 표시합니다.
+- **자동 선택 폴백:** 탐지가 아직 진행 중일 때(`null`) 쓰이는 자동 선택 순서도 필터됩니다 (`quick-workspace-agent-selection.ts`). 이게 빠지면 목록은 필터됐는데 **미리 선택된 값이 차단된 에이전트**여서 그대로 실행되는 상태가 됩니다.
+- **외부 자동화:** `hermes`·`openclaw`는 provider id가 곧 에이전트 CLI id라, `allowedAgents`가 자동화 페이지의 외부 소스와 에디터의 Orca/Hermes 대상 토글까지 함께 좁힙니다 (`src/main/automations/external-manager.ts`). 마스터 스위치로 끄고 싶다면 `disableExternalAutomations`를 쓰세요.
 - **폴링 차단 (메인):** 허용되지 않은 벤더의 사용량 미터는 네트워크로 나가지 않습니다 — 예로 Codex는 `chatgpt.com`을 조회하지 않습니다 (`src/main/rate-limits/service.ts`의 `isUsageProviderAllowed`). `claude`는 Bedrock 에이전트라 여기서 게이트되지 않습니다 (Claude 사용량 폴링 자체를 끄려면 `disableUsagePolling`).
 - **사내 self-hosted 모델:** 에이전트가 아니라 허용된 에이전트의 **모델 피커에 얹히는** 항목이므로(`corporate-llm-session-catalog.ts`) `allowedAgents`에 적지 않아도 그대로 유지됩니다. `llmEndpoints`(§3-2)로 배포하면 됩니다.
 - **안전장치:** 빈 배열이나 전부 무효한 값은 "제한 없음(`null`)"으로 처리되고 경고가 나갑니다 (`enterprise-policy.ts`의 `readAgentAllowlist`) — 관리자의 오타가 피커를 완전히 비워 앱을 못 쓰게 만드는 사고를 막습니다. `lockdown`을 상속하지 않으므로 제한하려면 **명시**해야 합니다.
@@ -228,12 +234,24 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 
 `gh`가 회사에서 `github.com`에 닿지 못하면 사내 GHES 호스트로 `gh`를 로그인시켜야 합니다. 관리자가 `githubEnterpriseHost`를 배포하지 않았거나 사용자가 직접 로그인해야 하는 경우, **설정 → 연동 → "사내 GitHub (Enterprise)"(영문 UI: Integrations → Company GitHub (Enterprise))** 에서 처리할 수 있습니다 (`src/renderer/src/components/settings/GitHubEnterpriseSection.tsx`).
 
-- **호스트 입력:** 정책의 `githubEnterpriseHost`가 있으면 그 값이 기본으로 채워지고, 없으면 사용자가 사내 호스트를 입력해 저장합니다. 저장 위치는 `%APPDATA%\Orca\github-enterprise-host.json` — 정책 파일이 아니라 사용자 프로파일입니다(`src/main/github/github-enterprise-host-store.ts`). 정책 호스트가 있으면 그쪽이 기본값으로 우선합니다.
+- **호스트 입력:** 정책의 `githubEnterpriseHost`가 있으면 그 값이 기본으로 채워지고, 없으면 사용자가 사내 호스트를 입력해 저장합니다. 저장 위치는 `%APPDATA%\Orca\github-enterprise-host.json` — 정책 파일이 아니라 사용자 프로파일입니다(`src/main/github/github-enterprise-host-store.ts`). 정책 호스트가 있으면 그쪽이 기본값으로 우선합니다. **`github.com`은 이 파일에 저장되지 않습니다** — 이 파일은 관리자의 `githubEnterpriseHost`보다 우선하고 TTL도 없어서, github.com 로그인 한 번이 기계를 영구히 벤더 호스트로 고정시키고 userData 삭제(=재설치)만이 유일한 해제 방법이었습니다.
+- **`gh`만 설정한 기계:** 정책도 없고 앱에 입력한 적도 없지만 `gh auth login --hostname <ghes>`는 실행한 상태 — 사내에서 가장 흔한 순서입니다. 이 경우 Orca가 **`gh` 자신의 `hosts.yml`을 읽어** 그 호스트를 채택합니다(`src/main/github/gh-config-host.ts`, 로그인된 호스트가 정확히 하나일 때만). 그 전에는 `GH_HOST` 환경변수만 봤고, GUI로 실행된 앱은 셸 rc의 `export`를 상속하지 않으므로 이 조합이 영원히 `github.com`으로 보였습니다.
 - **브라우저 로그인(device flow):** "Sign in with browser" 버튼이 `gh auth login --hostname <host> --git-protocol https --web`를 PTY로 실행합니다(`src/main/github/github-enterprise-login.ts`). gh가 출력하는 일회용 코드를 UI에 크게 띄우고, gh가 기본 브라우저를 열어 device 인증을 진행합니다.
 - **토큰(PAT) 로그인:** 회사가 OAuth device endpoint를 막는다면, 같은 섹션의 "Connect with token"에 PAT를 붙여넣으면 `gh auth login --hostname <host> --git-protocol https --with-token`(stdin)으로 비대화식 로그인합니다.
 - **공통:** **토큰은 앱이 저장하지 않습니다** — 두 방식 모두 `gh` 자신의 키링에 들어가므로, 로그인 후에는 기존 PR·체크·리뷰 상태 등 gh 기반 기능이 그대로 동작합니다.
 - **네트워크 잠금과 함께 쓸 때:** `enforceNetworkAllowlist: true`라면 GHES 호스트가 허용목록에 있어야 브라우저/API 호출이 통과합니다. `githubEnterpriseHost`(또는 `allowedNetworkHosts`)로 반드시 포함하세요(§5).
-- **"요청이 실제로 어디로 가는지" 확인:** 같은 읽기 전용 표시가 **설정 → Git 및 소스 제어**의 "Git 호스트" 항목에도 있습니다(`EffectiveGitHubHostSetting.tsx`). 입력 필드가 있는 §3-4 화면과 달리 이쪽은 표시만 하며, 사용자가 "내 코드가 어디로 나가나"를 확인하려고 여는 화면이 보통 이쪽이라 양쪽에 둡니다. 표시되는 값은 정책의 `githubEnterpriseHost`가 아니라 **`gh`가 실제로 향하는 호스트**이고(정책 호스트는 `gh`를 리다이렉트하지 않으며 `GH_HOST`가 둘보다 우선), 출처(정책/`GH_HOST`/사용자 저장/기본값)를 함께 적습니다.
+- **"요청이 실제로 어디로 가는지" 확인:** 같은 읽기 전용 표시가 **설정 → Git 및 소스 제어**의 "Git 호스트" 항목에도 있습니다(`EffectiveGitHubHostSetting.tsx`). 입력 필드가 있는 §3-4 화면과 달리 이쪽은 표시만 하며, 사용자가 "내 코드가 어디로 나가나"를 확인하려고 여는 화면이 보통 이쪽이라 양쪽에 둡니다. 표시되는 값은 정책의 `githubEnterpriseHost`가 아니라 **`gh`가 실제로 향하는 호스트**입니다 — 정책 호스트는 `gh`를 리다이렉트하지 않기 때문입니다. 우선순위와 표시되는 출처는 `gh` 자신의 해석 순서를 그대로 따릅니다 (`src/main/github/effective-github-host.ts`):
+
+  | 순위 | 출처 | UI 문구 |
+  | --- | --- | --- |
+  | 1 | 워크스페이스의 origin 리모트 | 이 워크스페이스의 git 리모트에서 |
+  | 2 | `GH_HOST` 환경변수 | GH_HOST 환경변수에서 |
+  | 3 | `gh`가 로그인되어 있는 단일 호스트 (`hosts.yml`) | gh가 로그인되어 있는 호스트에서 |
+  | 4 | 사용자가 §3-4에서 저장한 호스트 | 여기서 저장한 호스트에서 |
+  | 5 | 정책의 `githubEnterpriseHost` | 조직의 Orca 정책에서 |
+  | 6 | 없음 | gh 기본값 — 사내 호스트가 설정되지 않음 |
+
+  3순위가 4·5순위보다 위인 이유: `gh`는 자기 설정에 따라 요청을 보내므로, Orca가 저장/배포한 값을 표시하면 실제로는 다른 곳으로 나가는 요청에 사내 목적지 딱지를 붙이게 됩니다.
 
 ---
 
@@ -265,6 +283,9 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
   "disableRemoteOrcaServer": true,       // 다른 Orca에 붙기 (SSH 호스트는 제외)
   "disableVoice": true,                  // 받아쓰기 전체
   "requireComputerUseApproval": true,    // Computer Use 변경 동작 전 사용자 확인
+  "disableMobileEmulator": true,         // 로컬 시뮬레이터/AVD 스트리밍 (페어링과 다른 스위치)
+  "disableExternalAutomations": true,    // hermes/openclaw 크론 레인
+  "disableAgentInstallSuggestions": true, // "직접 설치하세요" 안내 표면
 
   // 사내에서 직접 서비스하는 모델 (§3-2). 토큰은 여기 넣지 않습니다 — 사용자가 앱에서 입력합니다.
   // 호스트는 allowedNetworkHosts에 자동 추가되므로 아래에 또 적을 필요가 없습니다.
@@ -278,8 +299,11 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
     }
   ],
 
-  // Bedrock(claude) + 위 사내 모델만 쓰도록 나머지 벤더를 UI/폴링에서 제거 (§3-3).
-  "allowedAgents": ["claude"],
+  // Bedrock(claude) + AWS SSO로 연동되는 opencode + 위 사내 모델만 남기고
+  // 나머지 벤더를 탐지·UI·폴링에서 제거 (§3-3).
+  // ⚠️ "claude-agent-teams"는 "claude"와 별개 id입니다 — Agent Teams를 쓸 거면 함께 적으세요.
+  // ⚠️ 이 키는 lockdown을 상속하지 않습니다. 적지 않으면 에이전트 제한이 전혀 걸리지 않습니다.
+  "allowedAgents": ["claude", "opencode"],
 
   // 하드 허용목록은 옵트인입니다. 켜기 전에 반드시 §5를 읽으세요.
   "enforceNetworkAllowlist": false,
@@ -454,11 +478,16 @@ Ansible/Puppet/Salt의 file 리소스로 관리하거나, 사내 `.deb`/`.rpm`�
 | `disableVoice` | 설정 → 음성, 컴포저의 마이크 버튼, `Mod+E` | 탭·버튼·단축키 행이 모두 사라집니다 |
 | `requireComputerUseApproval` | 에이전트에게 다른 앱을 클릭/입력하라고 지시 | 동작 직전에 네이티브 확인 창. **거부가 기본 버튼이고 Esc도 거부**입니다. 읽기(스크린샷·트리)는 묻지 않습니다 |
 | `disableTelemetry` | 설정 → Privacy | 진단 비활성 안내 박스 표시 (`src/renderer/src/components/settings/PrivacyDiagnosticsSection.tsx:240-241`) |
-| `disableUsagePolling` | 상태바 사용량 칩 | 영구 스피너 없이 `unavailable` 상태 (`rate-limits/service.ts:1535-1461`) |
+| `disableUsagePolling` | 설정 사이드바, Cmd+J에 `통계` / `usage`, 상태바 사용량 칩 | **설정 → 통계 및 사용량 팬이 사라집니다** (사이드바·Cmd+J·설정 검색 전부). 상태바 팝오버의 "Usage details & history" 항목도 없어집니다. 칩 자체는 남되 영구 스피너 없이 `unavailable` 상태 (`rate-limits/service.ts:1461`) |
+| `disableMobileEmulator` | 설정 → 모바일 에뮬레이터, `+` 메뉴, 설정 → 단축키에 `simulator`, 터미널에서 `orca emulator devices` | 팬·메뉴 항목·단축키 행이 모두 사라지고, **이전에 열려 있던 시뮬레이터 탭도** 탭바에서 없어집니다. CLI는 `emulator_disabled_by_policy`로 거부합니다. ⚠️ 설정 → 모바일(페어링) 팬은 **그대로 남아야 정상**입니다 — 다른 스위치입니다 |
+| `disableExternalAutomations` | 사이드바 → 자동화 | Hermes/OpenClaw 소스 행이 사라지고 Orca 자동화만 남습니다. 새 자동화 다이얼로그의 Orca/Hermes 대상 토글도 사라집니다(선택할 대상이 하나뿐이므로). ⚠️ 이미 등록된 `~/.hermes` 크론 잡은 **Hermes 자신의 스케줄러로 계속 실행됩니다** — `hermes cron rm`으로 제거하세요 |
+| `disableAgentInstallSuggestions` | 설정 → 에이전트 하단, 설정 → Setup Guide | "설치 가능" 섹션이 사라집니다. 감지된 에이전트가 하나도 없으면 대신 "사내 소프트웨어 배포를 통해 설치한 뒤 새로 고침하세요" 안내가 뜹니다(빈 화면이 아니어야 정상). 감지된 에이전트 행의 링크는 `Docs`로 남습니다 — 설치 링크가 **전부** 사라지는 것은 아닙니다 |
+| `allowedAgents` | 설정 → 에이전트, `+` 메뉴, 워크트리 생성 다이얼로그 | 목록에 허용한 id만 남고, **워크트리 생성 다이얼로그에 미리 선택된 에이전트**도 허용 목록 안의 것이어야 합니다. `orca worktree create --agent <차단된 id>`는 그 에이전트가 감지되지 않으므로 선택되지 않습니다. ⚠️ 이 키는 `lockdown`을 상속하지 않습니다 — `{"lockdown": true}`만 있는 파일은 에이전트를 **전혀** 제한하지 않습니다 |
 | `disableSpellcheck` | 입력창에 오타 입력 | 빨간 물결 밑줄이 생기지 않음 (`createMainWindow.ts:299`) |
 | `disableStarNag` | 앱을 한동안 사용 | star 요청 카드/토스트가 뜨지 않음 (`github/client.ts:233-235`) |
 | `disableManagedClaudeAccounts` | WSL 런타임으로 Claude 세션 스폰 | **UI로는 확인할 수 없습니다** — 계정 스위처 화면은 그대로 뜹니다. 관측 가능한 신호는 WSL Claude 세션이 `AWS_BEARER_TOKEN_BEDROCK` 등을 이유로 스폰 실패하던 증상이 사라지는 것(`ipc/pty.ts:3189-3163`, `:4250-4233`)과, §7-2의 `enterprise.policy` 스팬에 찍힌 스위치 값입니다 |
 | `githubEnterpriseHost` | GHES 리모트 저장소에서 PR 목록 열기 | 정상 조회. `<host>/api/v1/...`(Gitea API)로 나가는 요청이 없어야 함 (`gitea/repository-ref.ts:91-99`) |
+| 호스트 폴백(정책 없이 `gh`만 로그인한 기계) | 설정 → Git 및 소스 제어 → "Git 호스트" | 출처가 **"gh가 로그인되어 있는 호스트에서"** 로 표시되고 값이 사내 호스트여야 합니다. `github.com`/"gh 기본값"으로 보이면 `gh auth status`에 사내 호스트가 없거나 두 개 이상 로그인돼 있는 것입니다(둘 이상이면 gh 자신도 `github.com`을 기본값으로 쓰므로 추정하지 않습니다) |
 
 > Privacy 안내 박스는 정책 파일이 사유일 때 **`An enterprise policy file disables diagnostics on this machine.`** 를 표시합니다. 사유 코드 `enterprise_policy`(`observability/index.ts:128`)에 대응하는 전용 분기가 `PrivacyDiagnosticsSection.tsx:306-310`에 있습니다. 이 문구가 보이면 정책 파일이 적용된 것입니다 — 환경변수를 찾아볼 필요가 없습니다.
 
@@ -515,7 +544,9 @@ Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "auto_up
 | 사용자가 자기 파일로 풀어버림? | 불가능. 머신 전역이 먼저 발견되면 사용자 파일은 읽히지 않음 (`:59-83`) | — |
 | **사용자가 `setx ORCA_ENTERPRISE_POLICY off`로 풀어버림?** | 패키징 빌드에서는 불가능. 환경변수는 후보를 추가만 하고 머신 전역 파일은 항상 먼저 탐색됩니다 (`:68-82`, `:163-171`) | 단, **`pnpm dev`로 띄운 비패키징 인스턴스에는 그대로 듣습니다.** 사용자 PC에 개발 체크아웃을 두지 마세요 |
 | 개발 인스턴스로 커스텀 경로를 지정했는데 무시됨 | 패키징 빌드로 시험했기 때문. 머신 전역 파일이 있으면 환경변수 경로는 2순위라 읽히지 않습니다 (§2) | 커스텀 경로는 비패키징에서만 1순위입니다. 플릿에서는 머신 전역 기본 경로를 쓰세요 |
-| 테스트/CI에서 정책이 안 먹음 | 의도된 동작. `config/vitest-enterprise-policy-isolation.ts:6`이 `ORCA_ENTERPRISE_POLICY=off` 설정. 테스트 러너는 비패키징이라 이 값이 유효합니다 | — |
+| 테스트/CI에서 정책이 안 먹음 | 의도된 동작. `config/vitest-enterprise-policy-isolation.ts`가 `ORCA_ENTERPRISE_POLICY=off`, `GH_HOST` 삭제, `GH_CONFIG_DIR`을 없는 경로로 고정. 테스트 러너는 비패키징이라 이 값들이 유효합니다 | — |
+| **`gh`를 사내 호스트로 바꿨는데 앱은 계속 github.com으로 보임** | 원인이 셋입니다. ①`gh auth login --hostname`은 환경변수가 아니라 `hosts.yml`에 씁니다 → 이제 앱이 그 파일을 읽습니다(§3-4). ②userData의 `github-enterprise-host.json`에 `github.com`이 저장돼 있으면 관리자 정책보다 우선했습니다 → 이제 벤더 호스트는 저장되지 않습니다. ③`gh`에 두 개 이상의 호스트가 로그인돼 있으면 `gh` 자신이 `github.com`을 기본값으로 쓰므로 앱도 추정하지 않습니다 | 설정 → Git 및 소스 제어의 "Git 호스트" **출처 문구**를 먼저 보세요(§7-1 표). 그다음 `gh auth status`로 로그인된 호스트가 사내 것 **하나뿐인지** 확인하고, 여러 개면 `gh auth logout --hostname github.com`. 확정적으로 못 박으려면 정책 파일에 `githubEnterpriseHost`를 적으세요 — 추론에 의존하지 않는 유일한 방법입니다 |
+| 리포지토리를 추가한 뒤 origin을 사내 미러로 바꿨는데 계속 github.com으로 보임 | **위와 다른 문제입니다.** `Repo.gitRemoteIdentity`(`repo-git-remote-identity-enrichment.ts`)와 `Repo.upstream`(`repo-icon-autodetect.ts`)은 추가 시점에 1회만 판정하고 다시 프로브하지 않습니다 — 정책이나 `gh` 설정과 무관합니다 | 해당 프로젝트를 제거하고 다시 추가하세요. 이 증상이 "재설치해야 고쳐진다"로 보이는 두 번째 경로입니다 |
 
 ### 7-5. `llmEndpoints` 확인
 

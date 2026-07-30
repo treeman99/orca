@@ -32,9 +32,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { SettingsSwitch } from '@/components/settings/SettingsFormControls'
 import type RepoCombobox from '@/components/repo/RepoCombobox'
 import AgentCombobox from '@/components/agent/AgentCombobox'
-import { getAgentCatalog } from '@/lib/agent-catalog'
-import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
+import { getFullAgentCatalog } from '@/lib/agent-catalog'
 import { filterAgentsByPolicy } from '../../../shared/corporate-agent-access'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { useAppStore } from '@/store'
 import { cn } from '@/lib/utils'
 import { WORKSPACE_FILE_PATH_MIME } from '@/lib/workspace-file-drag'
@@ -1047,10 +1047,12 @@ export default function NewWorkspaceComposerCard({
     })
   }, [cancelNameInputFocusFrame, nameInputRef])
 
+  // Filtered from the reactive policy value rather than through getAgentCatalog(), which
+  // applies the same allowlist but from a non-reactive cache — this way the memo re-runs if
+  // the policy arrives after first paint.
   const { allowedAgents } = useEnterprisePolicyView()
   const visibleQuickAgents = React.useMemo(() => {
-    // Restrict to agents the corporate policy allows before detection/enable filtering.
-    const catalog = filterAgentsByPolicy(getAgentCatalog(), (agent) => agent.id, allowedAgents)
+    const catalog = filterAgentsByPolicy(getFullAgentCatalog(), (agent) => agent.id, allowedAgents)
     const enabledIds = new Set(
       filterEnabledTuiAgents(
         catalog.map((agent) => agent.id),

@@ -694,7 +694,7 @@ describe('Store', () => {
     expect(settings.rightSidebarOpenByDefault).toBe(true)
     expect(settings.showTasksButton).toBe(true)
     expect(settings.showAutomationsButton).toBe(true)
-    expect(settings.visibleTaskProviders).toEqual(['github', 'gitlab', 'linear', 'jira'])
+    expect(settings.visibleTaskProviders).toEqual(['github'])
     expect(settings.openInApplications).toEqual([
       { id: 'vscode', label: 'VS Code', command: 'code' }
     ])
@@ -2362,7 +2362,7 @@ describe('Store', () => {
     expect(store.getSettings().showTasksButton).toBe(true)
     expect(store.getSettings().showAutomationsButton).toBe(true)
     expect(store.getSettings().combinedDiffFileTreeVisibleByDefault).toBe(false)
-    expect(store.getSettings().visibleTaskProviders).toEqual(['github', 'gitlab', 'linear', 'jira'])
+    expect(store.getSettings().visibleTaskProviders).toEqual(['github'])
     expect(store.getSettings().experimentalActivity).toBe(false)
     expect(store.getSettings().experimentalActivityDefaultedOffForAllUsers).toBe(true)
     expect(store.getSettings().experimentalTerminalAttention).toBe(false)
@@ -2729,16 +2729,19 @@ describe('Store', () => {
     })
 
     const store = await createStore()
-    expect(store.getSettings().visibleTaskProviders).toEqual(['gitlab', 'jira'])
+    expect(store.getSettings().visibleTaskProviders).toEqual(['github'])
   })
 
-  it('preserves a deliberate Jira provider opt-out after migration', async () => {
+  // This fork offers GitHub only (src/shared/task-providers.ts). A profile written before that
+  // narrowed carries provider ids that no longer exist, and they must not come back on load —
+  // the Tasks picker and the sidebar shortcut both read this list.
+  it('drops providers this fork removed from a legacy profile', async () => {
     writeDataFile({
       schemaVersion: 1,
       repos: [],
       worktreeMeta: {},
       settings: {
-        visibleTaskProviders: ['gitlab'],
+        visibleTaskProviders: ['gitlab', 'linear', 'jira'],
         visibleTaskProvidersDefaultedForJira: true
       },
       ui: {},
@@ -2747,7 +2750,7 @@ describe('Store', () => {
     })
 
     const store = await createStore()
-    expect(store.getSettings().visibleTaskProviders).toEqual(['gitlab'])
+    expect(store.getSettings().visibleTaskProviders).toEqual(['github'])
   })
 
   it('normalizes malformed terminal shortcut policy on load', async () => {
@@ -2793,7 +2796,7 @@ describe('Store', () => {
 
     const store = await createStore()
     expect(store.getSettings().defaultTaskSource).toBe('github')
-    expect(store.getSettings().visibleTaskProviders).toEqual(['github', 'linear', 'jira'])
+    expect(store.getSettings().visibleTaskProviders).toEqual(['github'])
   })
 
   it('normalizes invalid task provider defaults on load', async () => {
@@ -2808,8 +2811,8 @@ describe('Store', () => {
     })
 
     const store = await createStore()
-    expect(store.getSettings().defaultTaskSource).toBe('gitlab')
-    expect(store.getSettings().visibleTaskProviders).toEqual(['gitlab', 'jira'])
+    expect(store.getSettings().defaultTaskSource).toBe('github')
+    expect(store.getSettings().visibleTaskProviders).toEqual(['github'])
   })
 
   it('normalizes persisted open-in applications on load', async () => {

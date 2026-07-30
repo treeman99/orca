@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { isVendorGitHubHost, resolveEffectiveGitHubHost } from './effective-github-host'
+import {
+  ghConfiguredDefaultHost,
+  isVendorGitHubHost,
+  resolveEffectiveGitHubHost
+} from './effective-github-host'
 
 describe('resolveEffectiveGitHubHost', () => {
   it('falls back to github.com and says so', () => {
@@ -27,6 +31,27 @@ describe('resolveEffectiveGitHubHost', () => {
         policyHost: 'policy.corp.net'
       })
     ).toEqual({ host: 'ghhost.corp.net', source: 'gh-host-env' })
+  })
+
+  it('prefers GH_HOST over the host gh is configured for', () => {
+    expect(
+      resolveEffectiveGitHubHost({
+        ghHostEnv: 'ghhost.corp.net',
+        ghConfigHost: 'github.samsungds.net'
+      })
+    ).toEqual({ host: 'ghhost.corp.net', source: 'gh-host-env' })
+  })
+
+  // gh obeys its own config, so a host Orca merely stored does not redirect it. Reporting
+  // the stored value here would put a corporate label on a request that leaves elsewhere.
+  it('prefers the host gh is configured for over the stored and policy hosts', () => {
+    expect(
+      resolveEffectiveGitHubHost({
+        ghConfigHost: 'github.samsungds.net',
+        storedHost: 'stored.corp.net',
+        policyHost: 'policy.corp.net'
+      })
+    ).toEqual({ host: 'github.samsungds.net', source: 'gh-config-host' })
   })
 
   it('prefers the saved host over the policy host', () => {
@@ -61,6 +86,32 @@ describe('resolveEffectiveGitHubHost', () => {
       host: 'github.samsungds.net',
       source: 'repository-remote'
     })
+  })
+})
+
+// Mirrors gh's own AuthConfig.DefaultHost(): one login is the default, anything else
+// leaves gh on github.com — so inferring from two logins would be a guess, not a reading.
+describe('ghConfiguredDefaultHost', () => {
+  it('uses the single authenticated host', () => {
+    expect(ghConfiguredDefaultHost([{ host: 'github.samsungds.net' }])).toBe('github.samsungds.net')
+  })
+
+  it('collapses duplicate accounts on the same host', () => {
+    expect(
+      ghConfiguredDefaultHost([{ host: 'github.samsungds.net' }, { host: 'GitHub.SamsungDS.net' }])
+    ).toBe('github.samsungds.net')
+  })
+
+  it('infers nothing from two different hosts', () => {
+    expect(
+      ghConfiguredDefaultHost([{ host: 'github.com' }, { host: 'github.samsungds.net' }])
+    ).toBeNull()
+  })
+
+  it('infers nothing when gh has no login, or could not be read', () => {
+    expect(ghConfiguredDefaultHost([])).toBeNull()
+    expect(ghConfiguredDefaultHost(null)).toBeNull()
+    expect(ghConfiguredDefaultHost([{ host: '  ' }])).toBeNull()
   })
 })
 

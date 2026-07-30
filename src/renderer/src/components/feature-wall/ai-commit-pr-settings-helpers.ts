@@ -6,7 +6,7 @@ import {
   type CommitMessageAgentChoice,
   type CommitMessageModelCapability
 } from '../../../../shared/commit-message-agent-spec'
-import { getAgentCatalog } from '@/lib/agent-catalog'
+import { getFullAgentCatalog } from '@/lib/agent-catalog'
 
 export const EMPTY_COMMIT_MESSAGE_AI_SETTINGS: CommitMessageAiSettings = {
   enabled: false,
@@ -25,7 +25,7 @@ export function commitMessageAgentLabel(
   agentId: TuiAgent,
   capability: CommitMessageAgentCapability
 ): string {
-  return getAgentCatalog().find((a) => a.id === agentId)?.label ?? capability.label
+  return getFullAgentCatalog().find((a) => a.id === agentId)?.label ?? capability.label
 }
 
 export function resolveCommitMessageSelectedModel(

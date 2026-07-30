@@ -197,8 +197,12 @@ export function registerCoreHandlers(
   registerPetHandlers()
   registerSessionHandlers(store)
   registerUIHandlers(store)
-  registerEmulatorFrameStreamHandlers()
-  registerEmulatorVideoStreamHandlers()
+  // Why not registered rather than refused per call: these two bypass the RPC dispatcher
+  // entirely, and frameStreamStart opens a long-lived socket to a caller-supplied URL.
+  if (!getEnterprisePolicy().disableMobileEmulator) {
+    registerEmulatorFrameStreamHandlers()
+    registerEmulatorVideoStreamHandlers()
+  }
   registerWorkspaceSpaceHandlers(store)
   registerWorkspacePortHandlers(store)
   registerLocalhostWorktreeLabelHandlers(store)

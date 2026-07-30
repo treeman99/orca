@@ -70,6 +70,7 @@ import { buildTabAgentLaunchOptions, orderTabLaunchAgents } from './tab-agent-la
 import { buildTabCreateMenuOptions, type TabCreateMenuOption } from './tab-create-menu-options'
 import { MobileEmulatorTabIntroCallout } from '../emulator-pane/MobileEmulatorTabIntroCallout'
 import { shouldShowMobileEmulatorTabIntro } from '../emulator-pane/mobile-emulator-tab-intro-visibility'
+import { isMobileEmulatorAvailable } from '@/lib/mobile-emulator-availability'
 import { translate } from '@/i18n/i18n'
 import { TabStripScrollIndicator } from './TabStripScrollIndicator'
 import { getTabStripScrollMaskClassName } from './tab-strip-scroll-metrics'
@@ -278,7 +279,7 @@ function TabBarInner({
   const newFileShortcut = useShortcutLabel('tab.newMarkdown')
   const openMarkdownShortcut = useOptionalShortcutLabel('tab.openMarkdown')
   const generatedTabTitlesEnabled = useAppStore((s) => s.settings?.tabAutoGenerateTitle === true)
-  const mobileEmulatorEnabled = useAppStore((s) => s.settings?.mobileEmulatorEnabled !== false)
+  const mobileEmulatorEnabled = useAppStore((s) => isMobileEmulatorAvailable(s.settings))
   const persistedUIReady = useAppStore((s) => s.persistedUIReady)
   const mobileEmulatorTabIntroDismissed = useAppStore((s) => s.mobileEmulatorTabIntroDismissed)
   const showMobileEmulatorIntroCallout = shouldShowMobileEmulatorTabIntro({

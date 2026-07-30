@@ -41,7 +41,7 @@ import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
 import { getLocalPreflightContext, localPreflightContextKey } from '@/lib/local-preflight-context'
 import { cn } from '@/lib/utils'
 import RepoBadgeLabel from '@/components/repo/RepoBadgeLabel'
-import { getAgentCatalog } from '@/lib/agent-catalog'
+import { getAgentCatalog, getAgentLabel } from '@/lib/agent-catalog'
 import { useRepoMap, useWorktreeMap } from '@/store/selectors'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import type {
@@ -54,6 +54,7 @@ import type {
   AutomationRun,
   AutomationUpdateInput
 } from '../../../../shared/automations-types'
+import type { TuiAgent } from '../../../../shared/types'
 import { getAutomationRunRepoId } from '../../../../shared/automation-run-identity'
 import {
   getLocalExecutionHostLabel,
@@ -147,7 +148,11 @@ import type { FetchExternalAutomationRuns } from './ExternalAutomationRunTable'
 import { useContextualTour } from '@/components/contextual-tours/use-contextual-tour'
 import { translate } from '@/i18n/i18n'
 
-const AGENTS = getAgentCatalog().map((agent) => agent.id)
+// Why a call, not a module const: the corporate agent allowlist arrives over IPC after
+// this module is imported, so a snapshot taken at import time is always unfiltered.
+function getAutomationAgentIds(): TuiAgent[] {
+  return getAgentCatalog().map((agent) => agent.id)
+}
 const DEFAULT_TIME = '09:00'
 const AUTOMATIONS_CHANGED_EVENT = 'orca:automations-changed'
 type AutomationPaneTab = 'overview' | 'runs'
@@ -265,10 +270,6 @@ function buildHermesCronSchedule(draft: AutomationDraft): string {
     minute,
     dayOfWeek: Number(draft.dayOfWeek)
   })
-}
-
-function getAgentLabel(agentId: string): string {
-  return getAgentCatalog().find((agent) => agent.id === agentId)?.label ?? agentId
 }
 
 function getExternalAutomationKey(
@@ -393,13 +394,14 @@ export default function AutomationsPage(): React.JSX.Element {
   const setPendingAutomationRunNavigation = useAppStore((s) => s.setPendingAutomationRunNavigation)
   const repoMap = useRepoMap()
   const worktreeMap = useWorktreeMap()
-  const enabledAgents = filterEnabledTuiAgents(AGENTS, settings?.disabledTuiAgents)
+  const agentIds = getAutomationAgentIds()
+  const enabledAgents = filterEnabledTuiAgents(agentIds, settings?.disabledTuiAgents)
   const defaultAgent =
     settings?.defaultTuiAgent &&
     settings.defaultTuiAgent !== 'blank' &&
     isTuiAgentEnabled(settings.defaultTuiAgent, settings.disabledTuiAgents)
       ? settings.defaultTuiAgent
-      : (enabledAgents[0] ?? AGENTS[0])
+      : (enabledAgents[0] ?? agentIds[0])
 
   const [automations, setAutomations] = useState<Automation[]>([])
   const [runs, setRuns] = useState<AutomationRun[]>([])

@@ -5,7 +5,11 @@
 export type GithubEnterpriseAuthStatus = {
   /** False when the gh CLI is not installed / not on PATH. */
   ghAvailable: boolean
-  /** The GHES host in effect (user-set, else the corporate policy host), or null. */
+  /**
+   * The GHES host in effect: user-set, else the corporate policy host, else the one host
+   * `gh` is already logged in to — that last fallback is what lets a machine configured
+   * only through `gh auth login --hostname` report the company host instead of nothing.
+   */
   host: string | null
   /** Whether gh has an account for `host`. */
   authenticated: boolean
@@ -23,6 +27,7 @@ export type GithubEnterpriseAuthStatus = {
 export type EffectiveGitHubHostSource =
   | 'repository-remote'
   | 'gh-host-env'
+  | 'gh-config-host'
   | 'user-setting'
   | 'enterprise-policy'
   | 'default'

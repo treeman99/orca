@@ -47,6 +47,9 @@ vi.mock('@/lib/tui-agent-startup', () => ({
 
 vi.mock('@/lib/agent-catalog', () => ({
   getAgentCatalog: () => [{ id: 'claude', label: 'Claude' }],
+  // The label lookup deliberately reads the FULL catalog, so a policy-hidden but running
+  // agent still shows its own name — see agent-catalog.tsx.
+  getAgentLabel: (agent: string) => (agent === 'claude' ? 'Claude' : agent),
   AgentIcon: function AgentIcon() {
     return null
   }

@@ -24,6 +24,8 @@ import {
   clearHermesCronOutputRunCountCache,
   readHermesCronOutputRunsPage
 } from './hermes-cron-output'
+import { isAgentAllowedByPolicy } from '../../shared/corporate-agent-access'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 
 const HERMES_HOME = process.env.HERMES_HOME?.trim() || join(homedir(), '.hermes')
 const HERMES_CRON_DIR = join(HERMES_HOME, 'cron')
@@ -165,7 +167,38 @@ async function readLocalOpenClawJobs(): Promise<unknown[]> {
   return isRecord(parsed) && Array.isArray(parsed.jobs) ? parsed.jobs : []
 }
 
+/**
+ * May this external automation provider be used at all?
+ *
+ * Two policy axes converge here. `disableExternalAutomations` is the wholesale switch:
+ * these providers spawn a vendor CLI on a schedule with nobody at the keyboard, which is
+ * the last thing a bare `"lockdown": true` should leave running. `allowedAgents` covers it
+ * too, because the "provider" IS an agent CLI id — `execFile('hermes', ['cron', …])` —
+ * so a fleet that already narrowed its agents does not have to say it twice.
+ *
+ * Gated in main, not in the renderer: a renderer-only gate would still let main probe PATH,
+ * read ~/.hermes, and spawn the CLI, and a manager that slipped through would be relabeled
+ * with the sibling provider's name.
+ */
+function isExternalAutomationProviderAllowed(provider: ExternalAutomationProvider): boolean {
+  const policy = getEnterprisePolicy()
+  return (
+    !policy.disableExternalAutomations && isAgentAllowedByPolicy(provider, policy.allowedAgents)
+  )
+}
+
+function assertExternalAutomationProviderAllowed(provider: ExternalAutomationProvider): void {
+  if (!isExternalAutomationProviderAllowed(provider)) {
+    throw new Error(`External automations for "${provider}" are disabled by an enterprise policy.`)
+  }
+}
+
 async function listLocalHermesManager(): Promise<ExternalAutomationManager | null> {
+  // Before the PATH probe and the ~/.hermes read, not after: a refused provider must leave
+  // no trace of having looked.
+  if (!isExternalAutomationProviderAllowed('hermes')) {
+    return null
+  }
   const [hermesAvailableResult, jobsResult] = await Promise.allSettled([
     isCommandOnPath('hermes'),
     readLocalHermesJobs()
@@ -194,6 +227,9 @@ async function listLocalHermesManager(): Promise<ExternalAutomationManager | nul
 }
 
 async function listLocalOpenClawManager(): Promise<ExternalAutomationManager | null> {
+  if (!isExternalAutomationProviderAllowed('openclaw')) {
+    return null
+  }
   const [openClawAvailableResult, jobsResult] = await Promise.allSettled([
     isCommandOnPath('openclaw'),
     readLocalOpenClawJobs()
@@ -309,7 +345,14 @@ export async function listExternalAutomationManagers(
         // Why: runtime-owned hidden targets are excluded from SSH/run-target
         // surfaces; don't probe them for external automations either.
         .filter((target) => !isRuntimeOwnedSshTarget(target))
-        .flatMap((target) => [listRemoteHermesManager(target), listRemoteOpenClawManager(target)])
+        .flatMap((target) => [
+          ...(isExternalAutomationProviderAllowed('hermes')
+            ? [listRemoteHermesManager(target)]
+            : []),
+          ...(isExternalAutomationProviderAllowed('openclaw')
+            ? [listRemoteOpenClawManager(target)]
+            : [])
+        ])
     )
   ])
   return [
@@ -322,6 +365,7 @@ export async function listExternalAutomationManagers(
 export async function listExternalAutomationRuns(
   input: ExternalAutomationRunsInput
 ): Promise<ExternalAutomationRunsPage> {
+  assertExternalAutomationProviderAllowed(input.provider)
   if (!EXTERNAL_JOB_ID_PATTERN.test(input.jobId)) {
     throw new Error('Invalid external automation job ID.')
   }
@@ -481,6 +525,7 @@ function hermesCronEditArgs(
 export async function createExternalAutomation(
   input: ExternalAutomationCreateInput
 ): Promise<void> {
+  assertExternalAutomationProviderAllowed(input.provider)
   const normalized = normalizeHermesCronMutationInput(input)
   if (input.target.type === 'local') {
     await runLocalAutomationCommand('hermes', hermesCronCreateArgs(normalized))
@@ -500,6 +545,7 @@ export async function createExternalAutomation(
 export async function updateExternalAutomation(
   input: ExternalAutomationUpdateInput
 ): Promise<void> {
+  assertExternalAutomationProviderAllowed(input.provider)
   if (!EXTERNAL_JOB_ID_PATTERN.test(input.jobId)) {
     throw new Error('Invalid external automation job ID.')
   }
@@ -523,6 +569,7 @@ export async function updateExternalAutomation(
 export async function runExternalAutomationAction(
   input: ExternalAutomationActionInput
 ): Promise<void> {
+  assertExternalAutomationProviderAllowed(input.provider)
   if (!EXTERNAL_JOB_ID_PATTERN.test(input.jobId)) {
     throw new Error('Invalid external automation job ID.')
   }

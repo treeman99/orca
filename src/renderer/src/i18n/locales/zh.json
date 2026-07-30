@@ -703,7 +703,7 @@
         "85f4fd7710": "任务来源",
         "ab4b21b58e": "分支命名、基础引用、署名和 Git AI Author。",
         "09607cb0fe": "Git 和源代码控制",
-        "33a5e1d597": "连接 GitHub、GitLab、Linear 和源托管服务。",
+        "33a5e1d597": "连接 Orca 用于 pull request、检查和评审的公司 GitHub 主机。",
         "2b043783ef": "集成",
         "2cd4ea75da": "工作区默认值、应用程序设置和维护。",
         "13241992bd": "通用",
@@ -5146,7 +5146,8 @@
           "03e1a5081a": "on {{value0}}",
           "25a41a9aad": "Re-detect agents installed on the active server",
           "remoteDetectionFailed": "Couldn’t detect installed agents. Check the host connection and try again.",
-          "retryDetection": "Retry"
+          "retryDetection": "Retry",
+          "corporateNoAgentsDetected": "未检测到智能体 CLI。请通过贵组织的软件分发渠道安装后再刷新。"
         },
         "AppIconSelector": {
           "d5a112dc9b": "下一个图标",
@@ -5858,7 +5859,7 @@
           "f7eb5f0b24": "未安装",
           "3ba07f933b": "连接 Orca 可用于浏览任务并启动带链接上下文工作区的议题追踪器。",
           "70e885705b": "任务提供商",
-          "1683acbac4": "连接 Orca 可用于 pull request、merge request、检查和评审状态的源代码主机。",
+          "1683acbac4": "连接 Orca 可用于 pull request、检查和评审状态的源代码主机。",
           "298c65ecac": "评审提供商"
         },
         "KagiSessionLinkForm": {
@@ -6588,7 +6589,7 @@
           "11faa2f7dd": "任务来源",
           "cfa34f4465": "分支命名、基础引用、署名和 Git AI Author。",
           "70100f94c7": "Git 和源代码控制",
-          "b07041697f": "连接 GitHub、GitLab、Linear 和源托管服务。",
+          "b07041697f": "连接 Orca 用于 pull request、检查和评审的公司 GitHub 主机。",
           "c9ca101a3b": "集成",
           "f9b77539fd": "工作区默认值、应用程序设置和维护。",
           "7807c11c4d": "通用",
@@ -9556,6 +9557,7 @@
         "GitHubEnterpriseHostReadout": {
           "sourceRemote": "from this workspace’s git remote",
           "sourceEnv": "from the GH_HOST environment variable",
+          "sourceGhConfig": "来自 gh 已登录的主机",
           "sourceUser": "from the host you saved here",
           "sourcePolicy": "from your organization’s Orca policy",
           "sourceDefault": "the gh default — no corporate host is configured",
@@ -10903,7 +10905,8 @@
           "showMoreAgents": "显示另外 {{value0}} 个智能体→",
           "yoloPermissionsLabel": "Yolo / 危险地跳过权限检查",
           "yoloPermissionsInfo": "智能体权限信息",
-          "yoloPermissionsTooltip": "跳过智能体权限检查，减少打断"
+          "yoloPermissionsTooltip": "跳过智能体权限检查，减少打断",
+          "corporateNoAgentsDetected": "未检测到智能体 CLI。请按贵组织的安装流程操作，或继续使用空白终端。"
         },
         "FeatureSetupChecklist": {
           "77f74946f5": "智能体可互相通信、领取任务并协调交接。",

@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const ipcState = vi.hoisted(() => ({
-  handleHandlers: new Map<string, (event: unknown, ...args: unknown[]) => unknown>()
+  handleHandlers: new Map<string, (event: unknown, ...args: unknown[]) => unknown>(),
+  onHandlers: new Map<string, (event: { returnValue?: unknown }) => void>()
 }))
 
 vi.mock('electron', () => ({
   ipcMain: {
     handle: (channel: string, handler: (event: unknown, ...args: unknown[]) => unknown) => {
       ipcState.handleHandlers.set(channel, handler)
+    },
+    on: (channel: string, handler: (event: { returnValue?: unknown }) => void) => {
+      ipcState.onHandlers.set(channel, handler)
     }
   }
 }))
@@ -18,9 +22,13 @@ import type { EnterprisePolicyView } from '../../shared/enterprise-policy-view'
 
 const VIEW_FIELDS = [
   'allowedAgents',
+  'disableAgentInstallSuggestions',
   'disableAutoUpdate',
+  'disableExternalAutomations',
+  'disableMobileEmulator',
   'disableMobilePairing',
   'disableRemoteOrcaServer',
+  'disableUsagePolling',
   'disableVendorProviderAccounts',
   'disableVoice',
   'lockdown',
@@ -38,6 +46,7 @@ function invokeGet(): EnterprisePolicyView {
 describe('registerEnterprisePolicyHandlers', () => {
   beforeEach(() => {
     ipcState.handleHandlers.clear()
+    ipcState.onHandlers.clear()
   })
 
   it('exposes the allowlist and lockdown flag from the policy', () => {
@@ -54,6 +63,10 @@ describe('registerEnterprisePolicyHandlers', () => {
       lockdown: false,
       disableAutoUpdate: false,
       disableMobilePairing: false,
+      disableMobileEmulator: false,
+      disableExternalAutomations: false,
+      disableAgentInstallSuggestions: false,
+      disableUsagePolling: false,
       disableVendorProviderAccounts: false,
       disableRemoteOrcaServer: false,
       disableVoice: false,
@@ -70,6 +83,10 @@ describe('registerEnterprisePolicyHandlers', () => {
       lockdown: true,
       disableAutoUpdate: true,
       disableMobilePairing: true,
+      disableMobileEmulator: true,
+      disableExternalAutomations: true,
+      disableAgentInstallSuggestions: true,
+      disableUsagePolling: true,
       disableVendorProviderAccounts: true,
       disableRemoteOrcaServer: true,
       disableVoice: true,
@@ -80,6 +97,20 @@ describe('registerEnterprisePolicyHandlers', () => {
   it('honors a single feature opted back in', () => {
     registerEnterprisePolicyHandlers(() => makeLockdownPolicy({ disableVoice: false }))
     expect(invokeGet()).toMatchObject({ disableVoice: false, disableMobilePairing: true })
+  })
+
+  // The sync channel is what the renderer reads at module evaluation, before any memoized
+  // gate can freeze an answer. If it ever diverges from the async one, half the gates in the
+  // app read a different policy than the other half.
+  it('projects the same view over the synchronous channel', () => {
+    registerEnterprisePolicyHandlers(() => makeLockdownPolicy({ allowedAgents: ['claude'] }))
+    const syncHandler = ipcState.onHandlers.get('enterprisePolicy:get-sync')
+    if (!syncHandler) {
+      throw new Error('enterprisePolicy:get-sync was not registered')
+    }
+    const event: { returnValue?: unknown } = {}
+    syncHandler(event)
+    expect(event.returnValue).toEqual(invokeGet())
   })
 
   // Why: the renderer is in the threat model — only the gating fields may cross.

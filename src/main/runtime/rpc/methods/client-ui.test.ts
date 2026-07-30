@@ -62,9 +62,9 @@ describe('client UI RPC methods', () => {
       defaultTuiAgent: null,
       disabledTuiAgents: ['claude'],
       agentCmdOverrides: {},
-      defaultTaskSource: 'linear',
+      defaultTaskSource: 'github',
       defaultTaskViewPreset: 'issues',
-      visibleTaskProviders: ['github', 'linear'],
+      visibleTaskProviders: ['github'],
       defaultRepoSelection: ['repo-1', 'repo-2'],
       defaultLinearTeamSelection: ['team-1', 'team-2'],
       experimentalNewWorktreeCardStyle: true,
@@ -93,8 +93,8 @@ describe('client UI RPC methods', () => {
       makeRequest('settings.update', {
         defaultTuiAgent: 'codex',
         disabledTuiAgents: ['claude', 'not-real', 'claude'],
-        defaultTaskSource: 'linear',
-        visibleTaskProviders: ['github', 'linear'],
+        defaultTaskSource: 'github',
+        visibleTaskProviders: ['github'],
         defaultTaskViewPreset: 'my-prs',
         experimentalNewWorktreeCardStyle: true,
         compactWorktreeCards: true,
@@ -109,8 +109,8 @@ describe('client UI RPC methods', () => {
     expect(runtime.updateClientSettings).toHaveBeenCalledWith({
       defaultTuiAgent: 'codex',
       disabledTuiAgents: ['claude'],
-      defaultTaskSource: 'linear',
-      visibleTaskProviders: ['github', 'linear'],
+      defaultTaskSource: 'github',
+      visibleTaskProviders: ['github'],
       defaultTaskViewPreset: 'my-prs',
       experimentalNewWorktreeCardStyle: true,
       compactWorktreeCards: true,
@@ -122,18 +122,20 @@ describe('client UI RPC methods', () => {
     })
     expect(response).toMatchObject({ ok: true, result: { settings } })
 
+    // This fork offers GitHub only (src/shared/task-providers.ts), and TaskProviderParam
+    // validates against that list — so an older mobile client still holding 'jira' has the
+    // whole update refused rather than partially applied, which is this schema's existing
+    // contract for an unknown value.
     vi.mocked(runtime.updateClientSettings).mockClear()
-    await dispatcher.dispatch(
+    const rejected = await dispatcher.dispatch(
       makeRequest('settings.update', {
         defaultTaskSource: 'jira',
         visibleTaskProviders: ['github', 'jira']
       })
     )
 
-    expect(runtime.updateClientSettings).toHaveBeenCalledWith({
-      defaultTaskSource: 'jira',
-      visibleTaskProviders: ['github', 'jira']
-    })
+    expect(rejected).toMatchObject({ ok: false })
+    expect(runtime.updateClientSettings).not.toHaveBeenCalled()
   })
 
   it('normalizes manual bot-author overrides before persisting', async () => {

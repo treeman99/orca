@@ -36,6 +36,7 @@ import { createBrowserUuid } from '@/lib/browser-uuid'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
+import { getEnterprisePolicyView } from '../../enterprise/enterprise-policy-access'
 import {
   addAdditionalValidWorkspaceKeys,
   type WorkspaceSessionHydrationOptions
@@ -1872,7 +1873,10 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
         return liveBrowserIds.has(tab.entityId)
       }
       if (tab.contentType === 'simulator') {
-        return true
+        // Why not unconditional: a machine that had an emulator tab open before the
+        // corporate policy landed keeps the tab chrome — and its Cmd+<n> slot — for a
+        // pane that now refuses to mount.
+        return !getEnterprisePolicyView().disableMobileEmulator
       }
       return liveEditorIds.has(tab.entityId)
     }
