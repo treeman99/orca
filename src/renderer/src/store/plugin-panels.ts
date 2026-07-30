@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { create } from 'zustand'
+import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import type { PluginHostListEntry, PluginHostPanel } from '../../../preload/api-types'
 
 /** A panel contribution from an enabled plugin, flattened for sidebar use. */
@@ -54,7 +55,10 @@ export const usePluginPanelsStore = create<PluginPanelsState>()((set) => ({
     const generation = ++pluginListGeneration
     // Why: preload may predate the plugins namespace (web client pairing an
     // older desktop build); treat a missing bridge as "no plugins" fail-soft.
-    const pluginsApi = window.api?.plugins
+    // A locked-down policy joins that same branch: main does not register the
+    // plugin channels at all, so calling one only produces a rejected invoke and
+    // arms the retry timer below.
+    const pluginsApi = getEnterprisePolicyView().disablePlugins ? undefined : window.api?.plugins
     if (!pluginsApi) {
       if (generation === pluginListGeneration) {
         pluginListRetryAttempt = 0

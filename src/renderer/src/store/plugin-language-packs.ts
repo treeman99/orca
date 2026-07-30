@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
+import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import type { PluginLanguagePackRegistration } from '../../../shared/plugins/plugin-language-pack-artifact'
 
 type PluginLanguagePackState = {
@@ -16,7 +17,9 @@ export const usePluginLanguagePackStore = create<PluginLanguagePackState>()((set
   loaded: false,
   fetchPacks: async () => {
     const generation = ++requestGeneration
-    const api = window.api?.plugins
+    // Same fail-soft branch under a locked-down policy: the channel is absent, so
+    // the only outcome of calling it is a console error on every renderer load.
+    const api = getEnterprisePolicyView().disablePlugins ? undefined : window.api?.plugins
     if (!api?.listLanguagePacks) {
       if (generation === requestGeneration) {
         set({ packs: [], loaded: true })
