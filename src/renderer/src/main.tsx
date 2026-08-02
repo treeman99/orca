@@ -1,7 +1,6 @@
 import './assets/main.css'
 
 import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
 import { useTranslation } from 'react-i18next'
 import App from './App'
 import { RecoverableRenderErrorBoundary } from './components/error-boundaries/RecoverableRenderErrorBoundary'
@@ -16,6 +15,7 @@ import { I18nProvider } from './i18n/I18nProvider'
 import { translate } from './i18n/i18n'
 import { startCorporateLlmEndpointSync } from './enterprise/corporate-llm-endpoint-sync'
 import { startEnterprisePolicySync } from './enterprise/enterprise-policy-access'
+import { getOrCreateRendererRoot } from './lib/react-renderer-root'
 
 recordRendererCrashBreadcrumb('renderer_bootstrap_started', { dev: import.meta.env.DEV })
 installRendererCrashDiagnostics()
@@ -59,7 +59,7 @@ function RendererRoot(): React.JSX.Element {
   )
 }
 
-createRoot(rootElement).render(
+getOrCreateRendererRoot(rootElement, import.meta.hot?.data).render(
   <StrictMode>
     <I18nProvider>
       <RendererRoot />

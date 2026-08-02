@@ -457,7 +457,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.162`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). 여기까지 v1.4.159·v1.4.162 두 번 모두 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.163`** 이 병합되어 있습니다(`git log --oneline --merges -3`로 확인). 여기까지 v1.4.159·v1.4.162·v1.4.163 세 번 모두 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -473,13 +473,14 @@ git push origin enterprise/samsungds
 - exe는 항상 이 `enterprise/samsungds` 브랜치(또는 사내 릴리스 태그 `v1.4.x-samsungds`)에서 빌드합니다.
 - 병합 직후에는 **문서의 `file:line` 인용이 전부 밀립니다.** 이 README와 `docs/reference/*.md`의 인용을 재검증하는 것을 체크리스트에 넣으세요.
 - 병합 후 `pnpm install`을 **반드시** 다시 돌리세요. v1.4.162는 신규 런타임 의존성(`emojibase-data`)을 추가했고, 없으면 `pnpm typecheck`가 먼저 깨집니다.
+- **upstream이 잠금 대상 파일을 리팩터링하면 게이트가 조용히 사라집니다.** v1.4.163이 실제로 두 번 그랬습니다: `runtime-environments.ts`를 쪼개면서 `assertRemoteOrcaServerAllowed()`가 붙어 있던 핸들러를 옮겼고(+ `verifyAndAddFromPairingCode`라는 두 번째 페어링 레인 신설), 계정 등록에는 ipcMain을 지나지 않는 `accounts.addClaudeFromConfigDir` RPC를 열었습니다. 병합 후 `git grep -n 'getEnterprisePolicy()' src/`와 `src/main/enterprise/*-guard.ts`의 호출부를 **이전 브랜치와 대조**하고, upstream 신규 코드에 `net.fetch`/새 IPC 채널/새 RPC 메서드가 있는지 훑으세요.
 
 #### 충돌 예상 지점 — 솔직한 현황
 
-사내 변경은 "신규 파일 몇 개"가 아닙니다. `v1.4.162` 기준으로 **신규 파일 108개, 기존 upstream 파일 수정 146개, upstream 파일 삭제 4개**(잠금으로 없앤 설정 팬)입니다. 최신 수치는 직접 확인하세요:
+사내 변경은 "신규 파일 몇 개"가 아닙니다. `v1.4.163` 기준으로 **신규 파일 112개, 기존 upstream 파일 수정 157개, upstream 파일 삭제 5개**(잠금으로 없앤 설정 팬)입니다. 최신 수치는 직접 확인하세요:
 
 ```powershell
-git diff --name-status v1.4.162..HEAD   # A=신규, M=upstream 파일 수정, D=삭제
+git diff --name-status v1.4.163..HEAD   # A=신규, M=upstream 파일 수정, D=삭제
 ```
 
 | 성격 | 파일 | 리베이스 충돌 |

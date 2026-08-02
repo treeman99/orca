@@ -10,6 +10,7 @@ import type {
   SetupDecision,
   TuiAgent,
   WorkspaceCreateTelemetrySource,
+  WorkspaceLinkedItem,
   WorkspaceStatus,
   WorkspaceLineage,
   WorktreeStartupLaunch,
@@ -20,6 +21,7 @@ import type {
   WorktreeMeta,
   WorkspaceKey
 } from '../../../../shared/types'
+import type { TaskSourceContext } from '../../../../shared/task-source-context'
 import type { WorktreeForceDeleteReason } from '../../../../shared/worktree-removal'
 import type { TerminalGitHubPRLink } from '../../../../shared/terminal-github-pr-link-detector'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
@@ -75,6 +77,7 @@ export type WorktreeSlice = {
   workspaceLineageByChildKey: Record<WorkspaceKey, WorkspaceLineage>
   activeWorktreeId: string | null
   activeWorkspaceKey: WorkspaceKey | null
+  activeWorkspaceExecutionHostId: ExecutionHostId | null
   /**
    * In-flight / failed background worktree creations, keyed by a renderer
    * `creationId`. Kept separate from `worktreesByRepo` on purpose — a real
@@ -144,7 +147,10 @@ export type WorktreeSlice = {
     (repoId: string, options?: WorktreeFetchOptions): Promise<boolean>
   }
   fetchAllWorktrees: (options?: { hydrationPurge?: 'allow' | 'defer' }) => Promise<void>
-  fetchWorktreeLineage: (options?: { forceLocalOwner?: boolean }) => Promise<void>
+  fetchWorktreeLineage: (options?: {
+    forceLocalOwner?: boolean
+    executionHostId?: ExecutionHostId
+  }) => Promise<void>
   updateWorktreeLineage: (
     worktreeId: string,
     args: { parentWorktreeId?: string; noParent?: boolean }
@@ -181,9 +187,11 @@ export type WorktreeSlice = {
     linkedAzureDevOpsPR?: number | null,
     linkedGiteaPR?: number | null,
     compareBaseRef?: string,
-    // Why: reserved for automation-dispatch flows so host-side provenance can
-    // be minted securely; regular create callers should omit this.
-    options?: { automationProvenanceRequest?: CreateWorktreeArgs['automationProvenanceRequest'] }
+    options?: {
+      automationProvenanceRequest?: CreateWorktreeArgs['automationProvenanceRequest']
+      linkedWorkItem?: WorkspaceLinkedItem | null
+      linkedTaskSourceContext?: TaskSourceContext | null
+    }
   ) => Promise<CreateWorktreeResult>
   /** Register an in-flight background creation and make it the active surface. */
   beginPendingWorktreeCreation: (entry: PendingWorktreeCreation) => void
@@ -269,7 +277,7 @@ export type WorktreeSlice = {
    * fresh visit.
    */
   seedActiveWorktreeLastVisitedIfMissing: () => void
-  setActiveWorktree: (worktreeId: string | null) => void
+  setActiveWorktree: (worktreeId: string | null, executionHostId?: ExecutionHostId) => void
   /**
    * Health-driven remount of one terminal tab: bumps the tab's generation so
    * TerminalPane unmounts, detaches (preserving a live PTY), and remounts with
@@ -278,10 +286,13 @@ export type WorktreeSlice = {
    * undeliverable while the PTY is alive. Returns false when the tab is gone.
    */
   remountTerminalTabForRecovery: (tabId: string) => boolean
-  setActiveFolderWorkspace: (folderWorkspaceId: string) => void
+  setActiveFolderWorkspace: (folderWorkspaceId: string, executionHostId?: ExecutionHostId) => void
   setRenamingWorktreeId: (request: string | WorktreeRenameRequest | null) => void
   allWorktrees: () => Worktree[]
-  getKnownWorktreeById: (worktreeId: string) => Worktree | DetectedWorktree | undefined
+  getKnownWorktreeById: (
+    worktreeId: string,
+    executionHostId?: ExecutionHostId
+  ) => Worktree | DetectedWorktree | undefined
   /**
    * Wipes every terminal- and worktree-scoped map entry for each given id.
    * Called by the `worktrees:changed` listener on server-side deletions and
