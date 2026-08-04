@@ -194,7 +194,7 @@ publish:
 
 `ORCA_DISABLE_PUBLISH_TARGET`은 **빌드 셸 전용 변수**입니다. 앱 런타임 환경변수가 아니며 설치된 Orca는 이 값을 읽지 않습니다.
 
-> 3번은 **빌드 시점** phone-home과 업데이터 메타 생성만 막습니다. 앱이 실행 중에 GitHub 릴리스를 조회하는 **런타임 자동 업데이트**는 별개이며, 관리자 정책 파일의 `disableAutoUpdate`(또는 마스터 스위치 `lockdown`)로 끕니다 — `src/shared/enterprise-policy.ts:19`, 차단 지점은 `src/main/updater.ts:1179` / `:1251` / `:1458`. 정책 파일은 머신 전역 경로가 우선 탐색되며 Windows에서는 `%ProgramData%\Orca\enterprise-policy.json`입니다(`src/main/enterprise/enterprise-policy-file.ts:37-47`, 탐색 순서 `:59-83`). 전체 외부 연동 잠금은 [외부 연동 감사](./external-integrations-audit.md) 참고.
+> 3번은 **빌드 시점** phone-home과 업데이터 메타 생성만 막습니다. 앱이 실행 중에 GitHub 릴리스를 조회하는 **런타임 자동 업데이트**는 별개이며, 관리자 정책 파일의 `disableAutoUpdate`(또는 마스터 스위치 `lockdown`)로 끕니다 — `src/shared/enterprise-policy.ts:19`, 차단 지점은 `src/main/updater.ts:1179` / `:1251` / `:1458`. 정책 파일은 **설치 프로그램에 내장된 기본값**(`resources/enterprise-policy.json` → `<설치폴더>\resources\enterprise-policy.json`)으로 이미 실리므로 별도 배포 없이 적용되고, 중앙에서 덮어쓰려면 그보다 우선하는 머신 전역 경로 `%ProgramData%\Orca\enterprise-policy.json`을 씁니다(`src/main/enterprise/enterprise-policy-file.ts:53-63`, `:199-207`, 탐색 순서 `:80-105`). 전체 외부 연동 잠금은 [외부 연동 감사](./external-integrations-audit.md) 참고.
 
 ### 5-2. `ORCA_MAC_RELEASE` 환경변수 남겨두기
 

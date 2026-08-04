@@ -14,6 +14,9 @@ const {
 const { verifyLinuxGlibcFloor } = require('./scripts/verify-linux-glibc-floor.cjs')
 const { writeMacBuildCompatibility } = require('./scripts/mac-build-compatibility.cjs')
 const { verifyPackagedPluginResources } = require('./scripts/verify-packaged-plugin-resources.cjs')
+const {
+  verifyPackagedEnterprisePolicy
+} = require('./scripts/verify-packaged-enterprise-policy.cjs')
 const { verifySkillsCliRuntime } = require('./scripts/verify-skills-cli-runtime.cjs')
 
 // Why: hourly dev builds must carry the *release* identity — same bundle id and
@@ -52,7 +55,19 @@ const bundledPluginResources = {
 // from package directories where pnpm's symlink farm is absent. Copy the exact
 // runtime dependency closure to Resources/node_modules so bare require() calls
 // do not fall through to a developer checkout's node_modules.
-const commonExtraResources = [relayExtraResource, bundledPluginResources, skillFreshnessResources]
+// Why: the corporate lockdown must not depend on a separate GPO/Intune step — a PC that
+// only ran the installer used to behave like upstream Orca. The loader resolves this from
+// process.resourcesPath and %ProgramData% still outranks it, so central override survives.
+const bundledEnterprisePolicyResource = {
+  from: 'resources/enterprise-policy.json',
+  to: 'enterprise-policy.json'
+}
+const commonExtraResources = [
+  relayExtraResource,
+  bundledPluginResources,
+  skillFreshnessResources,
+  bundledEnterprisePolicyResource
+]
 const macSpeechNativeResource = {
   from: 'node_modules/sherpa-onnx-darwin-${arch}',
   to: 'node_modules/sherpa-onnx-darwin-${arch}'
@@ -115,6 +130,10 @@ module.exports = {
     // it from process.resourcesPath; exclude the source copy from app.asar.
     '!resources/onboarding/feature-wall/**',
     '!resources/skills/**',
+    // Why: the bundled default policy ships via extraResources to the path the loader
+    // reads. A second copy in app.asar(.unpacked) would be dead weight that an auditor
+    // still has to reason about — keep exactly one file to hash and to protect.
+    '!resources/enterprise-policy.json',
     // Why: bundled plugins ship via extraResources to resources/plugins/launch;
     // packing the source tree into app.asar would duplicate those exact bytes.
     '!resources/plugins/launch/**',
@@ -241,6 +260,7 @@ module.exports = {
     // Why: inspect electron-builder's real output so a broken extraResources
     // mapping fails packaging before bundled content reaches users.
     verifyPackagedPluginResources(resourcesDir)
+    verifyPackagedEnterprisePolicy(resourcesDir)
     chmodUnixCliLaunchers(resourcesDir, context.electronPlatformName)
     chmodMacServeSimHelpers(resourcesDir, context.electronPlatformName)
     for (const filename of readdirSync(resourcesDir)) {

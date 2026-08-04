@@ -11,20 +11,20 @@
 
 Orca가 `process.env`에서 읽는 값은 **Orca가 스폰하는 프로세스가 그대로 상속**합니다 — 에이전트 CLI(claude/codex/…)를 띄우는 PTY, `gh`/`glab`/`git` 서브프로세스(예: `src/main/github/client.ts:238-242`은 `env` 옵션 없이 실행하므로 `process.env`를 통째로 물려받습니다), 그리고 릴레이까지 (설계 근거는 `src/shared/enterprise-policy.ts:4-8` 주석). 잠금 스위치를 환경변수로 두면 같은 머신의 무관한 도구까지 `ORCA_*` 변수로 오염되고, Windows에서는 `setx`로 심은 값이 **사용자 프로파일 단위**라 다른 계정·서비스 계정·새로 만든 프로파일은 그대로 풀린 상태로 남습니다.
 
-그래서 이 포크는 **런타임 환경변수를 딱 하나만 추가**하고, 나머지 스위치는 전부 관리자 소유 JSON 파일 안에 둡니다 (`src/shared/enterprise-policy.ts:4-8`, `src/main/enterprise/enterprise-policy-file.ts:4-11`).
+그래서 이 포크는 **런타임 환경변수를 딱 하나만 추가**하고, 나머지 스위치는 전부 관리자 소유 JSON 파일 안에 둡니다 (`src/shared/enterprise-policy.ts:4-8`, `src/main/enterprise/enterprise-policy-file.ts:4-17`).
 
 ### 이 포크가 추가하는 런타임 환경변수 (전부)
 
 | 환경변수 | 값 | 패키징 빌드(사용자 PC에 설치된 `.exe`) | 비패키징(`pnpm dev`·vitest) |
 | --- | --- | --- | --- |
-| `ORCA_ENTERPRISE_POLICY` | 정책 파일 절대경로 | 후보 목록에 **끼워 넣기만** 합니다 — 순서는 머신 전역 → 이 경로 → 사용자별. **머신 전역이 여전히 1순위** | 그 경로 **하나만** 후보로 삼음 (2·3순위 탐색 안 함) |
-| `ORCA_ENTERPRISE_POLICY` | `off` / `none` / `disabled` / `false` / `0` (대소문자 무관) | **무시됩니다.** 머신 전역 파일이 있으면 그대로 적용 | 탐색 자체를 무력화. 정책 미적용 |
+| `ORCA_ENTERPRISE_POLICY` | 정책 파일 절대경로 | 후보 목록에 **끼워 넣기만** 합니다 — 순서는 머신 전역 → **번들** → 이 경로 → 사용자별. **머신 전역과 번들 정책이 여전히 위** | 그 경로 **하나만** 후보로 삼음 (나머지 탐색 안 함) |
+| `ORCA_ENTERPRISE_POLICY` | `off` / `none` / `disabled` / `false` / `0` (대소문자 무관) | **무시됩니다.** 머신 전역 또는 번들 정책이 그대로 적용 | 탐색 자체를 무력화. 정책 미적용 |
 
-구현: `enterprise-policy-file.ts:23`(변수명), `:28`(무력화 값), `:59-83`(후보 목록 조립 — `allowEnvOverride`가 `false`면 무력화 값을 버리고 명시 경로를 머신 전역 **뒤로** 강등), `:163-171`(`app.isPackaged !== true`로 패키징 여부 판정), `:185-190`(호출부).
+구현: `enterprise-policy-file.ts:31`(변수명), `:36`(무력화 값), `:80-105`(후보 목록 조립 — `allowEnvOverride`가 `false`면 무력화 값을 버리고 명시 경로를 머신 전역·번들 **뒤로** 강등), `:191-197`(`app.isPackaged !== true`로 패키징 여부 판정), `:199-207`(번들 경로를 `process.resourcesPath`에서 해석), `:216-228`(호출부).
 
-> 🔒 **이것이 보안 경계입니다.** Windows에서는 표준 사용자도 관리자 권한 없이 자기 계정의 환경변수를 만들 수 있습니다(`setx ORCA_ENTERPRISE_POLICY off` 한 줄). 환경변수 무력화가 무조건 통했다면 사내 잠금이 **명령어 하나로 우회**됐을 것입니다. 그래서 패키징 빌드에서는 환경변수가 후보를 **추가**만 할 수 있고, 관리자가 배포한 머신 전역 파일에서 **다른 곳으로 돌리거나 그것을 끄지 못합니다** (`enterprise-policy-file.ts:49-58` 주석). 판정 신호로 `app.isPackaged`를 쓰는 이유도 같습니다 — 표준 사용자가 바꿀 수 없는 유일한 신호입니다 (`:163-164` 주석).
+> 🔒 **이것이 보안 경계입니다.** Windows에서는 표준 사용자도 관리자 권한 없이 자기 계정의 환경변수를 만들 수 있습니다(`setx ORCA_ENTERPRISE_POLICY off` 한 줄). 환경변수 무력화가 무조건 통했다면 사내 잠금이 **명령어 하나로 우회**됐을 것입니다. 그래서 패키징 빌드에서는 환경변수가 후보를 **추가**만 할 수 있고, 관리자가 배포한 머신 전역 파일이나 빌드에 내장된 번들 정책에서 **다른 곳으로 돌리거나 그것을 끄지 못합니다** (`enterprise-policy-file.ts:65-79` 주석). 판정 신호로 `app.isPackaged`를 쓰는 이유도 같습니다 — 표준 사용자가 바꿀 수 없는 유일한 신호입니다 (`:189-190` 주석).
 
-비패키징에서 옛 동작을 남겨 둔 것은 개발·테스트 때문입니다. `config/vitest-enterprise-policy-isolation.ts:6`이 `ORCA_ENTERPRISE_POLICY=off`를 박아, 이 포크를 빌드하는 사내 머신(머신 전역 정책 파일이 이미 깔려 있는 PC)에서 vitest가 lockdown 상태로 돌지 않게 합니다. 테스트 러너는 패키징 빌드가 아니므로 이 값이 그대로 듣습니다.
+비패키징에서 옛 동작을 남겨 둔 것은 개발·테스트 때문입니다. `config/vitest-enterprise-policy-isolation.ts:6`이 `ORCA_ENTERPRISE_POLICY=off`를 박아, 이 포크를 빌드하는 사내 머신(머신 전역 정책 파일이 이미 깔려 있는 PC)에서 vitest가 lockdown 상태로 돌지 않게 합니다. 테스트 러너는 패키징 빌드가 아니므로 이 값이 그대로 듣습니다. **번들 정책도 같은 경계 위에 있습니다** — 후보 조립이 `allowEnvOverride`가 `false`인 분기에서만 번들을 넣으므로(`enterprise-policy-file.ts:101-104`), `pnpm dev`와 vitest에는 애초에 나타나지 않습니다.
 
 ### 더 이상 존재하지 않는 환경변수
 
@@ -49,19 +49,20 @@ ORCA_GITHUB_ENTERPRISE_HOST
 
 ---
 
-## 2. 탐색 순서 — 먼저 발견된 파일이 이긴다
+## 2. 탐색 순서 — 먼저 **성공적으로 파싱된** 파일이 이긴다
 
-순서는 빌드가 패키징됐는지에 따라 갈립니다 (`enterprise-policy-file.ts:59-83`).
+순서는 빌드가 패키징됐는지에 따라 갈립니다 (`enterprise-policy-file.ts:80-105`).
 
 **패키징 빌드 — 사용자 PC에 설치된 `.exe`. 플릿에서 유일하게 의미 있는 열입니다.**
 
 | 순위 | 위치 | 비고 |
 | --- | --- | --- |
-| 1 | **머신 전역** — `%ProgramData%\Orca\enterprise-policy.json` | `ProgramData` 또는 `PROGRAMDATA` 환경변수 기준. 둘 다 없으면 후보 없음 (`enterprise-policy-file.ts:39-41`) |
-| 2 | `ORCA_ENTERPRISE_POLICY`가 가리키는 경로 | 무력화 값(`off` 등)이면 후보에서 빠질 뿐, 위 1순위는 그대로 남습니다 |
-| 3 | **사용자별** — `%APPDATA%\Orca\enterprise-policy.json` | `:76-78` |
+| 1 | **머신 전역** — `%ProgramData%\Orca\enterprise-policy.json` | `ProgramData` 또는 `PROGRAMDATA` 환경변수 기준. 둘 다 없으면 후보 없음 (`enterprise-policy-file.ts:55-57`). **중앙(GPO/Intune)에서 값을 바꾸고 싶을 때 쓰는 자리** |
+| 2 | **번들** — `<설치폴더>\resources\enterprise-policy.json` | **설치 파일에 내장된 기본값.** 런타임 경로는 `process.resourcesPath` 기준 (`:199-207`), 저장소 원본은 `resources/enterprise-policy.json`, 실리는 지점은 `config/electron-builder.config.cjs`의 `commonExtraResources` |
+| 3 | `ORCA_ENTERPRISE_POLICY`가 가리키는 경로 | 무력화 값(`off` 등)이면 후보에서 빠질 뿐, 위 1·2순위는 그대로 남습니다 |
+| 4 | **사용자별** — `%APPDATA%\Orca\enterprise-policy.json` | `:98-100` |
 
-**비패키징(`pnpm dev`·vitest)**
+**비패키징(`pnpm dev`·vitest)** — 번들 후보는 **나타나지 않습니다** (`:101-102`).
 
 | 순위 | 위치 | 비고 |
 | --- | --- | --- |
@@ -69,29 +70,31 @@ ORCA_GITHUB_ENTERPRISE_HOST
 | 2 | 머신 전역 (위와 동일) | |
 | 3 | 사용자별 — `<userData>/enterprise-policy.json` | |
 
-> **다른 OS 각주.** 이 배포는 Windows x64 전용이라 위 표는 Windows 경로만 싣지만 **코드는 세 OS를 그대로 지원합니다**: 머신 전역 경로가 macOS는 `/Library/Application Support/Orca/enterprise-policy.json`(`enterprise-policy-file.ts:43-44`), Linux는 `/etc/orca/enterprise-policy.json`(`:46`)이고, 3순위의 `<userData>`는 Electron 규약대로 Windows `%APPDATA%\Orca`, macOS `~/Library/Application Support/Orca`, Linux `~/.config/Orca`입니다. 배치 절차는 §6-2.
+> **다른 OS 각주.** 이 배포는 Windows x64 전용이라 위 표는 Windows 경로만 싣지만 **코드는 세 OS를 그대로 지원합니다**: 머신 전역 경로가 macOS는 `/Library/Application Support/Orca/enterprise-policy.json`(`enterprise-policy-file.ts:59-61`), Linux는 `/etc/orca/enterprise-policy.json`(`:62`)입니다. 번들 후보도 세 OS 모두에 실립니다(`commonExtraResources`) — macOS는 `Orca.app/Contents/Resources/enterprise-policy.json`, Linux는 `<AppImage 마운트>/resources/enterprise-policy.json`. 4순위의 `<userData>`는 Electron 규약대로 Windows `%APPDATA%\Orca`, macOS `~/Library/Application Support/Orca`, Linux `~/.config/Orca`입니다. 배치 절차는 §6-2.
 
 앱 이름은 `app.setName('Orca')`(`src/main/index.ts:1836` → `src/main/startup/dev-instance-identity.ts:57-58`). `pnpm dev`로 띄운 개발 인스턴스만 `Orca Dev`를 씁니다(`dev-instance-identity.ts:83`).
 
-**먼저 발견된 파일이 그대로 끝입니다** (`enterprise-policy-file.ts:59-83`, `:119-152`). 병합하지 않습니다. 즉 **사용자별 파일로 머신 전역 정책을 완화할 수 없습니다** — 사용자가 자기 `%APPDATA%\Orca\enterprise-policy.json`에 `{"lockdown": false}`를 써도, `C:\ProgramData\Orca\enterprise-policy.json`이 존재하는 한 읽히지 않습니다.
+**먼저 성공적으로 파싱된 파일이 그대로 끝입니다** (`enterprise-policy-file.ts:80-105`, `:141-178`). 병합하지 않습니다. 즉 **사용자별 파일로 머신 전역·번들 정책을 완화할 수 없습니다** — 사용자가 자기 `%APPDATA%\Orca\enterprise-policy.json`에 `{"lockdown": false}`를 써도, 위 후보 중 하나가 읽히는 한 그 파일은 읽히지 않습니다.
+
+> **"발견"이 아니라 "파싱"입니다 — v1.4.163 이후 바뀐 부분입니다.** 예전에는 후보 하나가 JSON 문법 오류를 내면 거기서 탐색을 **중단**하고 정책을 통째로 포기했습니다. 번들 기본값이 생긴 지금 그 동작은 위험합니다 — 관리자가 GPO로 뿌린 파일의 쉼표 하나가 그 PC를 **완전히 풀린 상태**로 만들기 때문입니다. 지금은 읽기 실패(ENOENT 외 권한/마운트 오류)와 똑같이 **다음 후보로 넘어갑니다** (`enterprise-policy-file.ts:152-158`, `:167-174`). 넘어가더라도 경고는 그대로 남으므로(§7-3), 관리자는 §7-2 트레이스의 `…warnings`에서 자기 파일이 무시된 사실을 확인할 수 있습니다.
 
 > **이 순서가 재설계의 핵심입니다.** 예전 방식(`setx ORCA_ENTERPRISE_LOCKDOWN 1`)은 **HKCU에 쓰는 사용자별 상태**였습니다. 같은 PC의 다른 로그인 계정, 서비스 계정, 그리고 그 뒤에 새로 만들어진 프로파일은 전부 잠금이 걸리지 않았습니다. `%ProgramData%`에 놓인 파일 하나는 그 PC의 **모든 계정**에 동일하게 적용됩니다.
 
-> 🔒 **환경변수는 패키징 빌드에서 머신 전역 정책을 못 이깁니다.** §1의 이유 그대로입니다 — Windows에서 표준 사용자가 자기 환경변수를 만드는 데는 권한이 필요 없으므로, 무조건 듣는 옵트아웃은 명령어 하나짜리 우회 통로가 됩니다. 그래서 패키징 빌드에서는 `ORCA_ENTERPRISE_POLICY`가 **1순위를 뺏지 못하고 2순위로 강등**되며 무력화 값은 통째로 무시됩니다 (`enterprise-policy-file.ts:68-82`).
+> 🔒 **환경변수는 패키징 빌드에서 머신 전역·번들 정책을 못 이깁니다.** §1의 이유 그대로입니다 — Windows에서 표준 사용자가 자기 환경변수를 만드는 데는 권한이 필요 없으므로, 무조건 듣는 옵트아웃은 명령어 하나짜리 우회 통로가 됩니다. 그래서 패키징 빌드에서는 `ORCA_ENTERPRISE_POLICY`가 **1·2순위를 뺏지 못하고 3순위로 강등**되며 무력화 값은 통째로 무시됩니다 (`enterprise-policy-file.ts:90-97`, `:101-104`). 같은 이유로 **번들 후보가 사용자별(`%APPDATA%`) 후보보다 위**입니다 — 그렇지 않으면 `%APPDATA%\Orca\enterprise-policy.json`에 `{}`를 떨어뜨리는 것만으로 잠금이 풀립니다.
 >
-> **배포상의 결론: 정책 파일은 위 표의 머신 전역 기본 경로에 두고, 사용자가 쓰지 못하도록 ACL을 거세요**(§6). 환경변수로 커스텀 경로를 지정하는 방식은 **개발·검증용이지 플릿용이 아닙니다** — 패키징 빌드에서는 어차피 2순위라 머신 전역 파일이 있으면 읽히지도 않습니다.
+> **배포상의 결론: 인스톨러의 번들 정책이 기본선이고, 값을 중앙에서 바꾸고 싶을 때만 머신 전역 경로에 파일을 놓고 ACL을 거세요**(§6). 환경변수로 커스텀 경로를 지정하는 방식은 **개발·검증용이지 플릿용이 아닙니다** — 패키징 빌드에서는 어차피 3순위라 위 두 후보가 있으면 읽히지도 않습니다.
 
-읽기는 프로세스당 1회이며 캐시됩니다(`enterprise-policy-file.ts:173`, `:180-199`). **파일을 바꿨으면 앱을 재시작해야 반영됩니다.** 앱은 이 파일에 절대 쓰지 않습니다(`readFileSync`만).
+읽기는 프로세스당 1회이며 캐시됩니다(`enterprise-policy-file.ts:209`, `:216-250`). **파일을 바꿨으면 앱을 재시작해야 반영됩니다.** 앱은 이 파일에 절대 쓰지 않습니다(`readFileSync`만).
 
 ---
 
 ## 3. 스키마
 
-JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-policy-file.ts:142-144`, `jsonc-parser`). 자동 탐색 경로에서의 파일명은 `enterprise-policy.json`으로 고정이고(`:24`), `ORCA_ENTERPRISE_POLICY`로 직접 지정할 때는 이름이 무엇이든 무관합니다.
+JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-policy-file.ts:164-166`, `jsonc-parser`). 자동 탐색 경로에서의 파일명은 `enterprise-policy.json`으로 고정이고(`:32`), `ORCA_ENTERPRISE_POLICY`로 직접 지정할 때는 이름이 무엇이든 무관합니다.
 
 | 키 | 타입 | 기본값 | 실제로 끄는 것 (게이트 위치) |
 | --- | --- | --- | --- |
-| `lockdown` | boolean | `false` | 마스터 스위치. 아래 상속 스위치 전부(`LOCKDOWN_INHERITING_KEYS`, 현재 15개)의 **기본값**이 됩니다 (`src/shared/enterprise-policy.ts:52-60`, `:196-200`). 그 자체로 직접 끄는 기능은 없습니다 |
+| `lockdown` | boolean | `false` | 마스터 스위치. 아래 상속 스위치 전부(`LOCKDOWN_INHERITING_KEYS`, 현재 17개)의 **기본값**이 됩니다 (`src/shared/enterprise-policy.ts:52-60`, `:196-200`). 그 자체로 직접 끄는 기능은 없습니다 |
 | `githubEnterpriseHost` | string | `GH_HOST` → `gh`의 `hosts.yml` → 없으면 `null` | 해당 호스트를 GitHub로 인식시켜 **Gitea 오폴백**(`<host>/api/v1/...` 직접 fetch)을 막습니다 (`src/main/gitea/repository-ref.ts:91-99`). 허용목록에도 자동 추가 (`enterprise-policy.ts:204-207`). **폴백 3순위가 `gh` 자신의 설정 파일입니다** — `gh auth login --hostname <ghes>`는 환경변수가 아니라 `hosts.yml`에 쓰므로, GUI로 실행된 앱이 셸 rc의 `GH_HOST`를 못 보는 흔한 상황에서 이 경로가 유일한 단서입니다 (`src/main/github/gh-config-host.ts`). 로그인된 호스트가 **정확히 하나일 때만** 채택합니다(gh의 `DefaultHost()`와 동일) |
 | `disableTelemetry` | boolean | `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88-90`) **및** 진단/크래시 번들 업로드 — 컨센트 계산은 `src/main/observability/index.ts:103, 120-134`이고 실제 거부는 메인의 IPC 게이트(`src/main/ipc/diagnostics.ts:221`(수집), `:253`·`:263`(업로드))와 크래시 피드백 첨부(`src/main/crash-reporting/crash-feedback-diagnostic-bundle.ts:33`)에서 일어납니다. 번들 목적지는 `https://www.onorca.dev/v1/feedback` (`src/main/ipc/feedback.ts:10`) — v1.4.159에서 upstream이 `api.onorca.dev` 폴백 엔드포인트를 삭제해 목적지가 하나로 줄었습니다. **로컬 NDJSON 로깅은 그대로 유지됩니다** (`observability/index.ts:129-133`) |
 | `disableAutoUpdate` | boolean | `lockdown` | `runBackgroundUpdateCheck()` 초크포인트 (`src/main/updater.ts:1273`), 메뉴의 수동 체크 `checkForUpdatesFromMenu()` (`:1350`), `quitAndInstall()` (`:1490`), `setupAutoUpdater()` (`:1644`), `downloadUpdate()` (`:1769`). 네 번째가 핵심 — 넛지 스케줄러(`:1572`)와 `powerMonitor`/포커스 리스너(`:1750-1751`)가 **아예 등록되지 않습니다**. v1.4.162가 추가한 macOS **로컬 빌드 교체**(`checkForUpdatesFromMenu({ localBuild })` → 로컬 피드 서버)도 같은 게이트 뒤에 있습니다 — 벤더 egress는 아니지만 IT가 배포한 바이너리를 사용자가 갈아끼우는 표면이라 함께 막습니다. v1.4.163이 추가한 **릴리스 채널 빌드 선택기**(`updater:listBuilds` → `listReleaseBuilds()` → `api.github.com` REST)도 `src/main/updater-release-builds.ts`에서 같은 스위치로 막습니다 — electron-updater 피드가 아닌 별도 레인이라 위 다섯 게이트가 덮지 못했습니다 |
@@ -108,11 +111,12 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 | `disableRemoteOrcaServer` | boolean | `lockdown` | 이 데스크톱이 **다른 Orca에 붙는 것**(아웃바운드)을 거부합니다 — 설정 → 원격 Orca 서버, 페어링 코드 등록, ephemeral VM, 부팅 시 저장된 원격을 활성 런타임으로 복원하는 hydration. **SSH 호스트와 인바운드 `orca serve` 리스너는 대상이 아닙니다** — 원격 개발을 통째로 없애지 않습니다. 게이트: `src/main/ipc/runtime-environment-transport-routing.ts`의 status/call/subscribe 3개 진입점 (`:46`, `:98`, `:191`) |
 | `disableVoice` | boolean | `lockdown` | 받아쓰기를 끝에서 끝까지 끕니다 — 로컬 STT 런타임, 모델 다운로드(HuggingFace CDN), 컴포저 마이크 버튼, 단축키, 모바일 클라이언트의 원격 받아쓰기 토글. 게이트: `src/main/speech/speech-runtime-service.ts`의 두 게터 + `registerSpeechHandlers` 미등록(macOS 마이크 권한 프롬프트가 뜨지 않게). **macOS 마이크 entitlement는 제거하지 않습니다** — 내장 브라우저의 WebRTC와 공유되기 때문입니다 |
 | `disablePlugins` | boolean | `lockdown` | v1.4.162가 추가한 **플러그인 시스템**을 끝에서 끝까지 거부합니다. ⚠️ **다른 스위치와 성격이 다릅니다 — 이것만 사용자 설정을 덮어씁니다.** upstream은 기능 전체를 사용자 설정 `pluginSystemEnabled`(기본 `false`)에 걸어 뒀는데, 그건 정책이 아니라 설정 화면의 토글이라 사용자가 언제든 켤 수 있습니다. 켜지는 순간 두 갈래가 나갑니다: 벤더 마켓플레이스 인덱스를 **`git` 자식 프로세스로 clone**(`https://github.com/stablyai/orca-plugins.git`)하고, 벤더 kill-list를 `fetch`합니다(`https://onorca.dev/plugins/kill-list.json`). **전자는 `enforceNetworkAllowlist`가 구조적으로 못 막습니다** — 허용목록은 Electron 세션과 메인 프로세스 global `fetch`만 감싸고 자식 프로세스는 못 봅니다(§0.2 #1). 게이트는 네 겹입니다: ① 기능 플래그 판독을 전부 대체하는 `isPluginSystemAllowed()`(`src/main/plugins/plugin-system-policy.ts`) → 탐색·패널·워커·마켓플레이스 시드·kill-list 갱신이 모두 fail-closed, ② **egress 초크포인트** `runPluginGit()`(`plugin-git-repository.ts`) — `plugins:install`과 `plugins:refreshMarketplaces`는 기능 플래그를 보지 않고 Git에 도달하므로 여기서 막아야 합니다, ③ `fetchPluginKillList()`, ④ `registerPluginHandlers` 미등록 + `setPluginServiceForRpc` 미설정(→ `plugins.*` RPC 네임스페이스 전체가 거부되므로 `orca serve`·모바일 클라이언트도 함께 막힙니다). 플러그인 워커는 평범한 자식 프로세스라 네트워크가 자유롭다는 점이 이 스위치가 필요한 근본 이유입니다 |
+| `disableVendorLinks` | boolean | `lockdown` | 앱이 사용자를 **벤더 자신의 웹 자산으로 내보내는 링크**를 없앱니다 — 커뮤니티/소셜(Discord 초대, `x.com/orca_build`, `x.com/intent/*` 공유), github.com SaaS의 **공개 이슈 트래커**(`github.com/stablyai/*`), 벤더 문서/체인지로그(`onorca.dev`). 두 가지 다른 이유가 한 스위치에 묶여 있습니다: 커뮤니티 레인은 사용자가 **사내 맥락을 공개 장소에 적어 넣는** 유출 표면이고(링크가 OS 브라우저를 열기 때문에 `enforceNetworkAllowlist`가 원리적으로 볼 수 없습니다), 문서 레인은 이 플릿에서 **틀린 지시**입니다(업스트림 문서가 설명하는 Cloud 로그인·플러그인·모바일 페어링·자동 업데이트는 이미 정책이 꺼 놓은 기능이고, 체인지로그는 받지 못할 릴리스를 광고합니다). **초크포인트 2곳**: `openExternalUrlUnderPolicy()`(`src/main/ipc/shell-open-url.ts` — `shell:openUrl` IPC 전체 = 렌더러가 링크를 여는 유일한 레인)와 `installPrivilegedWindowNavigationPolicy()`의 `setWindowOpenHandler`/`will-navigate`(`src/main/window/privileged-window-navigation.ts` — 터미널 에러 토스트의 생 `<a href>`처럼 IPC를 안 타는 경로). 판정은 `enterprise-vendor-link-guard.ts`의 호스트+경로 규칙표입니다. UI에서는 `?` 메뉴의 Docs/Changelog/GitHub/Discord/X 블록, 피드백 다이얼로그의 커뮤니티 카드, 사용량 카드의 "Share on X", 프로젝트 뷰의 "File feature request"(툴팁·aria-label 포함), 터미널 에러 토스트의 "file an issue", 첫 실행 배너의 "Privacy policy", 피처월의 문서 링크가 사라집니다. ⚠️ **웹 필터가 아닙니다** — 내장 브라우저에 x.com을 직접 입력하는 것은 그대로 되고, 동료가 PR 본문에 붙여 넣은 x.com 링크도 열립니다. 막는 것은 **Orca가 스스로 광고하는 목적지**뿐입니다. ⚠️ `githubEnterpriseHost`는 **항상 우선**합니다 — 사내 GHES 호스트는 이 스위치와 무관하게 열립니다. 제3자 도구 문서(`cli.github.com`, `gitea.com`, 각 에이전트 CLI 홈페이지)도 대상이 아닙니다 |
 | `requireComputerUseApproval` | boolean | `lockdown` | Computer Use가 **무언가를 바꾸기 전에** 사용자에게 네이티브 확인 창을 띄웁니다 (클릭/타이핑/키/드래그/스크롤/붙여넣기/값 입력). 읽기(접근성 트리·스크린샷)는 묻지 않습니다. 창에는 대상 앱과 입력될 텍스트가 표시되고, 기본 버튼과 Esc는 **거부**입니다. 띄울 창이 없으면(헤드리스 `orca serve`) 거부합니다. 게이트: `callComputerSidecarAction`(`src/main/computer/sidecar-client.ts`) — 변경 동작 9개가 전부 지나가는 유일한 지점 |
 | `enforceNetworkAllowlist` | boolean | **`false`** (lockdown을 상속하지 **않음**) | §5 참고. `src/shared/enterprise-policy.ts:212-214`에 이유가 주석으로 박혀 있습니다 |
 | `allowedNetworkHosts` | string[] | `[]` (+ `githubEnterpriseHost` 자동 포함) | `enforceNetworkAllowlist: true`일 때만 의미가 있습니다 |
 | `llmEndpoints` | object[] | `[]` | 사내에서 직접 서비스하는 모델의 접속 지점 목록. 사용자가 세션을 Bedrock 대신 여기로 돌릴 수 있습니다. 각 엔드포인트의 호스트는 허용목록에 자동 추가됩니다 (`src/shared/enterprise-policy.ts:216-223`). **토큰은 여기 넣지 않습니다** — §3-2 참고 |
-| `allowedAgents` | string[] | `null` (제한 없음) | 사용자가 **고를 수 있는 에이전트 CLI id 목록** (예: `"claude"`). 지정하면 에이전트/모델 피커·계정 설정·하단 사용량 미터가 이 목록으로만 좁혀지고, 나머지 벤더(codex/gpt, gemini, opencode, grok 등)는 UI에서 사라지고 사용량 폴링(예: Codex → chatgpt.com)도 하지 않습니다. 빈 배열/오타는 피커를 완전히 막지 않도록 "제한 없음"으로 처리됩니다. 사내 self-hosted 모델은 에이전트가 아니라 허용된 에이전트의 모델 피커에 얹히므로 여기 적을 필요가 없습니다. §3-3 참고 |
+| `allowedAgents` | string[] | `null` (제한 없음) | 사용자가 **쓸 수 있는 에이전트 CLI id 목록** (예: `"claude"`). ⚠️ **UI 필터가 아니라 하드 거부입니다** — 예전 판의 "고를 수 있는 목록"이라는 설명은 부족했습니다. 두 축으로 동작합니다: ① **표시** — 에이전트/모델 피커·계정 설정·하단 사용량 미터가 이 목록으로만 좁혀지고, 나머지 벤더(codex/gpt, gemini, opencode, grok 등)는 UI에서 사라지고 사용량 폴링(예: Codex → chatgpt.com)도 하지 않습니다. ② **스폰 거부** — 목록 밖 에이전트는 **실제로 실행되지 않습니다**. 표시 게이트만으로 부족한 이유는 렌더러를 거치지 않는 경로가 여럿이기 때문입니다: 정책 배포 전에 바인딩된 키보드 코드, `orca` CLI, 페어링된 모바일/웹 클라이언트, 오케스트레이션 디스패치. 초크포인트 2곳 — `pty:spawn` IPC(`src/main/ipc/pty.ts`)와 `runtime.setPtyController({spawn})`(`src/main/runtime/orca-runtime.ts`, CLI·모바일·자동화·오케스트레이션이 지나는 레인). 거부는 `agent_blocked_by_enterprise_policy` 오류로 사용자 토스트에 표시됩니다 (`src/main/enterprise/agent-allowlist-guard.ts`). 빈 배열/오타는 피커를 완전히 막지 않도록 "제한 없음"으로 처리됩니다. 사내 self-hosted 모델은 에이전트가 아니라 허용된 에이전트의 모델 피커에 얹히므로 여기 적을 필요가 없습니다. §3-3 참고 |
 | `$schema` | string | — | 알려진 키라 경고가 나지 않습니다. 에디터 편의용 (`enterprise-policy.ts:65`) |
 
 ### 3-1. `disableManagedClaudeAccounts` — Bedrock 플릿에서는 필수입니다
@@ -217,7 +221,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 - **인식할 수 없는 값은 "부재"로 처리**되어 `lockdown`을 상속하고, stderr에 경고가 나갑니다 (`:104-105`). 절대 "off"로 읽지 않습니다 — 관리자의 오타가 조용히 잠금을 푸는 사고를 막기 위한 설계입니다 (`:80-82` 주석).
 - **호스트 문자열**은 스킴·경로·자격증명·포트를 벗겨내고 소문자로 정규화됩니다 (`:110-123`). `https://github.samsungds.net/`, `git@github.samsungds.net:8443` 모두 `github.samsungds.net`이 됩니다.
 - **모르는 키**는 무시되고 경고만 나갑니다 (`:190-194`). 오타난 키(`disableStarNagg`)는 곧 "그 스위치는 부재" = `lockdown` 상속입니다.
-- **문법이 깨진 파일은 통째로 거부**합니다 (`enterprise-policy-file.ts:145-148`). 절반만 적용되는 상태는 만들지 않습니다 — 다만 그 결과가 "잠금 강화"가 아니라 **"정책 미적용"**이라는 점을 §7-4에서 반드시 확인하세요.
+- **문법이 깨진 파일은 통째로 거부**합니다 (`enterprise-policy-file.ts:167-174`). 절반만 적용되는 상태는 만들지 않습니다 — 대신 **다음 후보로 넘어갑니다**(§2). 즉 결과는 "그 파일의 값이 사라지고 아래 후보(보통 번들 정책)가 적용됨"이며, 아래에 아무 후보도 없으면 **정책 미적용**입니다. §7-4에서 반드시 확인하세요.
 
 ### 3-3. `allowedAgents` — Bedrock + 사내 모델만 남기기
 
@@ -262,6 +266,8 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 
 `github.samsungds.net` 사내 배포용. 일곱 개 스위치는 `lockdown: true`면 생략해도 같은 결과지만, **감사 담당자가 상속 규칙을 모르고 읽어도 되도록 전부 명시**했습니다.
 
+> 📦 **이 예제는 저장소의 `resources/enterprise-policy.json`과 같은 내용입니다** — 그 파일이 설치 프로그램에 내장되어 §2 표의 2순위 후보로 실립니다. 즉 **아무 배포 작업을 하지 않아도 이 정책이 적용된 상태로 설치됩니다.** 아래 블록을 `%ProgramData%\Orca\`에 놓는 것은 이제 **중앙에서 값을 바꾸고 싶을 때**의 절차입니다(§6-1). 번들 파일 자체를 바꾸려면 저장소에서 고치고 다시 빌드하세요.
+
 ```jsonc
 {
   // Orca 사내 배포 정책 — 관리자 소유. 사용자가 수정할 수 없어야 합니다.
@@ -288,6 +294,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
   "disableMobileEmulator": true,         // 로컬 시뮬레이터/AVD 스트리밍 (페어링과 다른 스위치)
   "disableExternalAutomations": true,    // hermes/openclaw 크론 레인
   "disableAgentInstallSuggestions": true, // "직접 설치하세요" 안내 표면
+  "disableVendorLinks": true,            // Discord/X/공개 이슈 트래커/벤더 문서로 나가는 링크 (사내 GHES는 예외)
 
   // 사내에서 직접 서비스하는 모델 (§3-2). 토큰은 여기 넣지 않습니다 — 사용자가 앱에서 입력합니다.
   // 호스트는 allowedNetworkHosts에 자동 추가되므로 아래에 또 적을 필요가 없습니다.
@@ -390,11 +397,15 @@ Enterprise network allowlist blocked a request to <host>. Add it to "allowedNetw
 
 ## 6. 플릿 배포
 
-**이제 배포 대상은 파일 하나입니다.** 환경변수 열 몇 개를 계정마다 심고 검증하는 것보다 배포도, 감사도(해시 비교 한 번) 훨씬 단순합니다.
+**설치 프로그램이 기본 정책을 이미 싣고 있습니다.** `orca-windows-setup.exe`를 돌린 PC는 별도 배포 단계 없이 §4-1 내용으로 잠깁니다. 아래 절차는 **그 기본값을 중앙에서 덮어쓰고 싶을 때**만 필요합니다.
 
 ### 6-1. Windows
 
 배치 경로: `C:\ProgramData\Orca\enterprise-policy.json`
+
+> ℹ️ **이 GPO 배치는 이제 선택입니다.** 설치만으로 §4-1 정책이 걸리므로(§2 표 2순위), 아래는 ① 사내 사정으로 값을 바꿔야 하는데 앱을 다시 빌드·재배포하고 싶지 않을 때, ② 일부 부서만 다른 값을 써야 할 때, ③ 관리자 소유 ACL이 걸린 파일로 준수 여부를 Intune 콘솔에서 감시하고 싶을 때 씁니다. 머신 전역 경로는 번들보다 **위**라서 언제든 이깁니다.
+>
+> 🔴 **바꿔 말하면, 배치하기로 했다면 그 파일의 문법을 반드시 검증하세요.** 문법이 깨진 파일은 무시되고 **번들 정책으로 되돌아갑니다**(§2) — 잠금이 풀리지는 않지만, 관리자가 의도한 예외(예: `disableAutoUpdate: false`)가 조용히 사라진 채 잠긴 상태로 돕니다. 확인은 §7-2 트레이스의 `…source_path`와 `…warnings`입니다.
 
 **GPO — 파일 기본 설정(권장)**
 `컴퓨터 구성 → 기본 설정 → Windows 설정 → 파일` 에 항목 추가:
@@ -485,6 +496,7 @@ Ansible/Puppet/Salt의 file 리소스로 관리하거나, 사내 `.deb`/`.rpm`�
 | `disableMobileEmulator` | 설정 → 모바일 에뮬레이터, `+` 메뉴, 설정 → 단축키에 `simulator`, 터미널에서 `orca emulator devices` | 팬·메뉴 항목·단축키 행이 모두 사라지고, **이전에 열려 있던 시뮬레이터 탭도** 탭바에서 없어집니다. CLI는 `emulator_disabled_by_policy`로 거부합니다. ⚠️ 설정 → 모바일(페어링) 팬은 **그대로 남아야 정상**입니다 — 다른 스위치입니다 |
 | `disableExternalAutomations` | 사이드바 → 자동화 | Hermes/OpenClaw 소스 행이 사라지고 Orca 자동화만 남습니다. 새 자동화 다이얼로그의 Orca/Hermes 대상 토글도 사라집니다(선택할 대상이 하나뿐이므로). ⚠️ 이미 등록된 `~/.hermes` 크론 잡은 **Hermes 자신의 스케줄러로 계속 실행됩니다** — `hermes cron rm`으로 제거하세요 |
 | `disableAgentInstallSuggestions` | 설정 → 에이전트 하단, 설정 → Setup Guide | "설치 가능" 섹션이 사라집니다. 감지된 에이전트가 하나도 없으면 대신 "사내 소프트웨어 배포를 통해 설치한 뒤 새로 고침하세요" 안내가 뜹니다(빈 화면이 아니어야 정상). 감지된 에이전트 행의 링크는 `Docs`로 남습니다 — 설치 링크가 **전부** 사라지는 것은 아닙니다 |
+| `disableVendorLinks` | 사이드바 하단 `?` 메뉴, `?` → 피드백 보내기 | `?` 메뉴에서 **Docs/Changelog/GitHub/Discord/X 블록이 통째로** 사라지고(구분선까지 함께 — 남으면 게이트가 반쪽입니다), 피드백 다이얼로그 상단의 커뮤니티 카드도 사라집니다. 남는 것은 설정·단축키·기능 투어 같은 로컬 항목뿐입니다. ⚠️ **설정 → Privacy의 "Privacy policy" 링크와 설정 → 일반의 GitHub 링크는 화면에 그대로 남습니다** — 눌러도 메인 프로세스 초크포인트가 막아 아무 일도 일어나지 않습니다(무반응). 표시까지 없애는 것은 후속 작업입니다(감사 문서 §0.2 #20) |
 | `allowedAgents` | 설정 → 에이전트, `+` 메뉴, 워크트리 생성 다이얼로그 | 목록에 허용한 id만 남고, **워크트리 생성 다이얼로그에 미리 선택된 에이전트**도 허용 목록 안의 것이어야 합니다. `orca worktree create --agent <차단된 id>`는 그 에이전트가 감지되지 않으므로 선택되지 않습니다. ⚠️ 이 키는 `lockdown`을 상속하지 않습니다 — `{"lockdown": true}`만 있는 파일은 에이전트를 **전혀** 제한하지 않습니다 |
 | `disableSpellcheck` | 입력창에 오타 입력 | 빨간 물결 밑줄이 생기지 않음 (`createMainWindow.ts:299`) |
 | `disableStarNag` | 앱을 한동안 사용 | star 요청 카드/토스트가 뜨지 않음 (`github/client.ts:233-235`) |
@@ -499,7 +511,7 @@ Ansible/Puppet/Salt의 file 리소스로 관리하거나, 사내 `.deb`/`.rpm`�
 `disableTelemetry`가 켜져도 **로컬 NDJSON 로깅은 유지**되므로(`observability/index.ts:120-133`) 잠금 상태에서도 이 확인은 동작합니다. 단 §1의 `ORCA_DIAGNOSTICS_DISABLED`를 배포에 심으면 로컬 파일 기록까지 꺼져(`:113-119`) **이 절의 확인 수단이 통째로 사라집니다** — 그 변수는 이 검증과 양립하지 않습니다.
 
 - 파일: `%APPDATA%\Orca\logs\main.trace.ndjson` — 즉 `<userData>/logs/main.trace.ndjson` (`src/main/observability/logs-directory.ts:27-29`, `:32-34`). macOS는 `~/Library/Application Support/Orca/logs/`, Linux는 `~/.config/Orca/logs/` 아래 같은 파일명입니다.
-- **정책 해석 결과 자체가 이 파일에 스팬 하나로 남습니다.** 스팬 이름은 `enterprise.policy`이고, `initObservability()` 직후에 딱 한 번 기록됩니다 (`src/main/enterprise/enterprise-policy-trace.ts:33`, 호출부 `src/main/index.ts:2064`). 속성에 실제로 적용된 파일 경로(`enterprise.policy.source_path` — 못 찾았으면 `(none found)`, `enterprise-policy-trace.ts:18`), 탐색한 후보 목록(`…searched_paths`), `…lockdown`, 7개 스위치(`…switches`), `…github_enterprise_host`, `…enforce_network_allowlist`, `…allowed_network_hosts`, 그리고 §7-3의 경고 원문 전부(`…warnings`)가 들어갑니다 (`:36-45`).
+- **정책 해석 결과 자체가 이 파일에 스팬 하나로 남습니다.** 스팬 이름은 `enterprise.policy`이고, `initObservability()` 직후에 딱 한 번 기록됩니다 (`src/main/enterprise/enterprise-policy-trace.ts:33`, 호출부 `src/main/index.ts:2148`). 속성에 실제로 적용된 파일 경로(`enterprise.policy.source_path` — 못 찾았으면 `(none found)`, `enterprise-policy-trace.ts:18`), 탐색한 후보 목록(`…searched_paths`), `…lockdown`, 상속 스위치 전부(현재 17개, `…switches` — `LOCKDOWN_INHERITING_KEYS`를 그대로 순회하므로 스위치가 늘면 자동으로 함께 늘어납니다), `…github_enterprise_host`, `…enforce_network_allowlist`, `…allowed_network_hosts`, 그리고 §7-3의 경고 원문 전부(`…warnings`)가 들어갑니다 (`:36-45`).
 - `disableAutoUpdate`가 적용되면 `updater_auto_update_disabled_by_policy` 브레드크럼도 이 파일에 남습니다 (`updater.ts:1645-1649` → `src/main/updater-lifecycle-diagnostics.ts:4-14` → `src/main/crash-reporting/durable-crash-breadcrumb.ts:41-38`).
 
 ```powershell
@@ -511,12 +523,12 @@ Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "auto_up
 
 ### 7-3. stderr 메시지 원문
 
-정책 로더의 모든 출력은 `process.stderr`에 `[enterprise-policy] ` 접두사로, 한 줄씩 나갑니다 (`enterprise-policy-file.ts:98-103`). 같은 메시지가 최대 32개까지 버퍼링되어(`:89`, `:100-102`) §7-2의 `enterprise.policy` 스팬 `…warnings` 속성으로도 나가므로, **아래 표는 "무슨 메시지가 있는가"의 목록이고 실제로 읽는 곳은 트레이스 파일입니다.**
+정책 로더의 모든 출력은 `process.stderr`에 `[enterprise-policy] ` 접두사로, 한 줄씩 나갑니다 (`enterprise-policy-file.ts:120-125`). 같은 메시지가 최대 32개까지 버퍼링되어(`:111`, `:122-124`) §7-2의 `enterprise.policy` 스팬 `…warnings` 속성으로도 나가므로, **아래 표는 "무슨 메시지가 있는가"의 목록이고 실제로 읽는 곳은 트레이스 파일입니다.**
 
 | 상황 | 정확한 출력 | 구현 |
 | --- | --- | --- |
-| 파일을 열 수 없음 (ENOENT 제외 — 권한/마운트 등) | `[enterprise-policy] could not read <경로>: <에러 문자열>` | `:134` |
-| 파일 문법 오류 | `[enterprise-policy] <경로> is not valid JSON; ignoring it.` | `:145-148` |
+| 파일을 열 수 없음 (ENOENT 제외 — 권한/마운트 등) — **다음 후보로 넘어감** | `[enterprise-policy] could not read <경로>: <에러 문자열>` | `:152-158` |
+| 파일 문법 오류 — **다음 후보로 넘어감**(§2) | `[enterprise-policy] <경로> is not valid JSON; ignoring it.` | `:167-174` |
 | 최상위가 객체가 아님 | `[enterprise-policy] <경로>: Policy file must contain a JSON object; ignoring its contents.` | `enterprise-policy.ts:187` |
 | 모르는 키 | `[enterprise-policy] <경로>: Unknown policy key "<키>" ignored.` | `:192` |
 | boolean 자리에 이상한 값 | `[enterprise-policy] <경로>: "<키>" must be true or false; ignoring <값>.` | `:104` |
@@ -525,9 +537,9 @@ Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "auto_up
 | `allowedNetworkHosts`가 배열이 아님 | `[enterprise-policy] <경로>: "<키>" must be an array of hostnames; ignoring <값>.` | `:155` |
 | 배열 원소가 호스트가 아님 | `[enterprise-policy] <경로>: "<키>" entry <값> is not a hostname; ignoring it.` | `:164` |
 
-파일을 아예 못 찾은 경우 경로 자리에는 `(no file)`이 들어갑니다 (`enterprise-policy-file.ts:195`).
+파일을 아예 못 찾은 경우 경로 자리에는 `(no file)`이 들어갑니다 (`enterprise-policy-file.ts:242`).
 
-**Windows에서 이 메시지를 stderr로 직접 보는 방법 — 솔직하게 말하면 어렵습니다.** 패키징된 Orca는 GUI 서브시스템 앱이라 콘솔이 붙지 않고, 시작 메뉴로 띄운 프로세스는 fd 2에 내용 없는 스텁을 받아 이 줄들이 통째로 사라집니다 (`enterprise-policy-file.ts:94-97` 주석). **바로 그래서 §7-2의 스팬이 있습니다 — 정상적인 확인 경로는 그쪽입니다.** stderr를 굳이 원본 그대로 봐야 한다면 **cmd에서 파일로 리디렉션**해 띄우는 방법뿐입니다(자식 프로세스가 리디렉션된 핸들을 상속합니다).
+**Windows에서 이 메시지를 stderr로 직접 보는 방법 — 솔직하게 말하면 어렵습니다.** 패키징된 Orca는 GUI 서브시스템 앱이라 콘솔이 붙지 않고, 시작 메뉴로 띄운 프로세스는 fd 2에 내용 없는 스텁을 받아 이 줄들이 통째로 사라집니다 (`enterprise-policy-file.ts:116-119` 주석). **바로 그래서 §7-2의 스팬이 있습니다 — 정상적인 확인 경로는 그쪽입니다.** stderr를 굳이 원본 그대로 봐야 한다면 **cmd에서 파일로 리디렉션**해 띄우는 방법뿐입니다(자식 프로세스가 리디렉션된 핸들을 상속합니다).
 
 ```bat
 "%LOCALAPPDATA%\Programs\<설치폴더>\Orca.exe" > "%TEMP%\orca-stderr.log" 2>&1
@@ -539,14 +551,15 @@ Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "auto_up
 
 | 증상 | 원인 | 대처 |
 | --- | --- | --- |
-| 아무 잠금도 안 걸림, 경고도 없음 | 경로 오타/파일 없음. **ENOENT는 경고를 내지 않습니다** (`enterprise-policy-file.ts:130-136`) — 비기업 설치의 정상 경로이기 때문 | §7-2 스팬의 `…source_path`가 `(none found)`인지, `…searched_paths`에 어떤 경로를 뒤졌는지 확인. 그다음 경로를 문자 그대로 대조 (`%ProgramData%`는 보통 `C:\ProgramData`) |
-| **머신 전역 파일이 있는데 플릿 전체가 풀림** | 그 파일의 JSON 문법 오류. 파싱 실패 시 `readPolicyDocument`가 즉시 `null`을 반환하고 **사용자별 후보로 폴백하지도 않습니다** (`:145-148`) → 정책 전체 미적용 | 배포 전 문법 검증을 파이프라인에 넣으세요. 쉼표 하나가 플릿 전체를 풉니다. 검증 도구는 **JSONC를 이해하는 것**을 쓰세요 — 엄격한 JSON 파서는 주석과 후행 쉼표를 오류로 잡지만 앱은 둘 다 허용합니다 |
+| 아무 잠금도 안 걸림, 경고도 없음 | 경로 오타/파일 없음. **ENOENT는 경고를 내지 않습니다** (`enterprise-policy-file.ts:152-158`) — 비기업 설치의 정상 경로이기 때문. **패키징 빌드에서 이 증상이 나온다면 번들 정책까지 없다는 뜻**이므로 사내 인스톨러가 아닌 공개 빌드를 깔았는지 먼저 의심하세요 | §7-2 스팬의 `…source_path`가 `(none found)`인지, `…searched_paths`에 어떤 경로를 뒤졌는지 확인. 그다음 경로를 문자 그대로 대조 (`%ProgramData%`는 보통 `C:\ProgramData`) |
+| **머신 전역 파일을 배포했는데 그 안의 예외가 안 먹음** | 그 파일의 JSON 문법 오류. 파싱에 실패한 후보는 건너뛰고 **다음 후보(= 번들 정책)가 적용됩니다** (`:167-174`). 잠금이 풀리지는 않지만 관리자가 의도한 값은 사라집니다 | §7-2 스팬의 `…source_path`가 번들 경로를 가리키고 `…warnings`에 `is not valid JSON`이 있는지 확인. 배포 전 문법 검증을 파이프라인에 넣으세요. 검증 도구는 **JSONC를 이해하는 것**을 쓰세요 — 엄격한 JSON 파서는 주석과 후행 쉼표를 오류로 잡지만 앱은 둘 다 허용합니다 |
+| **사용자가 설치 폴더의 번들 정책을 지움** | per-user NSIS 설치라 설치 폴더(`%LOCALAPPDATA%\Programs\…`)가 그 사용자 소유입니다 — 표준 사용자가 파일을 지울 수 있습니다 ([외부 연동 감사](./external-integrations-audit.md) §0.2 #21) | 머신 전역 경로에 ACL을 건 파일을 배포하면(§6-1) 번들이 지워져도 1순위가 남습니다. 탐지는 §7-2 스팬의 `…source_path` — 잠긴 플릿에서 `(none found)`이 보이면 그 PC입니다 |
 | 특정 스위치만 안 먹음 | 키 오타 또는 값 오타. 둘 다 "부재"로 처리되어 `lockdown`을 상속 (`enterprise-policy.ts:104`, `:192`) | §7-2 스팬의 `…warnings`에서 경고 확인(원문은 §7-3). `lockdown: true`면 상속 덕에 결과적으로는 켜져 있습니다 |
 | `enforceNetworkAllowlist: true`인데 안 막힘 | 루프백/비 http(s) 요청이거나, 서브프로세스 트래픽이거나, 임베디드 브라우저 | §5의 범위 표 확인 |
-| 파일을 고쳤는데 그대로임 | 프로세스당 1회 읽고 캐시 (`enterprise-policy-file.ts:180-199`) | 앱 재시작 |
-| 사용자가 자기 파일로 풀어버림? | 불가능. 머신 전역이 먼저 발견되면 사용자 파일은 읽히지 않음 (`:59-83`) | — |
-| **사용자가 `setx ORCA_ENTERPRISE_POLICY off`로 풀어버림?** | 패키징 빌드에서는 불가능. 환경변수는 후보를 추가만 하고 머신 전역 파일은 항상 먼저 탐색됩니다 (`:68-82`, `:163-171`) | 단, **`pnpm dev`로 띄운 비패키징 인스턴스에는 그대로 듣습니다.** 사용자 PC에 개발 체크아웃을 두지 마세요 |
-| 개발 인스턴스로 커스텀 경로를 지정했는데 무시됨 | 패키징 빌드로 시험했기 때문. 머신 전역 파일이 있으면 환경변수 경로는 2순위라 읽히지 않습니다 (§2) | 커스텀 경로는 비패키징에서만 1순위입니다. 플릿에서는 머신 전역 기본 경로를 쓰세요 |
+| 파일을 고쳤는데 그대로임 | 프로세스당 1회 읽고 캐시 (`enterprise-policy-file.ts:216-250`) | 앱 재시작 |
+| 사용자가 자기 파일로 풀어버림? | 불가능. 머신 전역·번들이 먼저 읽히면 `%APPDATA%`의 사용자 파일은 읽히지 않음 (`:80-105`) | — |
+| **사용자가 `setx ORCA_ENTERPRISE_POLICY off`로 풀어버림?** | 패키징 빌드에서는 불가능. 환경변수는 후보를 추가만 하고 머신 전역·번들이 항상 먼저 탐색됩니다 (`:90-104`, `:191-197`) | 단, **`pnpm dev`로 띄운 비패키징 인스턴스에는 그대로 듣습니다.** 사용자 PC에 개발 체크아웃을 두지 마세요 |
+| 개발 인스턴스로 커스텀 경로를 지정했는데 무시됨 | 패키징 빌드로 시험했기 때문. 머신 전역·번들 파일이 있으면 환경변수 경로는 3순위라 읽히지 않습니다 (§2) | 커스텀 경로는 비패키징에서만 1순위입니다. 플릿에서는 번들 기본값 또는 머신 전역 경로를 쓰세요 |
 | 테스트/CI에서 정책이 안 먹음 | 의도된 동작. `config/vitest-enterprise-policy-isolation.ts`가 `ORCA_ENTERPRISE_POLICY=off`, `GH_HOST` 삭제, `GH_CONFIG_DIR`을 없는 경로로 고정. 테스트 러너는 비패키징이라 이 값들이 유효합니다 | — |
 | **`gh`를 사내 호스트로 바꿨는데 앱은 계속 github.com으로 보임** | 원인이 셋입니다. ①`gh auth login --hostname`은 환경변수가 아니라 `hosts.yml`에 씁니다 → 이제 앱이 그 파일을 읽습니다(§3-4). ②userData의 `github-enterprise-host.json`에 `github.com`이 저장돼 있으면 관리자 정책보다 우선했습니다 → 이제 벤더 호스트는 저장되지 않습니다. ③`gh`에 두 개 이상의 호스트가 로그인돼 있으면 `gh` 자신이 `github.com`을 기본값으로 쓰므로 앱도 추정하지 않습니다 | 설정 → Git 및 소스 제어의 "Git 호스트" **출처 문구**를 먼저 보세요(§7-1 표). 그다음 `gh auth status`로 로그인된 호스트가 사내 것 **하나뿐인지** 확인하고, 여러 개면 `gh auth logout --hostname github.com`. 확정적으로 못 박으려면 정책 파일에 `githubEnterpriseHost`를 적으세요 — 추론에 의존하지 않는 유일한 방법입니다 |
 | 리포지토리를 추가한 뒤 origin을 사내 미러로 바꿨는데 계속 github.com으로 보임 | **위와 다른 문제입니다.** `Repo.gitRemoteIdentity`(`repo-git-remote-identity-enrichment.ts`)와 `Repo.upstream`(`repo-icon-autodetect.ts`)은 추가 시점에 1회만 판정하고 다시 프로브하지 않습니다 — 정책이나 `gh` 설정과 무관합니다 | 해당 프로젝트를 제거하고 다시 추가하세요. 이 증상이 "재설치해야 고쳐진다"로 보이는 두 번째 경로입니다 |

@@ -13,6 +13,7 @@
 
 | 분류 | 기본 상태 | 이 브랜치의 잠금 | 잔여 위험 |
 | --- | --- | --- | --- |
+| **정책 적용 자체 (배포 형태)** | 설치 프로그램이 기본 정책을 **내장**하므로 설치만으로 잠김 (§0.1) | ✅ 번들 정책 (`resources/enterprise-policy.json` → `<resourcesPath>`), `%ProgramData%` 배치는 이제 선택 | 🔴 per-user 설치라 설치 폴더가 사용자 소유 — 표준 사용자가 번들 파일을 지우면 그 PC는 풀립니다 (§0.2 #21) |
 | **프록시 / 사설 CA** | Orca가 지원 (Electron 세션 한정) | — | 🔴 Node `fetch`/`node:https` 경로는 프록시를 안 탐 (§5) |
 | **텔레메트리 / 진단 / 크래시** | opt-in(기본 꺼짐) + 공식 빌드에서만 전송 | ✅ `disableTelemetry` | 없음 (로컬 NDJSON 로깅은 유지, 망 밖으로 안 나감) |
 | **자동 업데이트 / 넛지 (onorca.dev, github.com)** | 로그인 무관하게 나감 | ✅ `disableAutoUpdate` | 없음 (3개 진입점 전부 차단, §3) |
@@ -26,6 +27,7 @@
 | **렌더러 외부 이미지 (Google favicon / 아바타 / 마크다운 인라인)** | 아이콘·본문 표시 시 자동 | ➖ `enforceNetworkAllowlist` opt-in 시에만 | 기본값은 차단 안 됨 (§6) |
 | **서브프로세스 (gh/glab/git/에이전트 CLI)** | 사용자 조작 | ❌ Orca 측 통제 수단 없음 | 🔴 프록시·방화벽으로만 통제 (§0.2) |
 | **플러그인 시스템 (v1.4.162 신규)** — 벤더 마켓플레이스 `git clone` + kill-list `fetch` | 사용자가 설정 → 플러그인을 켠 순간 (기본 꺼짐) | ✅ `disablePlugins` | **이 스위치가 없으면 통제 불가**였습니다 — clone은 `git` 자식 프로세스라 `enforceNetworkAllowlist`가 못 봅니다 (§0.2 #19) |
+| **벤더 커뮤니티·문서 링크 (Discord, X, 공개 이슈 트래커, onorca.dev 문서)** | `?` 메뉴·피드백·에러 토스트 등에서 클릭 시 **기본 브라우저**로 나감 | ✅ `disableVendorLinks` | 표시 게이트를 못 단 설정 화면 링크 2곳이 **무반응 상태로 남습니다** (초크포인트가 막으므로 열리지는 않음, §0.2 #20) |
 | **에셋 다운로드 — scrcpy 서버 jar** | 사용자가 Android 스트리밍을 켤 때만 | ✅ `lockdown` (직접 다운로드 거부 가드) | 없음 (§0.2 #9) |
 | **에셋 다운로드 — STT(sherpa-onnx) 모델** | 사용자가 모델을 명시적으로 내려받을 때만 | ❌ 코드 차단 없음 | 기능 미사용 시 미발생 (§0.2 #10) |
 
@@ -39,12 +41,12 @@
 
 | 환경변수 | 값 | 패키징 빌드(배포된 `.exe`) | 비패키징(`pnpm dev`·vitest) |
 | --- | --- | --- | --- |
-| `ORCA_ENTERPRISE_POLICY` | 정책 파일 경로 (그대로 `readFileSync`에 넘어가므로 **절대경로 권장**) | 후보 목록에 **추가**만 됨 — 머신 전역 파일 **뒤** 순위 (`enterprise-policy-file.ts:79-82`) | 이 값이 있으면 아래 2·3번은 아예 후보에 오르지 않습니다 (`:68-74`) |
-| `ORCA_ENTERPRISE_POLICY` | `off` / `none` / `disabled` / `false` / `0` (`:28`) | **무시됨** — 머신 전역 정책이 그대로 적용 | 탐색 자체를 무효화. 테스트 스위트가 이 값을 씁니다 (`config/vitest-enterprise-policy-isolation.ts:6`) |
+| `ORCA_ENTERPRISE_POLICY` | 정책 파일 경로 (그대로 `readFileSync`에 넘어가므로 **절대경로 권장**) | 후보 목록에 **추가**만 됨 — 머신 전역 파일과 **번들 정책 뒤** 순위 (`enterprise-policy-file.ts:101-104`) | 이 값이 있으면 나머지는 아예 후보에 오르지 않습니다 (`:90-97`) |
+| `ORCA_ENTERPRISE_POLICY` | `off` / `none` / `disabled` / `false` / `0` (`:36`) | **무시됨** — 머신 전역 또는 번들 정책이 그대로 적용 | 탐색 자체를 무효화. 테스트 스위트가 이 값을 씁니다 (`config/vitest-enterprise-policy-isolation.ts:6`) |
 
-> 🔒 **패키징 빌드에서 환경변수가 정책을 이길 수 없다는 것은 보안 속성입니다.** Windows에서 표준 사용자는 관리자 권한 없이 자기 계정 환경변수를 만들 수 있으므로, 무조건 듣는 옵트아웃이었다면 사내 잠금이 `setx ORCA_ENTERPRISE_POLICY off` **한 줄로 우회**됩니다. 그래서 패키징 빌드에서는 이 변수가 후보를 추가만 하고 머신 전역 파일을 대체하거나 끄지 못합니다 (`enterprise-policy-file.ts:49-58` 주석, 분기 `:68-82`). 판정은 `app.isPackaged`로 합니다 — 표준 사용자가 조작할 수 없는 유일한 신호입니다 (`:163-171`). 옛 무조건 옵트아웃은 개발·테스트를 위해 **비패키징에서만** 남아 있습니다.
+> 🔒 **패키징 빌드에서 환경변수가 정책을 이길 수 없다는 것은 보안 속성입니다.** Windows에서 표준 사용자는 관리자 권한 없이 자기 계정 환경변수를 만들 수 있으므로, 무조건 듣는 옵트아웃이었다면 사내 잠금이 `setx ORCA_ENTERPRISE_POLICY off` **한 줄로 우회**됩니다. 그래서 패키징 빌드에서는 이 변수가 후보를 추가만 하고 머신 전역 파일이나 번들 정책을 대체하거나 끄지 못합니다 (`enterprise-policy-file.ts:65-79` 주석, 분기 `:101-104`). 판정은 `app.isPackaged`로 합니다 — 표준 사용자가 조작할 수 없는 유일한 신호입니다 (`:191-197`). 옛 무조건 옵트아웃은 개발·테스트를 위해 **비패키징에서만** 남아 있습니다.
 >
-> **배포 결론**: 정책 파일은 머신 전역 기본 경로에 두고 ACL로 사용자 쓰기를 막으세요. 환경변수 커스텀 경로는 **개발·검증용이지 플릿 배포 수단이 아닙니다.**
+> **배포 결론**: 설치 프로그램의 번들 정책이 기본선이고, 값을 중앙에서 바꾸려면 머신 전역 기본 경로에 파일을 두고 ACL로 사용자 쓰기를 막으세요. 환경변수 커스텀 경로는 **개발·검증용이지 플릿 배포 수단이 아닙니다.**
 
 이 포크가 **추가하지 않는** 것 중 여전히 유효한 값:
 
@@ -55,25 +57,35 @@
 
 빌드 시점에만 쓰이는 값(이 포크가 추가한 `ORCA_WIN_PUBLISHER_NAME`(`config/electron-builder.config.cjs:207`)·`ORCA_DISABLE_PUBLISH_TARGET`(`:412`), 업스트림의 `ORCA_MAC_RELEASE`/`WIN_CSC_*`/`ORCA_POSTHOG_WRITE_KEY`/`ORCA_BUILD_IDENTITY`)은 **빌드 셸의 변수이며 앱 런타임 환경에는 들어가지 않습니다**. [윈도우 빌드 가이드](./windows-corporate-build.md) 참고.
 
-#### 파일 탐색 순서 — **먼저 발견된 파일이 이깁니다**
+#### 파일 탐색 순서 — **먼저 파싱에 성공한 파일이 이깁니다**
 
-`src/main/enterprise/enterprise-policy-file.ts:59-83`
+`src/main/enterprise/enterprise-policy-file.ts:80-105`
 
 **패키징 빌드 — 플릿에서 유일하게 의미 있는 순서**
 
-1. **머신 전역** — 이 배포의 대상인 **Windows: `%ProgramData%\Orca\enterprise-policy.json`** (`enterprise-policy-file.ts:39-41`). *(코드는 세 OS를 그대로 지원합니다 — macOS `/Library/Application Support/Orca/…`(`:43-44`), Linux `/etc/orca/…`(`:46`). 이 플릿에는 Mac이 없으므로 배포 대상은 Windows 경로뿐입니다.)*
-2. `ORCA_ENTERPRISE_POLICY` 명시 경로 (무효화 값은 무시)
-3. **사용자별**: `<userData>/enterprise-policy.json`
+1. **머신 전역** — 이 배포의 대상인 **Windows: `%ProgramData%\Orca\enterprise-policy.json`** (`enterprise-policy-file.ts:55-57`). *(코드는 세 OS를 그대로 지원합니다 — macOS `/Library/Application Support/Orca/…`(`:59-61`), Linux `/etc/orca/…`(`:62`). 이 플릿에는 Mac이 없으므로 배포 대상은 Windows 경로뿐입니다.)*
+2. **번들** — `<resourcesPath>/enterprise-policy.json` (`:199-207`). 설치 프로그램에 내장된 기본값이며, 저장소 원본은 `resources/enterprise-policy.json`, 실리는 지점은 `config/electron-builder.config.cjs`의 `commonExtraResources`(3 OS 공통)입니다.
+3. `ORCA_ENTERPRISE_POLICY` 명시 경로 (무효화 값은 무시)
+4. **사용자별**: `<userData>/enterprise-policy.json`
 
-**비패키징(`pnpm dev`·vitest)** — 위 1과 2가 뒤바뀝니다. `ORCA_ENTERPRISE_POLICY`가 1순위이고, 무효화 값으로 탐색 전체를 끌 수 있습니다.
+**비패키징(`pnpm dev`·vitest)** — `ORCA_ENTERPRISE_POLICY`가 1순위이고, 무효화 값으로 탐색 전체를 끌 수 있습니다. **번들 후보는 여기에 나타나지 않습니다** (`:101-102`) — 나타났다면 `config/vitest-enterprise-policy-isolation.ts`의 격리가 깨져 사내 빌드 머신의 테스트가 lockdown으로 돌았을 것입니다.
 
-머신 전역을 먼저 보는 것이 이 재설계의 핵심입니다 (`enterprise-policy-file.ts:9-11`). Windows에서 `setx`는 **사용자별** 상태를 씁니다 — 즉 같은 PC의 다른 프로필, 서비스 계정, 새로 만든 프로필은 전부 잠기지 않은 채로 남습니다. 반대 방향도 막혀 있습니다: 사용자별 파일은 머신 전역 파일을 **완화할 수 없습니다**(먼저 찾은 파일에서 탐색이 끝나므로).
+**2번이 3·4번보다 위인 것이 이 설계의 요점입니다.** 3번 아래였다면 표준 사용자가 `setx ORCA_ENTERPRISE_POLICY C:\Users\me\open.json` 한 줄로, 4번 아래였다면 `%APPDATA%\Orca\enterprise-policy.json`에 `{}` 하나로 사내 잠금을 통째로 풀 수 있습니다. 두 경로 모두 그 사용자가 쓸 수 있는 자리입니다. 1번을 위에 남긴 이유는 반대로, GPO/Intune으로 중앙에서 덮어쓰는 길을 막지 않기 위해서입니다.
+
+머신 전역을 먼저 보는 것이 이 재설계의 핵심입니다 (`enterprise-policy-file.ts:9-11`). Windows에서 `setx`는 **사용자별** 상태를 씁니다 — 즉 같은 PC의 다른 프로필, 서비스 계정, 새로 만든 프로필은 전부 잠기지 않은 채로 남습니다. 반대 방향도 막혀 있습니다: 사용자별 파일은 머신 전역·번들 정책을 **완화할 수 없습니다**(먼저 파싱에 성공한 파일에서 탐색이 끝나므로).
+
+> ✅ **해소됨 — 실기기에서 확인됐던 배포 격차.**
+> 사내 테스트에서 "PC마다 모바일 항목이 보이기도 하고 안 보이기도 한다"는 증상의 **1차 원인은 정책 파일이 아예 배포되지 않은 것**이었습니다. 두 가지가 겹쳤습니다: ① 예전 `.exe` 인스톨러는 정책 파일을 싣지 않았고 GPO/SCCM/Intune 같은 별도 경로로 배포해야 했습니다. ② 1순위 경로 `C:\ProgramData\Orca\enterprise-policy.json`은 머신 전역이라 **per-user NSIS 인스톨러가 쓸 수 없습니다**(관리자 권한 없이 설치되므로). 따라서 앱만 설치한 PC는 정책 없이 = **업스트림 그대로** 동작했습니다.
+>
+> **지금은 위 2순위(번들)가 그 구멍을 메웁니다** — 설치 프로그램이 `resources/enterprise-policy.json`을 설치 폴더에 실어 나르고 앱이 `process.resourcesPath`에서 읽으므로, 아무 배포 작업을 하지 않은 PC도 잠긴 상태로 뜹니다. 다만 **`%ProgramData%` 배치가 무의미해진 것은 아닙니다** — 번들 파일은 사용자 소유 폴더에 있어 지울 수 있고(§0.2 #21), 중앙에서 값을 바꾸는 유일한 길도 1순위 경로입니다.
+>
+> **관리자 확인 방법**: 해당 PC의 `main.trace.ndjson`에서 `enterprise.policy` 스팬을 찾아 `enterprise.policy.source_path`를 봅니다. 잠긴 플릿에서 그 값이 `(none found)`이면 번들 파일까지 없어진 PC입니다 — 파일은 있는데 파싱에 실패한 경우와 구분됩니다(후자는 다음 후보의 경로가 찍히고 `…warnings`에 사유가 남습니다). 스팬 위치와 전체 속성 목록은 `docs/reference/enterprise-policy.md` §7-2를 보세요.
 
 #### 스키마 (JSONC — `//` 주석과 후행 쉼표 허용)
 
-파싱은 `jsonc-parser`로 하며(`enterprise-policy-file.ts:142-144`), **파싱 에러가 하나라도 있으면 파일 전체를 거부**합니다 — 절반만 적용되는 상태를 만들지 않습니다(`:145-148`).
+파싱은 `jsonc-parser`로 하며(`enterprise-policy-file.ts:164-166`), **파싱 에러가 하나라도 있으면 그 파일을 통째로 거부**합니다 — 절반만 적용되는 상태를 만들지 않습니다(`:167-174`).
 
-> ⚠️ 거부는 **fail-open**입니다: 문법이 깨진 파일은 `null`을 반환하고 남은 후보 경로 탐색도 중단하며(`:146-147`), 그 `null`이 `:193`에서 "정책 없음"으로 해석되어 **`lockdown`이 `false`가 됩니다.** stderr에 `is not valid JSON; ignoring it.` 한 줄만 남으므로 **배포 스크립트가 이 경고를 확인하도록** 하세요. 아래의 "인식할 수 없는 *값*은 lockdown을 상속" 규칙은 파일이 파싱에 성공한 뒤에만 적용됩니다.
+> ⚠️ 거부된 후보는 **다음 후보로 넘어갑니다**(`:173`) — 읽기 실패(ENOENT 외 권한/마운트 오류, `:152-158`)와 같은 처리입니다. 즉 GPO로 뿌린 파일에 오타가 있어도 아래의 번들 정책이 적용되므로 그 PC가 통째로 풀리지는 않습니다. **예전에는 여기서 탐색을 중단해 `lockdown`이 `false`가 되는 fail-open이었고, 그것이 번들 정책 도입과 함께 고쳐진 부분입니다.** 다만 관리자가 그 파일에 넣은 값(예외·엔드포인트·GHES 호스트)은 **조용히 사라진 채 잠긴 상태로** 돌게 되므로, stderr/트레이스의 `is not valid JSON; ignoring it.` 경고를 **배포 스크립트가 확인하도록** 하세요. 아래의 "인식할 수 없는 *값*은 lockdown을 상속" 규칙은 파일이 파싱에 성공한 뒤에만 적용됩니다.
 
 | 키 | 타입 | 기본값 | 효과와 **구현 위치** |
 | --- | --- | --- | --- |
@@ -96,7 +108,7 @@
 - **모르는 키도 경고**를 냅니다 (`:190-194`).
 - `enforceNetworkAllowlist`만 `lockdown` 상속에서 제외됩니다 (`:212-214`). 하드 허용목록은 기능 스위치와 달리 배포를 통째로 망가뜨릴 수 있어 관리자가 명시적으로 켜야 합니다.
 
-정책은 프로세스당 한 번만 읽고 캐시합니다 (`enterprise-policy-file.ts:180-199`). 세션 도중 파일을 바꿔도 반영되지 않습니다 — 앱 재시작이 필요합니다.
+정책은 프로세스당 한 번만 읽고 캐시합니다 (`enterprise-policy-file.ts:216-250`). 세션 도중 파일을 바꿔도 반영되지 않습니다 — 앱 재시작이 필요합니다.
 
 예시 (`%ProgramData%\Orca\enterprise-policy.json`):
 
@@ -120,6 +132,8 @@
 | `src/main/enterprise/enterprise-network-guard.ts` | opt-in 허용목록 |
 | `src/main/enterprise/enterprise-policy-fixture.ts` | 테스트 전용 픽스처 (`makeEnterprisePolicy` / `makeLockdownPolicy`) |
 | `config/vitest-enterprise-policy-isolation.ts` | 빌드 머신의 머신 전역 파일이 테스트 스위트를 잠그지 않도록 무효화 |
+| `resources/enterprise-policy.json` | 설치 프로그램에 내장되는 기본 정책 (위 2순위 후보의 원본) |
+| `config/scripts/verify-packaged-enterprise-policy.cjs` | `afterPack` 검사 — 번들 정책이 실제 산출물에 있고, JSONC로 파싱되며, `lockdown: true`인지. 아니면 패키징 실패 |
 
 ### 0.2 🔴 이 브랜치의 잠금이 덮지 **않는** 것 (잔여 위험 등록부)
 
@@ -144,12 +158,16 @@
 | 14 | **사내 LLM 엔드포인트로 가는 프롬프트·소스** | 관리자가 배포한 사내 호스트 | 사용자가 세션을 사내 LLM으로 돌리고 토큰을 저장했을 때 | 목적지는 사내이지만 **전송 주체가 에이전트 CLI(서브프로세스)** 라 Orca 측 통제 밖입니다. 정책 파일은 후보 목록만 통제하고 전송 내용은 통제하지 않습니다 — 감사는 엔드포인트 서비스 쪽에서 (§4) | `src/shared/corporate-llm-launch-env.ts:53-72` |
 
 | 15 | **외부 자동화 CLI를 스케줄로 실행** (`hermes`, `openclaw`) | 해당 벤더가 정한 목적지 (Orca는 목적지를 모릅니다) | 자동화 페이지에서 외부 잡을 만들거나, 이미 등록된 잡의 크론 시각이 되었을 때 | ✅ `disableExternalAutomations`(또는 `allowedAgents`)가 **Orca 쪽 진입점**(발견·생성·수정·실행)을 전부 거부합니다 (`src/main/automations/external-manager.ts`). 🔴 **잔여**: Orca는 스케줄러가 아니라 조작 UI일 뿐이므로, 이미 `~/.hermes/cron`에 등록된 잡은 **Hermes 자신의 스케줄러로 계속 실행됩니다** — Orca를 잠근 뒤에도 남아 있는 잡은 `hermes cron rm`으로 직접 제거해야 하고, 잠근 뒤에는 앱 안에서 그 목록을 볼 수 없습니다. 로컬 읽기(`~/.hermes/cron/jobs.json`, `state.db`, 출력 마크다운)와 SSH 호스트별 릴레이 레인도 같은 게이트로 함께 닫힙니다 | 게이트 `external-manager.ts`의 `isExternalAutomationProviderAllowed`, 릴레이 레인 `src/relay/external-automations-handler.ts` |
-| 16 | **사용량 통계를 X(구 Twitter)로 공유** | `x.com/intent/post` (사용자의 **기본 브라우저**로 열림) | 설정 → 통계 및 사용량에서 공유 버튼을 눌렀을 때 | ✅ `disableUsagePolling`이 그 팬을 없애므로 **도달 불가**가 됩니다. 🔴 `shell.openExternal` 경로 자체에는 정책 게이트가 없고, 기본 브라우저로 나가므로 `enforceNetworkAllowlist`가 **원리적으로 볼 수 없습니다** — 스위치를 끄면 토큰 사용량과 추정 비용이 URL 쿼리로 벤더 사이트에 실립니다 | `ShareUsageButton.tsx`, `src/main/ipc/shell.ts` |
-| 17 | **에이전트 벤더 홈페이지 링크** | 각 에이전트 CLI의 홈페이지 | 설정 → 에이전트 / 온보딩에서 링크 클릭 | ✅ `disableAgentInstallSuggestions`가 "설치 가능" 목록과 온보딩 설치 안내를 없애 링크 수를 크게 줄입니다. 🔴 **잔여**: Orca가 에이전트 CLI를 직접 내려받는 코드는 없고 링크만 열지만, **감지된** 에이전트 행의 링크는 `Docs`로 남아 그대로 클릭 가능하며 `shell.openExternal`에는 정책 게이트가 없습니다. `npx skills add`(`src/shared/agent-feature-install-commands.ts`)는 별개 레인이고 이 스위치가 덮지 않습니다 | `AgentsPane.tsx`(행의 `<a href>`), `src/main/window/privileged-window-navigation.ts` |
+| 16 | **사용량 통계를 X(구 Twitter)로 공유** | `x.com/intent/post` (사용자의 **기본 브라우저**로 열림) | 설정 → 통계 및 사용량에서 공유 버튼을 눌렀을 때 | ✅ **이중 차단**: `disableUsagePolling`이 그 팬을 없애 도달 불가로 만들고, `disableVendorLinks`가 버튼 자체를 숨기는 동시에 메인 프로세스 초크포인트에서 URL을 거부합니다 — 둘 중 하나만 켠 플릿에서도 닫힙니다. 기본 브라우저로 나가므로 `enforceNetworkAllowlist`가 **원리적으로 볼 수 없다는 점은 그대로**이고, 그래서 판정이 링크를 여는 시점(`shell:openUrl`)에 있어야 했습니다 | `ShareUsageButton.tsx`, 초크포인트 `src/main/ipc/shell-open-url.ts`, 규칙표 `src/main/enterprise/enterprise-vendor-link-guard.ts` |
+| 17 | **에이전트 벤더 홈페이지 링크** | 각 에이전트 CLI의 홈페이지 | 설정 → 에이전트 / 온보딩에서 링크 클릭 | ✅ `disableAgentInstallSuggestions`가 "설치 가능" 목록과 온보딩 설치 안내를 없애 링크 수를 크게 줄입니다. 🔴 **잔여**: Orca가 에이전트 CLI를 직접 내려받는 코드는 없고 링크만 열지만, **감지된** 에이전트 행의 링크는 `Docs`로 남아 그대로 클릭 가능합니다. ⚠️ `disableVendorLinks`는 **이것을 막지 않습니다 — 의도적입니다**: 그 규칙표는 Orca가 스스로 광고하는 벤더 목적지(Discord/X/`github.com/stablyai`/`onorca.dev`)만 판정하고, 플릿이 실제로 실행하는 제3자 도구의 홈페이지(`cli.github.com` 등)는 정당한 도움말로 남깁니다. `npx skills add`(`src/shared/agent-feature-install-commands.ts`)는 별개 레인이고 어느 스위치도 덮지 않습니다 | `AgentsPane.tsx`(행의 `<a href>`), `src/main/window/privileged-window-navigation.ts` |
 | 18 | **렌더러 게이트가 보이지 않는 클라이언트** | — (도달 범위 문제) | `pnpm dev:web`, `orca serve`의 브라우저 클라이언트 | 웹 preload에는 `enterprisePolicy` API가 **없어서** 정책 뷰가 항상 "제한 없음"으로 떨어집니다. `disableVoice`·`disableMobilePairing`·`disableRemoteOrcaServer`·`disableUsagePolling` 등 **표시 게이트 전부**가 그 클라이언트에서는 무효입니다 — 그래서 메인 쪽 거부(에이전트 탐지 필터, 에뮬레이터 RPC 거부, 외부 자동화 거부)가 belt-and-braces가 아니라 **유일한 방어선**입니다 | `src/renderer/src/web/web-preload-api.ts`(해당 키 없음), `src/renderer/src/enterprise/enterprise-policy-access.ts` |
 | 19 | **플러그인 시스템** — 벤더 마켓플레이스 인덱스 `git clone` / 벤더 kill-list `fetch` / 플러그인 워커의 자체 트래픽 | `github.com/stablyai/orca-plugins.git`, `onorca.dev/plugins/kill-list.json`, 사용자가 등록한 임의 Git URL, 워커 코드가 여는 임의 목적지 | 사용자가 설정 → 플러그인을 켠 순간(첫 활성화 시 clone + fetch, 이후 패키지 빌드 매 시작마다 kill-list 갱신). 주기 폴링은 없음 | ✅ **해소됨**: `disablePlugins`가 네 겹으로 덮습니다 — 기능 플래그 대체(`isPluginSystemAllowed`), egress 초크포인트 `runPluginGit()`, `fetchPluginKillList()`, IPC/RPC 미등록. **egress 게이트가 별도로 필요한 이유**: `plugins:install`과 `plugins:refreshMarketplaces`는 기능 플래그를 보지 않고 Git에 도달하고, 그 clone은 자식 프로세스라 #1과 같은 사각지대에 있습니다. 🔴 **잔여**: `disablePlugins: false`로 되돌린 플릿에서는 플러그인 워커(평범한 자식 프로세스)의 트래픽을 어떤 Orca 측 스위치로도 못 막습니다 — 동의 다이얼로그가 이 사실을 사용자에게 명시합니다. 반면 **플러그인 패널은 CSP로 봉인**돼 있습니다(`default-src 'none'; connect-src 'none'; img-src data:`, `src/shared/plugins/plugin-panel-shell.ts:21-22`) 그리고 워커 환경변수는 화이트리스트 17개로 토큰을 상속하지 않습니다(`plugin-worker-env.ts`) | 게이트 `src/main/plugins/plugin-system-policy.ts`, `plugin-git-repository.ts:18`, `plugin-kill-list-service.ts:104`, `src/main/ipc/register-core-handlers.ts:203`, `src/main/index.ts:2447` |
 
-**#2~#6b는 `enforceNetworkAllowlist: true`로 닫을 수 있습니다** — 메인 창은 파티션을 지정하지 않아 `session.defaultSession`을 쓰므로 렌더러 `<img>` 요청이 가드의 `onBeforeRequest`를 지나갑니다 (`createMainWindow.ts:295-301`에 `partition` 없음). #1, #7은 어떤 Orca 측 스위치로도 닫히지 않으며 망 계층에서만 통제됩니다. #10은 Electron `net.request`를 쓰므로 허용목록이 덮는지 여부가 §7 레벨 3의 미검증 항목과 같습니다.
+| 20 | **벤더 커뮤니티·문서 링크** (`?` 메뉴의 Discord/X/Docs/Changelog/GitHub, 피드백 다이얼로그, 터미널 에러 토스트의 "file an issue", 프로젝트 뷰의 기능 요청, 첫 실행 배너의 개인정보 처리방침, 피처월 문서 링크) | `discord.gg`, `x.com/orca_build`, `x.com/intent/*`, `github.com/stablyai/*`, `onorca.dev` — 전부 사용자의 **기본 브라우저**로 열림 | 사용자가 해당 항목을 클릭할 때 | ✅ `disableVendorLinks`. 표시 게이트(JSX)와 **메인 프로세스 초크포인트 2곳**(`shell:openUrl` IPC 전체 + `setWindowOpenHandler`/`will-navigate`)을 함께 둡니다 — 후자가 없으면 #18의 웹 클라이언트에서 아무 방어가 없고, 생 `<a href>`는 IPC를 타지 않기 때문입니다. **이것은 egress 차단이 아니라 유출·오지시 차단입니다**: 목적지가 OS 브라우저라 `enforceNetworkAllowlist`가 원리적으로 볼 수 없고, 위험은 트래픽 자체가 아니라 사용자가 공개 채널에 사내 맥락을 적는 것과 이 플릿에 맞지 않는 문서를 읽는 것입니다. 🔴 **잔여 3건**: ① **설정 → Privacy의 "Privacy policy"와 설정 → 일반의 GitHub 링크는 화면에 그대로 남습니다** — 초크포인트가 막으므로 눌러도 아무 일도 일어나지 않지만, 무반응 링크는 그 자체로 결함입니다(표시 게이트 미적용). ② 웹 필터가 아니므로 내장 브라우저 주소창에 직접 입력하거나 PR 본문에 붙은 링크는 그대로 열립니다 — 의도된 범위입니다. ③ 업데이터가 `net.fetch`로 가는 `github.com/stablyai/orca/releases`와 `onorca.dev` 넛지는 **이 스위치가 아니라 `disableAutoUpdate`**의 몫입니다(초크포인트는 OS 브라우저 레인에만 있습니다) | 규칙표 `src/main/enterprise/enterprise-vendor-link-guard.ts`, 초크포인트 `src/main/ipc/shell-open-url.ts`·`src/main/window/privileged-window-navigation.ts`, 잔여 `settings/PrivacyPane.tsx:107`·`settings/GeneralSupportSection.tsx:62` |
+
+| 21 | **번들 정책 파일 자체의 변조·삭제** (egress가 아니라 **잠금의 무결성** 항목입니다) | — (로컬 파일) | 사용자가 설치 폴더의 `enterprise-policy.json`을 지우거나 내용을 바꿀 때 | 🔴 **막지 못합니다.** `nsis` 블록이 `perMachine`을 설정하지 않아 electron-builder 기본값인 **per-user 원클릭 설치**가 적용되고, 설치 위치가 `%LOCALAPPDATA%\Programs\…` — 즉 **그 사용자가 소유한 폴더**입니다. 표준 사용자가 관리자 권한 없이 그 안의 번들 정책을 삭제하거나 `{}`로 덮어쓸 수 있고, 그러면 그 PC는 다음 후보로 내려가 (`%ProgramData%` 파일도 없다면) **업스트림 그대로** 동작합니다. 코드로 닫을 수 있는 구멍이 아닙니다 — 정책 파일을 읽는 프로세스가 그 파일과 같은 신뢰 경계 안에 있기 때문입니다. **대응은 둘뿐입니다**: ① `%ProgramData%\Orca\enterprise-policy.json`에 ACL을 건 파일을 배포하면(§0.1 1순위) 번들이 지워져도 잠금이 남습니다 — 이 경우 GPO 배치는 여전히 필요합니다. ② `nsis.perMachine: true`로 전환해 설치 폴더를 관리자 소유로 만듭니다(설치에 관리자 권한이 필요해지므로 배포 채널이 바뀝니다). **탐지**: 잠긴 플릿의 `main.trace.ndjson`에서 `enterprise.policy.source_path`가 `(none found)`인 PC | `config/electron-builder.config.cjs`의 `nsis` 블록(`perMachine` 미설정), 후보 순서 `enterprise-policy-file.ts:101-104` |
+
+**#2~#6b는 `enforceNetworkAllowlist: true`로 닫을 수 있습니다** — 메인 창은 파티션을 지정하지 않아 `session.defaultSession`을 쓰므로 렌더러 `<img>` 요청이 가드의 `onBeforeRequest`를 지나갑니다 (`createMainWindow.ts:295-301`에 `partition` 없음). #1, #7은 어떤 Orca 측 스위치로도 닫히지 않으며 망 계층에서만 통제됩니다. #21은 네트워크 항목이 아니라 잠금 자체의 무결성 항목이며, 코드가 아니라 배포 형태(ACL 또는 perMachine 설치)로만 닫힙니다. #10은 Electron `net.request`를 쓰므로 허용목록이 덮는지 여부가 §7 레벨 3의 미검증 항목과 같습니다.
 
 ---
 

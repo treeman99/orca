@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const readFileSyncMock = vi.fn<(target: string, encoding: string) => string>()
 
@@ -15,11 +16,23 @@ import {
   ENTERPRISE_POLICY_PATH_ENV,
   enterprisePolicySearchPaths,
   getEnterprisePolicy,
+  getEnterprisePolicyResolutionTrace,
   resetEnterprisePolicyCacheForTests
 } from './enterprise-policy-file'
 
 const MACHINE_WIDE_LINUX = '/etc/orca/enterprise-policy.json'
 const USER_LEVEL = '/home/dev/.config/Orca/enterprise-policy.json'
+const RESOURCES_DIR = '/pkg/resources'
+// The loader joins with the host separator, so derive the expectation the same way.
+const BUNDLED = path.join(RESOURCES_DIR, 'enterprise-policy.json')
+
+const originalResourcesPath = Object.getOwnPropertyDescriptor(process, 'resourcesPath')
+
+// `process.resourcesPath` only exists under Electron, and it is declared readonly,
+// so a packaged-build case has to install its own descriptor.
+function stubResourcesPath(value: string | undefined): void {
+  Object.defineProperty(process, 'resourcesPath', { value, configurable: true, writable: true })
+}
 
 // The machine-wide candidate is platform-specific, so derive it rather than
 // hardcoding one OS's path into the discovery assertions.
@@ -49,6 +62,15 @@ beforeEach(() => {
   readFileSyncMock.mockReset()
   readFileSyncMock.mockImplementation(enoent)
   electronApp.isPackaged = false
+  stubResourcesPath(undefined)
+})
+
+afterEach(() => {
+  if (originalResourcesPath) {
+    Object.defineProperty(process, 'resourcesPath', originalResourcesPath)
+  } else {
+    delete (process as unknown as Record<string, unknown>).resourcesPath
+  }
 })
 
 describe('enterprisePolicySearchPaths', () => {
@@ -143,6 +165,89 @@ describe('enterprisePolicySearchPaths', () => {
           false
         )
       ).toEqual(['C:\\ProgramData\\Orca\\enterprise-policy.json', 'C:\\Users\\dev\\mine.json'])
+    })
+
+    // The installer carries a default policy, so a PC that never received the GPO
+    // file is still locked. Both writable candidates must stay below it.
+    it('orders the bundled default between the machine-wide file and the writable ones', () => {
+      expect(
+        enterprisePolicySearchPaths(
+          {
+            [ENTERPRISE_POLICY_PATH_ENV]: 'C:\\Users\\dev\\mine.json',
+            ProgramData: 'C:\\ProgramData'
+          },
+          'win32',
+          'C:\\Users\\dev\\AppData\\Roaming\\Orca',
+          false,
+          'C:\\Users\\dev\\AppData\\Local\\Programs\\orca\\resources\\enterprise-policy.json'
+        )
+      ).toEqual([
+        'C:\\ProgramData\\Orca\\enterprise-policy.json',
+        'C:\\Users\\dev\\AppData\\Local\\Programs\\orca\\resources\\enterprise-policy.json',
+        'C:\\Users\\dev\\mine.json',
+        'C:\\Users\\dev\\AppData\\Roaming\\Orca\\enterprise-policy.json'
+      ])
+    })
+
+    it('keeps that order on macOS', () => {
+      expect(
+        enterprisePolicySearchPaths(
+          {},
+          'darwin',
+          '/Users/dev/Library/Application Support/Orca',
+          false,
+          '/Applications/Orca.app/Contents/Resources/enterprise-policy.json'
+        )
+      ).toEqual([
+        '/Library/Application Support/Orca/enterprise-policy.json',
+        '/Applications/Orca.app/Contents/Resources/enterprise-policy.json',
+        '/Users/dev/Library/Application Support/Orca/enterprise-policy.json'
+      ])
+    })
+
+    it('keeps that order on Linux', () => {
+      expect(
+        enterprisePolicySearchPaths(
+          {},
+          'linux',
+          '/home/dev/.config/Orca',
+          false,
+          '/opt/Orca/resources/enterprise-policy.json'
+        )
+      ).toEqual([
+        MACHINE_WIDE_LINUX,
+        '/opt/Orca/resources/enterprise-policy.json',
+        '/home/dev/.config/Orca/enterprise-policy.json'
+      ])
+    })
+  })
+
+  // Only a packaged build has resources to bundle. If a bundled candidate could
+  // appear here, config/vitest-enterprise-policy-isolation.ts would stop working and
+  // the whole suite would run under lockdown on a corporate build machine.
+  describe('with the environment override allowed (dev and vitest)', () => {
+    it('omits the bundled candidate even when one is supplied', () => {
+      expect(
+        enterprisePolicySearchPaths(
+          {},
+          'linux',
+          '/home/dev/.config/Orca',
+          true,
+          '/opt/Orca/resources/enterprise-policy.json'
+        )
+      ).toEqual([MACHINE_WIDE_LINUX, USER_LEVEL])
+    })
+
+    it('still resolves to no candidates at all for the suite opt-out', () => {
+      expect(
+        enterprisePolicySearchPaths(
+          { [ENTERPRISE_POLICY_PATH_ENV]: 'off' },
+          'linux',
+          '/home/dev/.config/Orca',
+          true,
+          '/opt/Orca/resources/enterprise-policy.json'
+        )
+      ).toEqual([])
     })
   })
 })
@@ -243,6 +348,109 @@ describe('getEnterprisePolicy', () => {
       target === machineWidePath() ? '{ "lockdown": true }' : enoent()
     )
     expect(getEnterprisePolicy().lockdown).toBe(true)
+  })
+
+  // The installer ships a default policy so lockdown does not depend on a separate
+  // fleet-deployment step. These cases pin the two bypasses that would undo that.
+  describe('with a bundled default policy (packaged build)', () => {
+    beforeEach(() => {
+      electronApp.isPackaged = true
+      stubResourcesPath(RESOURCES_DIR)
+    })
+
+    it('refuses to let an environment path override the bundled default', () => {
+      vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '/home/dev/open.json')
+      readFileSyncMock.mockImplementation((target: string) => {
+        if (target === BUNDLED) {
+          return '{ "lockdown": true }'
+        }
+        return target === '/home/dev/open.json' ? '{ "lockdown": false }' : enoent()
+      })
+      const policy = getEnterprisePolicy()
+      expect(policy.lockdown).toBe(true)
+      expect(policy.sourcePath).toBe(BUNDLED)
+    })
+
+    it('refuses to let a per-user file override the bundled default', () => {
+      vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '')
+      readFileSyncMock.mockImplementation((target: string) => {
+        if (target === BUNDLED) {
+          return '{ "lockdown": true }'
+        }
+        return target === userLevelPath() ? '{ "lockdown": false }' : enoent()
+      })
+      const policy = getEnterprisePolicy()
+      expect(policy.lockdown).toBe(true)
+      expect(policy.sourcePath).toBe(BUNDLED)
+    })
+
+    // The bundled file must not close the door on central control.
+    it('lets the machine-wide file an administrator deployed override the bundled default', () => {
+      vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '')
+      readFileSyncMock.mockImplementation((target: string) => {
+        if (target === machineWidePath()) {
+          return '{ "lockdown": false }'
+        }
+        return target === BUNDLED ? '{ "lockdown": true }' : enoent()
+      })
+      const policy = getEnterprisePolicy()
+      expect(policy.lockdown).toBe(false)
+      expect(policy.sourcePath).toBe(machineWidePath())
+    })
+
+    it('falls through to the per-user file when no bundled policy shipped', () => {
+      vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '')
+      readFileSyncMock.mockImplementation((target: string) =>
+        target === userLevelPath() ? '{ "lockdown": true }' : enoent()
+      )
+      expect(getEnterprisePolicy().sourcePath).toBe(userLevelPath())
+    })
+
+    // The exact incident this guards: one typo in a GPO-deployed file used to leave
+    // the machine completely unlocked, because parsing stopped the whole search.
+    it('applies the bundled default when the machine-wide file is malformed', () => {
+      const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+      vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '')
+      readFileSyncMock.mockImplementation((target: string) => {
+        if (target === machineWidePath()) {
+          return '{ "lockdown": true '
+        }
+        return target === BUNDLED ? '{ "lockdown": true }' : enoent()
+      })
+      const policy = getEnterprisePolicy()
+      expect(policy.lockdown).toBe(true)
+      expect(policy.sourcePath).toBe(BUNDLED)
+      expect(stderr).toHaveBeenCalledWith(expect.stringContaining('not valid JSON'))
+      stderr.mockRestore()
+    })
+
+    it('records the skipped candidate in the resolution trace', () => {
+      const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+      vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '')
+      readFileSyncMock.mockImplementation((target: string) => {
+        if (target === machineWidePath()) {
+          return '{ "lockdown": true '
+        }
+        return target === BUNDLED ? '{ "lockdown": true }' : enoent()
+      })
+      getEnterprisePolicy()
+      const trace = getEnterprisePolicyResolutionTrace()
+      expect(trace.searchedPaths).toContain(BUNDLED)
+      expect(trace.notices).toContainEqual(
+        expect.stringContaining(`${machineWidePath()} is not valid JSON`)
+      )
+      stderr.mockRestore()
+    })
+  })
+
+  it('does not search a bundled path in an unpackaged build', () => {
+    stubResourcesPath(RESOURCES_DIR)
+    vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '')
+    readFileSyncMock.mockImplementation((target: string) =>
+      target === BUNDLED ? '{ "lockdown": true }' : enoent()
+    )
+    expect(getEnterprisePolicy().lockdown).toBe(false)
+    expect(getEnterprisePolicyResolutionTrace().searchedPaths).not.toContain(BUNDLED)
   })
 
   it('still honors the opt-out in an unpackaged build so the suite can isolate itself', () => {

@@ -9,6 +9,12 @@
 // The machine-wide path is searched before the per-user one on purpose: on
 // Windows, per-user state (what `setx` writes) leaves every other profile,
 // service account, and freshly created profile on the box unlocked.
+//
+// A packaged build also carries a default policy in its own resources, so
+// installing the corporate `.exe` locks the machine down with no separate
+// deployment step. It sits BELOW the machine-wide path (an administrator can
+// still override centrally) and ABOVE both the env path and the per-user file
+// (neither of which a standard user may use to undercut the shipped default).
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -57,20 +63,26 @@ function machineWidePolicyPath(platform: NodeJS.Platform, env: PolicyEnv): strin
 }
 
 /**
- * Ordered candidate locations. The first file that exists wins outright — a
- * per-user file cannot relax a machine-wide one.
+ * Ordered candidate locations. The first one that parses wins outright — a
+ * per-user file can relax neither a machine-wide one nor the bundled default.
  *
  * `allowEnvOverride` is false for a packaged build, and that is the security
  * boundary: on Windows any standard user can `setx ORCA_ENTERPRISE_POLICY off`
  * for their own account, so in a shipped build the environment may only ADD a
  * lower-priority candidate — it can never redirect away from, or switch off,
  * the machine-wide file an administrator deployed.
+ *
+ * `bundledPolicyPath` is the build's own default (see `getEnterprisePolicy`).
+ * It is deliberately ignored when the environment may override, because only a
+ * packaged build has resources to bundle — keeping it out of that branch is
+ * what stops `pnpm dev` and vitest from picking up a shipped lockdown.
  */
 export function enterprisePolicySearchPaths(
   env: PolicyEnv,
   platform: NodeJS.Platform,
   userDataDir: string | null,
-  allowEnvOverride = true
+  allowEnvOverride = true,
+  bundledPolicyPath: string | null = null
 ): string[] {
   const explicit = env[ENTERPRISE_POLICY_PATH_ENV]?.trim()
   const disabled = explicit !== undefined && DISABLED_VALUES.has(explicit.toLowerCase())
@@ -88,7 +100,7 @@ export function enterprisePolicySearchPaths(
     : null
   const candidates = allowEnvOverride
     ? [machineWidePolicyPath(platform, env), perUser]
-    : [machineWidePolicyPath(platform, env), explicitPath, perUser]
+    : [machineWidePolicyPath(platform, env), bundledPolicyPath, explicitPath, perUser]
   return candidates.filter((candidate): candidate is string => candidate !== null)
 }
 
@@ -153,8 +165,12 @@ function readPolicyDocument(candidates: string[]): LoadedDocument | null {
       allowTrailingComma: true
     })
     if (errors.length > 0) {
+      // Why continue rather than give up: with a bundled default below it, one
+      // typo in a centrally-deployed file used to leave that machine COMPLETELY
+      // unlocked. Skipping to the next candidate keeps the shipped lockdown —
+      // loudly, so an administrator still learns their file was ignored.
       warn(`${candidate} is not valid JSON; ignoring it.`)
-      return null
+      continue
     }
     return { document, sourcePath: candidate }
   }
@@ -180,6 +196,16 @@ function environmentMayOverridePolicy(): boolean {
   }
 }
 
+// The default shipped inside the installer, beside the other extraResources.
+// Absent in dev/vitest, where `process.resourcesPath` is Electron's own bundle
+// or undefined — so this is only ever consulted for a packaged build.
+function packagedBundledPolicyPath(): string | null {
+  // `resourcesPath` is already a host-native path, so join with the host's separator.
+  return process.resourcesPath
+    ? path.join(process.resourcesPath, ENTERPRISE_POLICY_FILE_NAME)
+    : null
+}
+
 let cached: EnterprisePolicy | null = null
 
 /**
@@ -197,7 +223,8 @@ export function getEnterprisePolicy(): EnterprisePolicy {
     env,
     process.platform,
     currentUserDataDir(),
-    allowEnvOverride
+    allowEnvOverride,
+    allowEnvOverride ? null : packagedBundledPolicyPath()
   )
   searchedPaths = candidates
   const loaded = readPolicyDocument(candidates)

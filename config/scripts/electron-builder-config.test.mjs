@@ -640,6 +640,12 @@ describe('electron-builder config', () => {
           { recursive: true }
         )
         await mkdir(join(resourcesDir, 'node_modules', 'zod', 'src'), { recursive: true })
+        // Why: afterPack fails hard without the bundled enterprise policy, so the
+        // fixture carries the real one exactly as extraResources places it.
+        await cp(
+          join(process.cwd(), 'resources', 'enterprise-policy.json'),
+          join(resourcesDir, 'enterprise-policy.json')
+        )
         // Why: afterPack now fails hard when the unpacked daemon entry is
         // missing, so the fixture must carry one like a real package layout.
         const unpackedMainDir = join(resourcesDir, 'app.asar.unpacked', 'out', 'main')

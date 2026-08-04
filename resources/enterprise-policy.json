@@ -1,0 +1,55 @@
+{
+  // Orca 사내 배포 정책 — 이 파일은 **설치 프로그램에 내장되는 기본값**입니다.
+  // 런타임 위치: <resourcesPath>\enterprise-policy.json (설치 폴더 안)
+  //
+  // ⚠️ %ProgramData%\Orca\enterprise-policy.json 이 있으면 **그쪽이 이깁니다.**
+  //    중앙(GPO/Intune)에서 값을 바꾸고 싶을 때는 이 파일을 고치는 대신
+  //    그 경로에 배포하세요. 탐색 순서는 docs/reference/enterprise-policy.md §2.
+  //
+  // 이 파일을 바꾸려면 저장소에서 수정하고 다시 빌드해야 합니다 (README §4.1).
+  // 형식은 JSONC — // 주석과 후행 쉼표를 허용합니다. 변경 시 앱 재시작 필요.
+
+  "lockdown": true,
+  "githubEnterpriseHost": "github.samsungds.net",
+
+  // lockdown에서 상속되는 값들 — 감사를 위해 명시
+  "disableTelemetry": true, // PostHog + 진단/크래시 번들 업로드 (로컬 로그는 유지)
+  "disableAutoUpdate": true, // 업데이트 피드 + onorca.dev 넛지 폴링 + 메뉴의 수동 체크
+  "disableStarNag": true, // github.com SaaS로 나가는 star 조회/쓰기
+  "disableCloudRelay": true, // Orca Cloud 로그인 + 모바일 페어링 릴레이
+  "disableUsagePolling": true, // AI 벤더 사용량/rate-limit 폴링
+  "disableManagedClaudeAccounts": true, // platform.claude.com OAuth 회전 + Bedrock 자격증명 스트립
+  "disableSpellcheck": true, // Chromium 사전 CDN 다운로드
+  "disableMobilePairing": true, // 모바일 페어링 자체 (LAN 경로 포함 — disableCloudRelay로는 부족)
+  "disableVendorProviderAccounts": true, // 벤더 AI 계정 등록 (AWS SSO·사내 엔드포인트는 제외)
+  "disableRemoteOrcaServer": true, // 다른 Orca에 붙기 (SSH 호스트는 제외)
+  "disableVoice": true, // 받아쓰기 전체
+  "disablePlugins": true, // 플러그인 시스템 전체 (사용자 설정을 덮어쓰는 유일한 스위치)
+  "requireComputerUseApproval": true, // Computer Use 변경 동작 전 사용자 확인
+  "disableMobileEmulator": true, // 로컬 시뮬레이터/AVD 스트리밍 (페어링과 다른 스위치)
+  "disableExternalAutomations": true, // hermes/openclaw 크론 레인
+  "disableAgentInstallSuggestions": true, // "직접 설치하세요" 안내 표면
+  "disableVendorLinks": true, // Discord/X/공개 이슈 트래커/벤더 문서로 나가는 링크 (사내 GHES는 예외)
+
+  // 사내에서 직접 서비스하는 모델. 토큰은 여기 넣지 않습니다 — 사용자가 앱에서 입력합니다.
+  // 호스트는 allowedNetworkHosts에 자동 추가되므로 아래에 또 적을 필요가 없습니다.
+  "llmEndpoints": [
+    {
+      "id": "ds-llm",
+      "label": "사내 LLM (Qwen3-Coder)",
+      "baseUrl": "https://llm.samsungds.net/v1", // https 필수 (루프백만 예외)
+      "api": "openai", // 사내 서비스가 말하는 프로토콜
+      "model": "qwen3-coder"
+    }
+  ],
+
+  // Bedrock(claude) + AWS SSO로 연동되는 opencode + 위 사내 모델만 남기고
+  // 나머지 벤더를 탐지·UI·폴링에서 제거.
+  // ⚠️ "claude-agent-teams"는 "claude"와 별개 id입니다 — Agent Teams를 쓸 거면 함께 적으세요.
+  // ⚠️ 이 키는 lockdown을 상속하지 않습니다. 적지 않으면 에이전트 제한이 전혀 걸리지 않습니다.
+  "allowedAgents": ["claude", "opencode"],
+
+  // 하드 허용목록은 옵트인입니다. 켜기 전에 반드시 docs/reference/enterprise-policy.md §5를 읽으세요.
+  "enforceNetworkAllowlist": false,
+  "allowedNetworkHosts": []
+}
