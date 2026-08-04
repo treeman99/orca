@@ -17,7 +17,7 @@ vi.mock('electron', () => ({
 }))
 
 import { registerEnterprisePolicyHandlers } from './enterprise-policy'
-import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 import type { EnterprisePolicyView } from '../../shared/enterprise-policy-view'
 
 const VIEW_FIELDS = [

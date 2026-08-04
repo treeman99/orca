@@ -78,7 +78,7 @@ import {
   loadMainWindow,
   WINDOW_QUIT_RENDERER_ACK_TIMEOUT_MS
 } from './createMainWindow'
-import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 import { ipcMain } from 'electron'
 import { shouldRecoverRendererAfterProcessGone } from '../crash-reporting/process-gone-classification'
 

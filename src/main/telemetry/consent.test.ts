@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { GlobalSettings } from '../../shared/types'
-import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 import { resolveConsent, _resetMisconfigWarnCacheForTests } from './consent'
 
 const getEnterprisePolicyMock = vi.fn(() => makeEnterprisePolicy())

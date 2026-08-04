@@ -9,7 +9,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as Fs from 'node:fs'
 import type * as FsPromises from 'node:fs/promises'
-import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 import type { Store } from '../persistence'
 
 const execFileMock = vi.hoisted(() =>

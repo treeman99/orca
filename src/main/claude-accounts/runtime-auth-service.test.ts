@@ -17,7 +17,7 @@ import { join } from 'node:path'
 import { getDefaultSettings } from '../../shared/constants'
 import type { ClaudeManagedAccount, GlobalSettings } from '../../shared/types'
 import { isOauthTokenExpiring, refreshClaudeOauthCredentials } from './oauth-refresh'
-import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 
 const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform')
 const hostPlatform = process.platform

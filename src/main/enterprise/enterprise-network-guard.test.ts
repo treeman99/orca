@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { makeEnterprisePolicy, makeLockdownPolicy } from './enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 
 type BeforeRequestDetails = { url: string }
 type BeforeRequestResponse = { cancel?: boolean }

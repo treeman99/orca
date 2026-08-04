@@ -171,7 +171,7 @@ vi.mock('./github-api-repository', async (importOriginal) => {
   }
 })
 
-import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 import {
   checkOrcaStarred,
   starOrca,

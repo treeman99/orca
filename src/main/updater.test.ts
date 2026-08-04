@@ -1,6 +1,6 @@
 /* eslint-disable max-lines */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { makeEnterprisePolicy, makeLockdownPolicy } from './enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../shared/enterprise-policy-fixture'
 
 const {
   appMock,

@@ -9,6 +9,31 @@ const PREFIX = '[verify-packaged-enterprise-policy]'
 // fork that warning would ship an installer that locks nothing, so assert the real output.
 const REMEDY = `If an unlocked build is intended, drop the ${POLICY_FILE_NAME} entry from extraResources instead of weakening this check.`
 
+// Why this key gets its own assertion: `allowedAgents` is the one restriction that does NOT
+// inherit `lockdown`, and the runtime resolver treats absent, misspelled, non-array, and
+// empty alike — as "no restriction" — while only warning to a stderr a Start-Menu-launched
+// Windows GUI throws away. So a one-character typo ships an installer that reports itself
+// fully locked down and still offers every vendor CLI in every picker.
+function verifyAgentAllowlist(policyPath, allowedAgents) {
+  const remedy = `To ship a lockdown build with no agent restriction, list every agent id explicitly.`
+  if (allowedAgents === undefined) {
+    throw new Error(
+      `${PREFIX} ${policyPath} sets "lockdown": true but has no "allowedAgents"; the app would offer every agent. ${remedy}`
+    )
+  }
+  if (!Array.isArray(allowedAgents) || allowedAgents.length === 0) {
+    throw new Error(
+      `${PREFIX} ${policyPath} has an "allowedAgents" the app would ignore: it must be a non-empty array of agent ids. ${remedy}`
+    )
+  }
+  const unusable = allowedAgents.filter((id) => typeof id !== 'string' || id.trim() === '')
+  if (unusable.length > 0) {
+    throw new Error(
+      `${PREFIX} ${policyPath} has "allowedAgents" entries that are not agent ids: ${JSON.stringify(unusable)}`
+    )
+  }
+}
+
 function verifyPackagedEnterprisePolicy(resourcesDir) {
   const policyPath = join(resourcesDir, POLICY_FILE_NAME)
   let stats
@@ -34,6 +59,7 @@ function verifyPackagedEnterprisePolicy(resourcesDir) {
   if (document.lockdown !== true) {
     throw new Error(`${PREFIX} ${policyPath} does not set "lockdown": true. ${REMEDY}`)
   }
+  verifyAgentAllowlist(policyPath, document.allowedAgents)
   console.log(`${PREFIX} OK — bundled policy present and locked down at ${policyPath}`)
 }
 

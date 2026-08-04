@@ -3,7 +3,7 @@
 // this build ships, and it must not become a web filter that eats user content.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { makeEnterprisePolicy, makeLockdownPolicy } from './enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 
 const getEnterprisePolicyMock = vi.hoisted(() => vi.fn())
 vi.mock('./enterprise-policy-file', () => ({

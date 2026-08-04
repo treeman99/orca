@@ -7,7 +7,7 @@
 // is untouched when `allowedAgents` is null.
 
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 import { getDefaultSettings } from '../../shared/constants'
 import type { GlobalSettings } from '../../shared/types'
 

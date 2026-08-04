@@ -1,8 +1,10 @@
-// Test-only builder for a fully-populated EnterprisePolicy. Kept out of *.test.ts
-// so the gate tests spread across src/main can share one shape: adding a switch
-// to the policy then updates every consumer's fixture in one place.
+// Test-only builder for a fully-populated EnterprisePolicy. Kept out of *.test.ts so the
+// gate tests spread across main AND the renderer can share one shape: adding a switch to
+// the policy then updates every consumer's fixture in one place. It lives beside the type
+// it builds because the renderer gate tests need it too — a renderer test cannot import
+// from src/main (tsconfig.tc.web does not include it).
 
-import type { EnterprisePolicy } from '../../shared/enterprise-policy'
+import type { EnterprisePolicy } from './enterprise-policy'
 
 const UNLOCKED: EnterprisePolicy = {
   lockdown: false,

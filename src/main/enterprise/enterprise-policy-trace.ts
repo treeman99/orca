@@ -16,6 +16,7 @@ import { LOCKDOWN_INHERITING_KEYS } from '../../shared/enterprise-policy'
 import { getEnterprisePolicy, getEnterprisePolicyResolutionTrace } from './enterprise-policy-file'
 
 const NO_FILE_FOUND = '(none found)'
+const UNRESTRICTED_AGENTS = '(unrestricted)'
 
 /**
  * Emit the one-shot `enterprise.policy` span. Call once, immediately after
@@ -37,6 +38,12 @@ export function recordEnterprisePolicyTrace(): void {
       'enterprise.policy.searched_paths': [...searchedPaths],
       'enterprise.policy.lockdown': policy.lockdown,
       'enterprise.policy.switches': switches,
+      // Why separate from `switches`: allowedAgents does NOT inherit lockdown, so a locked
+      // machine with the key missing or mistyped reads as fully locked in every other
+      // attribute while every agent stays selectable. `(unrestricted)` is the finding.
+      'enterprise.policy.allowed_agents': policy.allowedAgents
+        ? [...policy.allowedAgents]
+        : UNRESTRICTED_AGENTS,
       'enterprise.policy.github_enterprise_host': policy.githubEnterpriseHost,
       'enterprise.policy.enforce_network_allowlist': policy.enforceNetworkAllowlist,
       'enterprise.policy.allowed_network_hosts': [...policy.allowedNetworkHosts],

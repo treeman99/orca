@@ -1,6 +1,6 @@
 import React from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { getFullAgentCatalog } from '@/lib/agent-catalog'
+import { useAgentCatalog } from '@/lib/use-agent-catalog'
 import { filterEnabledTuiAgents } from '../../../../shared/tui-agent-selection'
 import type {
   AutomationSchedulePreset,
@@ -23,10 +23,7 @@ import { Field } from './automation-page-parts'
 import { AutomationEditorDialogFooter } from './AutomationEditorDialogFooter'
 import { AutomationEditorDialogHeader } from './AutomationEditorDialogHeader'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
-import {
-  filterAgentsByPolicy,
-  isAgentAllowedByPolicy
-} from '../../../../shared/corporate-agent-access'
+import { isAgentAllowedByPolicy } from '../../../../shared/corporate-agent-access'
 import { AutomationEditorPromptSection } from './AutomationEditorPromptSection'
 import { AutomationSchedulePicker } from './AutomationSchedulePicker'
 import { getAutomationTemplates, type AutomationTemplate } from './automation-templates'
@@ -121,19 +118,19 @@ export function AutomationEditorDialog({
   const isHermesTarget = createTarget === 'hermes'
   const isCreateMode = !isEditing && !isEditingExternal
   const isHermesCreate = isCreateMode && isHermesTarget
+  const catalog = useAgentCatalog()
   const visibleAgents = React.useMemo(() => {
-    // Filtered from the reactive policy value: getAgentCatalog() applies the same allowlist
-    // but reads a non-reactive cache, so the memo would not re-run when the policy arrives.
-    const catalog = filterAgentsByPolicy(getFullAgentCatalog(), (agent) => agent.id, allowedAgents)
     const enabledIds = new Set(
       filterEnabledTuiAgents(
         catalog.map((agent) => agent.id),
         settings?.disabledTuiAgents
       )
     )
-    // The draft's own agent stays selectable so editing a pre-existing automation still shows it.
+    // The draft's own agent stays selectable so editing a pre-existing automation still shows
+    // it — off `catalog`, which is already narrowed, so a draft saved before the policy
+    // landed cannot reopen a blocked agent.
     return catalog.filter((agent) => enabledIds.has(agent.id) || agent.id === draft.agentId)
-  }, [draft.agentId, settings?.disabledTuiAgents, allowedAgents])
+  }, [catalog, draft.agentId, settings?.disabledTuiAgents])
   const scheduleField = (
     <Field
       label={translate('auto.components.automations.AutomationEditorDialog.c4b19094c2', 'Schedule')}

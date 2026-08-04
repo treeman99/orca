@@ -69,6 +69,18 @@ describe('resources/enterprise-policy.json', () => {
     ])
   })
 
+  // Asserting the document's keys proves the bytes, not the behaviour: `allowedAgents` is
+  // dropped to "no restriction" by the resolver for a non-array, an empty list, or blank
+  // entries, and only a stderr warning marks it. Run the shipped file through the real
+  // resolver so the installer's agent restriction is pinned to what the app computes.
+  it("resolves to this fork's agent allowlist through the real resolver", async () => {
+    const { resolveEnterprisePolicy } = await import('../../src/shared/enterprise-policy.ts')
+    const policy = resolveEnterprisePolicy(document, {}, BUNDLED_SOURCE)
+    expect(policy.allowedAgents).toEqual(['claude', 'opencode'])
+    expect(policy.lockdown).toBe(true)
+    expect(policy.warnings).toEqual([])
+  })
+
   // The file is read by whoever audits the deployment, and JSONC is what the loader
   // parses — stripping comments to satisfy a strict JSON tool would lose that.
   it('keeps its explanatory comments', () => {
@@ -114,6 +126,23 @@ describe('verifyPackagedEnterprisePolicy', () => {
     const root = await makeResourcesDir('{ "githubEnterpriseHost": "github.samsungds.net" }')
     try {
       expect(() => verifyPackagedEnterprisePolicy(root)).toThrow(/does not set "lockdown": true/)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  // allowedAgents does not inherit lockdown, and every unusable shape resolves to "no
+  // restriction" with only a stderr warning — which a Windows GUI process discards. These
+  // are the shapes that would ship a "locked" installer still offering every vendor CLI.
+  it.each([
+    ['omitted', '{ "lockdown": true }', /has no "allowedAgents"/],
+    ['not an array', '{ "lockdown": true, "allowedAgents": "claude" }', /non-empty array/],
+    ['empty', '{ "lockdown": true, "allowedAgents": [] }', /non-empty array/],
+    ['blank entries', '{ "lockdown": true, "allowedAgents": ["claude", " "] }', /not agent ids/]
+  ])('fails packaging when allowedAgents is %s', async (_case, contents, expected) => {
+    const root = await makeResourcesDir(contents)
+    try {
+      expect(() => verifyPackagedEnterprisePolicy(root)).toThrow(expected)
     } finally {
       await rm(root, { recursive: true, force: true })
     }

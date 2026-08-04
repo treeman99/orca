@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { applyClaudeEnvPatch, hasClaudeAuthEnvConflict } from './environment'
-import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 
 const getEnterprisePolicyMock = vi.fn(() => makeEnterprisePolicy())
 vi.mock('../enterprise/enterprise-policy-file', () => ({

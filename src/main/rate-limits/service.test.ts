@@ -15,7 +15,7 @@ import { fetchGrokRateLimits } from './grok-fetcher'
 import { readGrokAuthSession } from './grok-auth'
 import { fetchOpenCodeGoRateLimits } from './opencode-go-usage-fetcher'
 import { hasMiniMaxSessionCookie } from '../minimax/minimax-cookie-store'
-import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 
 const getEnterprisePolicyMock = vi.fn(() => makeEnterprisePolicy())
 
