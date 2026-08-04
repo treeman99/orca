@@ -39,6 +39,50 @@ async function flushAsyncTicks(count = 6): Promise<void> {
   }
 }
 
+/**
+ * The suite-wide rAF stub runs its callback synchronously, which makes
+ * `pending = requestAnimationFrame(cb)` land AFTER `cb` cleared it — so any
+ * re-armable rAF guard latches on the first use and never fires again. Drift
+ * checks are re-armed by every foreground chunk, so they need the real
+ * (asynchronous) ordering plus a clock that can cross their throttle.
+ */
+function installDriftCheckClock(startMs = 10_000): {
+  advance: (ms: number) => void
+  settle: () => Promise<void>
+  restore: () => void
+} {
+  let nowMs = startMs
+  let pending: FrameRequestCallback[] = []
+  const previousRaf = globalThis.requestAnimationFrame
+  const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => nowMs)
+  let nextHandle = 1
+  globalThis.requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+    pending.push(callback)
+    return nextHandle++
+  })
+  return {
+    advance: (ms) => {
+      nowMs += ms
+    },
+    settle: async () => {
+      for (let i = 0; i < 12 && pending.length > 0; i += 1) {
+        const due = pending
+        pending = []
+        for (const callback of due) {
+          callback(nowMs)
+        }
+        await flushAsyncTicks()
+      }
+      await flushAsyncTicks()
+    },
+    restore: () => {
+      pending = []
+      nowSpy.mockRestore()
+      globalThis.requestAnimationFrame = previousRaf
+    }
+  }
+}
+
 async function drainFakeTimerWork(limit = 20): Promise<void> {
   await flushAsyncTicks(20)
   if (!vi.isFakeTimers()) {
@@ -23580,20 +23624,104 @@ describe('connectPanePty', () => {
       } as never
       vi.mocked(window.api.pty.getSize).mockResolvedValue({ cols: 62, rows: 63 })
 
-      connectPanePty(pane as never, manager as never, deps as never)
-      await flushAsyncTicks()
-      proposedGrid = { cols: 65, rows: 63 }
-      vi.mocked(pane.fitAddon.fit).mockClear()
-      transport.resize.mockClear()
-      vi.mocked(window.api.pty.getSize).mockClear()
-      expect(capturedDataCallback.current).not.toBeNull()
+      const clock = installDriftCheckClock()
+      try {
+        connectPanePty(pane as never, manager as never, deps as never)
+        await clock.settle()
+        proposedGrid = { cols: 65, rows: 63 }
+        vi.mocked(pane.fitAddon.fit).mockClear()
+        transport.resize.mockClear()
+        vi.mocked(window.api.pty.getSize).mockClear()
+        expect(capturedDataCallback.current).not.toBeNull()
 
-      capturedDataCallback.current?.('\x1b[?2026hcodex redraw frame')
-      await flushAsyncTicks()
+        // A single observation is a metric wobble, not a settled drift.
+        clock.advance(300)
+        capturedDataCallback.current?.('\x1b[?2026hcodex redraw frame')
+        await clock.settle()
+        expect(transport.resize).not.toHaveBeenCalled()
 
-      expect(pane.fitAddon.fit).toHaveBeenCalled()
-      expect(window.api.pty.getSize).toHaveBeenCalledWith('pty-pane-2')
-      expect(transport.resize).toHaveBeenCalledWith(65, 63, { claim: true })
+        // The same drift on the next check is real, and no input is in flight.
+        clock.advance(300)
+        capturedDataCallback.current?.('\x1b[?2026hcodex redraw frame')
+        await clock.settle()
+
+        expect(pane.fitAddon.fit).toHaveBeenCalled()
+        expect(window.api.pty.getSize).toHaveBeenCalledWith('pty-pane-2')
+        expect(transport.resize).toHaveBeenCalledWith(65, 63, { claim: true })
+      } finally {
+        clock.restore()
+      }
+    })
+
+    it('does not SIGWINCH the agent CLI from grid drift while the user is typing', async () => {
+      const { connectPanePty } = await import('./pty-connection')
+      const transport = createMockTransport('pty-pane-2')
+      const capturedDataCallback: { current: ((data: string) => void) | null } = { current: null }
+      transport.connect.mockImplementation(
+        async ({ callbacks }: { callbacks: ConnectCallbacks }) => {
+          capturedDataCallback.current = callbacks.onData ?? null
+          return 'pty-pane-2'
+        }
+      )
+      transportFactoryQueue.push(transport)
+      const manager = createManager(2)
+      const deps = createDeps({
+        restoredLeafId: LEAF_2,
+        paneTransportsRef: { current: new Map([[1, createMockTransport('pty-pane-1')]]) }
+      })
+      const pane = createPane(2)
+      let terminalInput: ((data: string) => void) | null = null
+      pane.terminal.onData = vi.fn(((handler: (data: string) => void) => {
+        terminalInput = handler
+        return { dispose: vi.fn() }
+      }) as typeof pane.terminal.onData)
+      let proposedGrid = { cols: 62, rows: 63 }
+      pane.terminal.cols = 62
+      pane.terminal.rows = 63
+      pane.fitAddon = {
+        ...pane.fitAddon,
+        fit: vi.fn(() => {
+          pane.terminal.cols = proposedGrid.cols
+          pane.terminal.rows = proposedGrid.rows
+        }),
+        proposeDimensions: vi.fn(() => proposedGrid)
+      } as never
+      vi.mocked(window.api.pty.getSize).mockResolvedValue({ cols: 62, rows: 63 })
+
+      const clock = installDriftCheckClock()
+      try {
+        connectPanePty(pane as never, manager as never, deps as never)
+        await clock.settle()
+        transport.resize.mockClear()
+        expect(terminalInput).not.toBeNull()
+
+        // Korean prompt entry. Each syllable echoes a foreground redraw frame
+        // that arms the drift check, and Hangul takes the renderer-risk branch
+        // whose atlas recovery makes FitAddon propose a one-column-off grid.
+        // None of that may reach the PTY as a SIGWINCH.
+        for (const [index, syllable] of ['한', '글', '프', '롬', '프', '트'].entries()) {
+          ;(terminalInput as unknown as (data: string) => void)(syllable)
+          proposedGrid = { cols: index % 2 === 0 ? 65 : 64, rows: 63 }
+          clock.advance(16)
+          capturedDataCallback.current?.('\x1b[?2026hclaude prompt redraw')
+          await clock.settle()
+          clock.advance(260)
+        }
+
+        expect(transport.resize).not.toHaveBeenCalled()
+
+        // Typing stops and the metrics settle: a real drift must still heal.
+        proposedGrid = { cols: 65, rows: 63 }
+        for (let i = 0; i < 2; i += 1) {
+          clock.advance(5_000)
+          capturedDataCallback.current?.('\x1b[?2026hclaude prompt redraw')
+          await clock.settle()
+        }
+
+        expect(transport.resize).toHaveBeenCalledWith(65, 63, { claim: true })
+      } finally {
+        clock.restore()
+      }
     })
 
     it('skips foreground grid drift repair while mobile owns the PTY without a fit override', async () => {

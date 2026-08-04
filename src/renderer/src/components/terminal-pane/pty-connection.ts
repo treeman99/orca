@@ -231,6 +231,11 @@ import { getEagerPtyBufferHandle } from './pty-dispatcher'
 import { createTerminalGitHubPRLinkDetector } from '../../../../shared/terminal-github-pr-link-detector'
 import { scheduleTerminalWebglAtlasRecovery } from './terminal-webgl-atlas-recovery'
 import {
+  createForegroundGridDriftGateState,
+  resetForegroundGridDriftGate,
+  shouldActOnForegroundGridDrift
+} from './foreground-grid-drift-gate'
+import {
   CONPTY_DA1_RESPONSE,
   DEFAULT_DA1_RESPONSE,
   createTerminalPixelSizeQueryResponder,
@@ -4198,6 +4203,7 @@ export function connectPanePty(
   })
   let pendingForegroundGridDriftCheckRaf: number | null = null
   let lastForegroundGridDriftCheckAt = Number.NEGATIVE_INFINITY
+  const foregroundGridDriftGate = createForegroundGridDriftGateState()
   const readProposedTerminalGrid = (): { cols: number; rows: number } | null => {
     try {
       const proposed = pane.fitAddon.proposeDimensions()
@@ -4209,11 +4215,15 @@ export function connectPanePty(
       return null
     }
   }
-  const terminalGridDriftedFromFit = (): boolean => {
+  const readDriftedTerminalGrid = (): { cols: number; rows: number } | null => {
     const proposed = readProposedTerminalGrid()
-    return Boolean(
-      proposed && (pane.terminal.cols !== proposed.cols || pane.terminal.rows !== proposed.rows)
-    )
+    if (
+      !proposed ||
+      (pane.terminal.cols === proposed.cols && pane.terminal.rows === proposed.rows)
+    ) {
+      return null
+    }
+    return proposed
   }
   const scheduleForegroundGridDriftCheck = (): void => {
     // Why: mobile-owned PTYs intentionally keep a non-desktop grid; drift
@@ -4233,11 +4243,24 @@ export function connectPanePty(
     lastForegroundGridDriftCheckAt = now
     pendingForegroundGridDriftCheckRaf = requestAnimationFrame(() => {
       pendingForegroundGridDriftCheckRaf = null
+      if (disposed || !deps.isVisibleRef.current || shouldSuppressDesktopPtyResize()) {
+        return
+      }
+      const drifted = readDriftedTerminalGrid()
+      if (!drifted) {
+        resetForegroundGridDriftGate(foregroundGridDriftGate)
+        return
+      }
+      // Why: this check is armed by output, and an agent CLI echoes every
+      // keystroke — fitting here mid-burst SIGWINCHes the CLI into reflowing the
+      // prompt line the user is typing. Gate on a quiet input window plus a
+      // repeated observation so only a settled drift reaches the PTY.
       if (
-        disposed ||
-        !deps.isVisibleRef.current ||
-        shouldSuppressDesktopPtyResize() ||
-        !terminalGridDriftedFromFit()
+        !shouldActOnForegroundGridDrift({
+          state: foregroundGridDriftGate,
+          proposed: drifted,
+          msSinceLastInput: performance.now() - lastTerminalInputAt
+        })
       ) {
         return
       }
