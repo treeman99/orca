@@ -52,11 +52,25 @@ async function readConfig(
       env: gitOptionalLocksDisabledEnv()
     })
     return stdout
-  } catch {
+  } catch (error) {
+    // Why rethrow an abort: an interrupted read is not evidence of "no policy
+    // configured", and swallowing it would cache an inert policy for the whole
+    // TTL — every poll in that window would skip narrowing and flash the gitlink
+    // rows back. runNumstat (status.ts) rethrows aborts for the same reason.
+    if (isAbortError(error, options.signal)) {
+      throw error
+    }
     // `--get-regexp` exits 1 when nothing matches, and a missing `.gitmodules`
     // is an error too. Both mean "no policy configured".
     return ''
   }
+}
+
+function isAbortError(error: unknown, signal: AbortSignal | undefined): boolean {
+  return (
+    signal?.aborted === true ||
+    (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError'))
+  )
 }
 
 export async function readSubmoduleIgnorePolicy(
@@ -81,8 +95,16 @@ export async function readSubmoduleIgnorePolicy(
       readConfig(SUBMODULE_IGNORE_LOCAL_CONFIG_ARGS, worktreePath, options)
     ])
     policy = buildSubmoduleIgnorePolicy(gitmodulesConfig, localConfig)
-  } catch {
-    policy = INERT_SUBMODULE_IGNORE_POLICY
+  } catch (error) {
+    // Why rethrow: an aborted read must not be recorded as "nothing configured".
+    // The caller's status read is being cancelled anyway, and it rejects on abort
+    // a few lines later regardless.
+    if (isAbortError(error, options.signal)) {
+      throw error
+    }
+    // Why not cache this: readConfig already absorbs every expected failure, so
+    // reaching here means something unexpected — degrade for this poll only.
+    return INERT_SUBMODULE_IGNORE_POLICY
   }
   if (generation === cacheGeneration) {
     cache.set(key, { policy, expiresAt: Date.now() + SUBMODULE_IGNORE_POLICY_CACHE_TTL_MS })

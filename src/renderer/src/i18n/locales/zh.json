@@ -14809,6 +14809,7 @@
     "submoduleNewCommits": "新提交",
     "submoduleModifiedContent": "已修改的内容",
     "submoduleUntrackedContent": "未跟踪的内容",
-    "submoduleCommittedInSubmodule": "已在子模块中提交"
+    "submoduleCommittedInSubmodule": "已在子模块中提交",
+    "submoduleCommitRangeTooltip": "该更改已在子模块中提交 — 这是因为父仓库记录的提交与已检出的提交不同，而不是因为你编辑了它"
   }
 }

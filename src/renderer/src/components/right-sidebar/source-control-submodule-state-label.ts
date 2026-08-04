@@ -39,3 +39,14 @@ export function getSubmoduleCommitRangeLabel(entry: GitStatusEntry): string | nu
     ? translate('sourceControl.submoduleCommittedInSubmodule', 'committed in submodule')
     : null
 }
+
+/** Tooltip for that same row. Lives here, not as a module const in
+ *  SourceControl.tsx, because the coverage auditor only classifies literals
+ *  *inside* JSX props or calls — a bare const initializer slips past the gate
+ *  while still rendering untranslated English. */
+export function getSubmoduleCommitRangeTooltip(): string {
+  return translate(
+    'sourceControl.submoduleCommitRangeTooltip',
+    'Already committed inside the submodule — this file differs between the commit the parent records and the one checked out, not because you edited it'
+  )
+}

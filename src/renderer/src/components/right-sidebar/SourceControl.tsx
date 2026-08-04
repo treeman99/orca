@@ -84,6 +84,7 @@ import {
 } from './discard-all-sequence'
 import {
   getSubmoduleCommitRangeLabel,
+  getSubmoduleCommitRangeTooltip,
   getSubmoduleRowStateLabel
 } from './source-control-submodule-state-label'
 import {
@@ -553,8 +554,6 @@ const DEFAULT_COLLAPSED_SECTIONS = ['history'] as const
 const SUBMODULE_WORKTREE_ONLY_LABEL = 'Stage inside submodule'
 const SUBMODULE_WORKTREE_ONLY_TOOLTIP =
   'The parent repo (including Stage All) cannot stage file changes inside a submodule'
-const SUBMODULE_COMMIT_RANGE_TOOLTIP =
-  'Already committed inside the submodule — this file differs between the commit the parent records and the one checked out, not because you edited it'
 const SUBMODULE_LOADING_LABEL = 'Loading submodule changes…'
 const SUBMODULE_EMPTY_LABEL = 'No changes in submodule'
 const SUBMODULE_ERROR_LABEL = 'Failed to load submodule changes'
@@ -8015,7 +8014,7 @@ const UncommittedEntryRow = React.memo(function UncommittedEntryRow({
             // committed inside the submodule, not uncommitted work of the user's.
             <div
               className="truncate text-[11px] text-muted-foreground"
-              title={SUBMODULE_COMMIT_RANGE_TOOLTIP}
+              title={getSubmoduleCommitRangeTooltip()}
             >
               ({submoduleCommitRangeLabel})
             </div>

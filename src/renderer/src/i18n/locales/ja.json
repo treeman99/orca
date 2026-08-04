@@ -14809,6 +14809,7 @@
     "submoduleNewCommits": "新しいコミット",
     "submoduleModifiedContent": "変更されたコンテンツ",
     "submoduleUntrackedContent": "追跡されていないコンテンツ",
-    "submoduleCommittedInSubmodule": "サブモジュールでコミット済み"
+    "submoduleCommittedInSubmodule": "サブモジュールでコミット済み",
+    "submoduleCommitRangeTooltip": "サブモジュール内で既にコミット済みの変更です — 親が記録しているコミットとチェックアウトされているコミットが異なるためであり、あなたが編集したためではありません"
   }
 }

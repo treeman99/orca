@@ -389,7 +389,12 @@ export class GitHandler {
             ...params,
             worktreePath: resolved
           },
-          { signal: context.signal }
+          // Why the cache: the narrowing in getStatusOp is gated on it, so leaving
+          // it out skipped `submodule.<name>.ignore` for a NESTED gitlink inside an
+          // expanded submodule — over SSH only. The main process has no such gate
+          // (getSubmoduleStatus routes through getStatus), so omitting it broke the
+          // local/relay parity this rule is supposed to hold.
+          { signal: context.signal, submoduleIgnorePolicyCache: this.submoduleIgnorePolicyCache }
         )
     // Why: pointer/range probes are part of the same SSH request and must not outlive its cancellation.
     const requestGit: GitExec = (args, cwd, options) =>

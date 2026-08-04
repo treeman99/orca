@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { GitStatusEntry } from '../../../../shared/types'
+import en from '@/i18n/locales/en.json'
+import es from '@/i18n/locales/es.json'
+import ja from '@/i18n/locales/ja.json'
+import ko from '@/i18n/locales/ko.json'
+import zh from '@/i18n/locales/zh.json'
 import {
   getSubmoduleCommitRangeLabel,
+  getSubmoduleCommitRangeTooltip,
   getSubmoduleRowStateLabel
 } from './source-control-submodule-state-label'
 
@@ -53,6 +59,28 @@ describe('getSubmoduleCommitRangeLabel', () => {
         submoduleCommitRange: true
       })
     ).toBe('committed in submodule')
+  })
+
+  it('serves the row tooltip from the catalog in every shipped locale', () => {
+    // Why pin this: the tooltip started life as a module-scope const in
+    // SourceControl.tsx, which the coverage auditor never classifies — it only
+    // inspects literals inside JSX attributes, object properties and calls. The
+    // gate stayed green while the string rendered untranslated English next to a
+    // sub-label this same feature had translated five ways.
+    const key = 'sourceControl.submoduleCommitRangeTooltip'
+    const catalogs: Record<string, { sourceControl?: Record<string, string> }> = {
+      en,
+      es,
+      ja,
+      ko,
+      zh
+    }
+
+    for (const [locale, catalog] of Object.entries(catalogs)) {
+      const value = catalog.sourceControl?.submoduleCommitRangeTooltip
+      expect(value, `${key} missing from ${locale}.json`).toBeTruthy()
+    }
+    expect(getSubmoduleCommitRangeTooltip()).toBe(en.sourceControl.submoduleCommitRangeTooltip)
   })
 
   it('leaves the user own uncommitted edit unlabelled', () => {

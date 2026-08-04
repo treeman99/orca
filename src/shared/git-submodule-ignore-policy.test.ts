@@ -140,6 +140,115 @@ describe('applySubmoduleIgnorePolicy', () => {
   })
 })
 
+describe('applySubmoduleIgnorePolicy over a STAGED gitlink row', () => {
+  // `submodule.<name>.ignore` / `diff.ignoreSubmodules` govern worktree-vs-index
+  // only, so Git reports every staged gitlink regardless. Measured on Git 2.50
+  // with `ignore = all` delivered through .gitmodules, .git/config and the global
+  // diff.ignoreSubmodules: `A  vendor/sub`, `R  vendor/sub -> …` and
+  // `M  vendor/sub` all survive.
+  const allMode: SubmoduleIgnorePolicy = {
+    byPath: new Map([['vendor/sub', 'all']]),
+    fallback: 'none'
+  }
+  const CLEAR = { commitChanged: false, trackedChanges: false, untrackedChanges: false }
+
+  for (const status of ['added', 'renamed', 'copied', 'modified'] as const) {
+    it(`keeps a staged ${status} gitlink untouched even under ignore = all`, () => {
+      const row = { path: 'vendor/sub', status, area: 'staged', submodule: CLEAR }
+
+      expect(applySubmoduleIgnorePolicy(row, allMode)).toBe(row)
+    })
+  }
+
+  it('keeps a staged pointer bump, which Git reports under every ignore setting', () => {
+    // `git add <submodule>` after advancing it emits `1 M. S...`; the parser's
+    // S...-with-M special case makes commitChanged true. Dropping it hid a staged
+    // change from the panel that was about to commit it.
+    const stagedBump = {
+      path: 'vendor/sub',
+      status: 'modified',
+      area: 'staged',
+      submodule: { commitChanged: true, trackedChanges: false, untrackedChanges: false }
+    }
+
+    expect(applySubmoduleIgnorePolicy(stagedBump, allMode)).toBe(stagedBump)
+  })
+
+  it('still narrows the unstaged drift for the same submodule', () => {
+    // The contrast: worktree-vs-index IS what the setting governs, and hiding this
+    // row is the whole point of honouring it.
+    expect(
+      applySubmoduleIgnorePolicy(
+        {
+          path: 'vendor/sub',
+          status: 'modified',
+          area: 'unstaged',
+          submodule: { commitChanged: true, trackedChanges: false, untrackedChanges: false }
+        },
+        allMode
+      )
+    ).toBeNull()
+  })
+})
+
+describe('applySubmoduleIgnorePolicy over an UNSTAGED gitlink entry change', () => {
+  // Git emits `S...` — every inner flag clear — for these, because the sub-state
+  // describes what is going on INSIDE the submodule while the row is about the
+  // gitlink entry itself. Verified against Git 2.50:
+  //   `rm -rf vendor/sub`  -> `1 .D S... … vendor/sub`, and ` D vendor/sub`
+  //                            survives a checked-in `ignore = dirty`/`untracked`
+  //                            and disappears only under `ignore = all`.
+  const CLEAR_SUB_STATE = {
+    commitChanged: false,
+    trackedChanges: false,
+    untrackedChanges: false
+  }
+  const withMode = (mode: SubmoduleIgnorePolicy['fallback']): SubmoduleIgnorePolicy => ({
+    byPath: new Map([['vendor/sub', mode]]),
+    fallback: 'none'
+  })
+  const deletedRow = {
+    path: 'vendor/sub',
+    status: 'deleted',
+    area: 'unstaged',
+    submodule: CLEAR_SUB_STATE
+  }
+
+  for (const mode of ['untracked', 'dirty'] as const) {
+    it(`keeps a deleted gitlink under ignore = ${mode}, exactly as Git does`, () => {
+      expect(applySubmoduleIgnorePolicy(deletedRow, withMode(mode))).toBe(deletedRow)
+    })
+  }
+
+  it('drops a deleted gitlink under ignore = all, exactly as Git does', () => {
+    expect(applySubmoduleIgnorePolicy(deletedRow, withMode('all'))).toBeNull()
+  })
+
+  it('still drops a modified gitlink with no inner signal left', () => {
+    // The contrast that makes the status check meaningful: a `modified` gitlink is
+    // only ever about the submodule's inner state, so an emptied one has nothing
+    // left to show.
+    expect(
+      applySubmoduleIgnorePolicy(
+        { path: 'vendor/sub', status: 'modified', area: 'unstaged', submodule: CLEAR_SUB_STATE },
+        withMode('dirty')
+      )
+    ).toBeNull()
+  })
+
+  it('narrows untracked dirt on a deleted gitlink without dropping the row', () => {
+    const deletedAndDirty = {
+      ...deletedRow,
+      submodule: { commitChanged: false, trackedChanges: false, untrackedChanges: true }
+    }
+
+    expect(applySubmoduleIgnorePolicy(deletedAndDirty, withMode('untracked'))).toEqual({
+      ...deletedAndDirty,
+      submodule: CLEAR_SUB_STATE
+    })
+  })
+})
+
 describe('applySubmoduleIgnorePolicyToEntries', () => {
   it('returns the same rows when the policy is inert', () => {
     const entries = [gitlinkRow(), { path: 'rootfile.txt', status: 'modified', area: 'unstaged' }]

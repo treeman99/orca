@@ -14809,6 +14809,7 @@
     "submoduleNewCommits": "nuevos commits",
     "submoduleModifiedContent": "contenido modificado",
     "submoduleUntrackedContent": "contenido sin seguimiento",
-    "submoduleCommittedInSubmodule": "ya confirmado en el submódulo"
+    "submoduleCommittedInSubmodule": "ya confirmado en el submódulo",
+    "submoduleCommitRangeTooltip": "Ya confirmado dentro del submódulo: este archivo difiere entre el commit que registra el repositorio padre y el que está en el checkout, no porque lo hayas editado"
   }
 }

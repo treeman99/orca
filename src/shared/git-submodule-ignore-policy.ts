@@ -180,10 +180,22 @@ export function buildSubmoduleIgnorePolicy(
 }
 
 /**
- * The two fields the narrowing reads. Kept structural so the relay, whose status
- * rows are carried as plain records over JSON-RPC, can reuse this unchanged.
+ * The three fields the narrowing reads. Kept structural so the relay, whose
+ * status rows are carried as plain records over JSON-RPC, can reuse this
+ * unchanged.
+ *
+ * `status` matters because the submodule sub-state describes what is going on
+ * INSIDE the submodule, and says nothing about the gitlink entry itself. Adding,
+ * deleting or renaming a submodule emits `S...` — every inner flag clear — so
+ * reading the flags alone cannot tell "nothing to report" apart from "the
+ * gitlink itself changed".
  */
-type IgnorePolicyApplicableEntry = { path?: unknown; submodule?: unknown }
+type IgnorePolicyApplicableEntry = {
+  path?: unknown
+  status?: unknown
+  area?: unknown
+  submodule?: unknown
+}
 
 function readSubmoduleState(value: unknown): GitSubmoduleStatus | null {
   if (!value || typeof value !== 'object') {
@@ -195,6 +207,42 @@ function readSubmoduleState(value: unknown): GitSubmoduleStatus | null {
     typeof state.untrackedChanges === 'boolean'
     ? (state as GitSubmoduleStatus)
     : null
+}
+
+/**
+ * `submodule.<name>.ignore` / `diff.ignoreSubmodules` govern the worktree-vs-index
+ * comparison only. A STAGED gitlink row is index-vs-HEAD, which the setting never
+ * reaches, so Git reports it no matter what is configured.
+ *
+ * Measured on Git 2.50 with `ignore = all` reaching the repo through all three
+ * channels (checked-in `.gitmodules`, `.git/config`, global `diff.ignoreSubmodules`):
+ *
+ *   staged add    `1 A. S...`  -> `A  vendor/sub`  shown
+ *   staged rename `2 R. S...`  -> `R  vendor/sub -> …`  shown
+ *   staged bump   `1 M. S...`  -> `M  vendor/sub`  shown
+ *   unstaged drift `1 .M SC..` -> hidden
+ *   unstaged delete `1 .D S...`-> hidden under `all`, shown under `dirty`/`untracked`
+ *
+ * Only the explicit `--ignore-submodules=all` COMMAND-LINE flag suppresses the
+ * staged rows, and Orca never asks a user's config to behave like that flag.
+ */
+function isStagedGitlinkRow(entry: IgnorePolicyApplicableEntry): boolean {
+  return entry.area === 'staged'
+}
+
+/**
+ * Whether an unstaged gitlink row with no remaining inner signal may be dropped.
+ *
+ * A `modified` gitlink is only ever about the submodule's inner state, so once
+ * every inner flag is cleared there is nothing left to show. A delete (or an
+ * unstaged rename) is a change to the gitlink ENTRY, which Git still reports
+ * under `untracked` and `dirty` — ` D vendor/sub` survives both — and hides only
+ * under `all`. Dropping those everywhere made a submodule the user just removed
+ * vanish from Source Control while `git status` still listed it, breaking
+ * 927bc56b4d's invariant that a checked-in `ignore` must never erase the row.
+ */
+function isDroppableGitlinkRow(entry: IgnorePolicyApplicableEntry, mode: SubmoduleIgnoreMode) {
+  return mode === 'all' || entry.status === 'modified'
 }
 
 /**
@@ -210,7 +258,7 @@ export function applySubmoduleIgnorePolicy<T extends IgnorePolicyApplicableEntry
     return entry
   }
   const mode = policy.byPath.get(normalizeSubmodulePath(String(entry.path))) ?? policy.fallback
-  if (mode === 'none') {
+  if (mode === 'none' || isStagedGitlinkRow(entry)) {
     return entry
   }
   // `all` is the only mode that hides the commit pointer; `untracked`/`dirty`
@@ -220,7 +268,12 @@ export function applySubmoduleIgnorePolicy<T extends IgnorePolicyApplicableEntry
   const trackedChanges = submodule.trackedChanges
   // Every non-`none` mode ignores untracked content inside the submodule.
   const untrackedChanges = false
-  if (!commitChanged && !trackedChanges && !untrackedChanges) {
+  if (
+    !commitChanged &&
+    !trackedChanges &&
+    !untrackedChanges &&
+    isDroppableGitlinkRow(entry, mode)
+  ) {
     return null
   }
   if (

@@ -14809,6 +14809,7 @@
     "submoduleNewCommits": "새 커밋",
     "submoduleModifiedContent": "수정된 내용",
     "submoduleUntrackedContent": "추적되지 않은 내용",
-    "submoduleCommittedInSubmodule": "서브모듈에 이미 커밋됨"
+    "submoduleCommittedInSubmodule": "서브모듈에 이미 커밋됨",
+    "submoduleCommitRangeTooltip": "서브모듈 안에서 이미 커밋된 변경입니다 — 부모가 기록한 커밋과 체크아웃된 커밋이 달라서 나타난 것이지, 직접 수정해서 나타난 것이 아닙니다"
   }
 }
