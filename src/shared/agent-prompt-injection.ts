@@ -16,6 +16,21 @@ export function getAgentPromptSubmitDelayMs(platform: NodeJS.Platform): number {
 
 export const AGENT_PROMPT_SUBMIT_DELAY_MS = getAgentPromptSubmitDelayMs(process.platform)
 
+// Why: the submit delay only spaces Orca's two writes. Every provider write is
+// unacknowledged (node-pty queue / daemon notify / relay `pty.data`), so a TUI
+// that is mid-render when the frame lands drains ESC[201~ and the CR out of the
+// pty buffer in one read() and folds the CR into the paste — the prompt stays
+// in the composer, unsubmitted. Render output after the frame is the only
+// evidence the TUI actually consumed it; these bound that wait.
+export const AGENT_PROMPT_PASTE_QUIET_MS = 250
+export const AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS = 6_000
+
+// Why: a TUI that stays silent past the settle cap can still absorb the Enter,
+// so the submit is verified once the post-Enter render has settled. Shorter
+// floor than the paste settle: we are waiting on one keypress being echoed, not
+// on a multi-KB frame being laid out.
+export const AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS = 600
+
 const ESCAPE = '\x1b'
 const INERT_ESCAPE = '<ESC>'
 

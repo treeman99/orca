@@ -62,6 +62,7 @@ import {
   appendNormalizedToTailBuffer,
   appendRecentPtyPathCandidates,
   buildPreview,
+  classifyAgentPromptSubmitEvidence,
   OrcaRuntimeService,
   recentTerminalPathCandidatesIncludePath,
   recentTerminalOutputIncludesPath,
@@ -74,6 +75,7 @@ import {
   HEADLESS_RUNTIME_WINDOW_ID,
   type RuntimeMobileSessionTabsResult,
   type RuntimeSyncWindowGraph,
+  type RuntimeTerminalAgentStatus,
   type RuntimeTerminalCreate
 } from '../../shared/runtime-types'
 import type { TerminalSideEffectBatch } from '../../shared/terminal-side-effect-facts'
@@ -87,6 +89,10 @@ import { MAX_QUICK_COMMANDS } from '../../shared/terminal-quick-commands'
 import {
   AGENT_PROMPT_BRACKETED_PASTE_END,
   AGENT_PROMPT_BRACKETED_PASTE_START,
+  AGENT_PROMPT_PASTE_QUIET_MS,
+  AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS,
+  AGENT_PROMPT_SUBMIT_DELAY_MS,
+  AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS,
   buildAgentPromptPasteBytes
 } from '../../shared/agent-prompt-injection'
 import { CLIPBOARD_TEXT_MEASURE_YIELD_CODE_UNITS } from '../../shared/clipboard-text'
@@ -14746,6 +14752,40 @@ describe('OrcaRuntimeService', () => {
     }
   })
 
+  it('holds the terminal.send suffix on consumption evidence, not a fixed delay', async () => {
+    vi.useFakeTimers()
+    try {
+      const writes: string[] = []
+      const runtime = new OrcaRuntimeService(store)
+      runtime.setPtyController({
+        spawn: vi.fn().mockResolvedValue({ id: 'pty-bg' }),
+        write: (_ptyId, data) => {
+          writes.push(data)
+          return true
+        },
+        kill: () => true,
+        getForegroundProcess: async () => null
+      })
+      const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
+
+      const sendPromise = runtime.sendTerminal(handle, { text: 'continue', enter: true })
+      await vi.advanceTimersByTimeAsync(AGENT_PROMPT_SUBMIT_DELAY_MS + 10)
+      expect(writes).toEqual(['continue'])
+
+      // Why: same rule as the agent-prompt path — a TUI still rendering the
+      // text must not receive the suffix in the same read().
+      runtime.onPtyData('pty-bg', 'still rendering', 100)
+      await vi.advanceTimersByTimeAsync(AGENT_PROMPT_PASTE_QUIET_MS - 20)
+      expect(writes).toEqual(['continue'])
+
+      await vi.advanceTimersByTimeAsync(AGENT_PROMPT_PASTE_QUIET_MS + 10)
+      await sendPromise
+      expect(writes).toEqual(['continue', '\r'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('splits text and enter writes for background terminal handles', async () => {
     const writes: string[] = []
     const runtime = new OrcaRuntimeService(store)
@@ -14832,6 +14872,237 @@ describe('OrcaRuntimeService', () => {
       expect(pasteWrites.join('')).toBe(buildAgentPromptPasteBytes(prompt))
       expect(pasteWrites[0]).toContain(AGENT_PROMPT_BRACKETED_PASTE_START)
       expect(pasteWrites.at(-1)).toContain(AGENT_PROMPT_BRACKETED_PASTE_END)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // Why: every agent-prompt send now ends with a post-Enter settle + verdict.
+  // Tests drive it explicitly so a hang here reads as "verification stalled",
+  // not as an unrelated timeout.
+  const drainAgentPromptSubmitVerification = async (): Promise<void> => {
+    await vi.advanceTimersByTimeAsync(
+      AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS + AGENT_PROMPT_PASTE_QUIET_MS + 10
+    )
+  }
+
+  // Why: the retry exists to rescue a swallowed Enter, but firing it on a
+  // permission prompt would silently approve it. These pin the whole verdict
+  // table, not just the happy path.
+  const runAgentPromptSubmitVerification = async (
+    agentStatus: Partial<RuntimeTerminalAgentStatus> | Error
+  ): Promise<string[]> => {
+    const writes: string[] = []
+    const runtime = new OrcaRuntimeService(store)
+    runtime.setPtyController({
+      spawn: vi.fn().mockResolvedValue({ id: 'pty-bg' }),
+      write: (_ptyId, data) => {
+        writes.push(data)
+        return true
+      },
+      kill: () => true,
+      getForegroundProcess: async () => null
+    })
+    const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
+    vi.spyOn(runtime, 'getTerminalAgentStatus').mockImplementation(async () => {
+      if (agentStatus instanceof Error) {
+        throw agentStatus
+      }
+      return { handle, isRunningAgent: true, status: 'idle', ...agentStatus }
+    })
+
+    const sendPromise = runtime.sendTerminalAgentPrompt(handle, 'task spec')
+    await vi.advanceTimersByTimeAsync(
+      AGENT_PROMPT_SUBMIT_DELAY_MS + AGENT_PROMPT_PASTE_QUIET_MS + 10
+    )
+    await drainAgentPromptSubmitVerification()
+    await sendPromise
+    return writes
+  }
+
+  it('resends Enter once when an idle agent still holds the prompt in its composer', async () => {
+    vi.useFakeTimers()
+    try {
+      const writes = await runAgentPromptSubmitVerification({
+        isRunningAgent: true,
+        status: 'idle'
+      })
+      // paste, Enter, retried Enter — and nothing beyond the single retry.
+      expect(writes).toHaveLength(3)
+      expect(writes.at(-1)).toBe('\r')
+      expect(writes.at(-2)).toBe('\r')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not resend Enter once the agent is working on the submitted prompt', async () => {
+    vi.useFakeTimers()
+    try {
+      const writes = await runAgentPromptSubmitVerification({
+        isRunningAgent: true,
+        status: 'working'
+      })
+      expect(writes).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('never resends Enter while a permission prompt is showing', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const writes = await runAgentPromptSubmitVerification({
+        isRunningAgent: true,
+        status: 'permission'
+      })
+      expect(writes).toHaveLength(2)
+      // Why assert the reason, not just the absence of a write: "no retry" is
+      // also what an unreadable terminal produces. Pinning `blocked` keeps the
+      // permission branch from silently degrading into the generic fallback,
+      // and proves the refusal is observable rather than silent.
+      const reasons = warn.mock.calls.map((call) => String(call[0]))
+      expect(reasons.some((line) => line.includes('(blocked)'))).toBe(true)
+      expect(reasons.some((line) => line.includes('resent once'))).toBe(false)
+    } finally {
+      warn.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not resend Enter when the terminal state cannot be read', async () => {
+    vi.useFakeTimers()
+    try {
+      expect(await runAgentPromptSubmitVerification(new Error('terminal_gone'))).toHaveLength(2)
+      // No agent owns the PTY: a bare shell must never get a synthesized Enter.
+      expect(
+        await runAgentPromptSubmitVerification({ isRunningAgent: false, status: null })
+      ).toHaveLength(2)
+      // An agent with no readable status is still "cannot tell".
+      expect(
+        await runAgentPromptSubmitVerification({ isRunningAgent: true, status: null })
+      ).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('classifies agent prompt submit evidence conservatively', () => {
+    const verdict = (status: Partial<RuntimeTerminalAgentStatus>): string =>
+      classifyAgentPromptSubmitEvidence({ isRunningAgent: true, status: 'idle', ...status })
+
+    expect(verdict({ status: 'idle' })).toBe('unsubmitted')
+    expect(verdict({ status: 'working' })).toBe('submitted')
+    expect(verdict({ status: 'permission' })).toBe('blocked')
+    expect(verdict({ status: null })).toBe('indeterminate')
+    expect(verdict({ isRunningAgent: false })).toBe('indeterminate')
+    // Why: permission outranks every other signal — a blocked agent that also
+    // looks idle must never be treated as merely unsubmitted.
+    expect(verdict({ isRunningAgent: false, status: 'permission' })).toBe('blocked')
+  })
+
+  it('holds the agent prompt submit until the TUI has rendered the paste and gone quiet', async () => {
+    vi.useFakeTimers()
+    try {
+      const writes: string[] = []
+      const runtime = new OrcaRuntimeService(store)
+      runtime.setPtyController({
+        spawn: vi.fn().mockResolvedValue({ id: 'pty-bg' }),
+        write: (_ptyId, data) => {
+          writes.push(data)
+          return true
+        },
+        kill: () => true,
+        getForegroundProcess: async () => null
+      })
+      const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
+      const ptyId = 'pty-bg'
+
+      const sendPromise = runtime.sendTerminalAgentPrompt(handle, 'do the thing')
+      // Paste is out; a TUI that is still rendering must not receive Enter yet.
+      await vi.advanceTimersByTimeAsync(AGENT_PROMPT_SUBMIT_DELAY_MS + 10)
+      expect(writes).toHaveLength(1)
+
+      // Render bursts keep pushing the submit out for as long as they continue.
+      for (let i = 0; i < 6; i += 1) {
+        runtime.onPtyData(ptyId, `render frame ${i}`, 100 + i)
+        await vi.advanceTimersByTimeAsync(AGENT_PROMPT_PASTE_QUIET_MS - 20)
+        expect(writes).toHaveLength(1)
+      }
+
+      // Quiet window closes -> the TUI is done consuming the paste -> submit.
+      await vi.advanceTimersByTimeAsync(AGENT_PROMPT_PASTE_QUIET_MS + 10)
+      expect(writes.at(-1)).toBe('\r')
+      expect(writes).toHaveLength(2)
+
+      // No agent evidence from this stub -> verdict is indeterminate -> no retry.
+      await drainAgentPromptSubmitVerification()
+      await sendPromise
+      expect(writes).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('still submits an agent prompt when the TUI renders nothing observable', async () => {
+    vi.useFakeTimers()
+    try {
+      const writes: string[] = []
+      const runtime = new OrcaRuntimeService(store)
+      runtime.setPtyController({
+        spawn: vi.fn().mockResolvedValue({ id: 'pty-bg' }),
+        write: (_ptyId, data) => {
+          writes.push(data)
+          return true
+        },
+        kill: () => true,
+        getForegroundProcess: async () => null
+      })
+      const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
+
+      const sendPromise = runtime.sendTerminalAgentPrompt(handle, 'silent agent')
+      await vi.advanceTimersByTimeAsync(
+        AGENT_PROMPT_SUBMIT_DELAY_MS + AGENT_PROMPT_PASTE_QUIET_MS + 10
+      )
+      expect(writes.at(-1)).toBe('\r')
+
+      await drainAgentPromptSubmitVerification()
+      await sendPromise
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('caps the agent prompt settle wait when a TUI never stops rendering', async () => {
+    vi.useFakeTimers()
+    try {
+      const writes: string[] = []
+      const runtime = new OrcaRuntimeService(store)
+      runtime.setPtyController({
+        spawn: vi.fn().mockResolvedValue({ id: 'pty-bg' }),
+        write: (_ptyId, data) => {
+          writes.push(data)
+          return true
+        },
+        kill: () => true,
+        getForegroundProcess: async () => null
+      })
+      const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
+
+      const sendPromise = runtime.sendTerminalAgentPrompt(handle, 'chatty agent')
+      const chatter = setInterval(
+        () => runtime.onPtyData('pty-bg', 'spinner', 1),
+        AGENT_PROMPT_PASTE_QUIET_MS / 2
+      )
+      await vi.advanceTimersByTimeAsync(
+        AGENT_PROMPT_SUBMIT_DELAY_MS + AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS + 10
+      )
+      clearInterval(chatter)
+      expect(writes.at(-1)).toBe('\r')
+
+      await drainAgentPromptSubmitVerification()
+      await sendPromise
     } finally {
       vi.useRealTimers()
     }
@@ -39015,9 +39286,13 @@ describe('OrcaRuntimeService', () => {
         worktreeId: result.worktree.id
       })
     )
+    // Why: prompt and Enter must be separate writes — a TUI that reads both out
+    // of one write folds the CR into the pasted text and never submits.
     await vi.waitFor(() => {
-      expect(write).toHaveBeenCalledWith('pty-cli-aider-startup', 'fix it\r')
+      expect(write).toHaveBeenCalledWith('pty-cli-aider-startup', 'fix it')
+      expect(write).toHaveBeenCalledWith('pty-cli-aider-startup', '\r')
     })
+    expect(write).not.toHaveBeenCalledWith('pty-cli-aider-startup', 'fix it\r')
   })
 
   it('does not send stdin-after-start prompts into a shell when the agent never starts', async () => {

@@ -86,7 +86,10 @@ import {
 import {
   AGENT_PROMPT_BRACKETED_PASTE_END,
   AGENT_PROMPT_SUBMIT,
+  AGENT_PROMPT_PASTE_QUIET_MS,
+  AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS,
   AGENT_PROMPT_SUBMIT_DELAY_MS,
+  AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS,
   buildAgentPromptPasteBytes
 } from '../../shared/agent-prompt-injection'
 import { gitExecFileAsync, gitSpawn, nonInteractiveGitEnv } from '../git/runner'
@@ -15939,6 +15942,7 @@ export class OrcaRuntimeService {
       }
       await assertTerminalInputWithinLimitWithYield(payload)
       await this.writeTerminalAgentPrompt(pty.pty.ptyId, payload, options)
+      await this.resubmitAgentPromptIfStillUnsubmitted(handle, pty.pty.ptyId)
       return { handle, accepted: true, bytesWritten }
     }
 
@@ -15948,6 +15952,7 @@ export class OrcaRuntimeService {
     }
     await assertTerminalInputWithinLimitWithYield(payload)
     await this.writeTerminalAgentPrompt(leaf.ptyId, payload, options)
+    await this.resubmitAgentPromptIfStillUnsubmitted(handle, leaf.ptyId)
     return { handle, accepted: true, bytesWritten }
   }
 
@@ -16309,7 +16314,12 @@ export class OrcaRuntimeService {
     if (hasSuffix) {
       const suffix = (action.enter ? '\r' : '') + (action.interrupt ? '\x03' : '')
       if (hasText) {
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        // Why: same rule as writeTerminalAgentPrompt — a suffix key must not
+        // ride the same TUI read() as the text it follows, or the TUI folds it
+        // into the paste body. A wall clock cannot know when the TUI read; its
+        // render output can. Applies to \x03 too: an interrupt absorbed as
+        // pasted content is as broken as an absorbed Enter.
+        await this.waitForTerminalOutputSettled(ptyId)
       }
       try {
         await options.beforeWrite?.(ptyId)
@@ -16399,7 +16409,7 @@ export class OrcaRuntimeService {
       throw error
     }
 
-    await new Promise((resolve) => setTimeout(resolve, AGENT_PROMPT_SUBMIT_DELAY_MS))
+    await this.waitForTerminalOutputSettled(ptyId)
     try {
       await options.beforeWrite?.(ptyId)
     } catch (error) {
@@ -16412,6 +16422,96 @@ export class OrcaRuntimeService {
     if (!suffixWrote) {
       throw new Error(options.suffixFailureError ?? 'terminal_not_writable')
     }
+  }
+
+  /**
+   * Why: a wall-clock gap between two writes is producer-side only — no
+   * provider acknowledges delivery, so under backpressure the TUI reads both
+   * out of the pty buffer in one read() and absorbs the second as content of
+   * the first. Render output is the only evidence the TUI actually read. Hold
+   * until the terminal has gone quiet; `floorMs` keeps the proven minimum so a
+   * silent TUI behaves as before, and the settle timeout caps one that never
+   * quiets.
+   */
+  private waitForTerminalOutputSettled(
+    ptyId: string,
+    floorMs = AGENT_PROMPT_SUBMIT_DELAY_MS
+  ): Promise<void> {
+    return new Promise<void>((resolve) => {
+      let settled = false
+      let quietTimer: NodeJS.Timeout | null = null
+      let unsubscribe: (() => void) | null = null
+
+      const finish = (): void => {
+        if (settled) {
+          return
+        }
+        settled = true
+        if (quietTimer) {
+          clearTimeout(quietTimer)
+        }
+        clearTimeout(floorTimer)
+        clearTimeout(hardTimer)
+        unsubscribe?.()
+        resolve()
+      }
+
+      const armQuietTimer = (): void => {
+        if (settled) {
+          return
+        }
+        if (quietTimer) {
+          clearTimeout(quietTimer)
+        }
+        quietTimer = setTimeout(finish, AGENT_PROMPT_PASTE_QUIET_MS)
+      }
+
+      // Why: only rearm once the floor has armed the quiet window — render
+      // output during the floor is expected and must not extend the wait.
+      unsubscribe = this.subscribeToTerminalData(ptyId, () => {
+        if (quietTimer) {
+          armQuietTimer()
+        }
+      })
+      const floorTimer = setTimeout(armQuietTimer, floorMs)
+      const hardTimer = setTimeout(finish, floorMs + AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS)
+    })
+  }
+
+  /**
+   * Why: the settle wait covers a TUI that renders while it consumes the paste,
+   * but one that stays silent past the cap can still read ESC[201~ and the CR
+   * together and absorb the Enter. Re-check once the post-Enter render settles,
+   * and resend Enter only on positive evidence the prompt is still sitting in
+   * the composer. A stray Enter on a confirmation dialog silently approves it,
+   * so every other verdict — blocked, busy, or unreadable — must not retry.
+   */
+  private async resubmitAgentPromptIfStillUnsubmitted(
+    handle: string,
+    ptyId: string
+  ): Promise<void> {
+    let verdict: AgentPromptSubmitVerdict
+    try {
+      await this.waitForTerminalOutputSettled(ptyId, AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS)
+      verdict = classifyAgentPromptSubmitEvidence(await this.getTerminalAgentStatus(handle))
+    } catch {
+      // Why: a terminal that cannot be read is the "cannot tell" case, and
+      // cannot-tell must never fire Enter.
+      verdict = 'indeterminate'
+    }
+    if (verdict === 'submitted') {
+      return
+    }
+    if (verdict !== 'unsubmitted') {
+      // Why: silence here would hide both a swallowed prompt and a blocked
+      // agent; the dispatch looks delivered either way.
+      console.warn(`[agent-prompt] ${handle}: submit unverified (${verdict}); Enter was NOT resent`)
+      return
+    }
+    const resent = this.ptyController?.write(ptyId, AGENT_PROMPT_SUBMIT) ?? false
+    console.warn(
+      `[agent-prompt] ${handle}: prompt still unsubmitted after Enter; resent once (accepted=${resent})`
+    )
   }
 
   async waitForTerminal(
@@ -20497,7 +20597,15 @@ export class OrcaRuntimeService {
           console.warn('[worktree-create] agent did not become ready for follow-up prompt')
           return
         }
-        this.ptyController?.write(ptyId, `${followup.prompt}\r`)
+        // Why: a TUI reading prompt and CR out of one write treats the CR as
+        // pasted content, leaving the prompt sitting in the composer. Split the
+        // submit and hold it until the agent has rendered the text and quieted.
+        if (this.ptyController?.write(ptyId, followup.prompt) !== true) {
+          return
+        }
+        return this.waitForTerminalOutputSettled(ptyId).then(() => {
+          this.ptyController?.write(ptyId, AGENT_PROMPT_SUBMIT)
+        })
       })
       .catch((error) => {
         console.warn('[worktree-create] failed to send startup follow-up prompt:', error)
@@ -35061,6 +35169,36 @@ function isKnownReadyPromptPreview(preview: string): boolean {
     return false
   }
   return true
+}
+
+export type AgentPromptSubmitVerdict = 'submitted' | 'unsubmitted' | 'blocked' | 'indeterminate'
+
+/**
+ * Decides whether a swallowed Enter may be resent. Only `unsubmitted` fires,
+ * and it needs two positive facts at once: an agent owns the terminal, and it
+ * reports idle after the submit settled — a prompt that actually went through
+ * leaves the agent working. Everything else is refused, because the cost of a
+ * wrong Enter (silently approving a permission or selection prompt) is far
+ * higher than the cost of a prompt the user has to submit by hand.
+ */
+export function classifyAgentPromptSubmitEvidence(
+  status: Pick<RuntimeTerminalAgentStatus, 'isRunningAgent' | 'status'>
+): AgentPromptSubmitVerdict {
+  // Why first: `getTerminalAgentStatus` folds both permission titles and
+  // on-screen blocked prompts (trust dialogs, "press enter to continue") into
+  // this one state, so this single check covers every known dialog surface.
+  if (status.status === 'permission') {
+    return 'blocked'
+  }
+  if (status.status === 'working') {
+    return 'submitted'
+  }
+  // Why: `null` means no agent evidence at all — a plain shell, or a TUI whose
+  // state Orca cannot read. Neither is proof the prompt is still pending.
+  if (!status.isRunningAgent || status.status !== 'idle') {
+    return 'indeterminate'
+  }
+  return 'unsubmitted'
 }
 
 function detectTerminalWaitBlockedReason(preview: string): RuntimeTerminalWaitBlockedReason | null {
