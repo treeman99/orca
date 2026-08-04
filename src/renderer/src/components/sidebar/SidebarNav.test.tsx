@@ -22,11 +22,17 @@ const mocks = vi.hoisted(() => ({
   hasPairedMobileDevice: false,
   agentBucketCounts: { attention: 0, working: 0, done: 0, idle: 0 },
   dismissMobileOnboardingBadge: vi.fn(),
-  setSetupGuideSidebarDismissed: vi.fn()
+  setSetupGuideSidebarDismissed: vi.fn(),
+  policy: { disableMobilePairing: false }
 }))
 
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: Record<string, unknown>) => unknown) => selector(mocks.state)
+}))
+
+vi.mock('@/enterprise/enterprise-policy-access', () => ({
+  getEnterprisePolicyView: () => mocks.policy,
+  useEnterprisePolicyView: () => mocks.policy
 }))
 
 vi.mock('@/store/selectors', () => ({
@@ -288,6 +294,30 @@ describe('SidebarNav', () => {
 
   it('hides the Mobile entry when the sidebar setting is off', () => {
     expect(shouldShowMobileButton({ showMobileButton: false })).toBe(false)
+  })
+
+  // The policy has to win over the setting, not merely default it: `showMobileButton`
+  // defaults to on and is per-user, which is why the same installer showed Orca Mobile
+  // on one machine and not the next.
+  it('hides the Mobile entry under the corporate policy whatever the setting says', () => {
+    mocks.policy.disableMobilePairing = true
+    try {
+      expect(shouldShowMobileButton({ showMobileButton: true })).toBe(false)
+      expect(shouldShowMobileButton(null)).toBe(false)
+    } finally {
+      mocks.policy.disableMobilePairing = false
+    }
+  })
+
+  it('omits the Orca Mobile row under the corporate policy', async () => {
+    mocks.policy.disableMobilePairing = true
+    try {
+      const container = await renderSidebarNav()
+      expect(queryButtonByText(container, 'Orca Mobile')).toBeNull()
+      expect(container.querySelector('.lucide-smartphone')).toBeNull()
+    } finally {
+      mocks.policy.disableMobilePairing = false
+    }
   })
 
   it('updates localized labels when the language changes after mount', async () => {

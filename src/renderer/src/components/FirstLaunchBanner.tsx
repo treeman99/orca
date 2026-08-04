@@ -9,6 +9,7 @@ import { Button } from './ui/button'
 import { acknowledgeBanner, PRIVACY_URL, setOptIn as telemetrySetOptIn } from '../lib/telemetry'
 import { useMountedRef } from '@/hooks/useMountedRef'
 import { translate } from '@/i18n/i18n'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 
 type FirstLaunchBannerProps = {
   onResolve: () => void
@@ -21,6 +22,7 @@ export function FirstLaunchBanner({
 }: FirstLaunchBannerProps): React.JSX.Element {
   // Double-click guard: a second Turn-off click would re-derive `via` as 'settings', mis-tagging one opt-out as two.
   const [inFlight, setInFlight] = useState(false)
+  const { disableVendorLinks } = useEnterprisePolicyView()
   const mountedRef = useMountedRef()
 
   const handleAcknowledge = async (): Promise<void> => {
@@ -83,15 +85,21 @@ export function FirstLaunchBanner({
           {translate(
             'auto.components.FirstLaunchBanner.958d2cc31b',
             'Anonymous counts of which features you use help us prioritize what to build. No file contents, prompts, terminal output, or anything that identifies you. Change anytime in Settings -> Privacy & Telemetry.'
-          )}{' '}
-          <button
-            type="button"
-            className="underline underline-offset-2 hover:text-foreground"
-            onClick={() => void window.api.shell.openUrl(PRIVACY_URL)}
-          >
-            {translate('auto.components.FirstLaunchBanner.d1deebb050', 'Privacy policy')}
-          </button>
-          .
+          )}
+          {/* The policy doc lives on the vendor's site; the notice itself still stands. */}
+          {disableVendorLinks ? null : (
+            <>
+              {' '}
+              <button
+                type="button"
+                className="underline underline-offset-2 hover:text-foreground"
+                onClick={() => void window.api.shell.openUrl(PRIVACY_URL)}
+              >
+                {translate('auto.components.FirstLaunchBanner.d1deebb050', 'Privacy policy')}
+              </button>
+              .
+            </>
+          )}
         </p>
       </div>
       {/* Action column — "Got it" primary reads as the easy path; "Turn off" outline marks the explicit opt-out. */}

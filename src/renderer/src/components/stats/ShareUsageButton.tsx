@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
 import { ShareUsageCard, type ShareUsageCardProps } from './ShareUsageCard'
 import { translate } from '@/i18n/i18n'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 
 type ShareUsageButtonProps = ShareUsageCardProps
 
@@ -19,6 +20,7 @@ function XIcon(): React.JSX.Element {
 
 export function ShareUsageButton(props: ShareUsageButtonProps): React.JSX.Element {
   const cardRef = useRef<HTMLDivElement>(null)
+  const { disableVendorLinks } = useEnterprisePolicyView()
   const [copied, setCopied] = useState(false)
   const [capturing, setCapturing] = useState(false)
   const copiedResetTimerRef = useRef<number | null>(null)
@@ -162,17 +164,21 @@ export function ShareUsageButton(props: ShareUsageButtonProps): React.JSX.Elemen
                 </>
               )}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => void handleShareToX()}
-              disabled={capturing}
-              className="flex-1"
-            >
-              <span className="mr-2">
-                <XIcon />
-              </span>
-              {translate('auto.components.stats.ShareUsageButton.7d6b25323d', 'Share on X')}
-            </Button>
+            {/* Only the X hand-off goes; copying the card to the clipboard is local
+                and stays, so the dialog keeps a working action. */}
+            {disableVendorLinks ? null : (
+              <Button
+                variant="outline"
+                onClick={() => void handleShareToX()}
+                disabled={capturing}
+                className="flex-1"
+              >
+                <span className="mr-2">
+                  <XIcon />
+                </span>
+                {translate('auto.components.stats.ShareUsageButton.7d6b25323d', 'Share on X')}
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

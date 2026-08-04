@@ -1,13 +1,24 @@
 import { shell, type WebContents } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { normalizeExternalBrowserUrl } from '../../shared/browser-url'
+import { isEnterpriseBlockedVendorLink } from '../enterprise/enterprise-vendor-link-guard'
+
+// The other half of the `disableVendorLinks` chokepoint: a plain `<a href>` in the
+// renderer (the terminal error toast's "file an issue") never reaches shell:openUrl.
+function openExternalUnlessBlockedByPolicy(externalUrl: string): void {
+  if (isEnterpriseBlockedVendorLink(externalUrl)) {
+    console.warn(`Enterprise policy "disableVendorLinks" blocked navigating to ${externalUrl}.`)
+    return
+  }
+  void shell.openExternal(externalUrl)
+}
 
 /** Keep remote documents from inheriting an Orca window's privileged preload. */
 export function installPrivilegedWindowNavigationPolicy(contents: WebContents): void {
   contents.setWindowOpenHandler(({ url }) => {
     const externalUrl = normalizeExternalBrowserUrl(url)
     if (externalUrl) {
-      void shell.openExternal(externalUrl)
+      openExternalUnlessBlockedByPolicy(externalUrl)
     }
     return { action: 'deny' }
   })
@@ -26,7 +37,7 @@ export function installPrivilegedWindowNavigationPolicy(contents: WebContents): 
           // Fall through and block malformed navigation targets.
         }
       }
-      void shell.openExternal(externalUrl)
+      openExternalUnlessBlockedByPolicy(externalUrl)
     }
     event.preventDefault()
   })

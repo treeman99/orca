@@ -18,6 +18,7 @@ import {
   Copy,
   Folder,
   FolderOpen,
+  GitBranch,
   GitFork,
   GitMerge,
   GitPullRequestArrow,
@@ -107,6 +108,10 @@ import {
   type RenderableSourceControlNode,
   type RenderableSubmoduleListItem
 } from './source-control-submodule-expansion'
+import {
+  getSubmoduleBranchLabel,
+  type SubmoduleBranchLabel
+} from './source-control-submodule-branch'
 import { useSourceControlSubmoduleStatus } from './useSourceControlSubmoduleStatus'
 import {
   buildSourceControlDisplaySections,
@@ -6025,7 +6030,11 @@ function SourceControlInner(): React.JSX.Element {
                                   isExpanded: expandedSubmoduleKeys.has(
                                     getSubmoduleExpansionKey(node.entry)
                                   ),
-                                  onToggle: () => toggleSubmodule(node.entry)
+                                  onToggle: () => toggleSubmodule(node.entry),
+                                  branchLabel: getSubmoduleBranchLabel(
+                                    submoduleStatusByKey[getSubmoduleExpansionKey(node.entry)],
+                                    branchName
+                                  )
                                 }
                               : undefined
                             return (
@@ -6080,7 +6089,11 @@ function SourceControlInner(): React.JSX.Element {
                                   isExpanded: expandedSubmoduleKeys.has(
                                     getSubmoduleExpansionKey(entry)
                                   ),
-                                  onToggle: () => toggleSubmodule(entry)
+                                  onToggle: () => toggleSubmodule(entry),
+                                  branchLabel: getSubmoduleBranchLabel(
+                                    submoduleStatusByKey[getSubmoduleExpansionKey(entry)],
+                                    branchName
+                                  )
                                 }
                               : undefined
                             return (
@@ -7878,7 +7891,11 @@ const UncommittedEntryRow = React.memo(function UncommittedEntryRow({
   commentCount: number
   showPathHint?: boolean
   // When set, the row is a dirty submodule: clicking toggles lazy expansion instead of opening an uninformative gitlink diff.
-  submoduleExpansion?: { isExpanded: boolean; onToggle: () => void }
+  submoduleExpansion?: {
+    isExpanded: boolean
+    onToggle: () => void
+    branchLabel?: SubmoduleBranchLabel | null
+  }
 }): React.JSX.Element {
   const FileIcon = getFileTypeIcon(entry.path)
   const fileName = basename(entry.path)
@@ -7982,6 +7999,37 @@ const UncommittedEntryRow = React.memo(function UncommittedEntryRow({
               title={SUBMODULE_WORKTREE_ONLY_TOOLTIP}
             >
               {SUBMODULE_WORKTREE_ONLY_LABEL}
+            </div>
+          )}
+          {submoduleExpansion?.branchLabel && (
+            // Why: a submodule is its own repository and routinely sits on a different
+            // branch than the root; without its branch on screen the two are
+            // indistinguishable in this panel.
+            <div
+              className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground"
+              data-testid="source-control-submodule-branch"
+              title={
+                submoduleExpansion.branchLabel.detached
+                  ? translate(
+                      'sourceControl.submoduleDetachedHeadTooltip',
+                      'This submodule has a detached HEAD, so it is not on any branch'
+                    )
+                  : translate(
+                      'sourceControl.submoduleBranchTooltip',
+                      'Branch checked out inside this submodule'
+                    )
+              }
+            >
+              <GitBranch className="size-3 shrink-0" />
+              <span className="truncate">{submoduleExpansion.branchLabel.name}</span>
+              {submoduleExpansion.branchLabel.differsFromParent && (
+                <span className="shrink-0 text-muted-foreground/70">
+                  {translate(
+                    'sourceControl.submoduleBranchDiffersFromParent',
+                    '(differs from root)'
+                  )}
+                </span>
+              )}
             </div>
           )}
         </div>

@@ -18,6 +18,7 @@ import {
   type ExternalEditorLaunchSpec
 } from '../external-editor-launch'
 import { resolveVsCodeSshAuthority } from '../ssh/vscode-ssh-authority'
+import { openExternalUrlUnderPolicy } from './shell-open-url'
 
 export { EXTERNAL_EDITOR_CLI_COMMAND }
 
@@ -198,20 +199,7 @@ export function registerShellHandlers(store: Store): void {
       openInExternalEditor(store, request)
   )
 
-  ipcMain.handle('shell:openUrl', (_event, rawUrl: string) => {
-    let parsed: URL
-    try {
-      parsed = new URL(rawUrl)
-    } catch {
-      return
-    }
-
-    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-      return
-    }
-
-    return shell.openExternal(parsed.toString())
-  })
+  ipcMain.handle('shell:openUrl', (_event, rawUrl: string) => openExternalUrlUnderPolicy(rawUrl))
 
   ipcMain.handle('shell:openFilePath', async (_event, filePath: string): Promise<boolean> => {
     return openWithSystemDefault(filePath)

@@ -2120,7 +2120,9 @@
             "1aa7c952b9": "プロジェクトビュー",
             "f352abf7c3": "リポジトリ一覧を更新中です。",
             "1ce21b8cff": "この項目は選択したリポジトリの外にあります。",
-            "030de75bc5": "この項目は複数の選択済みリポジトリに一致します。"
+            "030de75bc5": "この項目は複数の選択済みリポジトリに一致します。",
+            "unsupportedViewNoRequest": "{{value0}} — Orca はまだ {{value1}} プロジェクトビューに対応していません。",
+            "unsupportedTabNoRequest": "{{value0}}. {{value1}}"
           },
           "slug": {
             "dialog": {
@@ -14785,5 +14787,10 @@
       "title": "Allow agent to control your computer?",
       "message": "An agent wants to act on an app outside Orca."
     }
+  },
+  "sourceControl": {
+    "submoduleDetachedHeadTooltip": "このサブモジュールは HEAD が分離されているため、どのブランチにも属していません",
+    "submoduleBranchTooltip": "このサブモジュール内でチェックアウトされているブランチ",
+    "submoduleBranchDiffersFromParent": "(ルートと異なる)"
   }
 }

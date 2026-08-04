@@ -2,6 +2,7 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 import { ExternalLink, Loader2, Star } from 'lucide-react'
 import { useMountedRef } from '@/hooks/useMountedRef'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { Button } from '../ui/button'
 import { Label } from '../ui/label'
 import { Separator } from '../ui/separator'
@@ -37,9 +38,17 @@ export function GeneralSupportSection({
   // dimensions as the resolved section. When gh resolves to 'hidden', the
   // placeholder collapses with a grid-rows transition so content above it
   // doesn't shift; anything below (nothing today, but future-proof) eases up.
-  const [starState, setStarState] = useState<SupportState>('loading')
+  // Why the policy decides the initial state: 'loading' renders a skeleton, so starting
+  // there and collapsing later would flash a "Support Orca" strip on every settings open.
+  const { disableVendorLinks } = useEnterprisePolicyView()
+  const [starState, setStarState] = useState<SupportState>(
+    disableVendorLinks ? 'hidden' : 'loading'
+  )
 
   useEffect(() => {
+    if (disableVendorLinks) {
+      return
+    }
     let cancelled = false
     void window.api.gh.checkOrcaStarred().then((result) => {
       if (cancelled) {
@@ -54,7 +63,7 @@ export function GeneralSupportSection({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [disableVendorLinks])
 
   const handleStarClick = async (): Promise<void> => {
     if (starState === 'web-fallback') {

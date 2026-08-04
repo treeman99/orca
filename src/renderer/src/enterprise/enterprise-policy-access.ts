@@ -22,6 +22,7 @@ const UNRESTRICTED: EnterprisePolicyView = {
   disableRemoteOrcaServer: false,
   disableVoice: false,
   disablePlugins: false,
+  disableVendorLinks: false,
   requireComputerUseApproval: false
 }
 

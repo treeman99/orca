@@ -97,6 +97,25 @@ export type EnterprisePolicy = {
    */
   disablePlugins: boolean
   /**
+   * Stop this build from sending users to the upstream vendor's own web properties:
+   * the community/social channels (Discord, X), the public issue tracker on
+   * github.com, and the vendor's docs/changelog on onorca.dev.
+   *
+   * Two different reasons, one rule. The community lane is where a user posts
+   * corporate context into a public venue — a disclosure hazard, not an egress one,
+   * since the link opens in the OS browser where a network allowlist can never see
+   * it. The docs lane is simply wrong instruction on this fleet: upstream docs
+   * describe Cloud sign-in, plugins, mobile pairing and auto-update, all of which
+   * the policy has already turned off, and the changelog advertises releases the
+   * fleet will not receive.
+   *
+   * Not a web filter, and not an allowlist. Typing x.com into the embedded browser
+   * still works, the GHES host is never touched, and third-party tooling docs
+   * (cli.github.com, git-scm.com, each agent CLI's own site) stay — those are
+   * legitimate help for tools the fleet actually runs.
+   */
+  disableVendorLinks: boolean
+  /**
    * Make Computer Use ask the person at the keyboard before it changes anything —
    * clicks, typing, scrolls, drags. Reads (accessibility tree, screenshots) still run
    * unprompted; the agent is otherwise free to drive any app on the machine, and
@@ -148,6 +167,7 @@ export const LOCKDOWN_INHERITING_KEYS = [
   'disableRemoteOrcaServer',
   'disableVoice',
   'disablePlugins',
+  'disableVendorLinks',
   'requireComputerUseApproval'
 ] as const
 

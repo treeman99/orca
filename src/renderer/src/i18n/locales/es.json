@@ -2120,7 +2120,9 @@
             "1aa7c952b9": "Vista del proyecto",
             "f352abf7c3": "La lista de repositorios se está actualizando.",
             "1ce21b8cff": "Este elemento está fuera de los repositorios seleccionados.",
-            "030de75bc5": "Este elemento coincide con varios repositorios seleccionados."
+            "030de75bc5": "Este elemento coincide con varios repositorios seleccionados.",
+            "unsupportedViewNoRequest": "{{value0}} — Orca aún no admite las vistas de proyecto de {{value1}}.",
+            "unsupportedTabNoRequest": "{{value0}}. {{value1}}"
           },
           "slug": {
             "dialog": {
@@ -14785,5 +14787,10 @@
       "title": "Allow agent to control your computer?",
       "message": "An agent wants to act on an app outside Orca."
     }
+  },
+  "sourceControl": {
+    "submoduleDetachedHeadTooltip": "Este submódulo tiene un HEAD desacoplado, por lo que no está en ninguna rama",
+    "submoduleBranchTooltip": "Rama activa dentro de este submódulo",
+    "submoduleBranchDiffersFromParent": "(difiere de la raíz)"
   }
 }

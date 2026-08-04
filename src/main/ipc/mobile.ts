@@ -7,6 +7,7 @@ import type { DeviceEntry } from '../runtime/device-registry'
 import type { OrcaRuntimeRpcServer } from '../runtime/runtime-rpc'
 import type { RelayBrokerStatus } from '../runtime/relay/relay-session-broker'
 import { encodeMobilePairingQr, type MobilePairingQrResult } from '../runtime/mobile-pairing-qr'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import {
   getWebSocketPort,
   inspectWindowsMobileFirewall,
@@ -262,30 +263,37 @@ export function registerMobileHandlers(
     }
   })
 
-  ipcMain.handle('mobile:getWindowsFirewallStatus', (_event, args?: { address?: string }) => {
-    const port = getWebSocketPort(rpcServer.getWebSocketEndpoint())
-    return inspectWindowsMobileFirewall(port, args?.address, firewallEnvironment)
-  })
+  // Not registered rather than refused per call, matching the voice and plugin channels:
+  // `mobile:repairWindowsFirewall` raises a UAC prompt and adds an inbound rule literally
+  // named "Orca Mobile Pairing", and a consent dialog for a feature the policy removed is
+  // worse than a missing channel. The only caller is WindowsFirewallNotice, which lives
+  // inside the Mobile pane the policy already unmounts.
+  if (!getEnterprisePolicy().disableMobilePairing) {
+    ipcMain.handle('mobile:getWindowsFirewallStatus', (_event, args?: { address?: string }) => {
+      const port = getWebSocketPort(rpcServer.getWebSocketEndpoint())
+      return inspectWindowsMobileFirewall(port, args?.address, firewallEnvironment)
+    })
 
-  ipcMain.handle('mobile:repairWindowsFirewall', (event: IpcMainInvokeEvent) => {
-    if (!isWindowRenderer(event)) {
-      return { ok: false as const, reason: 'unsupported' as const }
-    }
-    // Why: elevated inputs come from the running runtime, never the renderer.
-    const port = getWebSocketPort(rpcServer.getWebSocketEndpoint())
-    return repairWindowsMobileFirewall(port, firewallEnvironment)
-  })
+    ipcMain.handle('mobile:repairWindowsFirewall', (event: IpcMainInvokeEvent) => {
+      if (!isWindowRenderer(event)) {
+        return { ok: false as const, reason: 'unsupported' as const }
+      }
+      // Why: elevated inputs come from the running runtime, never the renderer.
+      const port = getWebSocketPort(rpcServer.getWebSocketEndpoint())
+      return repairWindowsMobileFirewall(port, firewallEnvironment)
+    })
 
-  ipcMain.handle('mobile:openWindowsNetworkSettings', async (event: IpcMainInvokeEvent) => {
-    if (!isWindowRenderer(event) || firewallEnvironment.platform !== 'win32') {
-      return false
-    }
-    const openSettings =
-      dependencies.openWindowsNetworkSettings ??
-      (() => shell.openExternal('ms-settings:network-status'))
-    await openSettings()
-    return true
-  })
+    ipcMain.handle('mobile:openWindowsNetworkSettings', async (event: IpcMainInvokeEvent) => {
+      if (!isWindowRenderer(event) || firewallEnvironment.platform !== 'win32') {
+        return false
+      }
+      const openSettings =
+        dependencies.openWindowsNetworkSettings ??
+        (() => shell.openExternal('ms-settings:network-status'))
+      await openSettings()
+      return true
+    })
+  }
 
   ipcMain.handle('mobile:getRelayStatus', () => ({
     status: dependencies.getRelayStatus?.() ?? 'offline'

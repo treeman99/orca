@@ -1,4 +1,5 @@
 import { translate } from '@/i18n/i18n'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 const SSH_PREFIX = 'SSH connection is not active'
 // Produced by pty-connection.ts reportError() when a PTY reattach can't reach its SSH host.
 const SSH_CONNECT_FAILURE_PREFIX = 'SSH connection failed'
@@ -47,6 +48,9 @@ export function TerminalErrorToast({
 }): React.JSX.Element {
   const ssh = isSshError(error)
   const showDaemonRestart = !ssh && onRestartDaemon && shouldOfferDaemonRestart(error)
+  // "File an issue" is the wrong instruction on a fleet whose users cannot reach
+  // the vendor's public tracker; the error line itself still shows.
+  const { disableVendorLinks } = useEnterprisePolicyView()
 
   return (
     <div
@@ -78,7 +82,7 @@ export function TerminalErrorToast({
                 'Restart the terminal daemon from here to clear stale daemon state.'
               )}
             </>
-          ) : !ssh ? (
+          ) : !ssh && !disableVendorLinks ? (
             <>
               {'\n'}
               {translate(

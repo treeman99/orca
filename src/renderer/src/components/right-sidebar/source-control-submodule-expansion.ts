@@ -27,7 +27,16 @@ export type RenderableSourceControlNode = SubmoduleSectionTreeNode | SubmodulePl
 
 export type SubmoduleStatusState =
   | { status: 'loading' }
-  | { status: 'loaded'; entries: GitStatusEntry[]; didHitLimit?: boolean }
+  | {
+      status: 'loaded'
+      entries: GitStatusEntry[]
+      didHitLimit?: boolean
+      // The submodule's OWN branch/HEAD, read from the same inner `git status`
+      // that produced `entries`. A submodule commonly sits on a different branch
+      // than the parent, so this is what distinguishes it as its own repository.
+      branch?: string
+      head?: string
+    }
   | { status: 'error'; error: string }
 
 export function getSubmoduleExpansionKey(entry: Pick<GitStatusEntry, 'area' | 'path'>): string {

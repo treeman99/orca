@@ -5,6 +5,7 @@ import type { GlobalSettings } from '../../../../shared/types'
 import type { TelemetryConsentState } from '../../../../shared/telemetry-consent-types'
 import { Label } from '../ui/label'
 import { PRIVACY_URL, getConsentState, setOptIn as telemetrySetOptIn } from '../../lib/telemetry'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { useAppStore } from '../../store'
 import { PrivacyDiagnosticsSection } from './PrivacyDiagnosticsSection'
 import { translate } from '@/i18n/i18n'
@@ -50,6 +51,7 @@ export function computeBlockedReason(consent: TelemetryConsentState | null): Blo
 export function PrivacyPane({ settings }: PrivacyPaneProps): React.JSX.Element {
   const [consent, setConsent] = useState<TelemetryConsentState | null>(null)
   const [inFlight, setInFlight] = useState(false)
+  const { disableVendorLinks } = useEnterprisePolicyView()
   const mountedRef = useMountedRef()
   const fetchSettings = useAppStore((s) => s.fetchSettings)
 
@@ -100,15 +102,20 @@ export function PrivacyPane({ settings }: PrivacyPaneProps): React.JSX.Element {
             {translate(
               'auto.components.settings.PrivacyPane.8bfdd23a88',
               'Help us figure out what to build next. Orca sends anonymous counts of which features you use and where things break.'
-            )}{' '}
-            <button
-              type="button"
-              className="underline underline-offset-2 hover:text-foreground"
-              onClick={() => void window.api.shell.openUrl(PRIVACY_URL)}
-            >
-              {translate('auto.components.settings.PrivacyPane.77410e0566', 'Privacy policy')}
-            </button>
-            .
+            )}
+            {disableVendorLinks ? null : (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className="underline underline-offset-2 hover:text-foreground"
+                  onClick={() => void window.api.shell.openUrl(PRIVACY_URL)}
+                >
+                  {translate('auto.components.settings.PrivacyPane.77410e0566', 'Privacy policy')}
+                </button>
+                .
+              </>
+            )}
           </p>
         </div>
         <button

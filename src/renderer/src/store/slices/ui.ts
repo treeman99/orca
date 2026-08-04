@@ -501,6 +501,13 @@ function hydratedUIPartialMatchesState(state: AppState, hydrated: Partial<UISlic
   )
 }
 
+// The corporate policy removed the Mobile view, so nothing may leave `activeView`
+// sitting there. Not folded into openMobilePage: `activeView` has two other writers
+// (startup hydration and the generic setActiveView), and neither passes the action.
+export function isMobileViewBlockedByPolicy(): boolean {
+  return getEnterprisePolicyView().disableMobilePairing
+}
+
 function sanitizeHydratedActiveView(
   value: PersistedUIState['activeView'],
   experimentalActivityEnabled: boolean
@@ -512,6 +519,13 @@ function sanitizeHydratedActiveView(
   }
   // Why: activity is hidden when its setting is off, so gate only it (mobile/automations stay functional when hidden).
   if (value === 'activity' && !experimentalActivityEnabled) {
+    return 'terminal'
+  }
+  // Why here and not only on the action: a machine last left on the Mobile page has
+  // 'mobile' on disk, and startup restores it straight into state — so the page would
+  // keep mounting after the administrator deploys the policy. This is the difference
+  // that made the same installer look conditional from one PC to the next.
+  if (value === 'mobile' && isMobileViewBlockedByPolicy()) {
     return 'terminal'
   }
   return value
@@ -1234,7 +1248,10 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
   previousViewBeforeSpace: 'terminal',
   previousViewBeforeSkills: 'terminal',
   previousViewBeforeMobile: 'terminal',
-  setActiveView: (view) => set({ activeView: view }),
+  // The third writer of `activeView`; a rebase that routes a menu or palette through
+  // here instead of openMobilePage must not reopen the removed page.
+  setActiveView: (view) =>
+    set(view === 'mobile' && isMobileViewBlockedByPolicy() ? {} : { activeView: view }),
   taskPageData: {},
   taskResumeState: undefined,
   githubTaskDrawerWorkItem: null,
@@ -1483,7 +1500,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     set((state) => {
       // The single door into the Mobile view — sidebar button, Toolbox, and the IPC
       // menu event all land here, so one refusal covers callers a rebase may add.
-      if (getEnterprisePolicyView().disableMobilePairing) {
+      if (isMobileViewBlockedByPolicy()) {
         return {}
       }
       return {

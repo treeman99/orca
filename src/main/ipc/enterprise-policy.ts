@@ -24,6 +24,7 @@ const VIEW_KEYS = [
   'disableRemoteOrcaServer',
   'disableVoice',
   'disablePlugins',
+  'disableVendorLinks',
   'requireComputerUseApproval'
 ] as const satisfies readonly (keyof EnterprisePolicyView)[]
 
@@ -46,6 +47,7 @@ function projectPolicyView(
     disableRemoteOrcaServer: policy.disableRemoteOrcaServer,
     disableVoice: policy.disableVoice,
     disablePlugins: policy.disablePlugins,
+    disableVendorLinks: policy.disableVendorLinks,
     requireComputerUseApproval: policy.requireComputerUseApproval
   }
 }

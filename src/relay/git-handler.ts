@@ -44,6 +44,8 @@ import { refreshLocalBaseRefForWorktreeCreateOp } from './git-handler-local-base
 import { gitExecMutatesRepository } from '../shared/git-exec-mutation'
 import { detectConflictOperation, getStatusOp } from './git-handler-status-ops'
 import { capGitStatusEntries, resolveGitStatusLimit } from '../shared/git-status-limit'
+import { mergeSubmoduleRangeWithWorkingEntries } from '../shared/git-submodule-range-merge'
+import { gitDiffHasChange } from '../shared/git-diff-change-presence'
 import { checkIgnoredPathsOp } from './git-handler-check-ignore'
 import { resolveRelayPushTarget } from './git-handler-push-target'
 import {
@@ -395,11 +397,9 @@ export class GitHandler {
       if (staged) {
         return { ...workingResult, ...capGitStatusEntries(rangeEntries, limit) }
       }
-      const rangePaths = new Set(rangeEntries.map((entry) => entry.path))
-      const entries = [
-        ...rangeEntries,
-        ...workingResult.entries.filter((entry) => !rangePaths.has(entry.path))
-      ]
+      // Why: mirrors the main-process merge — uncommitted rows win over range rows
+      // so a submodule on its own branch doesn't hide the user's actual edits.
+      const entries = mergeSubmoduleRangeWithWorkingEntries(rangeEntries, workingResult.entries)
       return {
         ...workingResult,
         ...capGitStatusEntries(entries, limit, workingResult)
@@ -468,15 +468,20 @@ export class GitHandler {
               matchedSubmodule,
               staged
             )
-            // Why: a moved gitlink (clean worktree) keeps inner changes in committed history, so diff the two commits; otherwise read the working-tree blob.
+            // Why: mirrors the main process — a submodule on its own branch has a
+            // permanently moved gitlink, so the range is not evidence that this
+            // file's change is committed. An empty range means an uncommitted edit.
             if (fromOid && toOid && fromOid !== toOid) {
-              return buildSubmoduleInnerCommitRangeDiff(
+              const rangeDiff = await buildSubmoduleInnerCommitRangeDiff(
                 this.gitBuffer.bind(this),
                 submoduleWorktreePath,
                 innerPath,
                 fromOid,
                 toOid
               )
+              if (gitDiffHasChange(rangeDiff)) {
+                return rangeDiff
+              }
             }
             return computeDiff(
               this.gitBuffer.bind(this),

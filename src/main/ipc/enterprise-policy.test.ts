@@ -30,6 +30,7 @@ const VIEW_FIELDS = [
   'disablePlugins',
   'disableRemoteOrcaServer',
   'disableUsagePolling',
+  'disableVendorLinks',
   'disableVendorProviderAccounts',
   'disableVoice',
   'lockdown',
@@ -72,6 +73,7 @@ describe('registerEnterprisePolicyHandlers', () => {
       disableRemoteOrcaServer: false,
       disableVoice: false,
       disablePlugins: false,
+      disableVendorLinks: false,
       requireComputerUseApproval: false
     })
   })
@@ -93,6 +95,7 @@ describe('registerEnterprisePolicyHandlers', () => {
       disableRemoteOrcaServer: true,
       disableVoice: true,
       disablePlugins: true,
+      disableVendorLinks: true,
       requireComputerUseApproval: true
     })
   })

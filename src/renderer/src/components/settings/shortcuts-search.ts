@@ -1,8 +1,9 @@
-import { KEYBINDING_DEFINITIONS } from '../../../../shared/keybindings'
+import { KEYBINDING_DEFINITIONS, type KeybindingActionId } from '../../../../shared/keybindings'
 import type { SettingsSearchEntry } from './settings-search'
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
+import { policyHiddenShortcutActionIds } from './shortcut-groups'
 
 export const getTerminalShortcutPolicySearchEntry = createLocalizedCatalog(
   (): SettingsSearchEntry => ({
@@ -34,15 +35,40 @@ export const getTerminalShortcutPolicySearchEntry = createLocalizedCatalog(
   })
 )
 
-export const getShortcutsPaneSearchEntries = createLocalizedCatalog(() => [
-  ...KEYBINDING_DEFINITIONS.map((item) => ({
-    title: item.title,
-    description: translate(
-      'auto.components.settings.shortcuts.search.groupShortcut',
-      '{{value0}} shortcut',
-      { value0: item.group }
-    ),
-    keywords: [...item.searchKeywords]
-  })),
-  getTerminalShortcutPolicySearchEntry()
-])
+// Paired with the action id so the policy filter below can drop a chord by identity; a
+// title match would be one duplicated string away from removing the wrong row.
+const getShortcutSearchEntriesByAction = createLocalizedCatalog(
+  (): { id: KeybindingActionId | null; entry: SettingsSearchEntry }[] => [
+    ...KEYBINDING_DEFINITIONS.map((item) => ({
+      id: item.id,
+      entry: {
+        title: item.title,
+        description: translate(
+          'auto.components.settings.shortcuts.search.groupShortcut',
+          '{{value0}} shortcut',
+          { value0: item.group }
+        ),
+        keywords: [...item.searchKeywords]
+      }
+    })),
+    { id: null, entry: getTerminalShortcutPolicySearchEntry() }
+  ]
+)
+
+/**
+ * The Shortcuts pane's search index, minus the chords the corporate policy removed.
+ *
+ * shortcut-groups.ts already drops those definitions from the rendered rows, but both
+ * consumers read the same KEYBINDING_DEFINITIONS table and only one was filtered — so
+ * "emulator" still matched the Shortcuts pane, and palette-results.ts folded
+ * "New mobile emulator tab" into the section's Cmd+J keywords for a row that is gone.
+ *
+ * The policy read stays outside the locale memo: createLocalizedCatalog caches on first
+ * call, and a policy frozen there is a gate that passes its tests and hides nothing.
+ */
+export function getShortcutsPaneSearchEntries(): SettingsSearchEntry[] {
+  const hidden = policyHiddenShortcutActionIds()
+  return getShortcutSearchEntriesByAction()
+    .filter(({ id }) => id === null || !hidden.has(id))
+    .map(({ entry }) => entry)
+}

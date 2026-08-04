@@ -66,6 +66,8 @@ import type { PreflightStatus } from '../../../../preload/api-types'
 import type { RuntimeStatus } from '../../../../shared/runtime-types'
 import type { TaskSourceContext } from '../../../../shared/task-source-context'
 import type { OrcaHooks, Repo, TuiAgent, Worktree } from '../../../../shared/types'
+import { resolveAutomationDefaultAgent } from './automation-default-agent'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { getWorktreePathBasenameFromId } from '../../../../shared/worktree-id'
 import {
   buildAutomationCronSchedule,
@@ -152,6 +154,7 @@ import { translate } from '@/i18n/i18n'
 function getAutomationAgentIds(): TuiAgent[] {
   return getAgentCatalog().map((agent) => agent.id)
 }
+
 const DEFAULT_TIME = '09:00'
 const AUTOMATIONS_CHANGED_EVENT = 'orca:automations-changed'
 type AutomationPaneTab = 'overview' | 'runs'
@@ -393,14 +396,15 @@ export default function AutomationsPage(): React.JSX.Element {
   const setPendingAutomationRunNavigation = useAppStore((s) => s.setPendingAutomationRunNavigation)
   const repoMap = useRepoMap()
   const worktreeMap = useWorktreeMap()
+  const { allowedAgents } = useEnterprisePolicyView()
   const agentIds = getAutomationAgentIds()
   const enabledAgents = filterEnabledTuiAgents(agentIds, settings?.disabledTuiAgents)
-  const defaultAgent =
-    settings?.defaultTuiAgent &&
-    settings.defaultTuiAgent !== 'blank' &&
-    isTuiAgentEnabled(settings.defaultTuiAgent, settings.disabledTuiAgents)
-      ? settings.defaultTuiAgent
-      : (enabledAgents[0] ?? agentIds[0])
+  const defaultAgent = resolveAutomationDefaultAgent(
+    settings,
+    allowedAgents,
+    agentIds,
+    enabledAgents
+  )
 
   const [automations, setAutomations] = useState<Automation[]>([])
   const [runs, setRuns] = useState<AutomationRun[]>([])

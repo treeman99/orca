@@ -77,6 +77,7 @@ import type {
   CommitMessageAgentRuntimeTarget
 } from '../text-generation/commit-message-agent-environment'
 import { prepareLocalCommitMessageAgentEnv } from '../text-generation/commit-message-agent-environment'
+import { isAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 import { getPullRequestDraftContext } from '../text-generation/pull-request-context'
 import { normalizeRuntimeRelativePath } from './runtime-relative-paths'
 import { gitExecFileAsync } from '../git/runner'
@@ -93,6 +94,18 @@ type RuntimeCommitMessageSettingsOverride = Partial<
 > & {
   commitMessageDiscoveryHostKey?: string
   sourceControlAiResolvedParams?: ResolvedSourceControlAiGenerationParams
+}
+
+// Why a failure result instead of a throw: these text-generation entry points already
+// report agent problems this way, and the source-control panel renders `error` inline.
+function agentBlockedByPolicyResult(agentId: string): { success: false; error: string } | null {
+  if (isAgentAllowedByEnterprisePolicy(agentId)) {
+    return null
+  }
+  return {
+    success: false,
+    error: `Agent "${agentId}" is not permitted by your organization's Orca policy.`
+  }
 }
 
 function getRuntimeGitGenerationSettings(
@@ -617,6 +630,10 @@ export class RuntimeGitCommands {
     if (!resolvedSettings.ok) {
       return { success: false, error: resolvedSettings.error }
     }
+    const agentBlocked = agentBlockedByPolicyResult(resolvedSettings.params.agentId)
+    if (agentBlocked) {
+      return agentBlocked
+    }
 
     const provider = target.connectionId ? getSshGitProvider(target.connectionId) : null
     if (target.connectionId) {
@@ -714,6 +731,10 @@ export class RuntimeGitCommands {
     if (!resolvedSettings.ok) {
       return { success: false, error: resolvedSettings.error }
     }
+    const agentBlocked = agentBlockedByPolicyResult(resolvedSettings.params.agentId)
+    if (agentBlocked) {
+      return agentBlocked
+    }
 
     const provider = target.connectionId ? getSshGitProvider(target.connectionId) : null
     if (target.connectionId && !provider) {
@@ -805,6 +826,12 @@ export class RuntimeGitCommands {
     agentId: string,
     settingsOverride?: Pick<RuntimeCommitMessageSettingsOverride, 'agentCmdOverrides'>
   ): Promise<DiscoverCommitMessageModelsResult> {
+    // Why here too: discovery runs the agent binary to list its models, so a blocked CLI
+    // would still be executed just by opening the source-control AI settings row.
+    const agentBlocked = agentBlockedByPolicyResult(agentId)
+    if (agentBlocked) {
+      return agentBlocked
+    }
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const typedAgentId = agentId as TuiAgent
     const agentCommandOverride =

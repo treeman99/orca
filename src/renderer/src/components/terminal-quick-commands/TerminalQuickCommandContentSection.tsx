@@ -1,4 +1,4 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
+import { useMemo, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
 import type { TerminalQuickCommand, TuiAgent } from '../../../../shared/types'
 import {
   isTerminalAgentQuickCommand,
@@ -16,9 +16,9 @@ import { AgentIcon } from '@/lib/agent-catalog'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import { getTerminalQuickCommandAgentOptions } from './terminal-quick-command-agent-options'
+import { filterAgentsByPolicy } from '../../../../shared/corporate-agent-access'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import type { TerminalQuickCommandDialogDraftMemory } from './terminal-quick-command-dialog-draft'
-
-const QUICK_COMMAND_AGENT_OPTIONS = getTerminalQuickCommandAgentOptions()
 
 type TerminalQuickCommandContentSectionProps = {
   draft: TerminalQuickCommand
@@ -35,6 +35,14 @@ export function TerminalQuickCommandContentSection({
   draftMemoryRef,
   setDraft
 }: TerminalQuickCommandContentSectionProps): React.JSX.Element {
+  const { allowedAgents } = useEnterprisePolicyView()
+  // Why not a module constant any more: this list used to be built once at import time,
+  // which is before the corporate policy has crossed the async IPC channel — the dialog
+  // then offered the unfiltered roster for the rest of the process's life.
+  const agentOptions = useMemo(
+    () => filterAgentsByPolicy(getTerminalQuickCommandAgentOptions(), (e) => e.id, allowedAgents),
+    [allowedAgents]
+  )
   return (
     <div>
       {/* Why: action changes add/remove agent-only fields; animating rows here
@@ -90,7 +98,7 @@ export function TerminalQuickCommandContentSection({
                 sideOffset={4}
                 className="max-h-[min(20rem,var(--radix-select-content-available-height))] w-[--radix-select-trigger-width]"
               >
-                {QUICK_COMMAND_AGENT_OPTIONS.map((entry) => {
+                {agentOptions.map((entry) => {
                   const supported = supportsTerminalAgentQuickCommand(entry.id)
                   return (
                     <SelectItem key={entry.id} value={entry.id} disabled={!supported}>

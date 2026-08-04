@@ -99,6 +99,7 @@ import {
   applyCorporateLlmSelection,
   reportCorporateLlmSelection
 } from '../enterprise/corporate-llm-launch-report'
+import { assertAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 import {
   isClaudeAuthSwitchInProgress,
   markClaudePtyExited,
@@ -3785,6 +3786,12 @@ export function registerPtyHandlers(
   // Why: route through getProviderForPty() so CLI commands work for remote PTYs too; localProvider would silently fail for them.
   runtime?.setPtyController({
     spawn: async (args) => {
+      // The non-renderer twin of the `pty:spawn` gate below: the CLI, a paired mobile
+      // client, an automation run and an orchestration dispatch all reach a PTY through
+      // this controller instead, so the allowlist has to be checked on both entry points.
+      if (args.launchAgent) {
+        assertAgentAllowedByEnterprisePolicy(args.launchAgent)
+      }
       const startupPromise = getLocalPtyStartupPromise(args.connectionId)
       if (startupPromise) {
         await startupPromise
@@ -4894,6 +4901,12 @@ export function registerPtyHandlers(
         }
       }
     ) => {
+      // Why here and not in each picker: every renderer agent launch — tab bar, composer,
+      // quick-launch, source control, a keyboard chord bound before the policy arrived —
+      // lands on this one channel carrying the agent id it means to start.
+      if (args.launchAgent) {
+        assertAgentAllowedByEnterprisePolicy(args.launchAgent)
+      }
       const spawnTiming = createPtySpawnTiming()
       const startupPromise = getLocalPtyStartupPromise(args.connectionId)
       if (startupPromise) {

@@ -66,8 +66,14 @@ export function TerminalQuickCommandDialog({
   onOpenChange,
   onSave
 }: TerminalQuickCommandDialogProps): React.JSX.Element {
+  // Why the second hop: the hard-coded 'claude' tail is only correct when nothing is
+  // restricted — under an allowlist that omits it, a new quick command would open on an
+  // agent the policy forbids.
+  const permittedAgents = getAgentCatalog()
   const fallbackAgent: TuiAgent =
-    getAgentCatalog().find((entry) => supportsTerminalAgentQuickCommand(entry.id))?.id ?? 'claude'
+    permittedAgents.find((entry) => supportsTerminalAgentQuickCommand(entry.id))?.id ??
+    permittedAgents[0]?.id ??
+    'claude'
   const [draft, setDraft] = useState<TerminalQuickCommand>(command)
   const wasOpenRef = useRef(open)
   const syncedCommandRef = useRef(command)

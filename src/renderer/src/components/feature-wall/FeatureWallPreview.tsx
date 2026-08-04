@@ -8,6 +8,7 @@ import {
 import type { FeatureWallOpenSourceTelemetry } from '../../../../shared/telemetry-events'
 import { track } from '@/lib/telemetry'
 import { translate } from '@/i18n/i18n'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 
 export function PreviewMedia(props: {
   posterUrl: string | null
@@ -58,6 +59,7 @@ export function RelatedFeatures(props: {
   source: FeatureWallOpenSourceTelemetry
 }): JSX.Element | null {
   const { workflow, source } = props
+  const { disableVendorLinks } = useEnterprisePolicyView()
   const items = workflow.relatedTileIds
     .map((id) => getFeatureWallMediaTile(id))
     .filter((tile): tile is NonNullable<typeof tile> => tile !== null)
@@ -75,22 +77,32 @@ export function RelatedFeatures(props: {
       <ul className="flex flex-col gap-1" role="list">
         {items.map((tile) => (
           <li key={tile.id}>
-            <button
-              type="button"
-              onClick={() => {
-                track('feature_wall_docs_clicked', {
-                  group_id: workflow.id,
-                  tile_id: tile.id,
-                  source
-                })
-                track('feature_wall_tile_clicked', { tile_id: tile.id })
-                void window.api.shell.openUrl(tile.docsUrl)
-              }}
-              className="inline-flex items-center gap-1.5 text-left text-[13px] hover:underline hover:underline-offset-2"
-            >
-              {tile.title}
-              <ChevronRight className="size-3 text-muted-foreground" />
-            </button>
+            {/* Every row here exists only to open onorca.dev. Under the policy the
+                list stays — it still says what else the workflow covers, and the
+                tiles themselves are bundled local demos — but it stops being
+                clickable rather than becoming a row of dead buttons. */}
+            {disableVendorLinks ? (
+              <span className="inline-flex items-center gap-1.5 text-left text-[13px]">
+                {tile.title}
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  track('feature_wall_docs_clicked', {
+                    group_id: workflow.id,
+                    tile_id: tile.id,
+                    source
+                  })
+                  track('feature_wall_tile_clicked', { tile_id: tile.id })
+                  void window.api.shell.openUrl(tile.docsUrl)
+                }}
+                className="inline-flex items-center gap-1.5 text-left text-[13px] hover:underline hover:underline-offset-2"
+              >
+                {tile.title}
+                <ChevronRight className="size-3 text-muted-foreground" />
+              </button>
+            )}
           </li>
         ))}
       </ul>

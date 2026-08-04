@@ -31,6 +31,8 @@ export type EnterprisePolicyView = {
   disableVoice: boolean
   /** Hide Settings → Plugins and every installed plugin's panel. */
   disablePlugins: boolean
+  /** Hide the links out to the vendor's community, issue tracker, docs and changelog. */
+  disableVendorLinks: boolean
   /** Computer Use must confirm with the user before it changes anything. */
   requireComputerUseApproval: boolean
 }

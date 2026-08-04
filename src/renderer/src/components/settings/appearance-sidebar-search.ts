@@ -1,5 +1,6 @@
 import type { SettingsSearchEntry } from './settings-search'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
+import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
 
@@ -127,7 +128,29 @@ export const getShowPinnedWorktreesInGroupsEntry = createLocalizedCatalog(
   })
 )
 
-export const getSidebarEntries = createLocalizedCatalog((): SettingsSearchEntry[] => [
+export const getShowMobileButtonEntry = createLocalizedCatalog(
+  (): SettingsSearchEntry => ({
+    title: translate(
+      'auto.components.settings.appearance.search.1de96ec8a6',
+      'Show Orca Mobile Button'
+    ),
+    description: translate(
+      'auto.components.settings.appearance.search.682293cadf',
+      'Show the Orca Mobile button at the top of the left sidebar.'
+    ),
+    keywords: [
+      ...translateSearchKeyword('auto.components.settings.appearance.search.74618577c7', 'mobile'),
+      ...translateSearchKeyword('auto.components.settings.appearance.search.5e5b8878bf', 'phone'),
+      ...translateSearchKeyword('auto.components.settings.appearance.search.5bff6a2ef0', 'sidebar'),
+      ...translateSearchKeyword('auto.components.settings.appearance.search.6cf5f54ce1', 'button'),
+      ...translateSearchKeyword('auto.components.settings.appearance.search.648eeada79', 'hide'),
+      ...translateSearchKeyword('auto.components.settings.appearance.search.ac79fe4a04', 'show'),
+      ...translateSearchKeyword('auto.components.settings.appearance.search.839fb1e3ed', 'toolbox')
+    ]
+  })
+)
+
+const getAllSidebarEntries = createLocalizedCatalog((): SettingsSearchEntry[] => [
   {
     title: translate('auto.components.settings.appearance.search.155a1e7438', 'Show Tasks Button'),
     description: translate(
@@ -172,26 +195,32 @@ export const getSidebarEntries = createLocalizedCatalog((): SettingsSearchEntry[
       ...translateSearchKeyword('auto.components.settings.appearance.search.ac79fe4a04', 'show')
     ]
   },
-  {
-    title: translate(
-      'auto.components.settings.appearance.search.1de96ec8a6',
-      'Show Orca Mobile Button'
-    ),
-    description: translate(
-      'auto.components.settings.appearance.search.682293cadf',
-      'Show the Orca Mobile button at the top of the left sidebar.'
-    ),
-    keywords: [
-      ...translateSearchKeyword('auto.components.settings.appearance.search.74618577c7', 'mobile'),
-      ...translateSearchKeyword('auto.components.settings.appearance.search.5e5b8878bf', 'phone'),
-      ...translateSearchKeyword('auto.components.settings.appearance.search.5bff6a2ef0', 'sidebar'),
-      ...translateSearchKeyword('auto.components.settings.appearance.search.6cf5f54ce1', 'button'),
-      ...translateSearchKeyword('auto.components.settings.appearance.search.648eeada79', 'hide'),
-      ...translateSearchKeyword('auto.components.settings.appearance.search.ac79fe4a04', 'show'),
-      ...translateSearchKeyword('auto.components.settings.appearance.search.839fb1e3ed', 'toolbox')
-    ]
-  },
+  getShowMobileButtonEntry(),
   getWorkspaceCardLayoutEntry(),
   getLeftSidebarAppearanceEntry(),
   getShowPinnedWorktreesInGroupsEntry()
 ])
+
+/**
+ * The Appearance pane's sidebar-toggle index, minus anything the corporate policy removed.
+ *
+ * Why the filter sits outside the locale memo: createLocalizedCatalog caches on first call,
+ * and this list is built by whichever surface renders first — freezing a policy read inside
+ * it is the "gate that passes its tests and hides nothing" case enterprise-policy-access.ts
+ * warns about.
+ *
+ * Why the index and not just the row: this feeds both the in-pane filter and, through
+ * getAppearancePaneSearchEntries, the Cmd+J catalog — palette-results.ts folds pane-level
+ * entry titles into the section's keywords. Hiding only the row left "mobile"/"phone"
+ * matching Appearance and scrolling the user to a section with nothing in it.
+ */
+export function getSidebarEntries(): SettingsSearchEntry[] {
+  const entries = getAllSidebarEntries()
+  if (!getEnterprisePolicyView().disableMobilePairing) {
+    return entries
+  }
+  // Identity, not title: both catalogs key their cache on the same active locale, so the
+  // object in the list is the one this getter returns.
+  const mobileEntry = getShowMobileButtonEntry()
+  return entries.filter((entry) => entry !== mobileEntry)
+}

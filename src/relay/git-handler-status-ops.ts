@@ -10,6 +10,7 @@ import type { GitExec } from './git-handler-ops'
 import type { RelayGitStreamExec } from './git-stdout-stream'
 import type { GitUpstreamStatus } from '../shared/types'
 import { StatusPorcelainParser } from '../shared/git-status-porcelain-parser'
+import { buildGitStatusCommandArgs } from '../shared/git-status-command-args'
 import { splitRemoteBranchName } from '../shared/git-effective-upstream'
 import { readOrProbeNoEffectiveUpstreamStatus } from './git-status-upstream-negative-cache'
 import {
@@ -91,18 +92,7 @@ export async function getStatusOp(
   let statusLength = 0
 
   try {
-    // Why: core.quotePath=false keeps non-ASCII filenames as raw UTF-8 instead of octal escapes that render as gibberish.
-    const statusArgs = [
-      '-c',
-      'core.quotePath=false',
-      'status',
-      '--porcelain=v2',
-      '--branch',
-      '--untracked-files=all'
-    ]
-    if (includeIgnored) {
-      statusArgs.push('--ignored=matching')
-    }
+    const statusArgs = buildGitStatusCommandArgs({ includeIgnored })
     const parser = new StatusPorcelainParser()
     const { stoppedEarly } = await streamGit(statusArgs, worktreePath, {
       // Why: status polling is read-like; avoid racing terminal Git on .git/worktrees/*/index.lock.

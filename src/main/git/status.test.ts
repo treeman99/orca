@@ -1169,7 +1169,8 @@ describe('getStatus', () => {
           'status',
           '--porcelain=v2',
           '--branch',
-          '--untracked-files=all'
+          '--untracked-files=all',
+          '--ignore-submodules=none'
         ],
         durationMs
       })
@@ -1477,7 +1478,8 @@ describe('getStatus', () => {
       'status',
       '--porcelain=v2',
       '--branch',
-      '--untracked-files=all'
+      '--untracked-files=all',
+      '--ignore-submodules=none'
     ])
     expect(result.entries).toEqual([
       { path: 'docs/日本語/sample.md', status: 'modified', area: 'unstaged' }
@@ -1526,6 +1528,7 @@ describe('getStatus', () => {
       '--porcelain=v2',
       '--branch',
       '--untracked-files=all',
+      '--ignore-submodules=none',
       '--ignored=matching'
     ])
     expect(result.ignoredPaths).toEqual(['dist/', 'generated/file.js'])
@@ -1635,7 +1638,8 @@ describe('getStatus', () => {
       'status',
       '--porcelain=v2',
       '--branch',
-      '--untracked-files=all'
+      '--untracked-files=all',
+      '--ignore-submodules=none'
     ])
     expect('ignoredPaths' in result).toBe(false)
   })
@@ -1656,6 +1660,7 @@ describe('getStatus', () => {
       '--porcelain=v2',
       '--branch',
       '--untracked-files=all',
+      '--ignore-submodules=none',
       '--ignored=matching'
     ])
     expect(result.ignoredPaths).toEqual(['dist/', '.env', 'coverage/'])

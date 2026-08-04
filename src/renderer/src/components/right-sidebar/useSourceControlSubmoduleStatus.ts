@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GitStatusEntry } from '../../../../shared/types'
 import { getConnectionId } from '@/lib/connection-context'
+import { installWindowVisibilityInterval } from '@/lib/window-visibility-interval'
 import { getRuntimeGitSubmoduleStatus, type RuntimeGitContext } from '@/runtime/runtime-git-client'
 import {
   getSubmoduleExpansionKey,
@@ -17,6 +18,11 @@ export type UseSourceControlSubmoduleStatusInput = {
   // its entries, so an expanded submodule's inner changes stay fresh.
   entries: readonly GitStatusEntry[]
 }
+
+// Why: sits above the 3s floor that keeps evidence-driven status refreshes from
+// running git back-to-back, and only ever applies to submodules the user has
+// explicitly expanded.
+const EXPANDED_SUBMODULE_REFRESH_INTERVAL_MS = 4000
 
 export type UseSourceControlSubmoduleStatusResult = {
   expandedSubmoduleKeys: Set<string>
@@ -46,9 +52,15 @@ export function useSourceControlSubmoduleStatus(
   // when the active worktree/path/runtime/SSH route changes, so a slow response
   // from a previous target can't write stale submodule status into this panel.
   const generationRef = useRef(0)
+  // Why: the parent poll and the expanded-submodule tick are independent clocks,
+  // so without this a slow inner `git status` gets a second (and third) spawn
+  // queued behind it. That is the pile-up a repo with many expanded submodules
+  // would feel first.
+  const inFlightKeysRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     generationRef.current += 1
+    inFlightKeysRef.current.clear()
     setExpandedSubmoduleKeys(new Set())
     setSubmoduleStatusByKey({})
   }, [activeConnectionRouteKey, activeRuntimeRouteKey, activeWorktreeId, worktreePath])
@@ -62,8 +74,12 @@ export function useSourceControlSubmoduleStatus(
       if (!parsed) {
         return
       }
+      if (inFlightKeysRef.current.has(expansionKey)) {
+        return
+      }
       const { area, path: submodulePath } = parsed
       const generation = generationRef.current
+      inFlightKeysRef.current.add(expansionKey)
       // Why: keep any already-loaded children visible during a poll-driven
       // refetch so expanding then refreshing doesn't flash a loading row.
       setSubmoduleStatusByKey((prev) =>
@@ -90,7 +106,12 @@ export function useSourceControlSubmoduleStatus(
           [expansionKey]: {
             status: 'loaded',
             entries: result.entries,
-            ...(result.didHitLimit ? { didHitLimit: true } : {})
+            ...(result.didHitLimit ? { didHitLimit: true } : {}),
+            // Why: the inner status already carries the submodule's own branch/HEAD.
+            // Keeping them costs no extra git call and is what lets the panel show
+            // the submodule as a separate repository on its own branch.
+            ...(result.branch ? { branch: result.branch } : {}),
+            ...(result.head ? { head: result.head } : {})
           }
         }))
       } catch (error) {
@@ -104,6 +125,8 @@ export function useSourceControlSubmoduleStatus(
             error: error instanceof Error ? error.message : String(error)
           }
         }))
+      } finally {
+        inFlightKeysRef.current.delete(expansionKey)
       }
     },
     [activeRepoSettings, activeWorktreeId, worktreePath]
@@ -122,10 +145,11 @@ export function useSourceControlSubmoduleStatus(
     })
   }, [])
 
-  // Why: (re)load inner status only for currently-expanded submodules. Re-runs
-  // when the parent status poll refreshes `entries` so expanded children stay
-  // fresh, while collapsed submodules never trigger any extra git work.
-  useEffect(() => {
+  // Why a ref: the interval below must call the latest refresh without listing
+  // `entries` as a dependency, which would tear down and reinstall the timer on
+  // every parent status poll.
+  const refreshExpandedRef = useRef<() => void>(() => {})
+  refreshExpandedRef.current = () => {
     const visibleExpandableKeys = new Set(
       entries.filter(isExpandableSubmoduleEntry).map(getSubmoduleExpansionKey)
     )
@@ -134,7 +158,43 @@ export function useSourceControlSubmoduleStatus(
         void fetchSubmoduleStatus(expansionKey)
       }
     }
+  }
+
+  // Why: (re)load inner status only for currently-expanded submodules, on expand
+  // and whenever the parent poll hands back changed entries. Collapsed submodules
+  // never trigger any extra git work.
+  useEffect(() => {
+    refreshExpandedRef.current()
   }, [expandedSubmoduleKeys, entries, fetchSubmoduleStatus])
+
+  // Why: `entries` alone cannot keep an expanded submodule fresh. Editing inside
+  // an already-dirty submodule leaves the parent's gitlink row byte-identical
+  // (the `S.MU` flags and both gitlink OIDs are unchanged), so the status slice
+  // keeps the previous array reference and the inner file list would stay frozen
+  // at the moment of expansion. Tick those submodules on their own clock instead.
+  //
+  // Keyed on the boolean, not the Set: re-running per toggle would reinstall the
+  // interval and fire its immediate run, double-spawning git on every expand.
+  const hasExpandedSubmodules = expandedSubmoduleKeys.size > 0
+  useEffect(() => {
+    if (!hasExpandedSubmodules) {
+      return
+    }
+    // Why: the install-time run duplicates the expand-driven fetch above. Later
+    // runs are the window becoming visible again, which is worth refreshing for.
+    let skipImmediateRun = true
+    return installWindowVisibilityInterval({
+      run: () => refreshExpandedRef.current(),
+      runOnVisible: () => {
+        if (skipImmediateRun) {
+          skipImmediateRun = false
+          return
+        }
+        refreshExpandedRef.current()
+      },
+      intervalMs: EXPANDED_SUBMODULE_REFRESH_INTERVAL_MS
+    })
+  }, [hasExpandedSubmodules])
 
   return { expandedSubmoduleKeys, submoduleStatusByKey, toggleSubmodule }
 }

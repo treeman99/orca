@@ -38,6 +38,9 @@ import {
   gitStreamStdout
 } from './runner'
 import { StatusPorcelainParser } from '../../shared/git-status-porcelain-parser'
+import { buildGitStatusCommandArgs } from '../../shared/git-status-command-args'
+import { mergeSubmoduleRangeWithWorkingEntries } from '../../shared/git-submodule-range-merge'
+import { gitDiffHasChange } from '../../shared/git-diff-change-presence'
 import { findExistingWorktreeSymlinkPaths } from './worktree-symlink-detection'
 import { capGitStatusEntries, resolveGitStatusLimit } from '../../shared/git-status-limit'
 import { describeMaxBufferOverflowError, isMaxBufferOverflowError } from './max-buffer-overflow'
@@ -284,18 +287,7 @@ async function runGetStatus(
 
   // Why: detectConflictOperation and git status are independent, so run them concurrently to save I/O latency.
   const conflictPromise = detectConflictOperation(worktreePath)
-  // Why: core.quotePath=false keeps non-ASCII paths as raw UTF-8, not octal escapes, so entry.path is readable and lookups match.
-  const statusArgs = [
-    '-c',
-    'core.quotePath=false',
-    'status',
-    '--porcelain=v2',
-    '--branch',
-    '--untracked-files=all'
-  ]
-  if (options.includeIgnored) {
-    statusArgs.push('--ignored=matching')
-  }
+  const statusArgs = buildGitStatusCommandArgs({ includeIgnored: options.includeIgnored })
 
   // Why: stream + parse and stop at `limit` so a huge un-ignored folder can't buffer enough to crash the process.
   const parser = new StatusPorcelainParser()
@@ -470,12 +462,11 @@ export async function getSubmoduleStatus(
     if (options.staged) {
       return { ...workingResult, ...capGitStatusEntries(rangeEntries, limit) }
     }
-    const rangePaths = new Set(rangeEntries.map((entry) => entry.path))
-    // Range rows win on overlap so the diff matches getDiff's commit-range route.
-    const entries = [
-      ...rangeEntries,
-      ...workingResult.entries.filter((entry) => !rangePaths.has(entry.path))
-    ]
+    // Why: a submodule parked on its own branch normally has a moved gitlink, so
+    // the range overlaps the working tree constantly. Uncommitted rows must win —
+    // they are the only actionable ones, and keying by area (not path) keeps a
+    // staged row from being dropped by an unstaged-area range row for the same file.
+    const entries = mergeSubmoduleRangeWithWorkingEntries(rangeEntries, workingResult.entries)
     return {
       ...workingResult,
       ...capGitStatusEntries(entries, limit, workingResult)
@@ -1254,15 +1245,23 @@ async function loadDiff(
       const toOid = staged
         ? await readGitlinkOidFromIndex(worktreePath, matchedSubmodule, options)
         : await readWorkingSubmoduleHead(submoduleWorktreePath, options)
-      // Why: a moved gitlink with a clean submodule worktree means the change is committed — diff the two commits.
+      // Why: a moved gitlink means the submodule carries commits the parent hasn't
+      // recorded — but a submodule parked on its own branch has a moved gitlink
+      // permanently, so "the pointer moved" is NOT evidence that *this file's*
+      // change is committed. When the range shows nothing for this path the change
+      // is an uncommitted working-tree edit, and returning the range diff rendered
+      // an empty diff for a file the user had just modified.
       if (fromOid && toOid && fromOid !== toOid) {
-        return buildSubmoduleInnerCommitRangeDiff(
+        const rangeDiff = await buildSubmoduleInnerCommitRangeDiff(
           submoduleWorktreePath,
           innerPath,
           fromOid,
           toOid,
           options
         )
+        if (gitDiffHasChange(rangeDiff)) {
+          return rangeDiff
+        }
       }
       return getDiff(submoduleWorktreePath, innerPath, staged, compareAgainstHead, options)
     }

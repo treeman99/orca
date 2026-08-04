@@ -2120,7 +2120,9 @@
             "1aa7c952b9": "项目视图",
             "f352abf7c3": "仓库列表正在更新。",
             "1ce21b8cff": "此项目不在选中的仓库中。",
-            "030de75bc5": "此项目匹配多个选中的仓库。"
+            "030de75bc5": "此项目匹配多个选中的仓库。",
+            "unsupportedViewNoRequest": "{{value0}} — Orca 尚不支持 {{value1}} 项目视图。",
+            "unsupportedTabNoRequest": "{{value0}}. {{value1}}"
           },
           "slug": {
             "dialog": {
@@ -14785,5 +14787,10 @@
       "title": "Allow agent to control your computer?",
       "message": "An agent wants to act on an app outside Orca."
     }
+  },
+  "sourceControl": {
+    "submoduleDetachedHeadTooltip": "此子模块处于分离 HEAD 状态，因此不在任何分支上",
+    "submoduleBranchTooltip": "此子模块内检出的分支",
+    "submoduleBranchDiffersFromParent": "(与根仓库不同)"
   }
 }

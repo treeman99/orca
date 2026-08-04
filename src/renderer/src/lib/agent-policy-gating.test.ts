@@ -21,6 +21,7 @@ const UNRESTRICTED: EnterprisePolicyView = {
   disableRemoteOrcaServer: false,
   disableVoice: false,
   disablePlugins: false,
+  disableVendorLinks: false,
   requireComputerUseApproval: false
 }
 
@@ -34,7 +35,11 @@ vi.mock('@/enterprise/enterprise-policy-access', () => ({
 
 import { getAgentCatalog, getAgentLabel, getFullAgentCatalog } from './agent-catalog'
 import { pickQuickWorkspaceAgent } from './quick-workspace-agent-selection'
+import { listBoundAgentTabActions, resolveDefaultAgentForNewTab } from './agent-tab-shortcuts'
 import { groupDefinitions } from '@/components/settings/shortcut-groups'
+import { orderTabLaunchAgents } from '@/components/tab-bar/tab-agent-launch-options'
+import { resolveAutomationDefaultAgent } from '@/components/automations/automation-default-agent'
+import { getTerminalQuickCommandAgentOptions } from '@/components/terminal-quick-commands/terminal-quick-command-agent-options'
 
 function setPolicy(overrides: Partial<EnterprisePolicyView> = {}): void {
   policyState.current = { ...UNRESTRICTED, ...overrides }
@@ -124,5 +129,126 @@ describe('keyboard shortcut rows under policy', () => {
     expect(agentRowIds()).toContain('tab.newSimulator')
     setPolicy({ disableMobileEmulator: true })
     expect(agentRowIds()).not.toContain('tab.newSimulator')
+  })
+})
+
+// The reported symptom: the tab strip's `+` still offered codex under
+// `allowedAgents: ["claude","opencode"]`.
+describe('tab bar + menu launch list', () => {
+  const DETECTED = ['claude', 'codex', 'opencode'] as const
+
+  beforeEach(() => {
+    setPolicy()
+  })
+
+  it('lists every detected agent when nothing is restricted', () => {
+    expect(orderTabLaunchAgents(null, DETECTED, null)).toContain('codex')
+  })
+
+  it('drops a detected agent the policy does not list', () => {
+    expect(orderTabLaunchAgents(null, DETECTED, ['claude', 'opencode'])).toEqual([
+      'claude',
+      'opencode'
+    ])
+  })
+
+  // The default is pinned to the head of the list, so a blocked default must not sneak
+  // back in that way.
+  it('does not promote a blocked default agent to the front', () => {
+    expect(orderTabLaunchAgents('codex', DETECTED, ['claude', 'opencode'])).toEqual([
+      'claude',
+      'opencode'
+    ])
+  })
+})
+
+// A per-agent chord is bound by the user and fires with no picker in between, so the
+// allowlist has to reach the chord itself.
+describe('new-agent-tab keyboard chords', () => {
+  beforeEach(() => {
+    setPolicy({ allowedAgents: ['claude', 'opencode'] })
+  })
+
+  it('goes inert for an agent the policy blocks', () => {
+    const bound = listBoundAgentTabActions(
+      { 'tab.newAgent.codex': ['Ctrl+Shift+X'], 'tab.newAgent.claude': ['Ctrl+Shift+C'] },
+      []
+    )
+    expect(bound.map((action) => action.agent)).toEqual(['claude'])
+  })
+
+  it('keeps every binding when nothing is restricted', () => {
+    setPolicy()
+    const bound = listBoundAgentTabActions({ 'tab.newAgent.codex': ['Ctrl+Shift+X'] }, [])
+    expect(bound.map((action) => action.agent)).toEqual(['codex'])
+  })
+
+  it('falls through to a permitted agent instead of launching a blocked default', () => {
+    expect(
+      resolveDefaultAgentForNewTab({
+        defaultTuiAgent: 'codex',
+        detectedAgentIds: ['claude', 'codex'],
+        disabledTuiAgents: []
+      })
+    ).toBe('claude')
+  })
+
+  it('honors the configured default when nothing is restricted', () => {
+    setPolicy()
+    expect(
+      resolveDefaultAgentForNewTab({
+        defaultTuiAgent: 'codex',
+        detectedAgentIds: ['claude', 'codex'],
+        disabledTuiAgents: []
+      })
+    ).toBe('codex')
+  })
+})
+
+// The second reported symptom: the automation create dialog opened on a blocked agent
+// because `defaultTuiAgent` seeded the draft, and the editor keeps the draft's own agent
+// selectable so an in-flight automation stays editable.
+describe('automation draft default agent', () => {
+  const CATALOG = ['claude', 'codex', 'opencode'] as const
+
+  it('does not seed the draft with a blocked default', () => {
+    expect(
+      resolveAutomationDefaultAgent(
+        { defaultTuiAgent: 'codex', disabledTuiAgents: [] },
+        ['claude', 'opencode'],
+        CATALOG,
+        CATALOG
+      )
+    ).toBe('claude')
+  })
+
+  it('keeps the configured default when nothing is restricted', () => {
+    expect(
+      resolveAutomationDefaultAgent(
+        { defaultTuiAgent: 'codex', disabledTuiAgents: [] },
+        null,
+        CATALOG,
+        CATALOG
+      )
+    ).toBe('codex')
+  })
+})
+
+describe('terminal quick command agent picker', () => {
+  beforeEach(() => {
+    setPolicy()
+  })
+
+  it('offers the full roster when nothing is restricted', () => {
+    expect(getTerminalQuickCommandAgentOptions().map((entry) => entry.id)).toContain('codex')
+  })
+
+  it('drops a blocked agent once an allowlist is set', () => {
+    setPolicy({ allowedAgents: ['claude', 'opencode'] })
+    expect(
+      getTerminalQuickCommandAgentOptions()
+        .map((entry) => entry.id)
+        .sort()
+    ).toEqual(['claude', 'opencode'])
   })
 })

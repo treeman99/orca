@@ -1,5 +1,6 @@
 import { getAgentCatalog, getFullAgentCatalog } from '@/lib/agent-catalog'
 import { normalizeMatchQuery, tokenizeMatchValue } from './query-token-match'
+import { filterAgentsByPolicy } from '../../../../shared/corporate-agent-access'
 import type { TuiAgent } from '../../../../shared/types'
 
 export type TabAgentLaunchOption = {
@@ -20,13 +21,23 @@ function getCatalogEntry(agent: TuiAgent): { id: TuiAgent; label: string; cmd: s
   return getFullAgentCatalog().find((entry) => entry.id === agent) ?? null
 }
 
+/**
+ * `allowedAgents` is passed in rather than read from the cached policy so the caller's
+ * memo has something to key on: getAgentCatalog() already applies the same allowlist, but
+ * it reads a non-reactive cache, so a memo keyed only on detection/default freezes the
+ * unfiltered list when the policy arrives over the async IPC channel instead of the
+ * synchronous one (paired runtimes and the web host have only the async one).
+ */
 export function orderTabLaunchAgents(
   defaultAgent: TuiAgent | 'blank' | null | undefined,
-  detected: readonly TuiAgent[]
+  detected: readonly TuiAgent[],
+  allowedAgents: readonly string[] | null = null
 ): TuiAgent[] {
-  const inCatalogOrder = getAgentCatalog()
-    .filter((entry) => detected.includes(entry.id))
-    .map((entry) => entry.id)
+  const inCatalogOrder = filterAgentsByPolicy(
+    getAgentCatalog().filter((entry) => detected.includes(entry.id)),
+    (entry) => entry.id,
+    allowedAgents
+  ).map((entry) => entry.id)
   if (!defaultAgent || defaultAgent === 'blank' || !inCatalogOrder.includes(defaultAgent)) {
     return inCatalogOrder
   }

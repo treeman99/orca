@@ -60,6 +60,7 @@ import {
   type CachedVisibleProjectTable
 } from './project-visible-table-cache'
 import { translate } from '@/i18n/i18n'
+import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { buildTaskSourceContextFromRepo } from '../../../../shared/task-source-context'
 import {
   githubProjectHost,
@@ -1160,7 +1161,8 @@ function ProjectSearchInput({
   )
 }
 
-function ViewTabStrip({
+/** Exported for the vendor-link policy test; the wrapper is its only real caller. */
+export function ViewTabStrip({
   views,
   activeViewId,
   onPick
@@ -1169,6 +1171,9 @@ function ViewTabStrip({
   activeViewId: string | null
   onPick: (viewId: string) => void
 }): React.JSX.Element {
+  // The unsupported-layout copy names the vendor's public tracker in its tooltip and
+  // aria-label as well as in the button, so all three drop under the policy.
+  const { disableVendorLinks } = useEnterprisePolicyView()
   // Why: emulate GitHub Projects' tab strip; non-table layouts stay visible but disabled.
   return (
     <div className="project-view-tab-strip flex min-h-[41px] min-w-0 flex-none items-end gap-1 overflow-x-auto overflow-y-hidden border-b border-border/50 bg-muted/20 px-3 pt-3">
@@ -1196,11 +1201,17 @@ function ViewTabStrip({
             title={
               supported
                 ? v.name
-                : translate(
-                    'auto.components.github.project.ProjectViewWrapper.2edf5e7e77',
-                    "{{value0}} — Orca doesn't support {{value1}} project views yet. File a feature request at {{value2}}.",
-                    { value0: v.name, value1: layoutLabel, value2: ORCA_FEATURE_REQUEST_URL }
-                  )
+                : disableVendorLinks
+                  ? translate(
+                      'auto.components.github.project.ProjectViewWrapper.unsupportedViewNoRequest',
+                      "{{value0}} — Orca doesn't support {{value1}} project views yet.",
+                      { value0: v.name, value1: layoutLabel }
+                    )
+                  : translate(
+                      'auto.components.github.project.ProjectViewWrapper.2edf5e7e77',
+                      "{{value0}} — Orca doesn't support {{value1}} project views yet. File a feature request at {{value2}}.",
+                      { value0: v.name, value1: layoutLabel, value2: ORCA_FEATURE_REQUEST_URL }
+                    )
             }
             className={cn(
               'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-t-md border-x border-t px-3 py-1.5 text-xs',
@@ -1224,11 +1235,23 @@ function ViewTabStrip({
             <HoverCardTrigger asChild>
               <span
                 tabIndex={0}
-                aria-label={translate(
-                  'auto.components.github.project.ProjectViewWrapper.55de4fb57a',
-                  '{{value0}}. {{value1}} File a feature request at {{value2}}.',
-                  { value0: v.name, value1: unsupportedMessage, value2: ORCA_FEATURE_REQUEST_URL }
-                )}
+                aria-label={
+                  disableVendorLinks
+                    ? translate(
+                        'auto.components.github.project.ProjectViewWrapper.unsupportedTabNoRequest',
+                        '{{value0}}. {{value1}}',
+                        { value0: v.name, value1: unsupportedMessage }
+                      )
+                    : translate(
+                        'auto.components.github.project.ProjectViewWrapper.55de4fb57a',
+                        '{{value0}}. {{value1}} File a feature request at {{value2}}.',
+                        {
+                          value0: v.name,
+                          value1: unsupportedMessage,
+                          value2: ORCA_FEATURE_REQUEST_URL
+                        }
+                      )
+                }
                 className="inline-flex shrink-0 cursor-not-allowed rounded-t-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
                 {tab}
@@ -1243,18 +1266,20 @@ function ViewTabStrip({
                     'Switch to a Table view to work with this project in Orca.'
                   )}
                 </p>
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="outline"
-                  onClick={() => void window.api.shell.openUrl(ORCA_FEATURE_REQUEST_URL)}
-                >
-                  {translate(
-                    'auto.components.github.project.ProjectViewWrapper.4d2a77a119',
-                    'File feature request'
-                  )}
-                  <ExternalLink className="size-3" />
-                </Button>
+                {disableVendorLinks ? null : (
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    onClick={() => void window.api.shell.openUrl(ORCA_FEATURE_REQUEST_URL)}
+                  >
+                    {translate(
+                      'auto.components.github.project.ProjectViewWrapper.4d2a77a119',
+                      'File feature request'
+                    )}
+                    <ExternalLink className="size-3" />
+                  </Button>
+                )}
               </div>
             </HoverCardContent>
           </HoverCard>

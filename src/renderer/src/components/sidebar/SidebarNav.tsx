@@ -24,7 +24,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { SetupGuideSidebarEntry } from './SetupGuideSidebarEntry'
 import { SidebarTaskNavButton } from './SidebarTaskNavButton'
 import { HideSidebarMenu } from './sidebar-nav-controls'
-import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
+import {
+  getEnterprisePolicyView,
+  useEnterprisePolicyView
+} from '@/enterprise/enterprise-policy-access'
 import { translate } from '@/i18n/i18n'
 
 export { getSetupGuideSidebarEntryReady, shouldShowSetupGuideEntry } from './SetupGuideSidebarEntry'
@@ -49,10 +52,15 @@ function isAgentDashboardPopoutMode(
   return settings?.experimentalAgentDashboardMode === 'popout'
 }
 
+// `showMobileButton` is a per-user setting that defaults to on, so on a fleet without
+// the policy file two identical installs legitimately disagree. When the policy IS in
+// force it has to win outright — mirroring how disablePlugins overrides
+// `pluginSystemEnabled`. Reading the policy inside the predicate (not only at the call
+// site below) keeps that true for every caller, including a rebase's new one.
 export function shouldShowMobileButton(
   settings: Pick<GlobalSettings, 'showMobileButton'> | null | undefined
 ): boolean {
-  return settings?.showMobileButton !== false
+  return !getEnterprisePolicyView().disableMobilePairing && settings?.showMobileButton !== false
 }
 
 export function shouldShowAutomationsButton(
@@ -163,6 +171,8 @@ const SidebarNav = React.memo(function SidebarNav() {
   const showAgentsButton = useAppStore((s) => shouldShowAgentsButton(s.settings))
   const showAgentDashboardButton = useAppStore((s) => shouldShowAgentDashboardButton(s.settings))
   const showAutomationsButton = useAppStore((s) => shouldShowAutomationsButton(s.settings))
+  // The predicate already reads the policy; the hook stays so the row disappears when
+  // the async policy sync lands after first paint, not only on the next store write.
   const { disableMobilePairing } = useEnterprisePolicyView()
   const showMobileButton =
     useAppStore((s) => shouldShowMobileButton(s.settings)) && !disableMobilePairing

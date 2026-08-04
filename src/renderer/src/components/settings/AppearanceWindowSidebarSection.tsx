@@ -22,6 +22,7 @@ import { USAGE_PERCENTAGE_DISPLAY_SETTING_ID } from './appearance-usage-percenta
 import { LeftSidebarAppearanceSetting } from './LeftSidebarAppearanceSetting'
 import {
   getLeftSidebarAppearanceEntry,
+  getShowMobileButtonEntry,
   getShowPinnedWorktreesInGroupsEntry,
   getWorkspaceCardLayoutEntry
 } from './appearance-sidebar-search'
@@ -77,6 +78,8 @@ export function AppearanceWindowSidebarSection({
   const usagePercentageDisplayEntry = getUsagePercentageDisplayEntry()
   const leftSidebarAppearanceEntry = getLeftSidebarAppearanceEntry()
   const sidebarEntries = getSidebarEntries()
+  // Named rather than sidebarEntries[2]: the policy drops the mobile entry from that list.
+  const showMobileButtonEntry = getShowMobileButtonEntry()
   const workspaceCardLayoutEntry = getWorkspaceCardLayoutEntry()
   const layoutEntries = getLayoutEntries()
   const statusBarTitle = translate(
@@ -292,8 +295,8 @@ export function AppearanceWindowSidebarSection({
                         'auto.components.settings.AppearancePane.9da1020447',
                         'Show Orca Mobile Button'
                       )}
-                      description={sidebarEntries[2]?.description}
-                      keywords={sidebarEntries[2]?.keywords ?? ['mobile', 'phone', 'sidebar']}
+                      description={showMobileButtonEntry.description}
+                      keywords={showMobileButtonEntry.keywords}
                     >
                       <SettingsSwitchRow
                         label={translate(

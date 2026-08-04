@@ -2144,7 +2144,9 @@
             "1aa7c952b9": "Project view",
             "f352abf7c3": "Repository list is updating.",
             "1ce21b8cff": "This item is outside the selected repositories.",
-            "030de75bc5": "This item matches multiple selected repositories."
+            "030de75bc5": "This item matches multiple selected repositories.",
+            "unsupportedViewNoRequest": "{{value0}} — Orca doesn't support {{value1}} project views yet.",
+            "unsupportedTabNoRequest": "{{value0}}. {{value1}}"
           },
           "slug": {
             "dialog": {
@@ -14827,5 +14829,10 @@
       "title": "Allow agent to control your computer?",
       "message": "An agent wants to act on an app outside Orca."
     }
+  },
+  "sourceControl": {
+    "submoduleDetachedHeadTooltip": "This submodule has a detached HEAD, so it is not on any branch",
+    "submoduleBranchTooltip": "Branch checked out inside this submodule",
+    "submoduleBranchDiffersFromParent": "(differs from root)"
   }
 }

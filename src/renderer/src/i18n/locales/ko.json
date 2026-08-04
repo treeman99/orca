@@ -2120,7 +2120,9 @@
             "1aa7c952b9": "프로젝트 보기",
             "f352abf7c3": "리포지토리 목록을 업데이트 중입니다.",
             "1ce21b8cff": "이 항목은 선택한 리포지토리 밖에 있습니다.",
-            "030de75bc5": "이 항목은 선택한 여러 리포지토리와 일치합니다."
+            "030de75bc5": "이 항목은 선택한 여러 리포지토리와 일치합니다.",
+            "unsupportedViewNoRequest": "{{value0}} — Orca는 아직 {{value1}} 프로젝트 뷰를 지원하지 않습니다.",
+            "unsupportedTabNoRequest": "{{value0}}. {{value1}}"
           },
           "slug": {
             "dialog": {
@@ -14785,5 +14787,10 @@
       "title": "에이전트가 컴퓨터를 조작하도록 허용할까요?",
       "message": "Orca 밖의 앱을 조작하려고 합니다."
     }
+  },
+  "sourceControl": {
+    "submoduleDetachedHeadTooltip": "이 서브모듈은 HEAD가 분리되어 있어 어떤 브랜치에도 속해 있지 않습니다",
+    "submoduleBranchTooltip": "이 서브모듈 안에 체크아웃된 브랜치",
+    "submoduleBranchDiffersFromParent": "(루트와 다름)"
   }
 }

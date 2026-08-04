@@ -260,4 +260,170 @@ describe('useSourceControlSubmoduleStatus', () => {
       didHitLimit: true
     })
   })
+
+  it('keeps the submodule own branch and head from the inner status', async () => {
+    // Why: the submodule routinely sits on a different branch than the root; the
+    // inner status already carries it, and dropping it left the panel unable to
+    // tell the two repositories apart.
+    mocks.getRuntimeGitSubmoduleStatus.mockResolvedValue({
+      entries: [innerEntry('subfile.txt')],
+      branch: 'refs/heads/other-branch',
+      head: '031c1df1f5107f0c449f65f563df0ee61d6769f1'
+    })
+
+    const container = document.createElement('div')
+    const root = createRoot(container)
+    roots.push(root)
+
+    await act(async () => {
+      root.render(<Probe worktreeId="A" worktreePath="/a" entries={[submoduleEntry()]} />)
+    })
+    await act(async () => {
+      latest?.toggleSubmodule(submoduleEntry())
+    })
+    await flush()
+
+    expect(latest?.submoduleStatusByKey['unstaged::sub']).toEqual({
+      status: 'loaded',
+      entries: [innerEntry('subfile.txt')],
+      branch: 'refs/heads/other-branch',
+      head: '031c1df1f5107f0c449f65f563df0ee61d6769f1'
+    })
+  })
+
+  it('refetches an expanded submodule while the parent entries stay referentially stable', async () => {
+    // Why: editing inside an already-dirty submodule leaves the parent gitlink row
+    // byte-identical, so the status slice hands back the SAME array; without an
+    // independent tick the inner file list froze at the moment of expansion.
+    vi.useFakeTimers()
+    try {
+      mocks.getRuntimeGitSubmoduleStatus.mockResolvedValue({ entries: [innerEntry('a.ts')] })
+      const stableEntries = [submoduleEntry()]
+
+      const container = document.createElement('div')
+      const root = createRoot(container)
+      roots.push(root)
+
+      await act(async () => {
+        root.render(<Probe worktreeId="A" worktreePath="/a" entries={stableEntries} />)
+      })
+      await act(async () => {
+        latest?.toggleSubmodule(submoduleEntry())
+      })
+      await flush()
+
+      const callsAfterExpand = mocks.getRuntimeGitSubmoduleStatus.mock.calls.length
+      expect(callsAfterExpand).toBeGreaterThan(0)
+
+      // Re-render with the very same array reference, then let the tick fire.
+      await act(async () => {
+        root.render(<Probe worktreeId="A" worktreePath="/a" entries={stableEntries} />)
+      })
+      await flush()
+      await act(async () => {
+        vi.advanceTimersByTime(4000)
+      })
+      await flush()
+
+      expect(mocks.getRuntimeGitSubmoduleStatus.mock.calls.length).toBeGreaterThan(callsAfterExpand)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('runs no interval git work while every submodule is collapsed', async () => {
+    // Why: a repo with dozens of submodules must not pay per-poll git spawns for
+    // rows the user never opened.
+    vi.useFakeTimers()
+    try {
+      mocks.getRuntimeGitSubmoduleStatus.mockResolvedValue({ entries: [] })
+
+      const container = document.createElement('div')
+      const root = createRoot(container)
+      roots.push(root)
+
+      await act(async () => {
+        root.render(<Probe worktreeId="A" worktreePath="/a" entries={[submoduleEntry()]} />)
+      })
+      await act(async () => {
+        vi.advanceTimersByTime(60_000)
+      })
+      await flush()
+
+      expect(mocks.getRuntimeGitSubmoduleStatus).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('spawns exactly one inner status when a submodule is expanded', async () => {
+    // Why: the refresh interval also runs on install. Keying it on the Set made
+    // every expand reinstall the timer and fire that run, doubling the git spawn.
+    vi.useFakeTimers()
+    try {
+      mocks.getRuntimeGitSubmoduleStatus.mockResolvedValue({ entries: [innerEntry('a.ts')] })
+
+      const container = document.createElement('div')
+      const root = createRoot(container)
+      roots.push(root)
+
+      await act(async () => {
+        root.render(<Probe worktreeId="A" worktreePath="/a" entries={[submoduleEntry()]} />)
+      })
+      await act(async () => {
+        latest?.toggleSubmodule(submoduleEntry())
+      })
+      await flush()
+
+      expect(mocks.getRuntimeGitSubmoduleStatus).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not queue a second inner status while one is still in flight', async () => {
+    // Why: the parent poll and the expanded-submodule tick are independent
+    // clocks, so a slow submodule would otherwise accumulate stacked git spawns.
+    vi.useFakeTimers()
+    const pending = deferred<{ entries: GitStatusEntry[] }>()
+    try {
+      mocks.getRuntimeGitSubmoduleStatus.mockReturnValue(pending.promise)
+
+      const container = document.createElement('div')
+      const root = createRoot(container)
+      roots.push(root)
+
+      await act(async () => {
+        root.render(<Probe worktreeId="A" worktreePath="/a" entries={[submoduleEntry()]} />)
+      })
+      await act(async () => {
+        latest?.toggleSubmodule(submoduleEntry())
+      })
+      await flush()
+      expect(mocks.getRuntimeGitSubmoduleStatus).toHaveBeenCalledTimes(1)
+
+      // Three ticks pass while the first request is still unresolved.
+      await act(async () => {
+        vi.advanceTimersByTime(12_000)
+      })
+      await flush()
+
+      expect(mocks.getRuntimeGitSubmoduleStatus).toHaveBeenCalledTimes(1)
+
+      // Once it settles, the next tick is free to refresh again.
+      await act(async () => {
+        pending.resolve({ entries: [innerEntry('a.ts')] })
+      })
+      await flush()
+      await act(async () => {
+        vi.advanceTimersByTime(4000)
+      })
+      await flush()
+
+      expect(mocks.getRuntimeGitSubmoduleStatus.mock.calls.length).toBeGreaterThan(1)
+    } finally {
+      pending.resolve({ entries: [] })
+      vi.useRealTimers()
+    }
+  })
 })

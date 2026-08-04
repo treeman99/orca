@@ -981,6 +981,10 @@ import {
 } from '../project-groups/nested-repo-import'
 import { createNestedRepoImportTargetResolver } from '../project-groups/nested-repo-import-target'
 import { assertVendorAccountRegistrationAllowed } from '../enterprise/vendor-account-registration-guard'
+import {
+  assertAgentAllowedByEnterprisePolicy,
+  isAgentAllowedByEnterprisePolicy
+} from '../enterprise/agent-allowlist-guard'
 
 function sanitizeNestedRepoRuntimeImportError(context: string, error: unknown): string {
   console.warn(`[project-groups] ${context}`, error)
@@ -15528,6 +15532,12 @@ export class OrcaRuntimeService {
     if (!settings) {
       throw new Error('runtime_unavailable')
     }
+    if (!isAgentAllowedByEnterprisePolicy(agent)) {
+      throw new OrchestrationError(
+        'agent_unconfigured',
+        `Agent launcher ${agent} is not permitted by your organization's Orca policy.`
+      )
+    }
     if (!isTuiAgentEnabled(agent, settings.disabledTuiAgents)) {
       throw new OrchestrationError(
         'agent_unconfigured',
@@ -19984,7 +19994,11 @@ export class OrcaRuntimeService {
       return null
     }
     let agent =
-      isTuiAgent(preferredAgent) && isTuiAgentEnabled(preferredAgent, settings.disabledTuiAgents)
+      isTuiAgent(preferredAgent) &&
+      isTuiAgentEnabled(preferredAgent, settings.disabledTuiAgents) &&
+      // Why not a throw: this is an auto-pick fallback, so a blocked preference should
+      // fall through to a permitted agent rather than fail the workspace create.
+      isAgentAllowedByEnterprisePolicy(preferredAgent)
         ? preferredAgent
         : null
     if (!agent) {
@@ -20074,6 +20088,7 @@ export class OrcaRuntimeService {
       throw new Error('runtime_unavailable')
     }
     const settings = this.store.getSettings()
+    assertAgentAllowedByEnterprisePolicy(agent)
     if (!isTuiAgentEnabled(agent, settings.disabledTuiAgents)) {
       throw new Error('Selected agent is disabled. Choose an enabled agent before creating.')
     }
@@ -20538,9 +20553,19 @@ export class OrcaRuntimeService {
       throw new Error('runtime_unavailable')
     }
 
+    const requestedAgent = args.startupAgent ?? args.createdWithAgent
+    // Why before the repo is even resolved: `args.startup` carries a pre-built launch
+    // command, so this is the last look at the agent id on the `orca worktree create
+    // --agent` path — and refusing here creates no worktree to clean up.
+    if ((args.startup || args.startupAgent) && requestedAgent) {
+      assertAgentAllowedByEnterprisePolicy(requestedAgent)
+    }
+    if (args.startup && args.startupDraftPaste) {
+      assertAgentAllowedByEnterprisePolicy(args.startupDraftPaste.agent)
+    }
+
     const repo = await this.resolveRepoSelector(args.repoSelector)
     const createSettings = this.store.getSettings()
-    const requestedAgent = args.startupAgent ?? args.createdWithAgent
     const requestedAgentEnabled =
       requestedAgent !== undefined
         ? isTuiAgentEnabled(requestedAgent, createSettings.disabledTuiAgents)
@@ -23623,6 +23648,10 @@ export class OrcaRuntimeService {
     if (!agent) {
       return opts
     }
+    // Why refuse rather than fall through to the raw command: `orca terminal create
+    // --command codex` is an agent launch that simply skipped the picker, and letting it
+    // through would make the allowlist a UI preference.
+    assertAgentAllowedByEnterprisePolicy(agent)
 
     const startupPlan = buildAgentStartupPlan({
       agent,
@@ -23732,6 +23761,9 @@ export class OrcaRuntimeService {
     if (!this.store) {
       throw new Error('runtime_unavailable')
     }
+    // Why first: refuse a blocked agent before any workspace resolution or trust marking,
+    // so a CLI/mobile resume of a now-forbidden session leaves nothing behind.
+    assertAgentAllowedByEnterprisePolicy(request.agent)
     const workspace = await this.resolveTerminalWorkspaceLaunchScope(request.worktree)
     const namespace = this.getAgentSessionExecutionNamespace(workspace, request.agent)
     if (
@@ -23814,6 +23846,9 @@ export class OrcaRuntimeService {
     if (!this.store) {
       throw new Error('runtime_unavailable')
     }
+    // Why before the idempotency ledger: a blocked agent must not consume an operation
+    // slot or leave a tombstone a retry could later replay.
+    assertAgentAllowedByEnterprisePolicy(request.agent)
     const now = Date.now()
     const operationTimestamp = parseAgentSessionOperationTimestamp(request.clientOperationId)
     if (
@@ -24864,6 +24899,7 @@ export class OrcaRuntimeService {
       throw new Error('runtime_unavailable')
     }
     const settings = this.store.getSettings()
+    assertAgentAllowedByEnterprisePolicy(opts.agent)
     if (!isTuiAgentEnabled(opts.agent, settings.disabledTuiAgents)) {
       throw new Error('Selected agent is disabled. Choose an enabled agent before creating.')
     }

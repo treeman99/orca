@@ -14,6 +14,7 @@ import {
   isUnsupportedWorktreeListZError
 } from './git-worktree-command-capabilities'
 import { gitCredentialPromptGuardEnv } from './git-credential-prompt-env'
+import { buildGitStatusCommandArgs } from './git-status-command-args'
 import {
   githubPullRequestHeadLocalRef,
   gitlabMergeRequestHeadLocalRef,
@@ -200,6 +201,25 @@ describeBinaryCompatibility('real Git binary compatibility', () => {
       // the scalar prompt guards still provide the baseline fail-fast behavior.
       expect(supports(2, 31)).toBe(false)
     }
+  })
+
+  // Why pin this: the Source Control status poll gained --ignore-submodules=none so a
+  // repo-supplied submodule.<name>.ignore cannot blank the gitlink row. That option
+  // predates the Git 2.25 baseline, so status.ts and the relay carry no fallback for
+  // it — this is the assertion that entitles them to skip one.
+  it('accepts the Source Control status argv, --ignore-submodules=none included', async () => {
+    const statusArgs = buildGitStatusCommandArgs()
+    expect(statusArgs).toContain('--ignore-submodules=none')
+
+    const withOverride = await runGit(statusArgs)
+    const withoutOverride = await runGit(
+      statusArgs.filter((arg) => arg !== '--ignore-submodules=none')
+    )
+
+    // No submodules in this fixture, so the override must be a pure no-op here;
+    // its effect is asserted against real submodules in the main/relay suites.
+    expect(withOverride.stdout).toBe(withoutOverride.stdout)
+    expect(withOverride.stdout).toContain('# branch.head ')
   })
 
   // Why pin this: --verify swallows --end-of-options but --symbolic-full-name echoes

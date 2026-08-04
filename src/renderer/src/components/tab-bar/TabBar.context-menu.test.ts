@@ -65,6 +65,15 @@ vi.mock('react', async () => {
 
 // The headless React mock above stubs hooks, so zustand's useShallow (which
 // calls useRef) has no dispatcher; make it a pass-through like the store mock.
+// The headless React mock above has no dispatcher, so the policy view's
+// useSyncExternalStore cannot run. Unrestricted is the upstream default these cases
+// assert against; the allowlist's own behaviour is covered in agent-policy-gating.test.ts.
+vi.mock('@/enterprise/enterprise-policy-access', () => ({
+  useEnterprisePolicyView: () => ({ allowedAgents: null }),
+  getEnterprisePolicyView: () => ({ allowedAgents: null }),
+  getPolicyAllowedAgents: () => null
+}))
+
 vi.mock('zustand/react/shallow', () => ({
   useShallow: (selector: unknown) => selector
 }))
