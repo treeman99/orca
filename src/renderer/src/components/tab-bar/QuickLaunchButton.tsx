@@ -2,7 +2,8 @@ import React, { useCallback } from 'react'
 import { Settings as SettingsIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { DropdownMenuItem, DropdownMenuShortcut } from '@/components/ui/dropdown-menu'
-import { getAgentCatalog, getFullAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
+import { getFullAgentCatalog, AgentIcon, type AgentCatalogEntry } from '@/lib/agent-catalog'
+import { useAgentCatalog } from '@/lib/use-agent-catalog'
 import { useAppStore } from '@/store'
 import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import { useDetectedAgents } from '@/hooks/useDetectedAgents'
@@ -14,8 +15,6 @@ import {
   DEFAULT_DISABLED_TUI_AGENTS,
   filterEnabledTuiAgents
 } from '../../../../shared/tui-agent-selection'
-import { filterAgentsByPolicy } from '../../../../shared/corporate-agent-access'
-import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { translate } from '@/i18n/i18n'
 
 export type QuickLaunchAgentMenuItemsProps = {
@@ -43,19 +42,17 @@ function getCatalogEntry(agent: TuiAgent): { id: TuiAgent; label: string } | nul
   return getFullAgentCatalog().find((a) => a.id === agent) ?? null
 }
 
-// `allowedAgents` is threaded in, not read from the cached policy: this component is
-// React.memo'd, so without a reactive read it would keep rendering the pre-policy list
-// when the allowlist arrives over the async IPC channel.
+// `catalog` is threaded in from useAgentCatalog(), not read from the cached policy: this
+// component is React.memo'd, so without a reactive read it would keep rendering the
+// pre-policy list when the allowlist arrives over the async IPC channel.
 function orderAgents(
   defaultAgent: TuiAgent | 'blank' | null | undefined,
   detected: TuiAgent[],
-  allowedAgents: readonly string[] | null
+  catalog: readonly AgentCatalogEntry[]
 ): TuiAgent[] {
-  const inCatalogOrder = filterAgentsByPolicy(
-    getAgentCatalog().filter((entry) => detected.includes(entry.id)),
-    (entry) => entry.id,
-    allowedAgents
-  ).map((entry) => entry.id)
+  const inCatalogOrder = catalog
+    .filter((entry) => detected.includes(entry.id))
+    .map((entry) => entry.id)
   if (!defaultAgent || defaultAgent === 'blank' || !inCatalogOrder.includes(defaultAgent)) {
     return inCatalogOrder
   }
@@ -124,7 +121,7 @@ function QuickLaunchAgentMenuItemsInner({
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
-  const { allowedAgents } = useEnterprisePolicyView()
+  const catalog = useAgentCatalog()
 
   const openAgentSettings = useCallback(() => {
     openSettingsTarget({ pane: 'agents', repoId: null })
@@ -186,7 +183,7 @@ function QuickLaunchAgentMenuItemsInner({
   )
 
   const enabledDetectedIds = detectedIds ? filterEnabledTuiAgents(detectedIds, disabledAgents) : []
-  const agents = detectedIds ? orderAgents(defaultAgent, enabledDetectedIds, allowedAgents) : []
+  const agents = detectedIds ? orderAgents(defaultAgent, enabledDetectedIds, catalog) : []
 
   return (
     <>

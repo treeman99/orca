@@ -36,3 +36,51 @@ export type EnterprisePolicyView = {
   /** Computer Use must confirm with the user before it changes anything. */
   requireComputerUseApproval: boolean
 }
+
+/** Every key the view carries. A field added above fails to compile until it is listed. */
+export const ENTERPRISE_POLICY_VIEW_KEYS = [
+  'allowedAgents',
+  'lockdown',
+  'disableAutoUpdate',
+  'disableMobilePairing',
+  'disableMobileEmulator',
+  'disableExternalAutomations',
+  'disableAgentInstallSuggestions',
+  'disableUsagePolling',
+  'disableVendorProviderAccounts',
+  'disableRemoteOrcaServer',
+  'disableVoice',
+  'disablePlugins',
+  'disableVendorLinks',
+  'requireComputerUseApproval'
+] as const satisfies readonly (keyof EnterprisePolicyView)[]
+
+type ViewKey = (typeof ENTERPRISE_POLICY_VIEW_KEYS)[number]
+
+/**
+ * Narrow a resolved policy to the renderer-visible slice.
+ *
+ * Why it lives beside the type instead of in the IPC handler: the renderer gate tests
+ * have to consume the object main actually sends. Rebuilding that shape by hand in a
+ * test is how a gate keeps passing while the field it reads stopped crossing the wire.
+ */
+export function toEnterprisePolicyView(
+  policy: Pick<EnterprisePolicyView, ViewKey>
+): EnterprisePolicyView {
+  return {
+    allowedAgents: policy.allowedAgents,
+    lockdown: policy.lockdown,
+    disableAutoUpdate: policy.disableAutoUpdate,
+    disableMobilePairing: policy.disableMobilePairing,
+    disableMobileEmulator: policy.disableMobileEmulator,
+    disableExternalAutomations: policy.disableExternalAutomations,
+    disableAgentInstallSuggestions: policy.disableAgentInstallSuggestions,
+    disableUsagePolling: policy.disableUsagePolling,
+    disableVendorProviderAccounts: policy.disableVendorProviderAccounts,
+    disableRemoteOrcaServer: policy.disableRemoteOrcaServer,
+    disableVoice: policy.disableVoice,
+    disablePlugins: policy.disablePlugins,
+    disableVendorLinks: policy.disableVendorLinks,
+    requireComputerUseApproval: policy.requireComputerUseApproval
+  }
+}

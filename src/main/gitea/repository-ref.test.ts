@@ -14,7 +14,7 @@ vi.mock('../enterprise/enterprise-policy-file', () => ({
   getEnterprisePolicy: () => getEnterprisePolicyMock()
 }))
 
-import { makeEnterprisePolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy } from '../../shared/enterprise-policy-fixture'
 
 import {
   _getGiteaRepoRefCacheSize,

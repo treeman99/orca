@@ -4,7 +4,7 @@
 // registered, and a channel that survives its UI is what a rebase reconnects by accident.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 
 const { handleMock, networkInterfacesMock, getEnterprisePolicyMock } = vi.hoisted(() => ({
   handleMock: vi.fn(),

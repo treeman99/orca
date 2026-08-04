@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  makeEnterprisePolicy,
-  makeLockdownPolicy
-} from '../../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../../shared/enterprise-policy-fixture'
 
 vi.mock('electron', () => ({
   app: { getPath: () => '/tmp/orca-test-userdata' }

@@ -6,7 +6,7 @@ import {
   readRefreshToken,
   refreshClaudeOauthCredentials
 } from './oauth-refresh'
-import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 
 const { netFetchMock } = vi.hoisted(() => ({
   netFetchMock: vi.fn()

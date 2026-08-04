@@ -17,8 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { SettingsSwitch } from '@/components/settings/SettingsFormControls'
 import type RepoCombobox from '@/components/repo/RepoCombobox'
 import AgentCombobox from '@/components/agent/AgentCombobox'
-import { getFullAgentCatalog } from '@/lib/agent-catalog'
-import { filterAgentsByPolicy } from '../../../shared/corporate-agent-access'
+import { useAgentCatalog } from '@/lib/use-agent-catalog'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import {
   DEFAULT_DISABLED_TUI_AGENTS,
@@ -497,12 +496,9 @@ export default function NewWorkspaceComposerCard({
     })
   }, [cancelNameInputFocusFrame, nameInputRef])
 
-  // Filtered from the reactive policy value rather than through getAgentCatalog(), which
-  // applies the same allowlist but from a non-reactive cache — this way the memo re-runs if
-  // the policy arrives after first paint.
-  const { allowedAgents, disableRemoteOrcaServer } = useEnterprisePolicyView()
+  const { disableRemoteOrcaServer } = useEnterprisePolicyView()
+  const catalog = useAgentCatalog()
   const visibleQuickAgents = React.useMemo(() => {
-    const catalog = filterAgentsByPolicy(getFullAgentCatalog(), (agent) => agent.id, allowedAgents)
     const enabledIds = new Set(
       filterEnabledTuiAgents(
         catalog.map((agent) => agent.id),
@@ -513,7 +509,7 @@ export default function NewWorkspaceComposerCard({
       (agent) =>
         enabledIds.has(agent.id) && (detectedAgentIds === null || detectedAgentIds.has(agent.id))
     )
-  }, [detectedAgentIds, disabledTuiAgents, allowedAgents])
+  }, [catalog, detectedAgentIds, disabledTuiAgents])
 
   const handleAddRepo = React.useCallback((): void => {
     // Why: swapping activeModal would unmount the composer, so the override layers Add Project on top instead.

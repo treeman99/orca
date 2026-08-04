@@ -6,7 +6,7 @@
 // important — that a build with no policy file spawns exactly as upstream does.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { makeEnterprisePolicy, makeLockdownPolicy } from '../enterprise/enterprise-policy-fixture'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 
 const { handleMock, onMock, removeHandlerMock, removeAllListenersMock, policyState } = vi.hoisted(
   () => ({

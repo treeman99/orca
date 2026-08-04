@@ -132,6 +132,35 @@ describe('recordEnterprisePolicyTrace', () => {
     expect(warnings.join('\n')).toContain('disableStarNagg')
   })
 
+  // The user-visible symptom this answers: "the agent picker still lists codex." Without
+  // this attribute the record shows a fully locked machine either way, because
+  // allowedAgents is the one restriction that does not inherit lockdown.
+  it('records the agent allowlist that actually took effect', () => {
+    vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '/opt/policy.json')
+    readFileSyncMock.mockReturnValue(
+      '{ "lockdown": true, "allowedAgents": ["claude", "opencode"] }'
+    )
+
+    recordEnterprisePolicyTrace()
+
+    expect(recordedPolicySpan().attributes['enterprise.policy.allowed_agents']).toEqual([
+      'claude',
+      'opencode'
+    ])
+  })
+
+  it('records that a locked machine left every agent selectable', () => {
+    vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '/opt/policy.json')
+    // A mistyped key is the realistic way this happens: it resolves to no restriction.
+    readFileSyncMock.mockReturnValue('{ "lockdown": true, "allowedAgent": ["claude"] }')
+
+    recordEnterprisePolicyTrace()
+
+    expect(recordedPolicySpan().attributes['enterprise.policy.allowed_agents']).toBe(
+      '(unrestricted)'
+    )
+  })
+
   it('does not throw when the observability lane is disabled', () => {
     _resetTracerForTests()
     vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '/opt/policy.json')
