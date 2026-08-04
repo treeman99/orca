@@ -14805,6 +14805,10 @@
   "sourceControl": {
     "submoduleDetachedHeadTooltip": "このサブモジュールは HEAD が分離されているため、どのブランチにも属していません",
     "submoduleBranchTooltip": "このサブモジュール内でチェックアウトされているブランチ",
-    "submoduleBranchDiffersFromParent": "(ルートと異なる)"
+    "submoduleBranchDiffersFromParent": "(ルートと異なる)",
+    "submoduleNewCommits": "新しいコミット",
+    "submoduleModifiedContent": "変更されたコンテンツ",
+    "submoduleUntrackedContent": "追跡されていないコンテンツ",
+    "submoduleCommittedInSubmodule": "サブモジュールでコミット済み"
   }
 }

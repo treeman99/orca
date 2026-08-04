@@ -43,6 +43,13 @@ export type GitUncommittedEntry = {
   // parent worktree. Drives diff routing into the submodule and read-only
   // gating — submodule-internal changes are never stageable from the parent.
   submoduleRoot?: string
+  // Set on rows synthesized from the parent's recorded gitlink -> the submodule's
+  // checked-out HEAD. Those files are COMMITTED inside the submodule, not
+  // uncommitted work: `git checkout`/`git pull` leave the pointer drifted and the
+  // range then holds whatever someone else pushed. They ride in the `unstaged`
+  // area only because that is the section an expanded submodule renders into, so
+  // consumers must not present them as the user's own edits.
+  submoduleCommitRange?: true
   // Working-tree line counts for this entry's staging area (staged vs unstaged
   // diffs are reported separately). Untracked files count their full contents
   // as additions. Undefined for binary files and when the diff is unavailable.

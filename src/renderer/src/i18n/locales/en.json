@@ -14895,7 +14895,11 @@
   "sourceControl": {
     "submoduleDetachedHeadTooltip": "This submodule has a detached HEAD, so it is not on any branch",
     "submoduleBranchTooltip": "Branch checked out inside this submodule",
-    "submoduleBranchDiffersFromParent": "(differs from root)"
+    "submoduleBranchDiffersFromParent": "(differs from root)",
+    "submoduleNewCommits": "new commits",
+    "submoduleModifiedContent": "modified content",
+    "submoduleUntrackedContent": "untracked content",
+    "submoduleCommittedInSubmodule": "committed in submodule"
   },
   "featureTips": {
     "voice": {

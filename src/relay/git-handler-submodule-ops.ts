@@ -256,7 +256,10 @@ export async function computeSubmoduleRangeEntries(
   }
   return parseBranchDiff(nameStatus, parseNumstat(numstat)).map((entry) => ({
     ...entry,
-    area: 'unstaged'
+    area: 'unstaged',
+    // Why: committed inside the submodule, not the user's uncommitted work —
+    // mirrors the main process so SSH renders the same distinction.
+    submoduleCommitRange: true
   }))
 }
 

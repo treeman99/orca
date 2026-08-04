@@ -83,6 +83,10 @@ import {
   type DiscardAllArea
 } from './discard-all-sequence'
 import {
+  getSubmoduleCommitRangeLabel,
+  getSubmoduleRowStateLabel
+} from './source-control-submodule-state-label'
+import {
   canDiscardStatusEntry,
   canStageStatusEntry,
   canUnstageStatusEntry
@@ -549,6 +553,8 @@ const DEFAULT_COLLAPSED_SECTIONS = ['history'] as const
 const SUBMODULE_WORKTREE_ONLY_LABEL = 'Stage inside submodule'
 const SUBMODULE_WORKTREE_ONLY_TOOLTIP =
   'The parent repo (including Stage All) cannot stage file changes inside a submodule'
+const SUBMODULE_COMMIT_RANGE_TOOLTIP =
+  'Already committed inside the submodule — this file differs between the commit the parent records and the one checked out, not because you edited it'
 const SUBMODULE_LOADING_LABEL = 'Loading submodule changes…'
 const SUBMODULE_EMPTY_LABEL = 'No changes in submodule'
 const SUBMODULE_ERROR_LABEL = 'Failed to load submodule changes'
@@ -7906,6 +7912,8 @@ const UncommittedEntryRow = React.memo(function UncommittedEntryRow({
   const dirPath = parentDir === '.' ? '' : parentDir
   const isUnresolvedConflict = entry.conflictStatus === 'unresolved'
   const isSubmoduleWorktreeOnly = isSubmoduleWorktreeOnlyChange(entry)
+  const submoduleStateLabel = getSubmoduleRowStateLabel(entry)
+  const submoduleCommitRangeLabel = getSubmoduleCommitRangeLabel(entry)
   const conflictLabel = entry.conflictKind
     ? getLocalizedConflictKindLabel(entry.conflictKind)
     : null
@@ -7994,6 +8002,23 @@ const UncommittedEntryRow = React.memo(function UncommittedEntryRow({
           </span>
           {conflictLabel && (
             <div className="truncate text-[11px] text-muted-foreground">{conflictLabel}</div>
+          )}
+          {submoduleStateLabel && (
+            // Why: git's own "(new commits, modified content)" parenthetical — without it a
+            // gitlink left behind by checkout/pull reads as a file the user edited.
+            <div className="truncate text-[11px] text-muted-foreground">
+              ({submoduleStateLabel})
+            </div>
+          )}
+          {submoduleCommitRangeLabel && (
+            // Why: this row came from the recorded-gitlink→checkout range, so it is
+            // committed inside the submodule, not uncommitted work of the user's.
+            <div
+              className="truncate text-[11px] text-muted-foreground"
+              title={SUBMODULE_COMMIT_RANGE_TOOLTIP}
+            >
+              ({submoduleCommitRangeLabel})
+            </div>
           )}
           {isSubmoduleWorktreeOnly && (
             // Why: parent git stages the changed gitlink but not nested worktree dirtiness; keep that boundary visible.

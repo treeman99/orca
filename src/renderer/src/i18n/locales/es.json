@@ -14805,6 +14805,10 @@
   "sourceControl": {
     "submoduleDetachedHeadTooltip": "Este submódulo tiene un HEAD desacoplado, por lo que no está en ninguna rama",
     "submoduleBranchTooltip": "Rama activa dentro de este submódulo",
-    "submoduleBranchDiffersFromParent": "(difiere de la raíz)"
+    "submoduleBranchDiffersFromParent": "(difiere de la raíz)",
+    "submoduleNewCommits": "nuevos commits",
+    "submoduleModifiedContent": "contenido modificado",
+    "submoduleUntrackedContent": "contenido sin seguimiento",
+    "submoduleCommittedInSubmodule": "ya confirmado en el submódulo"
   }
 }

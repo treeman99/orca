@@ -14805,6 +14805,10 @@
   "sourceControl": {
     "submoduleDetachedHeadTooltip": "이 서브모듈은 HEAD가 분리되어 있어 어떤 브랜치에도 속해 있지 않습니다",
     "submoduleBranchTooltip": "이 서브모듈 안에 체크아웃된 브랜치",
-    "submoduleBranchDiffersFromParent": "(루트와 다름)"
+    "submoduleBranchDiffersFromParent": "(루트와 다름)",
+    "submoduleNewCommits": "새 커밋",
+    "submoduleModifiedContent": "수정된 내용",
+    "submoduleUntrackedContent": "추적되지 않은 내용",
+    "submoduleCommittedInSubmodule": "서브모듈에 이미 커밋됨"
   }
 }

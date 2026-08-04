@@ -141,19 +141,26 @@ describe('submodule on its own branch', () => {
   it('still reports the gitlink row when .gitmodules sets ignore = all', async () => {
     // Why: `ignore = all` lives in the checked-in .gitmodules, so it suppresses
     // the row on every clone and the submodule vanishes from Source Control.
+    // `trackedChanges` is the marker that keeps it visible AND expandable, and it
+    // survives on purpose — see shared/git-submodule-ignore-policy.ts. The commit
+    // pointer and untracked content are the parts `all` legitimately silences.
     git(rootPath, ['config', '-f', '.gitmodules', `submodule.${SUBMODULE_PATH}.ignore`, 'all'])
     invalidateGitReadCaches()
 
     const status = await getStatus(rootPath)
 
-    const row = status.entries.find((entry) => entry.path === SUBMODULE_PATH)
-    expect(row?.submodule?.trackedChanges).toBe(true)
-    expect(row?.submodule?.untrackedChanges).toBe(true)
+    expect(status.entries.find((entry) => entry.path === SUBMODULE_PATH)?.submodule).toEqual({
+      commitChanged: false,
+      trackedChanges: true,
+      untrackedChanges: false
+    })
   })
 
-  it('keeps the dirty markers when .gitmodules sets ignore = dirty', async () => {
+  it('keeps the tracked-dirt marker when .gitmodules sets ignore = dirty', async () => {
     // Why: `ignore = dirty` degrades the sub-state field to `SC..`, dropping the
-    // markers that make the row expandable at all.
+    // markers that make the row expandable at all. Orca keeps the tracked marker
+    // so a user's uncommitted edits inside the submodule stay reachable; the
+    // untracked marker follows the configured intent.
     git(rootPath, ['config', '-f', '.gitmodules', `submodule.${SUBMODULE_PATH}.ignore`, 'dirty'])
     invalidateGitReadCaches()
 
@@ -162,7 +169,7 @@ describe('submodule on its own branch', () => {
     expect(status.entries.find((entry) => entry.path === SUBMODULE_PATH)?.submodule).toEqual({
       commitChanged: true,
       trackedChanges: true,
-      untrackedChanges: true
+      untrackedChanges: false
     })
   })
 

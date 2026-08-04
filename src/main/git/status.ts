@@ -40,6 +40,11 @@ import {
 import { StatusPorcelainParser } from '../../shared/git-status-porcelain-parser'
 import { buildGitStatusCommandArgs } from '../../shared/git-status-command-args'
 import { mergeSubmoduleRangeWithWorkingEntries } from '../../shared/git-submodule-range-merge'
+import { applySubmoduleIgnorePolicyToEntries } from '../../shared/git-submodule-ignore-policy'
+import {
+  clearSubmoduleIgnorePolicyCache,
+  readSubmoduleIgnorePolicy
+} from './submodule-ignore-config'
 import { gitDiffHasChange } from '../../shared/git-diff-change-presence'
 import { findExistingWorktreeSymlinkPaths } from './worktree-symlink-detection'
 import { capGitStatusEntries, resolveGitStatusLimit } from '../../shared/git-status-limit'
@@ -104,6 +109,7 @@ export function invalidateGitReadCaches(): void {
   statusReadLeaseOwner.invalidate()
   clearGitStatusLineStatsCache()
   clearSubmodulePathsCache()
+  clearSubmoduleIgnorePolicyCache()
   resolvedUpstreamNameCache.clear()
 }
 
@@ -274,6 +280,27 @@ async function dropSharedSymlinkUntrackedEntries(
   }
 }
 
+/** Re-apply the repo's/user's `submodule.<name>.ignore` after the poll's
+ *  `--ignore-submodules=none` (see git-submodule-ignore-policy.ts). Mutates
+ *  `entries`.
+ *
+ *  Gated on a gitlink actually being present: a clean tree, or any repo without
+ *  submodules, spends no git process here. */
+async function narrowGitlinkRowsToConfiguredIgnore(
+  worktreePath: string,
+  entries: GitStatusEntry[],
+  options: GitRuntimeOptions
+): Promise<void> {
+  if (!entries.some((entry) => entry.submodule)) {
+    return
+  }
+  const policy = await readSubmoduleIgnorePolicy(worktreePath, options)
+  const narrowed = applySubmoduleIgnorePolicyToEntries(entries, policy)
+  if (narrowed.length !== entries.length || narrowed.some((entry, i) => entry !== entries[i])) {
+    entries.splice(0, entries.length, ...narrowed)
+  }
+}
+
 async function runGetStatus(
   worktreePath: string,
   options: GetStatusOptions = {}
@@ -336,6 +363,7 @@ async function runGetStatus(
   }
 
   await dropSharedSymlinkUntrackedEntries(worktreePath, entries, options.sharedLinkPaths ?? [])
+  await narrowGitlinkRowsToConfiguredIgnore(worktreePath, entries, options)
 
   if (statusSucceeded && !didHitLimit && shouldProbeEffectiveUpstreamStatus(branch, upstreamName)) {
     const branchName = getShortBranchName(branch)
@@ -524,6 +552,10 @@ async function computeSubmoduleRangeEntries(
       path: change.path,
       status: change.status,
       area: 'unstaged',
+      // Why: these files are committed inside the submodule — the pointer drift a
+      // branch switch leaves behind is someone else's work, so consumers must not
+      // render them as the user's uncommitted edits.
+      submoduleCommitRange: true,
       ...(change.oldPath ? { oldPath: change.oldPath } : {}),
       ...statsByPath.get(change.path)
     })

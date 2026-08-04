@@ -43,6 +43,11 @@ import { forceDeletePreservedRelayBranch } from './git-handler-branch-cleanup'
 import { refreshLocalBaseRefForWorktreeCreateOp } from './git-handler-local-base-ref-refresh'
 import { gitExecMutatesRepository } from '../shared/git-exec-mutation'
 import { detectConflictOperation, getStatusOp } from './git-handler-status-ops'
+import {
+  clearSubmoduleIgnorePolicyCache,
+  createSubmoduleIgnorePolicyCache,
+  type SubmoduleIgnorePolicyCache
+} from './git-submodule-ignore-config'
 import { capGitStatusEntries, resolveGitStatusLimit } from '../shared/git-status-limit'
 import { mergeSubmoduleRangeWithWorkingEntries } from '../shared/git-submodule-range-merge'
 import { gitDiffHasChange } from '../shared/git-diff-change-presence'
@@ -183,6 +188,8 @@ export class GitHandler {
 
   // Why: cache .gitmodules per instance to avoid SSH reads and test leakage.
   private submodulePathsCache: SubmodulePathsCache = createSubmodulePathsCache()
+  private submoduleIgnorePolicyCache: SubmoduleIgnorePolicyCache =
+    createSubmoduleIgnorePolicyCache()
 
   // Why: RelayContext accepted for protocol back-compat (docs/relay-fs-allowlist-removal.md) but no longer consulted on git ops.
   constructor(
@@ -302,6 +309,7 @@ export class GitHandler {
     this.gitDiffReadDedupe.clear()
     clearGitStatusLineStatsCache()
     clearSubmodulePathsCache(this.submodulePathsCache)
+    clearSubmoduleIgnorePolicyCache(this.submoduleIgnorePolicyCache)
   }
 
   private async runWithGitReadCacheClear<T>(run: () => Promise<T>): Promise<T> {
@@ -358,7 +366,8 @@ export class GitHandler {
   private async getStatus(params: Record<string, unknown>, context: RequestContext) {
     this.gitDiffReadDedupe.clear()
     return getStatusOp(this.git.bind(this), streamRelayGitStdout, params, {
-      signal: context.signal
+      signal: context.signal,
+      submoduleIgnorePolicyCache: this.submoduleIgnorePolicyCache
     })
   }
 
@@ -385,7 +394,7 @@ export class GitHandler {
     // Why: pointer/range probes are part of the same SSH request and must not outlive its cancellation.
     const requestGit: GitExec = (args, cwd, options) =>
       this.git(args, cwd, { ...options, signal: context.signal })
-  // Why: moved clean gitlinks need committed changes surfaced.
+    // Why: moved clean gitlinks need committed changes surfaced.
     const { fromOid, toOid } = await resolveSubmoduleCommitRange(
       requestGit,
       worktreePath,
@@ -780,7 +789,7 @@ export class GitHandler {
   private async branchCompare(params: Record<string, unknown>) {
     const worktreePath = params.worktreePath as string
     const baseRef = params.baseRef as string
-      // Why: reject flag-like base refs to prevent rev-parse option injection.
+    // Why: reject flag-like base refs to prevent rev-parse option injection.
     if (baseRef.startsWith('-')) {
       throw new Error('Base ref must not start with "-"')
     }

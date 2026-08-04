@@ -14805,6 +14805,10 @@
   "sourceControl": {
     "submoduleDetachedHeadTooltip": "此子模块处于分离 HEAD 状态，因此不在任何分支上",
     "submoduleBranchTooltip": "此子模块内检出的分支",
-    "submoduleBranchDiffersFromParent": "(与根仓库不同)"
+    "submoduleBranchDiffersFromParent": "(与根仓库不同)",
+    "submoduleNewCommits": "新提交",
+    "submoduleModifiedContent": "已修改的内容",
+    "submoduleUntrackedContent": "未跟踪的内容",
+    "submoduleCommittedInSubmodule": "已在子模块中提交"
   }
 }

@@ -20,6 +20,11 @@ import {
   type GitLineStats
 } from '../shared/git-uncommitted-line-stats'
 import { resolveGitStatusLimit } from '../shared/git-status-limit'
+import { applySubmoduleIgnorePolicyToEntries } from '../shared/git-submodule-ignore-policy'
+import {
+  readSubmoduleIgnorePolicyCached,
+  type SubmoduleIgnorePolicyCache
+} from './git-submodule-ignore-config'
 import {
   beginGitStatusLineStatsCacheWrite,
   clearGitStatusLineStatsCacheKey,
@@ -65,7 +70,7 @@ export async function getStatusOp(
   git: GitExec,
   streamGit: RelayGitStreamExec,
   params: Record<string, unknown>,
-  options: { signal?: AbortSignal } = {}
+  options: { signal?: AbortSignal; submoduleIgnorePolicyCache?: SubmoduleIgnorePolicyCache } = {}
 ): Promise<{
   entries: Record<string, unknown>[]
   conflictOperation: string
@@ -159,6 +164,18 @@ export async function getStatusOp(
       throw error
     }
     // not a git repo or git not available
+  }
+
+  // Why: re-apply the repo's/user's `submodule.<name>.ignore` after the poll's
+  // `--ignore-submodules=none` (see shared/git-submodule-ignore-policy.ts).
+  // Gated on a gitlink being present, so a clean tree costs no extra git process.
+  if (options.submoduleIgnorePolicyCache && entries.some((entry) => entry.submodule)) {
+    const policy = await readSubmoduleIgnorePolicyCached(
+      git,
+      worktreePath,
+      options.submoduleIgnorePolicyCache
+    )
+    entries.splice(0, entries.length, ...applySubmoduleIgnorePolicyToEntries(entries, policy))
   }
 
   // Why: skip numstat after the limit to avoid reintroducing its cost.
