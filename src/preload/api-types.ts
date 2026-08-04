@@ -35,7 +35,6 @@ import type {
   GithubEnterpriseLoginResult
 } from '../shared/github-enterprise-auth'
 import type { AppIdentity } from '../shared/app-identity'
-import type { ReleaseChannel } from '../shared/release-channel'
 import type {
   HostQualifiedDetectedWorktreeResult,
   LegacyDetectedWorktreeRequest,
@@ -263,9 +262,6 @@ import type {
   StatsSummary,
   MemorySnapshot,
   TuiAgent,
-  ReleaseBuildListResult,
-  UpdateCheckOptions,
-  UpdateStatus,
   Worktree,
   WorktreeBaseStatusEvent,
   WorktreeHeadIdentity,
@@ -400,10 +396,6 @@ import type {
 } from '../shared/skill-freshness'
 import type {
   CrashReportBreadcrumbData,
-  CrashReportCopyDiagnosticsArgs,
-  CrashReportRecord,
-  CrashReportSubmitArgs,
-  CrashReportSubmitResult,
   ReactErrorBoundaryReportArgs,
   ReactErrorBoundaryReportResult
 } from '../shared/crash-reporting'
@@ -973,6 +965,8 @@ export type NativeChatApi = {
 export type AppApi = {
   /** Returns the app identity currently exposed to native chrome and the titlebar. */
   getIdentity: () => Promise<AppIdentity>
+  /** The running app version, for diagnostics that stamp it onto reports. */
+  getVersion: () => Promise<string>
   /** Returns a URL base for feature-wall assets. In dev this is Vite /@fs;
    *  in packaged builds this is file:// resources. Renderer appends filenames. */
   getFeatureWallAssetBaseUrl: () => Promise<string>
@@ -1675,29 +1669,11 @@ export type PreloadApi = {
     reportRendererSerializerReady?: (ptyId: string) => Promise<void>
     management: PtyManagementApi
   }
-  feedback: {
-    submit: (args: {
-      feedback: string
-      submitAnonymously?: boolean
-      githubLogin: string | null
-      githubEmail: string | null
-      images?: { contentType: string; data: Uint8Array }[]
-    }) => Promise<
-      { ok: true; imagesDelivered?: boolean } | { ok: false; status: number | null; error: string }
-    >
-  }
   crashReports: {
-    getLatestPending: () => Promise<CrashReportRecord | null>
-    getLatestReport: () => Promise<CrashReportRecord | null>
-    dismiss: (args: { reportId: string }) => Promise<CrashReportRecord | null>
     recordRendererError: (
       args: ReactErrorBoundaryReportArgs
     ) => Promise<ReactErrorBoundaryReportResult>
     recordBreadcrumb: (args: { name: string; data?: CrashReportBreadcrumbData }) => void
-    submit: (args: CrashReportSubmitArgs) => Promise<CrashReportSubmitResult>
-    copyLatestDiagnostics: (
-      args?: CrashReportCopyDiagnosticsArgs
-    ) => Promise<{ ok: true } | { ok: false; error: string }>
     /** Exact V8/Blink heap sizes; null when the runtime withholds them. */
     readHeapStatistics: () => RendererHeapStatistics | null
   }
@@ -2685,18 +2661,6 @@ export type PreloadApi = {
     clientId: () => Promise<string>
     onChanged: (callback: (event: RemoteWorkspaceChangedEvent) => void) => () => void
   }
-  updater: {
-    getVersion: () => Promise<string>
-    getStatus: () => Promise<UpdateStatus>
-    check: (options?: UpdateCheckOptions) => Promise<void>
-    download: () => Promise<void>
-    quitAndInstall: () => Promise<void>
-    dismissNudge: () => Promise<void>
-    dismissAvailableUpdate: () => Promise<void>
-    listBuilds: (channel: ReleaseChannel) => Promise<ReleaseBuildListResult>
-    onStatus: (callback: (status: UpdateStatus) => void) => () => void
-    onClearDismissal: (callback: () => void) => () => void
-  }
   notebook: {
     runPythonCell: (args: {
       filePath: string
@@ -3088,9 +3052,6 @@ export type PreloadApi = {
     onOpenSettings: (callback: () => void) => () => void
     /** Consumes a one-shot tray/menu-bar "open settings" intent queued before mount. */
     consumePendingOpenSettings: () => Promise<boolean>
-    onOpenSetupGuide: (callback: () => void) => () => void
-    onOpenFeatureTour: (callback: () => void) => () => void
-    onOpenCrashReport: (callback: () => void) => () => void
     onToggleLeftSidebar: (callback: () => void) => () => void
     onToggleRightSidebar: (callback: () => void) => () => void
     onToggleWorktreePalette: (callback: () => void) => () => void

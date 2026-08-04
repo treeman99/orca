@@ -162,8 +162,6 @@ inline src/main/ssh/ssh-relay-session.ts
 inline src/main/star-nag/service.test.ts
 inline src/main/text-generation/commit-message-text-generation.test.ts
 inline src/main/text-generation/commit-message-text-generation.ts
-inline src/main/updater.test.ts
-inline src/main/updater.ts
 inline src/main/window/attach-main-window-services.ts
 inline src/main/window/createMainWindow.test.ts
 inline src/main/window/createMainWindow.ts
@@ -190,7 +188,6 @@ inline src/renderer/src/components/NewWorkspaceComposerCard.tsx
 inline src/renderer/src/components/PullRequestPage.tsx
 inline src/renderer/src/components/TaskPage.tsx
 inline src/renderer/src/components/Terminal.tsx
-inline src/renderer/src/components/UpdateCard.tsx
 inline src/renderer/src/components/WorktreeJumpPalette.tsx
 inline src/renderer/src/components/activity/ActivityPrototypePage.test.ts
 inline src/renderer/src/components/activity/ActivityPrototypePage.tsx

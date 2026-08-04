@@ -1,12 +1,11 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   SERVE_UPDATE_HANDOFF_PATH_ENV,
-  getServeUpdateHandoffPath,
-  parseServeUpdateHandoffState
+  getServeUpdateHandoffPath
 } from '../shared/serve-update-handoff'
 
 const { appMock, getCanonicalUserDataPathMock } = vi.hoisted(() => ({
@@ -17,7 +16,7 @@ const { appMock, getCanonicalUserDataPathMock } = vi.hoisted(() => ({
 vi.mock('electron', () => ({ app: appMock }))
 vi.mock('./persistence', () => ({ getCanonicalUserDataPath: getCanonicalUserDataPathMock }))
 
-describe('serve update handoff', () => {
+describe('serve supervisor handshake', () => {
   let root: string
 
   beforeEach(() => {
@@ -35,53 +34,6 @@ describe('serve update handoff', () => {
   })
 
   it.runIf(process.platform === 'darwin')(
-    'persists install intent and a later deterministic failure for the serving pid',
-    async () => {
-      const {
-        failServeUpdateHandoff,
-        getServeUpdateHandoffFailure,
-        hasServeUpdateSupervisor,
-        requestServeUpdateHandoff
-      } = await import('./serve-update-handoff')
-
-      expect(hasServeUpdateSupervisor()).toBe(true)
-      expect(requestServeUpdateHandoff('1.0.61')).toBe(true)
-      expect(readState(root)).toEqual({
-        schemaVersion: 1,
-        phase: 'install-requested',
-        fromVersion: '1.0.51',
-        targetVersion: '1.0.61',
-        servingPid: process.pid
-      })
-
-      failServeUpdateHandoff('native updater rejected the request')
-
-      expect(readState(root)).toEqual({
-        schemaVersion: 1,
-        phase: 'failed',
-        fromVersion: '1.0.51',
-        targetVersion: '1.0.61',
-        servingPid: process.pid,
-        reason: 'native updater rejected the request'
-      })
-      expect(getServeUpdateHandoffFailure()).toBe('native updater rejected the request')
-
-      appMock.getVersion.mockReturnValue('1.0.61')
-      expect(getServeUpdateHandoffFailure()).toBeNull()
-      expect(existsSync(getServeUpdateHandoffPath(root))).toBe(false)
-    }
-  )
-
-  it('rejects a handoff path outside the canonical user-data directory', async () => {
-    process.env[SERVE_UPDATE_HANDOFF_PATH_ENV] = join(root, '..', 'untrusted.json')
-    const { hasServeUpdateSupervisor, requestServeUpdateHandoff } =
-      await import('./serve-update-handoff')
-
-    expect(hasServeUpdateSupervisor()).toBe(false)
-    expect(requestServeUpdateHandoff('1.0.61')).toBe(false)
-  })
-
-  it.runIf(process.platform === 'darwin')(
     'quits a supervised serve child when its CLI parent is lost',
     async () => {
       const parent = new EventEmitter()
@@ -94,10 +46,26 @@ describe('serve update handoff', () => {
       removeListener()
     }
   )
-})
 
-function readState(root: string) {
-  return parseServeUpdateHandoffState(
-    JSON.parse(readFileSync(getServeUpdateHandoffPath(root), 'utf8'))
-  )
-}
+  it('ignores a handoff path outside the canonical user-data directory', async () => {
+    process.env[SERVE_UPDATE_HANDOFF_PATH_ENV] = join(root, '..', 'untrusted.json')
+    const parent = new EventEmitter()
+    const { installServeSupervisorDisconnectQuit } = await import('./serve-update-handoff')
+
+    installServeSupervisorDisconnectQuit(true, parent)
+    parent.emit('disconnect')
+
+    expect(appMock.quit).not.toHaveBeenCalled()
+  })
+
+  // Fork guard: main no longer writes an install-requested handoff. If an
+  // upstream rebase reintroduces the updater's write path, this turns red.
+  it('exports no update-install handoff writer', async () => {
+    const moduleExports = await import('./serve-update-handoff')
+
+    expect(Object.keys(moduleExports).sort()).toEqual([
+      'installServeSupervisorDisconnectQuit',
+      'notifyServeSupervisorReady'
+    ])
+  })
+})

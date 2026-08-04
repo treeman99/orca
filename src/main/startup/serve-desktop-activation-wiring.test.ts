@@ -48,7 +48,11 @@ describe('serve desktop activation wiring', () => {
     expect(source).not.toContain('runtime.syncWindowGraph(0,')
   })
 
-  it('keeps the headless install policy after desktop promotion', () => {
-    expect(source).toContain('updateInstallMode: resolveUpdateInstallMode(isServeMode)')
+  // Fork guard: this build has no in-app updater, so serve promotion must not
+  // reintroduce an install-mode policy or an updater setup call.
+  it('wires no update-install policy into desktop promotion', () => {
+    expect(source).not.toContain('updateInstallMode')
+    expect(source).not.toContain('resolveUpdateInstallMode')
+    expect(source).not.toContain('ensureAutoUpdaterConfigured')
   })
 })

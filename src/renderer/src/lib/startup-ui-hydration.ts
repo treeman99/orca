@@ -59,8 +59,6 @@ export function getStartupErrorFallbackUI(uiHydrated: boolean): PersistedUIState
     worktreeCardProperties: [...DEFAULT_WORKTREE_CARD_PROPERTIES],
     _worktreeCardModeDefaulted: true,
     statusBarItems: [...DEFAULT_STATUS_BAR_ITEMS],
-    statusBarVisible: true,
-    dismissedUpdateVersion: null,
-    lastUpdateCheckAt: null
+    statusBarVisible: true
   }
 }

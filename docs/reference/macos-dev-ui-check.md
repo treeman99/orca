@@ -16,8 +16,8 @@
 | 정책 파일 파싱·경고, 채택된 값 (trace 기록) | `%ProgramData%\Orca` ACL, 머신 전역 경로 우선순위 |
 | 설정 → 연동의 **사내 GitHub (Enterprise)** 섹션과 정책 호스트 프리필 | `gh` 자격증명 저장소(맥은 Keychain, Windows는 gh 자체 저장소) |
 | 설정 → AI 제공업체 계정의 **사내 자체 호스팅 모델** 섹션·추가·토큰 저장 | 토큰 암호화가 **DPAPI**로 되는지 (맥은 Keychain 항목 `Orca Dev Safe Storage`) |
-| `allowedAgents`로 에이전트/모델 피커가 좁혀지는지 | NSIS per-user 설치, 무서명 실행, 자동 업데이트 피드 차단 |
-| **업데이트 항목이 메뉴·트레이·설정·사이드바에서 사라지는지** (`disableAutoUpdate`) | — |
+| `allowedAgents`로 에이전트/모델 피커가 좁혀지는지 | NSIS per-user 설치, 무서명 실행 |
+| **업데이트·피드백 항목이 메뉴·트레이·설정·사이드바에 아예 없는지** (정책 무관 — 코드에서 제거) | — |
 | **설정 → 모바일 / 음성 / 원격 Orca 서버 탭이 사라지는지** | — |
 | **AI 제공업체 계정에 AWS SSO와 사내 모델만 남는지** (`disableVendorProviderAccounts`) | — |
 | **Computer Use 승인 창** — 에이전트에게 다른 앱을 클릭시키면 확인 창이 뜨는지 | Windows `runtime.ps1` 경유 동작 |

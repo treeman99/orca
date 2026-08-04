@@ -105,7 +105,7 @@ function buildReport(state: ProbeState | null, running: boolean): TypingLatencyR
 }
 
 function cacheAppVersion(): void {
-  void window.api?.updater
+  void window.api?.app
     ?.getVersion?.()
     .then((version) => {
       cachedAppVersion = version

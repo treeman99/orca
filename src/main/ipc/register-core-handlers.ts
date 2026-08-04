@@ -16,7 +16,6 @@ import { registerGitLabHandlers } from './gitlab'
 import { registerHostedReviewHandlers } from './hosted-review'
 import { registerLinearHandlers } from './linear'
 import { registerJiraHandlers } from './jira'
-import { registerFeedbackHandlers } from './feedback'
 import { registerCrashReportingHandlers } from './crash-reporting'
 import { registerExportHandlers } from './export'
 import { registerStatsHandlers } from './stats'
@@ -71,7 +70,6 @@ import { registerEnterprisePolicyHandlers } from './enterprise-policy'
 import { registerAwsSsoHandlers } from './aws-sso'
 import { registerGithubEnterpriseHandlers } from './github-enterprise'
 import { registerGrokAccountHandlers } from './grok-accounts'
-import { registerUpdaterHandlers } from '../window/attach-main-window-services'
 import {
   registerClipboardHandlers,
   setTrustedClipboardRendererWebContentsId
@@ -166,7 +164,6 @@ export function registerCoreHandlers(
   registerHostedReviewHandlers(store, stats)
   registerLinearHandlers()
   registerJiraHandlers()
-  registerFeedbackHandlers()
   if (crashReports) {
     registerCrashReportingHandlers(crashReports)
   }
@@ -244,7 +241,6 @@ export function registerCoreHandlers(
   })
   registerNativeChatHandlers()
   registerClipboardHandlers(store)
-  registerUpdaterHandlers(store)
   // Not registered at all rather than refused per call: one of these channels asks macOS
   // for microphone access, and a permission prompt for a feature the policy removed is
   // worse than a missing channel.

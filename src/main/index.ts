@@ -95,18 +95,6 @@ import {
 } from './menu/register-app-menu'
 import { createGpuAccelerationAboutPanelOptions } from './menu/gpu-acceleration-about-panel'
 import {
-  checkForRemoteServerUpdate,
-  checkForUpdatesFromMenu,
-  downloadRemoteServerUpdate,
-  getRemoteServerUpdaterSnapshot,
-  installRemoteServerUpdate,
-  isQuittingForUpdate,
-  resolveUpdateInstallMode
-} from './updater'
-import { configureRemoteServerUpdater } from './runtime/remote-server-updater'
-import type { UpdateCheckOptions } from '../shared/types'
-import { recordUpdaterLifecycle } from './updater-lifecycle-diagnostics'
-import {
   installServeSupervisorDisconnectQuit,
   notifyServeSupervisorReady
 } from './serve-update-handoff'
@@ -178,10 +166,7 @@ import { readMiniMaxSessionCookie } from './minimax/minimax-cookie-store'
 import { getInitialClaudeRateLimitTarget } from './rate-limits/claude-rate-limit-target'
 import { getInitialCodexRateLimitTarget } from './rate-limits/codex-rate-limit-target'
 import { createAccountRuntimeTargetSettingsSync } from './rate-limits/account-runtime-target-sync'
-import {
-  attachMainWindowServices,
-  ensureAutoUpdaterConfigured
-} from './window/attach-main-window-services'
+import { attachMainWindowServices } from './window/attach-main-window-services'
 import { createMainWindow, loadMainWindow } from './window/createMainWindow'
 import { zoomDashboardPopoutIfFocused } from './window/dashboard-popout-window'
 import {
@@ -401,12 +386,7 @@ if (isServeMode) {
 }
 const desktopActivationGate = createServeDesktopActivationGate({
   initialState: isServeMode ? 'initializing' : 'ready',
-  activateWindow: () => {
-    // Why: an updater replacement must not resurrect the old app bundle.
-    if (!isQuittingForUpdate()) {
-      focusExistingWindow()
-    }
-  },
+  activateWindow: () => focusExistingWindow(),
   onBlocked: (reason) => console.error(`[serve] Desktop activation blocked: ${reason}`)
 })
 // Why: on Windows a CLI launch that lost ELECTRON_RUN_AS_NODE would boot the GUI and exit silently; redirect to node mode before the lock gate below.
@@ -565,12 +545,6 @@ installUncaughtPipeErrorGuard()
 installUnhandledRejectionLogging()
 // Why: expose the app version via process.env so main and the forked daemon can set TERM_PROGRAM_VERSION without importing electron.
 process.env.ORCA_APP_VERSION = app.getVersion()
-configureRemoteServerUpdater({
-  getSnapshot: getRemoteServerUpdaterSnapshot,
-  check: checkForRemoteServerUpdate,
-  download: downloadRemoteServerUpdate,
-  install: installRemoteServerUpdate
-})
 patchPackagedProcessPath()
 // Why: the sync seed above covers early IPC (homebrew/nix); the async login-shell probe below (packaged only) then adds the user's rc PATH.
 if (app.isPackaged && process.platform !== 'win32') {
@@ -674,7 +648,7 @@ function clearExpectedRendererReload(webContentsId?: number): void {
 }
 
 function getExpectedTeardownScope(webContentsId?: number): ExpectedTeardownScope {
-  if (isQuitting || isQuittingForUpdate()) {
+  if (isQuitting) {
     return 'app-shutdown'
   }
   if (webContentsId === undefined) {
@@ -1090,9 +1064,7 @@ function showMainWindowFromTray(): void {
     mainWindow.focus()
     return
   }
-  if (!isQuittingForUpdate()) {
-    openMainWindow()
-  }
+  openMainWindow()
 }
 
 function openSettingsFromSystemMenu(): void {
@@ -1119,12 +1091,6 @@ function quitFromSystemTray(): void {
   app.quit()
 }
 
-// Why: menu/tray are clickable before anything else configures the updater.
-function runUserInitiatedUpdateCheck(options?: UpdateCheckOptions): void {
-  ensureAutoUpdaterConfigured()
-  checkForUpdatesFromMenu(options)
-}
-
 function getSystemTrayOptions(): SystemTrayOptions | null {
   if (!store) {
     return null
@@ -1135,11 +1101,6 @@ function getSystemTrayOptions(): SystemTrayOptions | null {
     devInstanceLabel: devInstanceIdentity.devLabel,
     onOpen: showMainWindowFromTray,
     onOpenSettings: openSettingsFromSystemMenu,
-    onCheckForUpdates: () => {
-      // Why: updater status renders in the main window, so a bare check would complete invisibly.
-      showMainWindowFromTray()
-      runUserInitiatedUpdateCheck()
-    },
     onQuit: quitFromSystemTray
   }
 }
@@ -1363,9 +1324,6 @@ function openMainWindow(): BrowserWindow {
       },
       // Why: let the PTY layer skip its orphan sweep on the recovery reload that re-fires did-finish-load, so live local sessions survive (#5787).
       isRecoveryReloadInFlight,
-      onBeforeUpdateQuit: () =>
-        preserveAgentAuthBeforeRestart({ codexRuntimeHome, claudeRuntimeAuth, store }),
-      updateInstallMode: resolveUpdateInstallMode(isServeMode),
       onWorktreeLifecycle: emitPluginWorktreeLifecycle
     }
   )
@@ -1491,24 +1449,6 @@ function openMainWindow(): BrowserWindow {
   logStartupMilestone('load-start')
   loadMainWindow(window)
   return window
-}
-
-function sendOpenFeatureTour(targetWindow?: BrowserWindow | null): void {
-  const webContents =
-    targetWindow && !targetWindow.isDestroyed() ? targetWindow.webContents : mainWindow?.webContents
-  webContents?.send('ui:openFeatureTour')
-}
-
-function sendOpenSetupGuide(targetWindow?: BrowserWindow | null): void {
-  const webContents =
-    targetWindow && !targetWindow.isDestroyed() ? targetWindow.webContents : mainWindow?.webContents
-  webContents?.send('ui:openSetupGuide')
-}
-
-function sendOpenCrashReport(targetWindow?: BrowserWindow | null): void {
-  const webContents =
-    targetWindow && !targetWindow.isDestroyed() ? targetWindow.webContents : mainWindow?.webContents
-  webContents?.send('ui:openCrashReport')
 }
 
 // Why: on renderer crash-loop the breaker stops auto-reloading and the window goes blank, so a main-process dialog is the only retry/quit surface.
@@ -2659,7 +2599,6 @@ void app.whenReady().then(async () => {
 
   registerAppMenu({
     appMenuLabel: devInstanceIdentity.name,
-    onCheckForUpdates: (options) => runUserInitiatedUpdateCheck(options),
     onBeforeReload: ({ ignoreCache, webContentsId }) => {
       if (mainWindow?.webContents.id === webContentsId) {
         markExpectedRendererReload(webContentsId)
@@ -2667,22 +2606,6 @@ void app.whenReady().then(async () => {
       recordCrashBreadcrumb('manual_reload_requested', { ignoreCache })
     },
     onOpenSettings: openSettingsFromSystemMenu,
-    onOpenSetupGuide: (targetWindow) => {
-      recordCrashBreadcrumb('setup_guide_opened')
-      const targetBrowserWindow = targetWindow instanceof BrowserWindow ? targetWindow : null
-      sendOpenSetupGuide(targetBrowserWindow)
-    },
-    onOpenCrashReport: (targetWindow) => {
-      recordCrashBreadcrumb('crash_report_opened')
-      const targetBrowserWindow = targetWindow instanceof BrowserWindow ? targetWindow : null
-      sendOpenCrashReport(targetBrowserWindow)
-    },
-    onOpenFeatureTour: (targetWindow) => {
-      recordCrashBreadcrumb('feature_tour_opened')
-      // Why: use the invoking BrowserWindow so hidden/E2E and multi-window flows route to the right renderer, not global focus.
-      const targetBrowserWindow = targetWindow instanceof BrowserWindow ? targetWindow : null
-      sendOpenFeatureTour(targetBrowserWindow)
-    },
     // Why: menu zoom must act on the window the user is looking at — routing to
     // the main window while the dashboard pop-out is focused zooms behind it.
     onZoomIn: () => {
@@ -2934,11 +2857,6 @@ void app.whenReady().then(async () => {
 process.once('exit', stopTccPromptNotice)
 
 app.on('before-quit', () => {
-  if (isQuittingForUpdate()) {
-    recordUpdaterLifecycle('before_quit_allowed', undefined, {
-      message: 'before-quit allowed for update install'
-    })
-  }
   isQuitting = true
   desktopRelayService?.fenceAndCloseNow()
   runtimeRpc?.setMobileRelayPairingProvider(null)
@@ -2972,14 +2890,6 @@ app.on('will-quit', (e) => {
   }
   // Why: renderer guards can still cancel before this committed phase; `log stream` must survive those vetoes.
   stopTccPromptNotice()
-  const updateQuitInProgress = isQuittingForUpdate()
-  if (updateQuitInProgress) {
-    recordUpdaterLifecycle(
-      'will_quit_cleanup_started',
-      { daemonTeardown: 'disconnect' },
-      { message: 'will-quit cleanup for update install; daemonTeardown=disconnect' }
-    )
-  }
   // Why: before-quit can still be aborted by renderer beforeunload; only remove the Windows tray icon on the committed quit path.
   destroySystemTray()
   // Why: stats.flushAsync() must precede killAllPty() so still-running agents emit synthetic agent_stop events (killAllPty skips runtime.onPtyExit()). It closes them out synchronously and only defers the write.

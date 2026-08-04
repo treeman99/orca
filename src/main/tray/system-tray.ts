@@ -3,7 +3,6 @@ import menuBarIconPath from '../../../resources/tray/orca-menu-barTemplate.png?a
 import menuBarIconRetinaPath from '../../../resources/tray/orca-menu-barTemplate@2x.png?asset&asarUnpack'
 import { deferAppKitSceneMutation } from '../appkit-scene-mutation'
 import { createAppIconImage } from '../app-icon'
-import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { translateMain } from '../i18n/main-i18n'
 import { composeTrayAttentionIcon, tintTrayTemplateForAttention } from './tray-attention-icon'
 import { stampTrayDevBadge } from './tray-dev-badge'
@@ -19,8 +18,6 @@ export type SystemTrayOptions = {
   onOpen: () => void
   /** Restore the main window and open its Settings surface. */
   onOpenSettings: () => void
-  /** Run the existing user-initiated update check. */
-  onCheckForUpdates: () => void
   /** Quit Orca for real (caller must set the quitting latch before quitting). */
   onQuit: () => void
 }
@@ -273,14 +270,6 @@ export function createSystemTray(opts: SystemTrayOptions): Tray | null {
             label: translateMain('menu.settings', 'Settings'),
             click: safeMenuAction(() => opts.onOpenSettings())
           },
-          ...(getEnterprisePolicy().disableAutoUpdate
-            ? []
-            : [
-                {
-                  label: translateMain('menu.checkForUpdates', 'Check for Updates...'),
-                  click: safeMenuAction(() => opts.onCheckForUpdates())
-                }
-              ]),
           { type: 'separator' }
         ] as Electron.MenuItemConstructorOptions[])
       : []),

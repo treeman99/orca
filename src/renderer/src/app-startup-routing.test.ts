@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -183,10 +183,8 @@ describe('renderer startup runtime routing', () => {
   it('does not eagerly import idle optional overlay surfaces on startup', () => {
     const source = readFileSync(join(process.cwd(), 'src/renderer/src/App.tsx'), 'utf8')
 
-    expect(source).toContain("import('./components/UpdateCard').then")
     expect(source).toContain("import('./components/contextual-tours/ContextualTourOverlay').then")
     expect(source).toContain("import('./components/setup-guide/SetupGuideTelemetryObserver').then")
-    expect(source).not.toContain("from './components/UpdateCard'")
     expect(source).not.toContain("from './components/contextual-tours/ContextualTourOverlay'")
     expect(source).not.toContain("from './components/setup-guide/SetupGuideTelemetryObserver'")
     expect(source).toContain('const shouldMountSetupGuideTelemetryObserver = persistedUIReady')
@@ -195,40 +193,18 @@ describe('renderer startup runtime routing', () => {
     )
   })
 
-  it('keeps crash-report listeners eager while lazy-loading the dialog surface', () => {
-    const appSource = readFileSync(join(process.cwd(), 'src/renderer/src/App.tsx'), 'utf8')
-    const hostSource = readFileSync(
-      join(process.cwd(), 'src/renderer/src/components/crash-report/CrashReportDialog.tsx'),
-      'utf8'
-    )
+  // Fork guard: the crash-report dialog and the in-app update card were removed
+  // with the vendor surfaces they belonged to. A rebase that mounts either again
+  // must turn this red.
+  it('mounts no crash-report dialog or update card', () => {
+    const source = readFileSync(join(process.cwd(), 'src/renderer/src/App.tsx'), 'utf8')
 
-    expect(appSource).toContain(
-      "import { CrashReportDialog } from './components/crash-report/CrashReportDialog'"
-    )
-    expect(appSource).not.toContain("from './components/crash-report/CrashReportDialogSurface'")
-    expect(hostSource).toContain("import('./CrashReportDialogSurface').then")
-    expect(hostSource).toContain('window.api.crashReports.getLatestPending()')
-    expect(hostSource).toContain('window.api.ui.onOpenCrashReport')
-    expect(hostSource).toContain('REACT_ERROR_BOUNDARY_REPORT_AVAILABLE_EVENT')
-    expect(hostSource).toContain('if (!open) {')
-    expect(hostSource).not.toContain('if (!open && !loading)')
-  })
-
-  it('clears stale crash-report state before opening the lazy manual report surface', () => {
-    const hostSource = readFileSync(
-      join(process.cwd(), 'src/renderer/src/components/crash-report/CrashReportDialog.tsx'),
-      'utf8'
-    )
-    const manualOpenStart = hostSource.indexOf('return window.api.ui.onOpenCrashReport(() => {')
-    const manualOpenEnd = hostSource.indexOf('  }, [loadCrashReport])', manualOpenStart)
-    const manualOpenBlock = hostSource.slice(manualOpenStart, manualOpenEnd)
-
-    expect(manualOpenBlock.indexOf('setReport(null)')).toBeGreaterThanOrEqual(0)
-    expect(manualOpenBlock.indexOf('setReport(null)')).toBeLessThan(
-      manualOpenBlock.indexOf('setOpen(true)')
-    )
-    expect(manualOpenBlock.indexOf('setReport(null)')).toBeLessThan(
-      manualOpenBlock.indexOf('loadCrashReport(false)')
+    expect(source).not.toContain('CrashReportDialog')
+    expect(source).not.toContain('UpdateCard')
+    expect(source).not.toContain('RemoteServerUpdateDialog')
+    expect(existsSync(join(process.cwd(), 'src/renderer/src/components/crash-report'))).toBe(false)
+    expect(existsSync(join(process.cwd(), 'src/renderer/src/components/UpdateCard.tsx'))).toBe(
+      false
     )
   })
 

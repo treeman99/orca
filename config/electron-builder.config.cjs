@@ -508,9 +508,8 @@ module.exports = {
   // returns false so electron-builder does not rebuild optional cpu-features.
   npmRebuild: true,
   // Why: a rebuild that opts out ships no updater metadata, so packaging never
-  // uploads anywhere. It does NOT stop the app reaching the vendor feed at runtime
-  // — src/main/updater.ts sets that URL in code — so the runtime protection is the
-  // policy file's disableAutoUpdate, not this flag.
+  // uploads anywhere. This fork also removed the in-app updater from the code,
+  // so a packaged build has no runtime path to the vendor feed either.
   publish:
     process.env.ORCA_DISABLE_PUBLISH_TARGET === '1'
       ? null

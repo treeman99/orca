@@ -83,7 +83,6 @@ import { createFloatingWorkspaceTourInteractionSnapshot } from '@/lib/floating-w
 import { requestScrollToCurrentWorkspaceRevealAndRename } from '@/lib/scroll-to-current-workspace-status'
 import { OPEN_WORKSPACE_BOARD_EVENT } from './components/sidebar/useWorkspaceBoardPanel'
 import { WorkspacePortScanner } from './components/ports/WorkspacePortScanner'
-import { CrashReportDialog } from './components/crash-report/CrashReportDialog'
 import NewWorkspaceComposerModal from './components/NewWorkspaceComposerModal'
 import { RecoverableRenderErrorBoundary } from './components/error-boundaries/RecoverableRenderErrorBoundary'
 import { ConfirmationDialogProvider } from './components/confirmation-dialog'
@@ -113,11 +112,8 @@ import { useWebSessionTabsSync } from './runtime/web-session-tabs-sync'
 import { useGlobalFileDrop } from './hooks/useGlobalFileDrop'
 import { MacosTccPromptNoticeHost } from './hooks/MacosTccPromptNoticeHost'
 import { useRadixBodyPointerEventsRecovery } from './hooks/useRadixBodyPointerEventsRecovery'
-import { registerUpdaterBeforeUnloadBypass } from './lib/updater-beforeunload'
-import {
-  ORCA_APP_RESTART_ABORTED_EVENT,
-  ORCA_UPDATER_QUIT_AND_INSTALL_ABORTED_EVENT
-} from '../../shared/updater-renderer-events'
+import { registerAppRestartBeforeUnloadBypass } from './lib/app-restart-beforeunload'
+import { ORCA_APP_RESTART_ABORTED_EVENT } from '../../shared/app-restart-renderer-events'
 import { ORCA_RENDERER_UNLOAD_PREVENTED_EVENT } from '../../shared/renderer-shutdown-events'
 import {
   buildWorkspaceSessionPayload,
@@ -168,7 +164,7 @@ import { selectFloatingVisibleTabCount } from './store/selectors'
 import { selectActiveTerminalChromeState } from './store/active-terminal-chrome-selector'
 import type { VirtualizedScrollAnchor } from './hooks/useVirtualizedScrollAnchor'
 import type { RemoteWorkspacePatchResult } from '../../shared/remote-workspace-types'
-import type { OnboardingState, UpdateStatus } from '../../shared/types'
+import type { OnboardingState } from '../../shared/types'
 import {
   getFeatureTipsAppOpenDecision,
   isCliFeatureTipCompleted
@@ -364,12 +360,6 @@ const SshPassphraseDialog = lazy(() =>
     default: module.SshPassphraseDialog
   }))
 )
-const UpdateCard = lazy(() =>
-  import('./components/UpdateCard').then((module) => ({ default: module.UpdateCard }))
-)
-const RemoteServerUpdateDialog = lazy(
-  () => import('./components/settings/RemoteServerUpdateDialog')
-)
 const ContextualTourOverlay = lazy(() =>
   import('./components/contextual-tours/ContextualTourOverlay').then((module) => ({
     default: module.ContextualTourOverlay
@@ -421,16 +411,6 @@ function applyRemoteWorkspacePatchStatus(
           )
         : translate('auto.hooks.useIpcEvents.2fe88c2e06', 'Remote workspace sync unavailable'))
   })
-}
-
-function shouldMountUpdateCardForStatus(status: UpdateStatus, disabled: boolean): boolean {
-  if (disabled || status.state === 'idle') {
-    return false
-  }
-  if (status.state === 'checking' || status.state === 'not-available') {
-    return status.userInitiated === true
-  }
-  return true
 }
 
 function App(): React.JSX.Element {
@@ -525,7 +505,6 @@ function App(): React.JSX.Element {
   )
   const keybindings = useAppStore((s) => s.keybindings)
   const pluginCommands = usePluginCommands()
-  const updateStatus = useAppStore((s) => s.updateStatus)
   const activeContextualTourId = useAppStore((s) => s.activeContextualTourId)
   const leftSidebarShortcutLabel = useShortcutLabel('sidebar.left.toggle')
   const rightSidebarShortcutLabel = useShortcutLabel('sidebar.right.toggle')
@@ -667,10 +646,6 @@ function App(): React.JSX.Element {
   useOsc52ClipboardDefaultOnNotice(persistedUIReady)
   const shouldMountSetupGuideTelemetryObserver = persistedUIReady
   const enterprisePolicy = useEnterprisePolicyView()
-  const shouldMountUpdateCard = shouldMountUpdateCardForStatus(
-    updateStatus,
-    enterprisePolicy.disableAutoUpdate
-  )
   const rightSidebarWidth = useAppStore((s) => s.rightSidebarWidth)
   const markdownTocPanelWidth = useAppStore((s) => s.markdownTocPanelWidth)
   const combinedDiffFileTreeWidth = useAppStore((s) => s.combinedDiffFileTreeWidth)
@@ -1248,7 +1223,7 @@ function App(): React.JSX.Element {
     })
   }, [])
 
-  useEffect(() => registerUpdaterBeforeUnloadBypass(), [])
+  useEffect(() => registerAppRestartBeforeUnloadBypass(), [])
 
   useEffect(() => {
     setRuntimeGraphSyncEnabled(workspaceSessionReady)
@@ -1333,15 +1308,10 @@ function App(): React.JSX.Element {
     const persistBeforeUnload = createShutdownCheckpointBeforeUnloadHandler(shutdownCheckpoint)
     window.addEventListener('beforeunload', persistBeforeUnload)
     window.addEventListener(ORCA_APP_RESTART_ABORTED_EVENT, shutdownCheckpoint.reset)
-    window.addEventListener(ORCA_UPDATER_QUIT_AND_INSTALL_ABORTED_EVENT, shutdownCheckpoint.reset)
     window.addEventListener(ORCA_RENDERER_UNLOAD_PREVENTED_EVENT, shutdownCheckpoint.reset)
     return () => {
       window.removeEventListener('beforeunload', persistBeforeUnload)
       window.removeEventListener(ORCA_APP_RESTART_ABORTED_EVENT, shutdownCheckpoint.reset)
-      window.removeEventListener(
-        ORCA_UPDATER_QUIT_AND_INSTALL_ABORTED_EVENT,
-        shutdownCheckpoint.reset
-      )
       window.removeEventListener(ORCA_RENDERER_UNLOAD_PREVENTED_EVENT, shutdownCheckpoint.reset)
     }
   }, [])
@@ -2631,18 +2601,6 @@ function App(): React.JSX.Element {
                 </RecoverableRenderErrorBoundary>
               </Suspense>
             ) : null}
-            {shouldMountUpdateCard ? (
-              <Suspense fallback={null}>
-                <RecoverableRenderErrorBoundary
-                  boundaryId="overlay.update-card"
-                  surface="overlay"
-                  resetKey={activeView}
-                  compact
-                >
-                  <UpdateCard />
-                </RecoverableRenderErrorBoundary>
-              </Suspense>
-            ) : null}
             <RecoverableRenderErrorBoundary
               boundaryId="overlay.star-nag"
               surface="overlay"
@@ -2709,20 +2667,6 @@ function App(): React.JSX.Element {
             >
               <MarkdownTemplatePicker />
             </RecoverableRenderErrorBoundary>
-            <RecoverableRenderErrorBoundary
-              boundaryId="modal.crash-report"
-              surface="modal"
-              reportAsCrash={false}
-              resetKey={activeModal}
-              compact
-              title={translate('auto.App.722d03aa62', 'The crash report dialog hit an error.')}
-              description={translate(
-                'auto.App.acd66311dc',
-                'Use the Help menu after retrying if you still need diagnostics.'
-              )}
-            >
-              <CrashReportDialog />
-            </RecoverableRenderErrorBoundary>
             {onboarding && shouldRenderOnboarding && !onboardingSettingsDetourActive ? (
               <Suspense fallback={null}>
                 <RecoverableRenderErrorBoundary
@@ -2771,15 +2715,6 @@ function App(): React.JSX.Element {
             >
               <SkillFreshnessUpdateDialog />
             </RecoverableRenderErrorBoundary>
-            <Suspense fallback={null}>
-              <RecoverableRenderErrorBoundary
-                boundaryId="overlay.remote-server-update-dialog"
-                surface="overlay"
-                compact
-              >
-                <RemoteServerUpdateDialog />
-              </RecoverableRenderErrorBoundary>
-            </Suspense>
           </LinkRoutingPreferenceDialogProvider>
         </ConfirmationDialogProvider>
       </TooltipProvider>

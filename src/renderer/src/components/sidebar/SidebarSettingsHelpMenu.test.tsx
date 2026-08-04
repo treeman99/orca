@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
   openSettingsPage: vi.fn(),
   openSettingsTarget: vi.fn(),
   appRestart: vi.fn(),
-  updaterCheck: vi.fn(),
   shellOpenUrl: vi.fn(),
   useShortcutKeyDetails: vi.fn(),
   setupProgress: {
@@ -114,10 +113,6 @@ vi.mock('sonner', () => ({
   }
 }))
 
-vi.mock('./SidebarFeedbackDialog', () => ({
-  SidebarFeedbackDialog: () => <div data-testid="feedback-dialog" />
-}))
-
 function installWindowApi(): void {
   Object.assign(window, {
     api: {
@@ -126,9 +121,6 @@ function installWindowApi(): void {
       },
       shell: {
         openUrl: mocks.shellOpenUrl
-      },
-      updater: {
-        check: mocks.updaterCheck
       }
     }
   })
@@ -195,9 +187,12 @@ describe('SidebarSettingsHelpMenu', () => {
     expect(helpIndex).toBeGreaterThan(settingsIndex)
   })
 
-  it('renders Send Feedback menu item', () => {
+  // Fork guard: the product-feedback dialog and the update check were removed
+  // from this menu outright, not gated. A rebase that restores either fails here.
+  it('renders no Send Feedback or Check for Updates entry', () => {
     const html = renderToStaticMarkup(<SidebarSettingsHelpMenu />)
-    expect(html).toContain('Send Feedback')
+    expect(html).not.toContain('Send Feedback')
+    expect(html).not.toContain('Check for Updates')
   })
 
   it('renders Keyboard Shortcuts menu item', () => {
@@ -263,48 +258,6 @@ describe('SidebarSettingsHelpMenu', () => {
   it('renders X link', () => {
     const html = renderToStaticMarkup(<SidebarSettingsHelpMenu />)
     expect(html).toContain('>X<')
-  })
-
-  it('renders Check for Updates menu item', () => {
-    const html = renderToStaticMarkup(<SidebarSettingsHelpMenu />)
-    expect(html).toContain('Check for Updates')
-    expect(html).toMatch(/(⇧\+click|Shift\+click) checks the latest RC/)
-    expect(html).toMatch(/(⌘\+click|Ctrl\+click) checks the latest perf build/)
-  })
-
-  it('passes update-check modifier options through the updater bridge', async () => {
-    const container = await renderMenu()
-    const checkButton = findMenuItem(container, 'Check for Updates')
-    const primaryModifier = navigator.userAgent.includes('Mac')
-      ? { metaKey: true }
-      : { ctrlKey: true }
-
-    await act(async () => {
-      checkButton.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, shiftKey: true }))
-      checkButton.click()
-    })
-    await act(async () => {
-      checkButton.dispatchEvent(
-        new MouseEvent('pointerdown', { bubbles: true, ...primaryModifier })
-      )
-      checkButton.click()
-    })
-    await act(async () => {
-      checkButton.click()
-    })
-
-    expect(mocks.updaterCheck).toHaveBeenNthCalledWith(1, {
-      includePrerelease: true,
-      includePerfPrerelease: false
-    })
-    expect(mocks.updaterCheck).toHaveBeenNthCalledWith(2, {
-      includePrerelease: false,
-      includePerfPrerelease: true
-    })
-    expect(mocks.updaterCheck).toHaveBeenNthCalledWith(3, {
-      includePrerelease: false,
-      includePerfPrerelease: false
-    })
   })
 
   it('renders shortcut keys in the settings tooltip', () => {

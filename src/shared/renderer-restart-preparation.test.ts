@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { UpdateStatus } from './types'
-import {
-  createUpdaterQuitAbortRelay,
-  prepareRendererForAppRestart
-} from './renderer-restart-preparation'
+import { prepareRendererForAppRestart } from './renderer-restart-preparation'
 
 describe('prepareRendererForAppRestart', () => {
   it('aborts when the dispatched shutdown checkpoint prevents unload', async () => {
@@ -25,31 +21,5 @@ describe('prepareRendererForAppRestart', () => {
     expect(started).toHaveBeenCalledTimes(1)
     expect(checkpoint).toHaveBeenCalledTimes(1)
     expect(aborted).toHaveBeenCalledTimes(1)
-  })
-})
-
-describe('createUpdaterQuitAbortRelay', () => {
-  it('resets a prepared update restart when async updater status reports failure', () => {
-    const eventTarget = new EventTarget()
-    const aborted = vi.fn()
-    eventTarget.addEventListener('update-restart-aborted', aborted)
-    const relay = createUpdaterQuitAbortRelay(eventTarget, 'update-restart-aborted')
-    relay.markPrepared()
-
-    relay.handleStatus({ state: 'error', message: 'install failed' } satisfies UpdateStatus)
-    relay.handleStatus({ state: 'error', message: 'duplicate failure' } satisfies UpdateStatus)
-
-    expect(aborted).toHaveBeenCalledTimes(1)
-  })
-
-  it('ignores updater errors when no update restart was prepared', () => {
-    const eventTarget = new EventTarget()
-    const aborted = vi.fn()
-    eventTarget.addEventListener('update-restart-aborted', aborted)
-    const relay = createUpdaterQuitAbortRelay(eventTarget, 'update-restart-aborted')
-
-    relay.handleStatus({ state: 'error', message: 'check failed' } satisfies UpdateStatus)
-
-    expect(aborted).not.toHaveBeenCalled()
   })
 })

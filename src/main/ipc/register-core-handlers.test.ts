@@ -10,7 +10,6 @@ const {
   registerCodexUsageHandlersMock,
   registerOpenCodeUsageHandlersMock,
   registerGitHubHandlersMock,
-  registerFeedbackHandlersMock,
   registerStatsHandlersMock,
   registerMemoryHandlersMock,
   registerNotebookHandlersMock,
@@ -41,7 +40,6 @@ const {
   registerGrokAccountHandlersMock,
   registerClipboardHandlersMock,
   setTrustedClipboardRendererWebContentsIdMock,
-  registerUpdaterHandlersMock,
   registerRateLimitHandlersMock,
   registerBrowserHandlersMock,
   setAgentBrowserBridgeRefMock,
@@ -75,7 +73,6 @@ const {
   registerCodexUsageHandlersMock: vi.fn(),
   registerOpenCodeUsageHandlersMock: vi.fn(),
   registerGitHubHandlersMock: vi.fn(),
-  registerFeedbackHandlersMock: vi.fn(),
   registerStatsHandlersMock: vi.fn(),
   registerMemoryHandlersMock: vi.fn(),
   registerNotebookHandlersMock: vi.fn(),
@@ -106,7 +103,6 @@ const {
   registerGrokAccountHandlersMock: vi.fn(),
   registerClipboardHandlersMock: vi.fn(),
   setTrustedClipboardRendererWebContentsIdMock: vi.fn(),
-  registerUpdaterHandlersMock: vi.fn(),
   registerRateLimitHandlersMock: vi.fn(),
   registerBrowserHandlersMock: vi.fn(),
   setAgentBrowserBridgeRefMock: vi.fn(),
@@ -196,10 +192,6 @@ vi.mock('./opencode-usage', () => ({
 
 vi.mock('./github', () => ({
   registerGitHubHandlers: registerGitHubHandlersMock
-}))
-
-vi.mock('./feedback', () => ({
-  registerFeedbackHandlers: registerFeedbackHandlersMock
 }))
 
 vi.mock('./export', () => ({
@@ -347,10 +339,6 @@ vi.mock('./corporate-llm-endpoints', () => ({
   registerCorporateLlmEndpointHandlers: vi.fn()
 }))
 
-vi.mock('../window/attach-main-window-services', () => ({
-  registerUpdaterHandlers: registerUpdaterHandlersMock
-}))
-
 vi.mock('../window/clipboard-ipc-handlers', () => ({
   registerClipboardHandlers: registerClipboardHandlersMock,
   setTrustedClipboardRendererWebContentsId: setTrustedClipboardRendererWebContentsIdMock
@@ -405,7 +393,6 @@ describe('registerCoreHandlers', () => {
     registerCodexUsageHandlersMock.mockReset()
     registerOpenCodeUsageHandlersMock.mockReset()
     registerGitHubHandlersMock.mockReset()
-    registerFeedbackHandlersMock.mockReset()
     registerStatsHandlersMock.mockReset()
     registerMemoryHandlersMock.mockReset()
     registerNotebookHandlersMock.mockReset()
@@ -435,7 +422,6 @@ describe('registerCoreHandlers', () => {
     registerMiniMaxCredentialsHandlersMock.mockReset()
     registerClipboardHandlersMock.mockReset()
     setTrustedClipboardRendererWebContentsIdMock.mockReset()
-    registerUpdaterHandlersMock.mockReset()
     registerRateLimitHandlersMock.mockReset()
     registerBrowserHandlersMock.mockReset()
     setAgentBrowserBridgeRefMock.mockReset()
@@ -524,7 +510,6 @@ describe('registerCoreHandlers', () => {
     expect(registerJiraHandlersMock).toHaveBeenCalled()
     expect(registerGitLabHandlersMock).toHaveBeenCalledWith(store)
     expect(registerHostedReviewHandlersMock).toHaveBeenCalledWith(store, stats)
-    expect(registerFeedbackHandlersMock).toHaveBeenCalled()
     expect(registerStatsHandlersMock).toHaveBeenCalledWith(stats)
     expect(registerMemoryHandlersMock).toHaveBeenCalledWith(store)
     expect(registerNotebookHandlersMock).toHaveBeenCalledWith(store)
@@ -562,7 +547,6 @@ describe('registerCoreHandlers', () => {
     expect(registerPreflightHandlersMock).toHaveBeenCalled()
     expect(registerShellHandlersMock).toHaveBeenCalledWith(store)
     expect(registerClipboardHandlersMock).toHaveBeenCalledWith(store)
-    expect(registerUpdaterHandlersMock).toHaveBeenCalled()
     expect(setTrustedBrowserRendererWebContentsIdMock).toHaveBeenCalledWith(null)
     expect(setTrustedClipboardRendererWebContentsIdMock).toHaveBeenCalledWith(null)
     expect(setTrustedUIRendererWebContentsIdMock).toHaveBeenCalledWith(null)

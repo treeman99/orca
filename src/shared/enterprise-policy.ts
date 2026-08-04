@@ -21,7 +21,10 @@ export type EnterprisePolicy = {
   lockdown: boolean
   /** Suppress PostHog telemetry and the diagnostics/crash bundle upload lane. */
   disableTelemetry: boolean
-  /** Suppress electron-updater feed checks and the vendor update-nudge poll. */
+  /** Fork: dead switch. The in-app updater was removed from this build's source,
+   *  so nothing reads this. Kept in LOCKDOWN_INHERITING_KEYS so an upstream rebase
+   *  that restores the updater is locked down again by default, and so policy
+   *  files already deployed with this key keep parsing without a warning. */
   disableAutoUpdate: boolean
   /** Suppress the "star stablyai/orca" check/write that hits github.com SaaS. */
   disableStarNag: boolean

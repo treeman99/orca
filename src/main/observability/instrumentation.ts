@@ -227,21 +227,3 @@ export async function withWorktreeRemoveStageSpan<T>(
     attributes: { kind: 'worktree', 'worktree.flow': flow }
   })
 }
-
-export type UpdaterSpanArgs = {
-  readonly stage: 'check' | 'download' | 'install'
-}
-
-export async function withUpdaterSpan<T>(
-  meta: UpdaterSpanArgs,
-  fn: (span: ActiveSpan) => Promise<T> | T
-): Promise<T> {
-  return withSpan(
-    `updater.${meta.stage}`,
-    async (span) => {
-      span.setAttribute('updater.stage', meta.stage)
-      return await fn(span)
-    },
-    { attributes: { kind: 'updater' } }
-  )
-}

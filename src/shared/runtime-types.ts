@@ -37,7 +37,6 @@ import type {
   SleepingAgentLaunchConfig
 } from './agent-session-resume'
 import type { StartupCommandDelivery } from './codex-startup-delivery'
-import type { RemoteServerUpdateSupport } from './remote-server-update'
 import type { ExecutionHostId } from './execution-host'
 import type { PtyIncarnationId } from './pty-incarnation'
 import type { RasterImageDimensions } from './raster-image-dimensions'
@@ -80,7 +79,6 @@ export type RuntimeStatus = {
   capabilities?: RuntimeCapability[]
   // Why: optional fields let updated clients inventory both new and legacy paired servers.
   appVersion?: string
-  remoteUpdateSupport?: RemoteServerUpdateSupport
   remoteControl?: RemoteRuntimeSharedConnectionDiagnostics | null
   hostPlatform?: NodeJS.Platform
   terminalWindowsShell?: string | null
@@ -114,7 +112,6 @@ export type CliStatusResult = {
     reachable: boolean
     runtimeId: string | null
     appVersion?: string
-    remoteUpdateSupport?: RemoteServerUpdateSupport
     capabilities?: RuntimeCapability[]
   }
   graph: {
