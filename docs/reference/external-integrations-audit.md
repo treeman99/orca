@@ -16,7 +16,7 @@
 | **정책 적용 자체 (배포 형태)** | 설치 프로그램이 기본 정책을 **내장**하므로 설치만으로 잠김 (§0.1) | ✅ 번들 정책 (`resources/enterprise-policy.json` → `<resourcesPath>`), `%ProgramData%` 배치는 이제 선택 | 🔴 per-user 설치라 설치 폴더가 사용자 소유 — 표준 사용자가 번들 파일을 지우면 그 PC는 풀립니다 (§0.2 #21) |
 | **프록시 / 사설 CA** | Orca가 지원 (Electron 세션 한정) | — | 🔴 Node `fetch`/`node:https` 경로는 프록시를 안 탐 (§5) |
 | **텔레메트리 / 진단 / 크래시** | opt-in(기본 꺼짐) + 공식 빌드에서만 전송 | ✅ `disableTelemetry` | 없음 (로컬 NDJSON 로깅은 유지, 망 밖으로 안 나감) |
-| **자동 업데이트 / 넛지 (onorca.dev, github.com)** | 로그인 무관하게 나감 | ✅ `disableAutoUpdate` | 없음 (3개 진입점 전부 차단, §3) |
+| **자동 업데이트 / 넛지 (onorca.dev, github.com)** | 로그인 무관하게 나감 | 🚫 **코드에서 제거됨** | 없음 (정책이 아니라 소스에서 삭제, §3) |
 | **star-nag (github.com SaaS 고정)** | 랜딩·설정 화면 진입, 에이전트 완료, 온보딩 완료, 스폰 임계치에서 발동 | ✅ `disableStarNag` | 없음 (`gh` 호출 함수 자체에서 차단, §1) |
 | **Orca Cloud 로그인 / 모바일 페어링 릴레이** | 로그인 안 하면 안 나감 | ✅ `disableCloudRelay` | **`disableCloudRelay`만으로는 모바일이 열려 있습니다** — 벤더 릴레이는 죽지만 LAN/Tailscale 페어링 QR은 정상 발급됩니다. `disableMobilePairing`으로 닫습니다 |
 | **AI 벤더 사용량 폴링 (Claude/Codex/Grok/…)** | 🔴 **Orca 계정 연동과 무관 — 로컬 벤더 CLI 자격증명만 있으면 15분마다 폴링** | ✅ `disableUsagePolling` | 없음 (§4) |
@@ -92,7 +92,7 @@
 | `lockdown` | boolean | `false` | 마스터 스위치. 아래 7개 스위치의 기본값이 됩니다 (`src/shared/enterprise-policy.ts:52-60`, `:196-200`) |
 | `githubEnterpriseHost` | string | `GH_HOST` 폴백 | 해당 호스트를 Gitea 후보에서 제외 → 폴백 오인 방지 (`src/main/gitea/repository-ref.ts:87-98`) + 허용목록에 자동 추가 (`enterprise-policy.ts:204-207`). **`gh`의 대상 호스트는 바꾸지 않습니다** (§7 레벨 2) |
 | `disableTelemetry` | boolean | = `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88`) **및** 진단/크래시 번들 업로드 (`src/main/observability/index.ts:103,120-133`). 로컬 NDJSON 로깅은 유지(`localFileEnabled: true`, `:130`) |
-| `disableAutoUpdate` | boolean | = `lockdown` | `runBackgroundUpdateCheck()` (`src/main/updater.ts:1267,1273`) + `checkForUpdatesFromMenu()` (`:1342,1350`) + `quitAndInstall()` (`:1490`) + `setupAutoUpdater()` (`:1601,1644`) + `downloadUpdate()` (`:1769`). `setupAutoUpdater()`가 넛지 스케줄러(`:1572`)와 `powerMonitor` 리스너(`:1750`)의 무장 자체를 막습니다. v1.4.162의 macOS 로컬 빌드 교체 경로도 `checkForUpdatesFromMenu()` 게이트 뒤에 있습니다. v1.4.163의 릴리스 채널 빌드 선택기는 피드가 아닌 `api.github.com` REST를 쓰므로 별도 게이트가 `listReleaseBuilds()`(`src/main/updater-release-builds.ts`)에 있습니다 |
+| `disableAutoUpdate` | boolean | = `lockdown` | 🔴 **죽은 스위치.** 인앱 업데이터가 코드에서 제거되어(§3) 이 키를 읽는 게이트가 저장소에 없습니다. 리베이스 안전판 겸 기존 정책 파일 호환을 위해 키만 유지합니다 |
 | `disableStarNag` | boolean | = `lockdown` | `checkOrcaStarred()` (`src/main/github/client.ts:233`) / `starOrca()` (`:419`) |
 | `disableCloudRelay` | boolean | = `lockdown` | `getOrcaCloudAuthConfig()`가 "미구성"을 반환 (`src/main/orca-profiles/profile-cloud-auth-config.ts:73`) → 이 한 함수에 의존하는 클라우드 경로 전부(로그인·프로필 연결·조직 멤버 IPC 5종)가 죽고, 모바일 페어링 릴레이는 `configured`일 때만 생성되므로 아예 기동하지 않습니다 (`src/main/index.ts:2478-2479`). ⚠️ 릴레이가 없어도 LAN 전용 페어링은 계속 동작합니다 — 모바일 자체를 막는 건 `disableMobilePairing`입니다 |
 | `disableUsagePolling` | boolean | = `lockdown` | `src/main/rate-limits/service.ts:760`의 술어를 `start()`(`:310`), `fetchAll`/`fetchCodexOnly`/`fetchClaudeOnly`/`fetchGrokOnly`(`:895,960,1022,1087`), 계정 스위처 프리뷰 2종(`:500,580`), Codex 리셋 크레딧 POST(`:428`)에서 검사 |
@@ -103,7 +103,7 @@
 
 동작 규칙:
 
-- **개별 스위치가 마스터보다 우선합니다.** `"lockdown": true` + `"disableAutoUpdate": false` 조합으로 한 기능만 되살릴 수 있습니다.
+- **개별 스위치가 마스터보다 우선합니다.** `"lockdown": true` + `"disableStarNag": false` 조합으로 한 기능만 되살릴 수 있습니다. (`disableAutoUpdate`는 예외 — 되살릴 코드가 없습니다, §3)
 - **인식할 수 없는 값은 “없음”으로 취급**되어 `lockdown`을 상속하며, 절대 “꺼짐”으로 읽지 않습니다 — 관리자 오타가 머신을 조용히 풀어버리는 것을 막기 위함입니다 (`src/shared/enterprise-policy.ts:80-106`). stderr에 경고를 냅니다.
 - **모르는 키도 경고**를 냅니다 (`:190-194`).
 - `enforceNetworkAllowlist`만 `lockdown` 상속에서 제외됩니다 (`:212-214`). 하드 허용목록은 기능 스위치와 달리 배포를 통째로 망가뜨릴 수 있어 관리자가 명시적으로 켜야 합니다.
@@ -116,8 +116,8 @@
 {
   "lockdown": true,
   "githubEnterpriseHost": "github.samsungds.net",
-  // 사내 미러가 GitHub 릴리스를 대신 제공하면 업데이트만 되살릴 수 있음
-  // "disableAutoUpdate": false,
+  // 개별 스위치만 예외로 되살릴 수 있음 (disableAutoUpdate는 제외 — §3)
+  // "disableStarNag": false,
   "enforceNetworkAllowlist": false,
   "allowedNetworkHosts": ["github.samsungds.net"]
 }
@@ -163,7 +163,7 @@
 | 18 | **렌더러 게이트가 보이지 않는 클라이언트** | — (도달 범위 문제) | `pnpm dev:web`, `orca serve`의 브라우저 클라이언트 | 웹 preload에는 `enterprisePolicy` API가 **없어서** 정책 뷰가 항상 "제한 없음"으로 떨어집니다. `disableVoice`·`disableMobilePairing`·`disableRemoteOrcaServer`·`disableUsagePolling` 등 **표시 게이트 전부**가 그 클라이언트에서는 무효입니다 — 그래서 메인 쪽 거부(에이전트 탐지 필터, 에뮬레이터 RPC 거부, 외부 자동화 거부)가 belt-and-braces가 아니라 **유일한 방어선**입니다 | `src/renderer/src/web/web-preload-api.ts`(해당 키 없음), `src/renderer/src/enterprise/enterprise-policy-access.ts` |
 | 19 | **플러그인 시스템** — 벤더 마켓플레이스 인덱스 `git clone` / 벤더 kill-list `fetch` / 플러그인 워커의 자체 트래픽 | `github.com/stablyai/orca-plugins.git`, `onorca.dev/plugins/kill-list.json`, 사용자가 등록한 임의 Git URL, 워커 코드가 여는 임의 목적지 | 사용자가 설정 → 플러그인을 켠 순간(첫 활성화 시 clone + fetch, 이후 패키지 빌드 매 시작마다 kill-list 갱신). 주기 폴링은 없음 | ✅ **해소됨**: `disablePlugins`가 네 겹으로 덮습니다 — 기능 플래그 대체(`isPluginSystemAllowed`), egress 초크포인트 `runPluginGit()`, `fetchPluginKillList()`, IPC/RPC 미등록. **egress 게이트가 별도로 필요한 이유**: `plugins:install`과 `plugins:refreshMarketplaces`는 기능 플래그를 보지 않고 Git에 도달하고, 그 clone은 자식 프로세스라 #1과 같은 사각지대에 있습니다. 🔴 **잔여**: `disablePlugins: false`로 되돌린 플릿에서는 플러그인 워커(평범한 자식 프로세스)의 트래픽을 어떤 Orca 측 스위치로도 못 막습니다 — 동의 다이얼로그가 이 사실을 사용자에게 명시합니다. 반면 **플러그인 패널은 CSP로 봉인**돼 있습니다(`default-src 'none'; connect-src 'none'; img-src data:`, `src/shared/plugins/plugin-panel-shell.ts:21-22`) 그리고 워커 환경변수는 화이트리스트 17개로 토큰을 상속하지 않습니다(`plugin-worker-env.ts`) | 게이트 `src/main/plugins/plugin-system-policy.ts`, `plugin-git-repository.ts:18`, `plugin-kill-list-service.ts:104`, `src/main/ipc/register-core-handlers.ts:203`, `src/main/index.ts:2447` |
 
-| 20 | **벤더 커뮤니티·문서 링크** (`?` 메뉴의 Discord/X/Docs/Changelog/GitHub, 피드백 다이얼로그, 터미널 에러 토스트의 "file an issue", 프로젝트 뷰의 기능 요청, 첫 실행 배너의 개인정보 처리방침, 피처월 문서 링크) | `discord.gg`, `x.com/orca_build`, `x.com/intent/*`, `github.com/stablyai/*`, `onorca.dev` — 전부 사용자의 **기본 브라우저**로 열림 | 사용자가 해당 항목을 클릭할 때 | ✅ `disableVendorLinks`. 표시 게이트(JSX)와 **메인 프로세스 초크포인트 2곳**(`shell:openUrl` IPC 전체 + `setWindowOpenHandler`/`will-navigate`)을 함께 둡니다 — 후자가 없으면 #18의 웹 클라이언트에서 아무 방어가 없고, 생 `<a href>`는 IPC를 타지 않기 때문입니다. **그 2곳은 "OS 브라우저로 나가는" 레인만 덮습니다** — 판정 함수 `isEnterpriseBlockedVendorLink`의 호출부는 저장소 전체에서 정확히 그 둘입니다. **이것은 egress 차단이 아니라 유출·오지시 차단입니다**: 목적지가 OS 브라우저라 `enforceNetworkAllowlist`가 원리적으로 볼 수 없고, 위험은 트래픽 자체가 아니라 사용자가 공개 채널에 사내 맥락을 적는 것과 이 플릿에 맞지 않는 문서를 읽는 것입니다. 🔴 **잔여 4건**: ① **설정 → Privacy의 "Privacy policy"와 설정 → 일반의 GitHub 링크는 화면에 그대로 남습니다** — 초크포인트가 막으므로 눌러도 아무 일도 일어나지 않지만, 무반응 링크는 그 자체로 결함입니다(표시 게이트 미적용). ② **웹 필터가 아닙니다 — 의도된 범위입니다**(가드 헤더와 정책 타입 주석이 "Not a web filter"라고 못 박습니다). 내장 브라우저 주소창 직접 입력과 PR 본문 링크뿐 아니라, **사용자 설정 `openLinksInApp`이 켜진 플릿에서는 터미널 출력·마크다운 프리뷰·체크 패널에서 클릭한 벤더 링크도 `shell:openUrl` 대신 인앱 브라우저 탭으로 열려 두 초크포인트를 지나지 않습니다.** 기본값은 `false`이지만 첫 터미널 링크 클릭 시 뜨는 라우팅 다이얼로그의 autoFocus 기본 버튼이 "Open in Orca"라 사용자의 한 번의 선택으로 영구 전환됩니다. 목적지가 임베디드 브라우저라 #12의 의도된 예외와 같은 자리이지만, **이 스위치의 실효 범위가 정책 파일이 아니라 사용자 설정에 좌우된다**는 사실은 적어 둘 값이 있습니다. ③ 업데이터가 `net.fetch`로 가는 `github.com/stablyai/orca/releases`와 `onorca.dev` 넛지는 **이 스위치가 아니라 `disableAutoUpdate`**의 몫입니다(초크포인트는 OS 브라우저 레인에만 있습니다). ④ **정책을 보지 않는 세 번째 `shell.openExternal`이 있습니다** — 내장 브라우저 게스트의 `setWindowOpenHandler`(`browser-manager.ts:782`). 사용자가 이미 연 페이지의 **스크립트 팝업**(클릭 앵커가 아닌 `window.open`)이, 그 게스트가 브라우저 탭에 아직 또는 더 이상 등록되지 않은 좁은 상태(`browserTabId === null`)에서만 이 분기로 떨어집니다. 정상 등록 상태에서는 같은 URL이 OS 브라우저가 아니라 Orca 내부 origin-bar 팝업 창으로 열립니다. **Orca가 스스로 광고하는 벤더 링크는 이 레인을 하나도 지나가지 않으므로 통제 실패가 아니라 레인 일관성 문제**이지만, `grep shell.openExternal`을 돌리는 검토자가 반드시 마주치므로 "초크포인트 2곳"이라는 표현과 함께 여기 적어 둡니다(닫으려면 1줄 — 그 파일은 이미 `getEnterprisePolicy`를 import합니다) | 규칙표 `src/main/enterprise/enterprise-vendor-link-guard.ts`, 초크포인트 `src/main/ipc/shell-open-url.ts:28`·`src/main/window/privileged-window-navigation.ts:9`, 잔여 ① `settings/PrivacyPane.tsx:107`·`settings/GeneralSupportSection.tsx:62`, ② `src/renderer/src/lib/http-link-routing.ts:107-133`·`src/shared/constants.ts:264`·`link-routing-preference-dialog.tsx:234`, ④ `src/main/browser/browser-manager.ts:743-786` |
+| 20 | **벤더 커뮤니티·문서 링크** (`?` 메뉴의 Discord/X/Docs/Changelog/GitHub, 터미널 에러 토스트의 "file an issue", 프로젝트 뷰의 기능 요청, 첫 실행 배너의 개인정보 처리방침, 피처월 문서 링크) | `discord.gg`, `x.com/orca_build`, `x.com/intent/*`, `github.com/stablyai/*`, `onorca.dev` — 전부 사용자의 **기본 브라우저**로 열림 | 사용자가 해당 항목을 클릭할 때 | ✅ `disableVendorLinks`. 표시 게이트(JSX)와 **메인 프로세스 초크포인트 2곳**(`shell:openUrl` IPC 전체 + `setWindowOpenHandler`/`will-navigate`)을 함께 둡니다 — 후자가 없으면 #18의 웹 클라이언트에서 아무 방어가 없고, 생 `<a href>`는 IPC를 타지 않기 때문입니다. **그 2곳은 "OS 브라우저로 나가는" 레인만 덮습니다** — 판정 함수 `isEnterpriseBlockedVendorLink`의 호출부는 저장소 전체에서 정확히 그 둘입니다. **이것은 egress 차단이 아니라 유출·오지시 차단입니다**: 목적지가 OS 브라우저라 `enforceNetworkAllowlist`가 원리적으로 볼 수 없고, 위험은 트래픽 자체가 아니라 사용자가 공개 채널에 사내 맥락을 적는 것과 이 플릿에 맞지 않는 문서를 읽는 것입니다. 🔴 **잔여 4건**: ① **설정 → Privacy의 "Privacy policy"와 설정 → 일반의 GitHub 링크는 화면에 그대로 남습니다** — 초크포인트가 막으므로 눌러도 아무 일도 일어나지 않지만, 무반응 링크는 그 자체로 결함입니다(표시 게이트 미적용). ② **웹 필터가 아닙니다 — 의도된 범위입니다**(가드 헤더와 정책 타입 주석이 "Not a web filter"라고 못 박습니다). 내장 브라우저 주소창 직접 입력과 PR 본문 링크뿐 아니라, **사용자 설정 `openLinksInApp`이 켜진 플릿에서는 터미널 출력·마크다운 프리뷰·체크 패널에서 클릭한 벤더 링크도 `shell:openUrl` 대신 인앱 브라우저 탭으로 열려 두 초크포인트를 지나지 않습니다.** 기본값은 `false`이지만 첫 터미널 링크 클릭 시 뜨는 라우팅 다이얼로그의 autoFocus 기본 버튼이 "Open in Orca"라 사용자의 한 번의 선택으로 영구 전환됩니다. 목적지가 임베디드 브라우저라 #12의 의도된 예외와 같은 자리이지만, **이 스위치의 실효 범위가 정책 파일이 아니라 사용자 설정에 좌우된다**는 사실은 적어 둘 값이 있습니다. ③ 예전에는 업데이터가 `net.fetch`로 `github.com/stablyai/orca/releases`와 `onorca.dev` 넛지에 나갔고 그것은 이 스위치가 아니라 `disableAutoUpdate`의 몫이었습니다 — 지금은 **그 코드 자체가 없습니다**(§3). ④ **정책을 보지 않는 세 번째 `shell.openExternal`이 있습니다** — 내장 브라우저 게스트의 `setWindowOpenHandler`(`browser-manager.ts:782`). 사용자가 이미 연 페이지의 **스크립트 팝업**(클릭 앵커가 아닌 `window.open`)이, 그 게스트가 브라우저 탭에 아직 또는 더 이상 등록되지 않은 좁은 상태(`browserTabId === null`)에서만 이 분기로 떨어집니다. 정상 등록 상태에서는 같은 URL이 OS 브라우저가 아니라 Orca 내부 origin-bar 팝업 창으로 열립니다. **Orca가 스스로 광고하는 벤더 링크는 이 레인을 하나도 지나가지 않으므로 통제 실패가 아니라 레인 일관성 문제**이지만, `grep shell.openExternal`을 돌리는 검토자가 반드시 마주치므로 "초크포인트 2곳"이라는 표현과 함께 여기 적어 둡니다(닫으려면 1줄 — 그 파일은 이미 `getEnterprisePolicy`를 import합니다) | 규칙표 `src/main/enterprise/enterprise-vendor-link-guard.ts`, 초크포인트 `src/main/ipc/shell-open-url.ts:28`·`src/main/window/privileged-window-navigation.ts:9`, 잔여 ① `settings/PrivacyPane.tsx:107`·`settings/GeneralSupportSection.tsx:62`, ② `src/renderer/src/lib/http-link-routing.ts:107-133`·`src/shared/constants.ts:264`·`link-routing-preference-dialog.tsx:234`, ④ `src/main/browser/browser-manager.ts:743-786` |
 
 | 21 | **번들 정책 파일 자체의 변조·삭제** (egress가 아니라 **잠금의 무결성** 항목입니다) | — (로컬 파일) | 사용자가 설치 폴더의 `enterprise-policy.json`을 지우거나 내용을 바꿀 때 | 🔴 **막지 못합니다.** `nsis` 블록이 `perMachine`을 설정하지 않아 electron-builder 기본값인 **per-user 원클릭 설치**가 적용되고, 설치 위치가 `%LOCALAPPDATA%\Programs\…` — 즉 **그 사용자가 소유한 폴더**입니다. 표준 사용자가 관리자 권한 없이 그 안의 번들 정책을 삭제하거나 `{}`로 덮어쓸 수 있고, 그러면 그 PC는 다음 후보로 내려가 (`%ProgramData%` 파일도 없다면) **업스트림 그대로** 동작합니다. 코드로 닫을 수 있는 구멍이 아닙니다 — 정책 파일을 읽는 프로세스가 그 파일과 같은 신뢰 경계 안에 있기 때문입니다. **대응은 둘뿐입니다**: ① `%ProgramData%\Orca\enterprise-policy.json`에 ACL을 건 파일을 배포하면(§0.1 1순위) 번들이 지워져도 잠금이 남습니다 — 이 경우 GPO 배치는 여전히 필요합니다. ② `nsis.perMachine: true`로 전환해 설치 폴더를 관리자 소유로 만듭니다(설치에 관리자 권한이 필요해지므로 배포 채널이 바뀝니다). **탐지**: 잠긴 플릿의 `main.trace.ndjson`에서 `enterprise.policy.source_path`가 `(none found)`인 PC | `config/electron-builder.config.cjs`의 `nsis` 블록(`perMachine` 미설정), 후보 순서 `enterprise-policy-file.ts:101-104` |
 
@@ -229,8 +229,8 @@
 | 기능 | 호스트 | 기본 상태 |
 | --- | --- | --- |
 | PostHog 제품 텔레메트리 | `us.i.posthog.com` | **opt-in(기본 꺼짐)** + 공식 CI 빌드에서만 키 주입 |
-| 진단 번들 업로드 (설정 → Privacy) | `www.onorca.dev/v1/feedback` (폴백 `api.onorca.dev`) | 사용자 명시적 클릭 |
-| 크래시 리포트 + 인앱 피드백 | 동일 (`src/main/ipc/feedback.ts:10`, v1.4.159에서 `api.onorca.dev` 폴백 삭제) | 사용자 명시적 제출 |
+| 진단 번들 업로드 (설정 → Privacy) | `www.onorca.dev/v1/feedback` | 사용자 명시적 클릭 |
+| ~~크래시 리포트 + 인앱 피드백~~ | ~~동일~~ | 🚫 **코드에서 제거됨** — 다이얼로그·`feedback:submit` IPC·preload 계약 전부 삭제 |
 | star-nag 프롬프트 텔레메트리 | `us.i.posthog.com` | 위 PostHog 게이트에 종속 |
 
 **게이트는 세 레인 모두에 있습니다.**
@@ -242,9 +242,9 @@ PostHog 레인 (`src/main/telemetry/consent.ts:77-96`):
 4. CI 환경변수 존재 → 차단 (`:94`, 값이 빈 문자열만 아니면 됨)
 5. 사용자 opt-in 배너에 동의하지 않으면 기본 **미전송**
 
-진단/크래시 번들 레인 (`src/main/observability/index.ts:97-140`): `disableTelemetry`가 켜지면 `bundleEnabled: false`로 **망 전송만 차단**하고 `localFileEnabled: true`는 유지합니다 (`:120-133`). 로컬 NDJSON 트레이스는 머신을 떠나지 않으므로 그대로 두는 설계이며, 소비자는 `src/main/ipc/diagnostics.ts:221,253,263`과 `src/main/crash-reporting/crash-feedback-diagnostic-bundle.ts:33`입니다.
+진단 번들 레인 (`src/main/observability/index.ts:97-140`): `disableTelemetry`가 켜지면 `bundleEnabled: false`로 **망 전송만 차단**하고 `localFileEnabled: true`는 유지합니다 (`:120-133`). 로컬 NDJSON 트레이스는 머신을 떠나지 않으므로 그대로 두는 설계이며, 소비자는 `src/main/ipc/diagnostics.ts:221,253,263`입니다.
 
-피드백/크래시 **제출 본문** 레인: 위 번들 게이트는 첨부만 떼어 낼 뿐이라 사용자가 쓴 텍스트는 그대로 `onorca.dev`로 나갔습니다. 그래서 `disableTelemetry`가 `submitFeedback()` 진입부에서 제출 자체를 거부합니다 (`src/main/ipc/feedback.ts:254,262` ← `src/main/ipc/feedback-submission-policy.ts:13-17`, 근거 주석 `:1-5`). 렌더러의 `feedback:submit` 채널과 크래시 다이얼로그가 모두 이 함수를 지나므로 두 진입점이 한 번에 막힙니다.
+피드백/크래시 **제출 본문** 레인은 **더 이상 존재하지 않습니다.** 예전에는 `disableTelemetry`가 `submitFeedback()` 진입부에서 제출을 거부했지만, 이 포크는 그 함수와 두 진입점(사이드바 `?` 메뉴의 "피드백 보내기", 크래시 리포트 다이얼로그)을 코드에서 삭제했습니다. `src/main/ipc/feedback*.ts`, `src/renderer/src/components/crash-report/`, `src/renderer/src/components/sidebar/SidebarFeedback*` 이 전부 없어졌고 `window.api.feedback`·`crashReports.submit`·`crashReports.copyLatestDiagnostics` preload 계약도 함께 제거됐습니다. **크래시 기록 자체는 로컬에 남습니다** — 브레드크럼 저장(`crashReports:recordBreadcrumb`)과 렌더러 오류 기록(`crashReports:recordRendererError`)은 디스크에만 쓰고 망으로 나가지 않습니다.
 
 게다가 전송 키(`ORCA_POSTHOG_WRITE_KEY`)는 **공식 CI 릴리스 빌드에만 컴파일타임에 주입**되고, 사내에서 직접 빌드한 exe는 이 값이 리터럴 `null`로 접히므로 애초에 전송 경로가 죽습니다 (`electron.vite.config.ts:26-30,210`).
 
@@ -252,29 +252,27 @@ PostHog 레인 (`src/main/telemetry/consent.ts:77-96`):
 
 ---
 
-## 3. 자동 업데이트 / 넛지 (✅ 정책 파일로 차단됨)
+## 3. 자동 업데이트 / 넛지 (🚫 코드에서 제거됨)
 
-| 기능 | 호스트 | 주기 | 차단 |
-| --- | --- | --- | --- |
-| electron-updater 자동 업데이트 피드 | `github.com`, `objects.githubusercontent.com` (`publish.provider: 'github'`, `config/electron-builder.config.cjs:415-418`) | 24시간 주기 + 실패 시 1시간에서 최대 6시간까지 배수 증가하는 재시도 (`src/main/updater.ts:71-74`) + 절전복귀 | ✅ `disableAutoUpdate` |
-| 업데이트 넛지(강제 업데이트 체크) | `onorca.dev/whats-new/nudge.json` (`src/main/updater-nudge.ts:12`) | **30분마다** (`src/main/updater.ts:75`) + 창 포커스/절전복귀 | ✅ `disableAutoUpdate` |
-| 릴리스 매니페스트/프리릴리스 피드 | `github.com/stablyai/orca/releases/download` (`src/main/updater-prerelease-feed.ts:6`) | 체크 시 | ✅ `disableAutoUpdate` |
-| 변경사항("what's new") fetch | `onorca.dev/whats-new/changelog.json` (`src/main/updater-changelog.ts:45`) | 업데이트 이벤트 시 | ✅ `disableAutoUpdate` (업데이트 체크가 죽으면 이벤트가 발생하지 않음) |
-| 릴리스 채널 빌드 선택기 (v1.4.163 신규) | `api.github.com/repos/stablyai/orca{,-hourly}/releases` REST (`src/main/updater-release-builds.ts`) | 설정 → 릴리스 채널을 열어 목록을 요청할 때만 | ✅ `disableAutoUpdate` (`listReleaseBuilds()` 선두 — 이 레인의 유일한 `net.fetch`) |
+**이 포크에는 인앱 업데이터가 없습니다.** 정책으로 막는 것이 아니라 소스에서 삭제했으므로, 정책 파일이 없거나 파싱에 실패해도 아래 레인은 되살아나지 않습니다.
 
-피드 경로의 **차단 지점은 3곳이며, 세 번째가 가장 중요합니다** (`src/main/updater.ts`). 빌드 선택기는 피드를 쓰지 않으므로 아래 세 게이트가 덮지 못하며, 자체 게이트가 `listReleaseBuilds()`에 있습니다:
-
-| 함수 | 게이트 라인 | 막는 것 |
+| 예전 기능 | 예전 호스트 | 지금 상태 |
 | --- | --- | --- |
-| `runBackgroundUpdateCheck()` (`:1173`) | `:1179` | 피드에 도달하는 모든 체크가 통과하는 **단일 초크포인트** — 24시간/재시도 타이머, 절전복귀/포커스, 넛지, 외부 노출 `checkForUpdates` |
-| `checkForUpdatesFromMenu()` (`:1244`) | `:1251` | 메뉴의 수동 "Check for Updates" |
-| `setupAutoUpdater()` (`:1415`) | `:1458` | **피드 URL 설정 전에 조기 반환**하므로 넛지 스케줄러(`:1537`)와 `powerMonitor.on('resume')` 리스너(`:1556`)가 **아예 무장되지 않습니다** |
+| electron-updater 자동 업데이트 피드 | `github.com`, `objects.githubusercontent.com` | `src/main/updater.ts` 외 업데이터 모듈 전부 삭제. `electron-updater` 의존성도 `package.json`·`config/packaged-runtime-node-modules.cjs`에서 제거 |
+| 업데이트 넛지(30분 폴링) | `onorca.dev/whats-new/nudge.json` | `src/main/updater-nudge.ts` 삭제. 스케줄러·`powerMonitor`/포커스 리스너를 등록하는 코드가 없습니다 |
+| 릴리스 매니페스트/프리릴리스 피드 | `github.com/stablyai/orca/releases/download` | `src/main/updater-prerelease-feed.ts` 삭제 |
+| 변경사항("what's new") fetch | `onorca.dev/whats-new/changelog.json` | `src/main/updater-changelog.ts` 삭제 |
+| 릴리스 채널 빌드 선택기 | `api.github.com/repos/stablyai/orca{,-hourly}/releases` REST | `src/main/updater-release-builds.ts`와 설정 → 릴리스 채널 섹션 삭제 |
+| macOS 로컬 빌드 교체 | (로컬 피드 서버) | `src/main/local-builds/` 삭제 |
+| 원격 Orca 서버 업데이트 (`updater.remote-control.v1`) | 원격 호스트의 업데이터 | RPC 메서드·capability·렌더러 표면 전부 삭제. `status.get`은 더 이상 `remoteUpdateSupport`를 반환하지 않습니다 |
 
-즉 “넛지 폴링 타이머가 계속 돌아 30분마다 `onorca.dev`로 나간다”는 문제는 **`disableAutoUpdate`가 켜져 있는 동안** 해소됩니다(코드에서 타이머가 사라진 것이 아니라 무장되지 않는 것입니다). `setupAutoUpdater()`의 조기 반환은 `recordUpdaterLifecycle('auto_update_disabled_by_policy', ...)`로 로컬 로그에 흔적을 남깁니다.
+UI 표면도 함께 사라졌습니다 — 앱/Help 메뉴, 트레이, 사이드바 `?` 메뉴, 설정 → 일반, 상태바 업데이트 칩, 업데이트 카드, `window.api.updater.*` preload 계약.
 
-**추가 방어 (선택)**:
-1. **빌드 시**: 빌드 셸에 `ORCA_DISABLE_PUBLISH_TARGET=1`. 코드 수정이 필요 없습니다 — 설정이 이미 이 값을 보고 `publish`를 `null`로 떨어뜨립니다 (`config/electron-builder.config.cjs:411-413`). 그러면 업데이터 메타(`latest.yml`, `app-update.yml`)가 생성되지 않아 electron-updater가 피드를 조회할 수 없습니다.
-2. **망 차원**: `onorca.dev` / `github.com` 릴리스 에셋을 사내 방화벽에서 차단(git 기능과 충돌 주의).
+**검증**: `rg -n "electron-updater|updater\.(check|download|install)" src` 가 비어 있어야 합니다. 회귀 방지 테스트는 `src/main/menu/register-app-menu.test.ts`(메뉴에 업데이트 항목 없음), `src/main/runtime/mobile-rpc-allowlist.test.ts`(`updater.*` RPC 자체가 없음), `src/main/startup/serve-desktop-activation-wiring.test.ts`(설치 정책 배선 없음), `src/preload/renderer-restart-wiring.test.ts`(`updater:status` 릴레이 없음)입니다.
+
+**남은 관련 사항 2건**:
+1. `disableAutoUpdate` 정책 키는 **죽은 스위치로 유지**됩니다. 지우지 않은 이유는 ① 업스트림 리베이스가 업데이터를 되살렸을 때 `lockdown`이 자동으로 다시 덮게 하기 위해서, ② 이미 배포된 정책 파일이 이 키를 담고 있어도 경고 없이 파싱되게 하기 위해서입니다.
+2. `config/electron-builder.config.cjs`의 `publish` 설정은 그대로입니다. 이것은 **런타임 조회가 아니라 릴리스 업로드 대상**이고, 빌드 셸의 `ORCA_DISABLE_PUBLISH_TARGET=1`로 끕니다. 런타임에 이 값을 읽는 코드는 더 이상 없습니다.
 
 빌드 단계의 phone-home(electron-builder가 github에 업로드 시도)은 [윈도우 빌드 가이드 §5](./windows-corporate-build.md)에서 `--publish never`로 이미 다룹니다.
 
@@ -408,7 +406,7 @@ egress가 아니라 **환경변수가 에이전트까지 도달하는 경로**�
 | `main/source-control/hosted-review-api-request.ts` | 호스팅형 리뷰 API |
 | `main/speech/openai-transcription-client.ts` | `api.openai.com` |
 
-(같은 표의 나머지 항목 — `main/amp/hook-service.ts`, `main/opencode/hook-service.ts`, `main/pi/agent-status-extension-source.ts`, `main/ipc/worktree-remote.ts`, `relay/git-handler.ts`, `main/ipc/feedback.ts` — 은 주입 스크립트 문자열 / `git fetch` 식별자 / 주석이라 실제 HTTP 호출이 아닙니다.)
+(같은 표의 나머지 항목 — `main/amp/hook-service.ts`, `main/opencode/hook-service.ts`, `main/pi/agent-status-extension-source.ts`, `main/ipc/worktree-remote.ts`, `relay/git-handler.ts` — 은 주입 스크립트 문자열 / `git fetch` 식별자라 실제 HTTP 호출이 아닙니다.)
 
 `node:https`를 직접 쓰는 다운로더도 프록시를 우회합니다. **두 곳뿐이며, 둘 다 정책으로 닫힙니다**:
 
@@ -460,7 +458,7 @@ NODE_EXTRA_CA_CERTS=C:\path\to\corp-root-ca.pem
 }
 ```
 
-이것으로 §2(텔레메트리·진단·피드백/크래시 제출), §3(자동 업데이트·넛지), §1(star-nag), Orca Cloud/모바일 릴레이, §4(사용량 폴링 + 관리형 Claude 계정/`platform.claude.com` OAuth 회전), 맞춤법 사전 다운로드, scrcpy jar 직접 다운로드(§0.2 #9), Chromium의 DNS-over-HTTPS 자동 승격(§8)이 한 번에 닫히고, Gitea 폴백 오인이 방지됩니다.
+이것으로 §2(텔레메트리·진단), §1(star-nag), Orca Cloud/모바일 릴레이, §4(사용량 폴링 + 관리형 Claude 계정/`platform.claude.com` OAuth 회전), 맞춤법 사전 다운로드, scrcpy jar 직접 다운로드(§0.2 #9), Chromium의 DNS-over-HTTPS 자동 승격(§8)이 한 번에 닫히고, Gitea 폴백 오인이 방지됩니다.
 
 **닫히지 않는 것**(§0.2와 동일): 서브프로세스 트래픽, 렌더러 외부 이미지, SSH 릴레이의 원격 `npm install`, STT 모델 다운로드. 레벨 1만으로 "외부 통신이 끊겼다"고 보고하면 안 됩니다.
 
@@ -549,5 +547,5 @@ Electron의 `configureHostResolver`는 `secureDnsMode`가 기본 `'automatic'`�
 git: GitHub REST/GraphQL·PR 백그라운드 폴링·아바타·star-nag / GitLab / Bitbucket / Azure DevOps / Gitea 폴백 / 일반 git fetch·push·clone / attribution 푸터.
 이슈: Linear GraphQL·에이전트 write·첨부 signed URL / Jira REST / GitHub·GitLab 이슈 소스 / 본문 마크다운의 인라인 이미지·벤더 아바타.
 AI: Claude 사용량(`api.anthropic.com`)·OAuth갱신(`platform.claude.com`) / Codex / Gemini / MiniMax / OpenCode / Grok / Kimi / 받아쓰기(OpenAI).
-클라우드/업데이트: PostHog / 진단·크래시·피드백(`onorca.dev`) / electron-updater / 넛지·changelog / Orca Cloud 로그인 / 모바일 페어링 릴레이.
+클라우드: PostHog / 진단 번들(`onorca.dev`) / Orca Cloud 로그인 / 모바일 페어링 릴레이. (업데이터·넛지·changelog와 피드백/크래시 제출은 코드에서 제거되어 목록에 없습니다.)
 에셋: STT 모델(sherpa-onnx)·scrcpy(에뮬레이터) GitHub Releases 다운로드 / Google favicon·아바타 이미지 / SSH 릴레이의 원격 npm install.

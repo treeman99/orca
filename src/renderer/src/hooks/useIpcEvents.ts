@@ -1,4 +1,4 @@
-/* oxlint-disable max-lines -- Why: this App-level IPC bridge intentionally keeps the renderer's main-process event contract in one place so shortcut, runtime, updater, and agent-status wiring do not drift across files. */
+/* oxlint-disable max-lines -- Why: this App-level IPC bridge intentionally keeps the renderer's main-process event contract in one place so shortcut, runtime, and agent-status wiring do not drift across files. */
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 import { useAppStore } from '../store'
@@ -24,11 +24,7 @@ import type { SplitTerminalPaneDetail, CloseTerminalPaneDetail } from '@/constan
 import { getVisibleWorktreeIds } from '@/components/sidebar/visible-worktrees'
 import { activateTabNumberShortcut } from '@/lib/tab-number-shortcuts'
 import { nextEditorFontZoomLevel, computeEditorFontSize } from '@/lib/editor-font-zoom'
-import type {
-  TerminalLayoutSnapshot,
-  TerminalPaneLayoutNode,
-  UpdateStatus
-} from '../../../shared/types'
+import type { TerminalLayoutSnapshot, TerminalPaneLayoutNode } from '../../../shared/types'
 import type { RateLimitState } from '../../../shared/rate-limit-types'
 import type { DirectSshAuthority, SshConnectionState } from '../../../shared/ssh-types'
 import {
@@ -1154,12 +1150,6 @@ export function useIpcEvents(): void {
       })
       .catch(() => {})
 
-    unsubs.push(
-      window.api.ui.onOpenSetupGuide?.(() => {
-        useAppStore.getState().openModal('setup-guide', { telemetrySource: 'help_menu' })
-      }) ?? (() => {})
-    )
-
     // Why: a phone stuck in a silent 4001 auth loop (lost device registry) reads as
     // "phone won't connect" with no clue on either end; main throttles to once per session.
     unsubs.push(
@@ -1187,12 +1177,6 @@ export function useIpcEvents(): void {
             }
           }
         )
-      })
-    )
-
-    unsubs.push(
-      window.api.ui.onOpenFeatureTour(() => {
-        useAppStore.getState().openModal('feature-wall', { source: 'help_menu' })
       })
     )
 
@@ -2005,24 +1989,6 @@ export function useIpcEvents(): void {
       window.api.ui.onResumeSleepingAgents(({ worktreeId }) => {
         // Why: a phone opened this worktree; wake its slept agents without changing the desktop's worktree/tab/view.
         backgroundSleepingAgentWakeDispatcher.request(worktreeId)
-      })
-    )
-
-    // Hydrate initial update status then subscribe to changes
-    window.api.updater.getStatus().then((status) => {
-      useAppStore.getState().setUpdateStatus(status as UpdateStatus)
-    })
-
-    unsubs.push(
-      window.api.updater.onStatus((raw) => {
-        const status = raw as UpdateStatus
-        useAppStore.getState().setUpdateStatus(status)
-      })
-    )
-
-    unsubs.push(
-      window.api.updater.onClearDismissal(() => {
-        useAppStore.getState().clearDismissedUpdateVersion()
       })
     )
 

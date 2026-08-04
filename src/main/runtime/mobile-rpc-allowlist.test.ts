@@ -133,12 +133,11 @@ describe('mobile RPC allowlist', () => {
     expect(missing).toEqual([])
   })
 
-  it('does not grant mobile credentials control over host updates', () => {
+  // Fork guard: the host updater RPCs are gone entirely, not merely withheld
+  // from mobile. A rebase that restores them fails here before it reaches the
+  // allowlist question.
+  it('has no host update RPC methods to grant', () => {
     const allowed = mobileRpcAllowlist()
-    expect(
-      ['updater.getStatus', 'updater.check', 'updater.download', 'updater.install'].filter(
-        (method) => allowed.has(method)
-      )
-    ).toEqual([])
+    expect([...allowed].filter((method) => method.startsWith('updater.'))).toEqual([])
   })
 })

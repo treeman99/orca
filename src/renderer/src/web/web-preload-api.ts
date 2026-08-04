@@ -545,6 +545,7 @@ function createWebPreloadApi(): Partial<PreloadApi> {
           dockBadgeLabel: null
         }),
       getFeatureWallAssetBaseUrl: () => Promise.resolve('/'),
+      getVersion: () => Promise.resolve('web'),
       relaunch: () => Promise.resolve(window.location.reload()),
       restart: () => Promise.resolve(window.location.reload()),
       reload: () => Promise.resolve(window.location.reload()),
@@ -697,22 +698,8 @@ function createWebPreloadApi(): Partial<PreloadApi> {
     keybindings: createWebKeybindingsApi(),
     ui: createWebUiApi(),
     crashReports: {
-      getLatestPending: () => Promise.resolve(null),
-      getLatestReport: () => Promise.resolve(null),
-      dismiss: () => Promise.resolve(null),
       recordRendererError: () => Promise.resolve({ ok: true, report: null, deduped: true }),
       recordBreadcrumb: () => {},
-      submit: () =>
-        Promise.resolve({
-          ok: false,
-          status: null,
-          error: translate('auto.web.web.preload.api.fb290366b2', 'Unavailable on web.')
-        }),
-      copyLatestDiagnostics: () =>
-        Promise.resolve({
-          ok: false,
-          error: translate('auto.web.web.preload.api.fb290366b2', 'Unavailable on web.')
-        }),
       // Why: no Electron process on web; the caller falls back to performance.memory.
       readHeapStatistics: () => null
     },
@@ -826,7 +813,6 @@ function createWebPreloadApi(): Partial<PreloadApi> {
     },
     developerPermissions: createDeveloperPermissionsApi(),
     computerUsePermissions: createComputerUsePermissionsApi(),
-    updater: createUpdaterApi(),
     shell: createShellApi(),
     skills: createSkillsApi(),
     pty: createPtyApi(),
@@ -2666,9 +2652,6 @@ function createWebUiApi(): NonNullable<Partial<PreloadApi>['ui']> {
     onOpenSettings: () => noopUnsubscribe,
     // Why: the web client has no native tray/menu bar, so there's never a queued open-settings intent to consume.
     consumePendingOpenSettings: () => Promise.resolve(false),
-    onOpenSetupGuide: () => noopUnsubscribe,
-    onOpenFeatureTour: () => noopUnsubscribe,
-    onOpenCrashReport: () => noopUnsubscribe,
     // No desktop main process to push state changes; the web client re-reads via ui.get on interaction.
     onStateChanged: () => noopUnsubscribe,
     onToggleLeftSidebar: () => noopUnsubscribe,
@@ -3061,31 +3044,6 @@ function createAccountsApi(): never {
     listRecordedPaneLanes: () => Promise.resolve({}),
     forgetStalePanes: () => Promise.resolve()
   } as never
-}
-
-function createUpdaterApi(): NonNullable<Partial<PreloadApi>['updater']> {
-  return {
-    getVersion: () => Promise.resolve('web'),
-    getStatus: () => Promise.resolve({ state: 'idle' } as never),
-    check: () => Promise.resolve(),
-    download: () => Promise.resolve(),
-    quitAndInstall: () => Promise.resolve(),
-    dismissNudge: () => Promise.resolve(),
-    dismissAvailableUpdate: () => Promise.resolve(),
-    // Why: the web client cannot install a desktop build, so channel switching
-    // reports unavailable rather than an empty list that looks like a fetch miss.
-    listBuilds: (channel) =>
-      Promise.resolve({
-        ok: false,
-        channel,
-        message: translate(
-          'auto.components.settings.ReleaseChannelSection.webUnavailable',
-          'Switching builds is only available in the desktop app.'
-        )
-      }),
-    onStatus: () => noopUnsubscribe,
-    onClearDismissal: () => noopUnsubscribe
-  }
 }
 
 function createShellApi(): NonNullable<Partial<PreloadApi>['shell']> {

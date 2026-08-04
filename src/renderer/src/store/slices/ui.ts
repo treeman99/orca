@@ -8,7 +8,6 @@ import {
   findPrevLiveWorktreeHistoryIndex
 } from './worktree-nav-history'
 import type {
-  ChangelogData,
   CustomPet,
   GitHubWorkItem,
   JiraIssue,
@@ -21,7 +20,6 @@ import type {
   TaskResumeState,
   TaskViewPresetId,
   TuiAgent,
-  UpdateStatus,
   WorkspaceStatusDefinition,
   AgentActivityDisplayMode,
   ProjectOrderBy,
@@ -37,7 +35,6 @@ import {
   normalizeManualRepoOrder
 } from '../../../../shared/manual-repo-order'
 import { isTopLevelView } from '../../../../shared/top-level-view'
-import { isReleaseChannel, type ReleaseChannel } from '../../../../shared/release-channel'
 import type { UsagePercentageDisplay } from '../../../../shared/usage-percentage-display'
 import {
   DEFAULT_USAGE_PERCENTAGE_DISPLAY,
@@ -976,23 +973,6 @@ export type UISlice = {
   editorFontZoomLevel: number
   setEditorFontZoomLevel: (level: number) => void
   hydratePersistedUI: (ui: PersistedUIState, source?: 'startup' | 'sync') => void
-  updateStatus: UpdateStatus
-  setUpdateStatus: (status: UpdateStatus) => void
-  // Why: cache last-'available' changelog so the card keeps rich content while downloading; cleared on idle/checking to avoid staleness.
-  updateChangelog: ChangelogData | null
-  // Why: UpdateCard is lazy-loaded and may miss the transient checking status; hold manual-check intent until a terminal state consumes it.
-  updateUserInitiatedCycle: boolean
-  dismissedUpdateVersion: string | null
-  dismissUpdate: (versionOverride?: string) => void
-  clearDismissedUpdateVersion: () => void
-  /** Dev-only channel override; null follows the running build's own channel. */
-  releaseChannelOverride: ReleaseChannel | null
-  setReleaseChannelOverride: (channel: ReleaseChannel | null) => void
-  // Why: ephemeral, renderer-only — never persisted; resets each session and on every phase transition (see setUpdateStatus).
-  updateCardCollapsed: boolean
-  setUpdateCardCollapsed: (collapsed: boolean) => void
-  updateReassuranceSeen: boolean
-  markUpdateReassuranceSeen: () => void
   /** True on the launch where the OSC 52 default-on migration overrode a persisted `false`. */
   osc52ClipboardDefaultOnNoticePending: boolean
   clearOsc52ClipboardDefaultOnNotice: () => void
@@ -2522,14 +2502,6 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
           }
           return DEFAULT_PET_ID
         })(),
-        dismissedUpdateVersion: ui.dismissedUpdateVersion ?? null,
-        // Why: a persisted value from a build that knew a different channel set
-        // would otherwise survive as-is; activeChannel only falls back on null,
-        // so an unknown string reaches listBuilds and the segmented control.
-        releaseChannelOverride: isReleaseChannel(ui.releaseChannelOverride)
-          ? ui.releaseChannelOverride
-          : null,
-        updateReassuranceSeen: ui.updateReassuranceSeen ?? false,
         osc52ClipboardDefaultOnNoticePending: ui.osc52ClipboardDefaultOnNoticePending === true,
         browserDefaultUrl: ui.browserDefaultUrl ?? null,
         browserDefaultSearchEngine: ui.browserDefaultSearchEngine ?? null,
@@ -2583,75 +2555,6 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
       return hydratedUIPartialMatchesState(s, hydrated) ? s : hydrated
     }),
 
-  updateStatus: { state: 'idle' },
-  setUpdateStatus: (status) => {
-    const prevState = get().updateStatus.state
-    const update: Partial<
-      Pick<
-        UISlice,
-        'updateStatus' | 'updateChangelog' | 'updateCardCollapsed' | 'updateUserInitiatedCycle'
-      >
-    > = {
-      updateStatus: status
-    }
-    if (status.state === 'checking') {
-      update.updateUserInitiatedCycle = status.userInitiated === true
-    } else if (status.state === 'idle') {
-      update.updateUserInitiatedCycle = false
-    }
-    if (status.state === 'available') {
-      // Why: always overwrite (even with null) so a prior version's changelog can't leak into a later simple-mode update.
-      update.updateChangelog = status.changelog ?? null
-    } else if (
-      status.state === 'idle' ||
-      status.state === 'checking' ||
-      status.state === 'not-available'
-    ) {
-      // Why: reset on cycle-boundary states so stale rich content from a previous cycle can't resurface.
-      update.updateChangelog = null
-    }
-    // 'downloading'/'downloaded'/'error': leave updateChangelog untouched to keep the original 'available' content.
-    if (status.state !== prevState) {
-      // Why: re-surface the card on each phase transition so a collapsed `downloading` doesn't bury `downloaded`/`error`.
-      update.updateCardCollapsed = false
-    }
-    set(update)
-  },
-  updateChangelog: null,
-  updateUserInitiatedCycle: false,
-  dismissedUpdateVersion: null,
-  clearDismissedUpdateVersion: () => {
-    set({ dismissedUpdateVersion: null })
-  },
-  releaseChannelOverride: null,
-  setReleaseChannelOverride: (channel) => {
-    void window.api.ui.set({ releaseChannelOverride: channel }).catch(console.error)
-    set({ releaseChannelOverride: channel })
-  },
-  dismissUpdate: (versionOverride?: string) =>
-    set((s) => {
-      // Why: the 'error' variant has no version field, so the card passes it via versionOverride.
-      const dismissedUpdateVersion =
-        versionOverride ?? ('version' in s.updateStatus ? (s.updateStatus.version ?? null) : null)
-      const activeNudgeId =
-        'activeNudgeId' in s.updateStatus ? (s.updateStatus.activeNudgeId ?? null) : null
-      // Why: persist dismissal so relaunch doesn't immediately re-show the same card until a newer release.
-      void window.api.ui.set({ dismissedUpdateVersion }).catch(console.error)
-      // Why: main can't otherwise tell an offered update was abandoned, which keeps a local-build session pinned and stalls background checks.
-      void window.api.updater.dismissAvailableUpdate().catch(console.error)
-      // Why: only consume the nudge campaign for cards from a nudge cycle, not ordinary dismissals.
-      if (activeNudgeId) {
-        void window.api.updater.dismissNudge().catch(console.error)
-      }
-      return { dismissedUpdateVersion, updateUserInitiatedCycle: false }
-    }),
-  updateCardCollapsed: false,
-  setUpdateCardCollapsed: (collapsed) => set({ updateCardCollapsed: collapsed }),
-  updateReassuranceSeen: false,
-  markUpdateReassuranceSeen: () => {
-    void window.api.ui.set({ updateReassuranceSeen: true }).catch(console.error)
-    set({ updateReassuranceSeen: true })
-  },
   osc52ClipboardDefaultOnNoticePending: false,
   clearOsc52ClipboardDefaultOnNotice: () => {
     // Why clear locally first: a failed persist must not re-toast this session. It will

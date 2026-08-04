@@ -25,11 +25,7 @@ const isMac = process.platform === 'darwin'
 
 function buildMenuOptions() {
   return {
-    onCheckForUpdates: vi.fn(),
     onOpenSettings: vi.fn(),
-    onOpenSetupGuide: vi.fn(),
-    onOpenFeatureTour: vi.fn(),
-    onOpenCrashReport: vi.fn(),
     onBeforeReload: vi.fn(),
     onZoomIn: vi.fn(),
     onZoomOut: vi.fn(),
@@ -139,70 +135,6 @@ describe('registerAppMenu', () => {
     expect(options.onBeforeReload).toHaveBeenCalledWith({ ignoreCache: true, webContentsId: 102 })
   })
 
-  it('routes Check for Updates modifier clicks to prerelease and perf checks', () => {
-    const options = buildMenuOptions()
-    registerAppMenu(options)
-
-    // Why: Check for Updates lives under the app-name menu on macOS and
-    // under Help on Windows/Linux. The click behavior must be identical
-    // either way.
-    const parentLabel = isMac ? 'Orca' : 'Help'
-    const item = getSubmenu(getTemplate(), parentLabel).find(
-      (entry) => entry.label === 'Check for Updates...'
-    )
-
-    item?.click?.({} as never, undefined as never, { shiftKey: true } as Electron.KeyboardEvent)
-    item?.click?.({} as never, undefined as never, {} as Electron.KeyboardEvent)
-    item?.click?.(
-      {} as never,
-      undefined as never,
-      {
-        shiftKey: true,
-        ...(isMac ? { metaKey: true } : { ctrlKey: true })
-      } as Electron.KeyboardEvent
-    )
-    item?.click?.(
-      {} as never,
-      undefined as never,
-      (isMac ? { metaKey: true } : { ctrlKey: true }) as Electron.KeyboardEvent
-    )
-    item?.click?.(
-      {} as never,
-      undefined as never,
-      (isMac ? { ctrlKey: true } : { metaKey: true }) as Electron.KeyboardEvent
-    )
-    item?.click?.(
-      {} as never,
-      undefined as never,
-      { altKey: true, shiftKey: true } as Electron.KeyboardEvent
-    )
-    item?.click?.(
-      {} as never,
-      undefined as never,
-      {
-        triggeredByAccelerator: true,
-        shiftKey: true,
-        ...(isMac ? { metaKey: true } : { ctrlKey: true })
-      } as Electron.KeyboardEvent
-    )
-
-    expect(options.onCheckForUpdates.mock.calls).toEqual([
-      [{ includePrerelease: true, includePerfPrerelease: false }],
-      [{ includePrerelease: false, includePerfPrerelease: false }],
-      [{ includePrerelease: true, includePerfPrerelease: true }],
-      [{ includePrerelease: false, includePerfPrerelease: true }],
-      [{ includePrerelease: false, includePerfPrerelease: false }],
-      [
-        {
-          includePrerelease: !isMac,
-          includePerfPrerelease: false,
-          ...(isMac ? { localBuild: true } : {})
-        }
-      ],
-      [{ includePrerelease: false, includePerfPrerelease: false }]
-    ])
-  })
-
   it('shows the worktree palette shortcut as a display-only menu hint', () => {
     registerAppMenu(buildMenuOptions())
 
@@ -236,8 +168,8 @@ describe('registerAppMenu', () => {
 
     const template = getTemplate()
     // Why: no redundant app-named "Orca" menu should exist on non-mac — the
-    // app-menu contents (Settings, Exit, Check for Updates, About) have been
-    // redistributed so users see them in File / Help instead.
+    // app-menu contents (Settings, Exit, About) have been redistributed so
+    // users see them in File / Help instead.
     expect(template.find((item) => item.label === 'Orca')).toBeUndefined()
 
     const fileLabels = getSubmenu(template, 'File').map((item) => item.label)
@@ -245,16 +177,6 @@ describe('registerAppMenu', () => {
     expect(fileLabels[0]).toBe(`Settings\t${isMac ? '⌘,' : 'Ctrl+,'}`)
     expect(fileLabels).toEqual(
       expect.arrayContaining([`Settings\t${isMac ? '⌘,' : 'Ctrl+,'}`, 'Exit'])
-    )
-
-    const helpLabels = getSubmenu(template, 'Help').map((item) => item.label)
-    expect(helpLabels).toEqual(
-      expect.arrayContaining([
-        'Report Crash...',
-        'Getting Started with Orca',
-        'Explore Orca',
-        'Check for Updates...'
-      ])
     )
   })
 
@@ -264,66 +186,37 @@ describe('registerAppMenu', () => {
     const template = getTemplate()
     const appSubmenu = getSubmenu(template, 'Orca')
     const appLabels = appSubmenu.map((item) => item.label)
-    expect(appLabels).toEqual(
-      expect.arrayContaining(['Check for Updates...', `Settings\t${isMac ? '⌘,' : 'Ctrl+,'}`])
-    )
+    expect(appLabels).toEqual(expect.arrayContaining([`Settings\t${isMac ? '⌘,' : 'Ctrl+,'}`]))
     // Why: on macOS File should NOT duplicate Settings/Exit — those live in
     // the system app menu. Without global Export, there is no File item left.
     expect(template.find((item) => item.label === 'File')).toBeUndefined()
-    const helpLabels = getSubmenu(template, 'Help').map((item) => item.label)
-    expect(helpLabels).toEqual([
-      'Report Crash...',
-      undefined,
-      'Explore Orca',
-      'Getting Started with Orca'
-    ])
   })
 
-  it('routes Getting Started with Orca through its callback', () => {
-    const options = buildMenuOptions()
-    registerAppMenu(options)
+  // Fork regression guard: an upstream rebase that restores any of these Help
+  // entries (or the update check anywhere in the menu bar) must turn this red.
+  it('keeps About as the only Help entry on every platform', () => {
+    registerAppMenu(buildMenuOptions())
 
-    const setupGuideItem = getSubmenu(getTemplate(), 'Help').find(
-      (entry) => entry.label === 'Getting Started with Orca'
-    )
-    expect(setupGuideItem?.accelerator).toBeUndefined()
-
-    const targetWindow = {} as Electron.BaseWindow
-    setupGuideItem?.click?.({} as never, targetWindow, {} as Electron.KeyboardEvent)
-
-    expect(options.onOpenSetupGuide).toHaveBeenCalledTimes(1)
-    expect(options.onOpenSetupGuide).toHaveBeenCalledWith(targetWindow)
+    const helpSubmenu = getSubmenu(getTemplate(), 'Help')
+    expect(helpSubmenu).toEqual([{ role: 'about' }])
   })
 
-  it('routes Feature tour through its callback', () => {
-    const options = buildMenuOptions()
-    registerAppMenu(options)
+  it('carries no update-check, crash-report, feature-tour or setup-guide item anywhere', () => {
+    registerAppMenu(buildMenuOptions())
 
-    const featureTourItem = getSubmenu(getTemplate(), 'Help').find(
-      (entry) => entry.label === 'Explore Orca'
-    )
-    expect(featureTourItem?.accelerator).toBeUndefined()
-
-    const targetWindow = {} as Electron.BaseWindow
-    featureTourItem?.click?.({} as never, targetWindow, {} as Electron.KeyboardEvent)
-
-    expect(options.onOpenFeatureTour).toHaveBeenCalledTimes(1)
-    expect(options.onOpenFeatureTour).toHaveBeenCalledWith(targetWindow)
-  })
-
-  it('routes Report Crash through its callback', () => {
-    const options = buildMenuOptions()
-    registerAppMenu(options)
-
-    const crashReportItem = getSubmenu(getTemplate(), 'Help').find(
-      (entry) => entry.label === 'Report Crash...'
+    const labels = getTemplate().flatMap((menu) =>
+      ((menu.submenu ?? []) as Electron.MenuItemConstructorOptions[]).flatMap((item) => [
+        item.label,
+        ...((item.submenu ?? []) as Electron.MenuItemConstructorOptions[]).map(
+          (nested) => nested.label
+        )
+      ])
     )
 
-    const targetWindow = {} as Electron.BaseWindow
-    crashReportItem?.click?.({} as never, targetWindow, {} as Electron.KeyboardEvent)
-
-    expect(options.onOpenCrashReport).toHaveBeenCalledTimes(1)
-    expect(options.onOpenCrashReport).toHaveBeenCalledWith(targetWindow)
+    expect(labels).not.toContain('Check for Updates...')
+    expect(labels).not.toContain('Report Crash...')
+    expect(labels).not.toContain('Explore Orca')
+    expect(labels).not.toContain('Getting Started with Orca')
   })
 
   it('exposes an Appearance submenu under View with checkbox items reflecting state', () => {

@@ -181,9 +181,6 @@ export class RuntimeClient {
             reachable: true,
             runtimeId: response.result.runtimeId,
             ...(response.result.appVersion ? { appVersion: response.result.appVersion } : {}),
-            ...(response.result.remoteUpdateSupport
-              ? { remoteUpdateSupport: response.result.remoteUpdateSupport }
-              : {}),
             ...(response.result.capabilities ? { capabilities: response.result.capabilities } : {})
           },
           graph: {

@@ -90,8 +90,6 @@ vi.mock('@/components/ui/tooltip', () => ({
 
 vi.mock('sonner', () => ({ toast: { info: vi.fn(), error: vi.fn() } }))
 
-vi.mock('./SidebarFeedbackDialog', () => ({ SidebarFeedbackDialog: () => null }))
-
 import { SidebarSettingsHelpMenu } from './SidebarSettingsHelpMenu'
 
 const roots: Root[] = []
@@ -152,8 +150,6 @@ describe('the Help menu under disableVendorLinks', () => {
     }
     // The point of the switch is the links, not the menu — local actions stay.
     expect(labels.some((label) => label.includes('Keyboard Shortcuts'))).toBe(true)
-    expect(labels.some((label) => label.includes('Send Feedback'))).toBe(true)
-    expect(labels.some((label) => label.includes('Check for Updates'))).toBe(true)
   })
 
   it('leaves no orphaned separator where the vendor block was', async () => {

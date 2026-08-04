@@ -1,21 +1,15 @@
 import {
   ORCA_APP_RESTART_ABORTED_EVENT,
-  ORCA_APP_RESTART_STARTED_EVENT,
-  ORCA_UPDATER_QUIT_AND_INSTALL_ABORTED_EVENT,
-  ORCA_UPDATER_QUIT_AND_INSTALL_STARTED_EVENT
-} from '../../../shared/updater-renderer-events'
+  ORCA_APP_RESTART_STARTED_EVENT
+} from '../../../shared/app-restart-renderer-events'
 
 let intentionalAppRestartInProgress = false
-
-export function isUpdaterQuitAndInstallInProgress(): boolean {
-  return isIntentionalAppRestartInProgress()
-}
 
 export function isIntentionalAppRestartInProgress(): boolean {
   return intentionalAppRestartInProgress
 }
 
-export function registerUpdaterBeforeUnloadBypass(): () => void {
+export function registerAppRestartBeforeUnloadBypass(): () => void {
   const markInProgress = (): void => {
     intentionalAppRestartInProgress = true
   }
@@ -23,14 +17,10 @@ export function registerUpdaterBeforeUnloadBypass(): () => void {
     intentionalAppRestartInProgress = false
   }
 
-  window.addEventListener(ORCA_UPDATER_QUIT_AND_INSTALL_STARTED_EVENT, markInProgress)
-  window.addEventListener(ORCA_UPDATER_QUIT_AND_INSTALL_ABORTED_EVENT, clearInProgress)
   window.addEventListener(ORCA_APP_RESTART_STARTED_EVENT, markInProgress)
   window.addEventListener(ORCA_APP_RESTART_ABORTED_EVENT, clearInProgress)
 
   return () => {
-    window.removeEventListener(ORCA_UPDATER_QUIT_AND_INSTALL_STARTED_EVENT, markInProgress)
-    window.removeEventListener(ORCA_UPDATER_QUIT_AND_INSTALL_ABORTED_EVENT, clearInProgress)
     window.removeEventListener(ORCA_APP_RESTART_STARTED_EVENT, markInProgress)
     window.removeEventListener(ORCA_APP_RESTART_ABORTED_EVENT, clearInProgress)
     // Why: hot reloads can re-register this listener inside the same renderer.

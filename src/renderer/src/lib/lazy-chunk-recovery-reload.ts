@@ -3,7 +3,7 @@ import { ORCA_RENDERER_UNLOAD_PREVENTED_EVENT } from '../../../shared/renderer-s
 import {
   ORCA_APP_RESTART_ABORTED_EVENT,
   ORCA_APP_RESTART_STARTED_EVENT
-} from '../../../shared/updater-renderer-events'
+} from '../../../shared/app-restart-renderer-events'
 
 // Bare reloads are vetoed by dirty tabs; restart preparation backs them up first.
 

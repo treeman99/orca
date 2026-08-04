@@ -96,8 +96,8 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 | --- | --- | --- | --- |
 | `lockdown` | boolean | `false` | 마스터 스위치. 아래 상속 스위치 전부(`LOCKDOWN_INHERITING_KEYS`, 현재 17개)의 **기본값**이 됩니다 (`src/shared/enterprise-policy.ts:52-60`, `:196-200`). 그 자체로 직접 끄는 기능은 없습니다 |
 | `githubEnterpriseHost` | string | `GH_HOST` → `gh`의 `hosts.yml` → 없으면 `null` | 해당 호스트를 GitHub로 인식시켜 **Gitea 오폴백**(`<host>/api/v1/...` 직접 fetch)을 막습니다 (`src/main/gitea/repository-ref.ts:91-99`). 허용목록에도 자동 추가 (`enterprise-policy.ts:204-207`). **폴백 3순위가 `gh` 자신의 설정 파일입니다** — `gh auth login --hostname <ghes>`는 환경변수가 아니라 `hosts.yml`에 쓰므로, GUI로 실행된 앱이 셸 rc의 `GH_HOST`를 못 보는 흔한 상황에서 이 경로가 유일한 단서입니다 (`src/main/github/gh-config-host.ts`). 로그인된 호스트가 **정확히 하나일 때만** 채택합니다(gh의 `DefaultHost()`와 동일) |
-| `disableTelemetry` | boolean | `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88-90`) **및** 진단/크래시 번들 업로드 — 컨센트 계산은 `src/main/observability/index.ts:103, 120-134`이고 실제 거부는 메인의 IPC 게이트(`src/main/ipc/diagnostics.ts:221`(수집), `:253`·`:263`(업로드))와 크래시 피드백 첨부(`src/main/crash-reporting/crash-feedback-diagnostic-bundle.ts:33`)에서 일어납니다. 번들 목적지는 `https://www.onorca.dev/v1/feedback` (`src/main/ipc/feedback.ts:10`) — v1.4.159에서 upstream이 `api.onorca.dev` 폴백 엔드포인트를 삭제해 목적지가 하나로 줄었습니다. **로컬 NDJSON 로깅은 그대로 유지됩니다** (`observability/index.ts:129-133`) |
-| `disableAutoUpdate` | boolean | `lockdown` | `runBackgroundUpdateCheck()` 초크포인트 (`src/main/updater.ts:1273`), 메뉴의 수동 체크 `checkForUpdatesFromMenu()` (`:1350`), `quitAndInstall()` (`:1490`), `setupAutoUpdater()` (`:1644`), `downloadUpdate()` (`:1769`). 네 번째가 핵심 — 넛지 스케줄러(`:1572`)와 `powerMonitor`/포커스 리스너(`:1750-1751`)가 **아예 등록되지 않습니다**. v1.4.162가 추가한 macOS **로컬 빌드 교체**(`checkForUpdatesFromMenu({ localBuild })` → 로컬 피드 서버)도 같은 게이트 뒤에 있습니다 — 벤더 egress는 아니지만 IT가 배포한 바이너리를 사용자가 갈아끼우는 표면이라 함께 막습니다. v1.4.163이 추가한 **릴리스 채널 빌드 선택기**(`updater:listBuilds` → `listReleaseBuilds()` → `api.github.com` REST)도 `src/main/updater-release-builds.ts`에서 같은 스위치로 막습니다 — electron-updater 피드가 아닌 별도 레인이라 위 다섯 게이트가 덮지 못했습니다 |
+| `disableTelemetry` | boolean | `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88-90`) **및** 진단 번들 업로드 — 컨센트 계산은 `src/main/observability/index.ts:103, 120-134`이고 실제 거부는 메인의 IPC 게이트(`src/main/ipc/diagnostics.ts:221`(수집), `:253`·`:263`(업로드))에서 일어납니다. ℹ️ **제품 피드백·크래시 리포트 전송 경로(`onorca.dev/v1/feedback`)는 이 포크에서 코드째 삭제**되었으므로 이 스위치가 덮던 그 레인은 더 이상 존재하지 않습니다(§3-0). **로컬 NDJSON 로깅은 그대로 유지됩니다** (`observability/index.ts:129-133`) |
+| `disableAutoUpdate` | boolean | `lockdown` | 🔴 **죽은 스위치입니다.** 이 포크는 인앱 업데이터를 코드에서 통째로 제거했으므로(§3-0) 이 키를 읽는 게이트가 저장소에 하나도 없습니다. 키 자체는 `LOCKDOWN_INHERITING_KEYS`에 남겨 둡니다 — 업스트림 리베이스로 업데이터가 되살아났을 때 잠금이 자동으로 다시 걸리게 하기 위한 안전판이고, 이미 배포된 정책 파일이 이 키를 담고 있어도 경고 없이 계속 파싱되게 하기 위해서입니다 |
 | `disableStarNag` | boolean | `lockdown` | `checkOrcaStarred()`는 "이미 star함"으로 응답(`src/main/github/client.ts:233-235`), `starOrca()`는 실패로 응답(`:419-421`). 도달 경로 4개를 모두 덮습니다 — `star-nag/service.ts:121`, `star-nag/agent-value-moment.ts:46`, `star-nag/direct-star-attempt.ts:9`, `ipc/github.ts:1174-1175`(랜딩/설정 화면) |
 | `disableCloudRelay` | boolean | `lockdown` | `getOrcaCloudAuthConfig()`가 not-configured를 반환 (`src/main/orca-profiles/profile-cloud-auth-config.ts:73-78`). 결과로 Orca Cloud 로그인, **모바일 페어링 릴레이 미기동**(`src/main/index.ts:2478-2506`), `orcaProfiles:connectCurrent` / `createCloudLinked` / `selectOrg` 3개 IPC가 한 번에 `unconfigured` (`profile-cloud-service.ts:68, 152, 207`). ⚠️ **모바일 페어링을 막지 않습니다** — 벤더 릴레이만 꺼질 뿐 LAN/Tailscale 페어링은 그대로 동작합니다. 모바일을 막으려면 `disableMobilePairing`을 쓰세요 |
 | `disableUsagePolling` | boolean | `lockdown` | AI 벤더 사용량/rate-limit 폴링 **및 그 데이터를 보여주는 UI**. 폴링 게이트 1곳(`src/main/rate-limits/service.ts:760-761`)을 진입점 전부에서 호출 — `start()`(`:310`), `fetchAll()`(`:921`), `fetchCodexOnly()`(`:986`), `fetchClaudeOnly()`(`:1048`), `fetchGrokOnly()`(`:1113`), 계정 스위처 프리뷰 2개(`fetchInactiveClaudeAccountsOnOpen` `:497`, `fetchInactiveCodexAccountsOnOpen` `:606`), Codex 리셋 크레딧 POST(`:428`, 에러 throw), 상태칩은 `unavailable`로 고정(`:1461`). **UI**: 설정 → **통계 및 사용량** 팬이 사이드바·Cmd+J 팔레트·설정 검색에서 함께 사라지고(`useSettingsNavigationMetadata.ts`의 `stats` 항목 + `Settings.tsx`의 섹션 + 딥링크 가드 `settings-pane-policy-visibility.ts`), 상태바 팝오버의 "Usage details & history" 항목도 없어집니다(`UsageRosterPanel.tsx`). ⚠️ 이 팬에는 **Orca 자체 로컬 통계**(에이전트 실행 수·작업 시간·PR 수, 네트워크 없음)도 들어 있어 함께 사라집니다 — 그것만 남기고 싶다면 이 스위치를 `false`로 두고 §7-1의 확인 절차로 폴링만 끄는 조합을 검토하세요. 이 팬 안에만 있던 `x.com/intent/post` 사용량 공유 버튼도 함께 도달 불가가 됩니다 |
@@ -118,6 +118,18 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 | `llmEndpoints` | object[] | `[]` | 사내에서 직접 서비스하는 모델의 접속 지점 목록. 사용자가 세션을 Bedrock 대신 여기로 돌릴 수 있습니다. 각 엔드포인트의 호스트는 허용목록에 자동 추가됩니다 (`src/shared/enterprise-policy.ts:216-223`). **토큰은 여기 넣지 않습니다** — §3-2 참고 |
 | `allowedAgents` | string[] | `null` (제한 없음) | 사용자가 **쓸 수 있는 에이전트 CLI id 목록** (예: `"claude"`). ⚠️ **UI 필터가 아니라 하드 거부입니다** — 예전 판의 "고를 수 있는 목록"이라는 설명은 부족했습니다. 두 축으로 동작합니다: ① **표시** — 에이전트/모델 피커·계정 설정·하단 사용량 미터가 이 목록으로만 좁혀지고, 나머지 벤더(codex/gpt, gemini, opencode, grok 등)는 UI에서 사라지고 사용량 폴링(예: Codex → chatgpt.com)도 하지 않습니다. ② **스폰 거부** — 목록 밖 에이전트는 **실제로 실행되지 않습니다**. 표시 게이트만으로 부족한 이유는 렌더러를 거치지 않는 경로가 여럿이기 때문입니다: 정책 배포 전에 바인딩된 키보드 코드, `orca` CLI, 페어링된 모바일/웹 클라이언트, 오케스트레이션 디스패치. 초크포인트 2곳 — `pty:spawn` IPC(`src/main/ipc/pty.ts`)와 `runtime.setPtyController({spawn})`(`src/main/runtime/orca-runtime.ts`, CLI·모바일·자동화·오케스트레이션이 지나는 레인). 거부는 `agent_blocked_by_enterprise_policy` 오류로 사용자 토스트에 표시됩니다 (`src/main/enterprise/agent-allowlist-guard.ts`). 빈 배열/오타는 피커를 완전히 막지 않도록 "제한 없음"으로 처리됩니다. 사내 self-hosted 모델은 에이전트가 아니라 허용된 에이전트의 모델 피커에 얹히므로 여기 적을 필요가 없습니다. §3-3 참고 |
 | `$schema` | string | — | 알려진 키라 경고가 나지 않습니다. 에디터 편의용 (`enterprise-policy.ts:65`) |
+
+### 3-0. 정책이 아니라 코드에서 제거된 것
+
+아래 세 표면은 **정책 파일 유무와 무관하게** 이 포크의 바이너리에 존재하지 않습니다. 스위치를 어떻게 두든 되살아나지 않습니다.
+
+| 제거된 표면 | 예전에 덮던 스위치 | 지금 상태 |
+| --- | --- | --- |
+| 사이드바 `?` 메뉴의 **피드백 보내기**와 크래시 리포트 다이얼로그 (`onorca.dev/v1/feedback` POST) | `disableTelemetry`(첨부만), `disableVendorLinks`(링크만) | 다이얼로그·`feedback:submit` IPC·preload 계약이 전부 삭제됨. 크래시 **기록**은 로컬에 그대로 남습니다(브레드크럼·렌더러 오류 기록) |
+| 앱 메뉴 **도움말** 하위의 크래시 리포트 / Explore Orca / Getting Started / 업데이트 확인 | `disableAutoUpdate`(업데이트 항목만) | 도움말에는 **About Orca 하나만** 남습니다 (macOS/Windows/Linux 공통) |
+| **인앱 업데이터 전체** — electron-updater 피드, `onorca.dev` 넛지 폴링, 릴리스 채널 빌드 선택기, 원격 서버 업데이트, 트레이/설정/상태바의 업데이트 표면 | `disableAutoUpdate` | 코드·IPC·preload·`electron-updater` 의존성까지 제거. `disableAutoUpdate`는 죽은 스위치입니다 |
+
+회귀 방지는 정책 테스트가 아니라 **"이 표면이 더 이상 없다"를 주장하는 테스트**가 담당합니다 — `src/main/menu/register-app-menu.test.ts`, `src/renderer/src/components/sidebar/SidebarSettingsHelpMenu.test.tsx`, `src/renderer/src/app-startup-routing.test.ts`, `src/main/ipc/crash-reporting.test.ts`, `src/main/serve-update-handoff.test.ts`, `src/main/startup/serve-desktop-activation-wiring.test.ts`, `src/main/runtime/mobile-rpc-allowlist.test.ts`, `src/preload/renderer-restart-wiring.test.ts`.
 
 ### 3-1. `disableManagedClaudeAccounts` — Bedrock 플릿에서는 필수입니다
 
@@ -279,7 +291,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 
   // lockdown에서 상속되는 값들 — 감사를 위해 명시
   "disableTelemetry": true,    // PostHog + 진단/크래시 번들 업로드 (로컬 로그는 유지)
-  "disableAutoUpdate": true,   // 업데이트 피드 + onorca.dev 넛지 폴링 + 메뉴의 수동 체크
+  "disableAutoUpdate": true,   // 죽은 스위치 — 업데이터는 코드에서 제거됨 (호환용으로만 유지)
   "disableStarNag": true,      // github.com SaaS로 나가는 star 조회/쓰기
   "disableCloudRelay": true,   // Orca Cloud 로그인 + 모바일 페어링 릴레이
   "disableUsagePolling": true, // AI 벤더 사용량/rate-limit 폴링
@@ -328,7 +340,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 
 일곱 개 스위치가 전부 켜집니다. `githubEnterpriseHost`가 없으므로 GHES 호스트는 `gh`의 `GH_HOST`에서 폴백을 시도하고, 그것도 없으면 Gitea 오폴백 방지가 동작하지 않습니다 — 사내 GHES를 쓴다면 §4-1처럼 반드시 명시하세요.
 
-### 4-3. 잠그되 업데이트만 예외로 허용
+### 4-3. 잠그되 한 스위치만 예외로 허용
 
 명시적 `false`가 상속을 이깁니다 (`enterprise-policy.ts:199`).
 
@@ -336,14 +348,12 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 {
   "lockdown": true,
   "githubEnterpriseHost": "github.samsungds.net",
-  // 나머지 여섯 개는 lockdown을 상속해 계속 꺼짐
-  "disableAutoUpdate": false
+  // 나머지는 lockdown을 상속해 계속 꺼짐
+  "disableStarNag": false
 }
 ```
 
-⚠️ 이 예외의 실제 의미를 알고 켜세요. 업데이트 피드는 `config/electron-builder.config.cjs:411-419`에 **`provider: 'github', owner: 'stablyai', repo: 'orca'`**로 고정입니다. 즉 다시 켠다는 건 사내 미러가 아니라 **벤더 저장소(github.com)와 `onorca.dev` 넛지 폴링(30분 주기 — `src/main/updater.ts:75`, 스케줄러 `:1566-1574`)으로 트래픽이 되살아난다**는 뜻입니다. 게다가 사내 빌드를 `ORCA_DISABLE_PUBLISH_TARGET=1`로 만들었다면 업데이터 메타데이터(`app-update.yml`) 자체가 없어, 다시 켜도 얻는 것은 실패한 조회뿐입니다.
-
----
+⚠️ `disableAutoUpdate: false`는 예외로 쓸 수 없습니다 — 이 포크는 인앱 업데이터를 코드에서 제거했으므로(§3-0) 그 키를 되돌려도 살아날 코드가 없습니다. 업데이트 배포는 정책이 아니라 사내 재배포로 처리하십시오.
 
 ## 5. `enforceNetworkAllowlist` — 옵트인 하드 허용목록
 
@@ -405,7 +415,7 @@ Enterprise network allowlist blocked a request to <host>. Add it to "allowedNetw
 
 > ℹ️ **이 GPO 배치는 이제 선택입니다.** 설치만으로 §4-1 정책이 걸리므로(§2 표 2순위), 아래는 ① 사내 사정으로 값을 바꿔야 하는데 앱을 다시 빌드·재배포하고 싶지 않을 때, ② 일부 부서만 다른 값을 써야 할 때, ③ 관리자 소유 ACL이 걸린 파일로 준수 여부를 Intune 콘솔에서 감시하고 싶을 때 씁니다. 머신 전역 경로는 번들보다 **위**라서 언제든 이깁니다.
 >
-> 🔴 **바꿔 말하면, 배치하기로 했다면 그 파일의 문법을 반드시 검증하세요.** 문법이 깨진 파일은 무시되고 **번들 정책으로 되돌아갑니다**(§2) — 잠금이 풀리지는 않지만, 관리자가 의도한 예외(예: `disableAutoUpdate: false`)가 조용히 사라진 채 잠긴 상태로 돕니다. 확인은 §7-2 트레이스의 `…source_path`와 `…warnings`입니다.
+> 🔴 **바꿔 말하면, 배치하기로 했다면 그 파일의 문법을 반드시 검증하세요.** 문법이 깨진 파일은 무시되고 **번들 정책으로 되돌아갑니다**(§2) — 잠금이 풀리지는 않지만, 관리자가 의도한 예외(예: `disableStarNag: false`)가 조용히 사라진 채 잠긴 상태로 돕니다. 확인은 §7-2 트레이스의 `…source_path`와 `…warnings`입니다.
 
 **GPO — 파일 기본 설정(권장)**
 `컴퓨터 구성 → 기본 설정 → Windows 설정 → 파일` 에 항목 추가:
@@ -484,7 +494,7 @@ Ansible/Puppet/Salt의 file 리소스로 관리하거나, 사내 `.deb`/`.rpm`�
 | 확인 대상 | 방법 | 기대 결과 |
 | --- | --- | --- |
 | `disableCloudRelay` | 설정에서 Orca Cloud 프로필 연결 시도 | 토스트 `Orca Cloud sign-in is not configured` + 설명 **`Orca Cloud sign-in is disabled by an enterprise policy.`** (`profile-cloud-auth-config.ts:76` → `src/renderer/src/store/slices/orca-profiles-auth-actions.ts:89-98`) |
-| `disableAutoUpdate` | 앱/Help 메뉴, 트레이, 사이드바 Help 메뉴, 설정 → 일반 | **"업데이트 확인" 항목이 아예 없습니다.** 예전에는 항목이 남아 "최신 버전입니다"라고 거짓 응답했습니다. 다운로드·설치도 각각 차단됩니다(`updater.ts` `downloadUpdate` / `quitAndInstall`) |
+| `disableAutoUpdate` | — | 확인할 것이 없습니다. 업데이트 표면은 정책과 무관하게 코드에 존재하지 않습니다 — 앱/Help 메뉴, 트레이, 사이드바 `?` 메뉴, 설정 → 일반 어디에도 "업데이트 확인" 항목이 없습니다 |
 | `disableMobilePairing` | 사이드바·설정 → 모바일, Cmd+J에 `mobile` | 진입점이 전부 사라집니다. 이미 페어링된 폰은 RPC가 `forbidden`으로 거부됩니다 |
 | `disableVendorProviderAccounts` | 설정 → AI 제공업체 계정 | Claude 구독/Codex/Gemini/OpenCode/MiniMax/Grok 섹션이 사라지고 **AWS SSO와 사내 자체 호스팅 모델만** 남습니다. 이미 등록된 계정의 제거는 계속 가능합니다 |
 | `disableRemoteOrcaServer` | 설정 → 원격 Orca 서버, 새 워크스페이스의 실행 대상 피커 | 섹션과 "Add Remote Orca Server" 항목이 사라집니다. **설정 → SSH 호스트는 그대로 남아야 정상입니다**. v1.4.162가 피커를 `components/new-workspace/RunTargetCombobox.tsx`로 추출한 뒤로 이 행의 게이트는 **부모가 `onAddRemoteServer`를 넘기지 않는 것**입니다 (`NewWorkspaceComposerCard.tsx`) — 자식 컴포넌트에는 정책 임포트가 없으니 그쪽만 grep하면 게이트가 없어 보입니다. 회귀 방지는 `NewWorkspaceComposerCard.policy.test.tsx` |
@@ -512,7 +522,6 @@ Ansible/Puppet/Salt의 file 리소스로 관리하거나, 사내 `.deb`/`.rpm`�
 
 - 파일: `%APPDATA%\Orca\logs\main.trace.ndjson` — 즉 `<userData>/logs/main.trace.ndjson` (`src/main/observability/logs-directory.ts:27-29`, `:32-34`). macOS는 `~/Library/Application Support/Orca/logs/`, Linux는 `~/.config/Orca/logs/` 아래 같은 파일명입니다.
 - **정책 해석 결과 자체가 이 파일에 스팬 하나로 남습니다.** 스팬 이름은 `enterprise.policy`이고, `initObservability()` 직후에 딱 한 번 기록됩니다 (`src/main/enterprise/enterprise-policy-trace.ts:33`, 호출부 `src/main/index.ts:2148`). 속성에 실제로 적용된 파일 경로(`enterprise.policy.source_path` — 못 찾았으면 `(none found)`, `enterprise-policy-trace.ts:18`), 탐색한 후보 목록(`…searched_paths`), `…lockdown`, 상속 스위치 전부(현재 17개, `…switches` — `LOCKDOWN_INHERITING_KEYS`를 그대로 순회하므로 스위치가 늘면 자동으로 함께 늘어납니다), `…github_enterprise_host`, `…enforce_network_allowlist`, `…allowed_network_hosts`, 그리고 §7-3의 경고 원문 전부(`…warnings`)가 들어갑니다 (`:36-45`).
-- `disableAutoUpdate`가 적용되면 `updater_auto_update_disabled_by_policy` 브레드크럼도 이 파일에 남습니다 (`updater.ts:1645-1649` → `src/main/updater-lifecycle-diagnostics.ts:4-14` → `src/main/crash-reporting/durable-crash-breadcrumb.ts:41-38`).
 
 ```powershell
 # 어떤 정책 파일이 적용됐고 어떤 스위치가 켜졌는지 — 플릿 검증의 1차 수단

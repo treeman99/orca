@@ -117,7 +117,7 @@ Bedrock 설정 자체의 내용과 주의사항은 §3.
 
 | 변수 | 역할 | 근거 |
 | --- | --- | --- |
-| `ORCA_WIN_PUBLISHER_NAME` | electron-updater의 Authenticode 확인이 기대하는 publisherName. 기본값은 `SignPath Foundation` | `config/electron-builder.config.cjs:206-208` |
+| `ORCA_WIN_PUBLISHER_NAME` | 설치 프로그램의 Authenticode publisherName. 기본값은 `SignPath Foundation` | `config/electron-builder.config.cjs:206-208` |
 | `ORCA_DISABLE_PUBLISH_TARGET=1` | `publish` 타깃을 `null`로 만들어 업데이터 메타데이터를 아예 생성하지 않음 | `:411-419` (의도는 `:409-410` 주석) |
 | `WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD` | electron-builder 고유의 Windows 코드 서명 입력 | electron-builder 계약 |
 | `ORCA_MAC_RELEASE` | **반드시 비어 있어야 합니다.** `1`이면 `forceCodeSigning`이 최상위 설정으로 켜져(`:319`, 값 출처 `:16`) 서명 없는 Windows 빌드가 실패합니다 | `:16`, `:319` |
@@ -341,8 +341,8 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다(`enterprise-p
 | 키 | 기본값 | 무엇을 끄는가 (검증한 근거) |
 | --- | --- | --- |
 | `lockdown` | `false` | 마스터 스위치. 추가로 **Chromium의 DNS-over-HTTPS 자동 승격을 끄고** OS 리졸버로 고정합니다(`src/main/enterprise/enterprise-secure-dns.ts:19-24`, 배선 `src/main/index.ts:1833`), **`node:https` 직접 다운로드를 거부합니다**(`enterprise-direct-download-guard.ts:17-25`) |
-| `disableTelemetry` | `lockdown` 상속 | PostHog 텔레메트리(`telemetry/consent.ts:88`) + 진단/크래시 번들 **업로드 레인**(`observability/index.ts:103`, `:120-133`) + **앱 내 피드백·크래시 리포트 전송**(`ipc/feedback-submission-policy.ts:13-16` → `ipc/feedback.ts:257`). **로컬 NDJSON 로그는 계속 기록됩니다** — 네트워크만 막습니다 |
-| `disableAutoUpdate` | `lockdown` 상속 | 업데이트 피드 조회 단일 초크포인트(`updater.ts:1179` `runBackgroundUpdateCheck`), 메뉴의 수동 "업데이트 확인"(`:1251` `checkForUpdatesFromMenu`), 그리고 **onorca.dev 넛지 스케줄러·powerMonitor 리스너가 아예 배선되지 않도록**(`:1458` `setupAutoUpdater`) |
+| `disableTelemetry` | `lockdown` 상속 | PostHog 텔레메트리(`telemetry/consent.ts:88`) + 진단 번들 **업로드 레인**(`observability/index.ts:103`, `:120-133`). **로컬 NDJSON 로그는 계속 기록됩니다** — 네트워크만 막습니다. 앱 내 피드백·크래시 리포트 전송은 정책이 아니라 **코드에서 제거**되었습니다 |
+| `disableAutoUpdate` | `lockdown` 상속 | 🔴 **죽은 스위치.** 인앱 업데이터를 코드에서 제거했으므로 이 키를 읽는 게이트가 없습니다. 업스트림 리베이스 안전판 겸 기존 정책 파일 호환을 위해 키만 유지합니다 |
 | `disableStarNag` | `lockdown` 상속 | github.com SaaS로 가는 star 조회/쓰기 — `github/client.ts:233`(`checkOrcaStarred`), `:419`(`starOrca`). **게이트를 서비스가 아니라 클라이언트 함수에 뒀습니다** — 넛지 서비스(`star-nag/service.ts:121`) 말고도 `star-nag/direct-star-attempt.ts:9`, `star-nag/agent-value-moment.ts:46`, IPC 핸들러 `ipc/github.ts:1174`·`:1177`이 같은 함수로 들어옵니다 |
 | `disableCloudRelay` | `lockdown` 상속 | `orca-profiles/profile-cloud-auth-config.ts:73`이 "미구성"으로 응답 → Orca Cloud 로그인, 조직 멤버 조회(`orca-profiles/profile-cloud-org-members-service.ts:119`), 그리고 **데스크톱↔모바일 페어링 릴레이**(`src/main/index.ts:2478-2481`이 `configured`일 때만 `DesktopRelayService`를 만듭니다)가 한꺼번에 꺼집니다. 단일 초크포인트임을 `:71-72` 주석이 명시 |
 | `disableUsagePolling` | `lockdown` 상속 | AI 벤더 사용량/레이트리밋 폴링. 게이트는 `rate-limits/service.ts:760-761`, 진입점은 `start()`(`:310`), Codex 리셋 크레딧(`:428`), 계정 스위처 프리뷰 2종(`:497`, `:606`), `fetchAll`(`:921`), `fetchCodexOnly`(`:986`), `fetchClaudeOnly`(`:1048`), `fetchGrokOnly`(`:1113`). 벤더 백엔드로 POST하는 경로는 예외를 던집니다 |
@@ -420,7 +420,7 @@ Start Menu로 띄운 Windows GUI 프로세스에는 콘솔이 없어서 `[enterp
 Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "enterprise.policy" | Select-Object -Last 1
 ```
 
-기능으로 확인하는 방법(예: 메뉴의 "업데이트 확인"이 무반응인지)도 여전히 유효합니다. 반대로 **경고가 없다는 것은 파일을 찾았다는 증거가 아닙니다** — 정책 파일이 아예 없어도 코드는 조용히 지나갑니다(`enterprise-policy-file.ts:152-158`). 그래서 위 스팬의 `enterprise.policy.source_path` 속성을 보는 것이 유일하게 확정적인 확인 방법입니다.
+기능으로 확인하는 방법(예: `?` 메뉴에 "피드백 보내기"가 없는지)도 여전히 유효합니다. 반대로 **경고가 없다는 것은 파일을 찾았다는 증거가 아닙니다** — 정책 파일이 아예 없어도 코드는 조용히 지나갑니다(`enterprise-policy-file.ts:152-158`). 그래서 위 스팬의 `enterprise.policy.source_path` 속성을 보는 것이 유일하게 확정적인 확인 방법입니다.
 
 ### 5.3 잠긴 사내 빌드와 공개 빌드를 구분하는 법 — 내장 수단이 없습니다
 
@@ -430,7 +430,7 @@ Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "enterpr
 
 1. **정책 파일 존재 여부를 자산 관리로 감시** — `%ProgramData%\Orca\enterprise-policy.json`이 없는 머신이 곧 안 잠긴 머신입니다. 실행 파일이 어느 빌드인지보다 이쪽이 실질적인 판정 기준입니다.
 2. **`ORCA_DISABLE_PUBLISH_TARGET=1`로 빌드** — `publish` 타깃이 `null`이 되어 업데이터 메타데이터가 아예 안 실립니다. 그러면 이 설치본은 upstream 릴리스 피드로 덮어써질 수 없습니다(`config/electron-builder.config.cjs:411-419`).
-3. **사내 인증서로 서명하고 `ORCA_WIN_PUBLISHER_NAME`을 그 주체로 지정** — electron-updater의 Authenticode 확인이 기대하는 publisherName이 바뀌므로, 공개 설치 프로그램이 사내 빌드를 갈아치우지 못합니다. 기본값을 그대로 두면(`SignPath Foundation`) 공개 빌드가 그대로 받아들여집니다(`:202-208`).
+3. **사내 인증서로 서명하고 `ORCA_WIN_PUBLISHER_NAME`을 그 주체로 지정** — 공개 배포본의 서명 주체와 달라지므로 공개 설치 프로그램이 사내 빌드를 갈아치우지 못합니다. 기본값을 그대로 두면(`SignPath Foundation`) 공개 빌드가 그대로 받아들여집니다(`:202-208`). (이 빌드 자체에는 인앱 업데이터가 없습니다.)
 4. 사내 자체 식별이 꼭 필요하면 릴리스 태그·파일명·설치 경로 규약을 사내에서 별도로 정하세요. 앱은 도와주지 않습니다.
 
 ---
@@ -493,7 +493,7 @@ git diff --name-status v1.4.163..HEAD   # A=신규, M=upstream 파일 수정, D=
 | 성격 | 파일 | 리베이스 충돌 |
 | --- | --- | --- |
 | **신규(포크 전용)** | `src/shared/enterprise-policy.ts`(+`.test.ts`), `src/main/enterprise/**` 10개(정책 파일 탐색·트레이스·네트워크 가드·직접 다운로드 가드·secure DNS·픽스처·테스트), `src/main/ipc/feedback-submission-policy.ts`, `src/main/rate-limits/usage-polling-disabled-providers.ts`(+`.test.ts`), `src/main/observability/observability-consent.test.ts`, `src/main/claude-accounts/environment.test.ts`, `src/main/emulator/android/scrcpy-server-download.test.ts`, `config/vitest-enterprise-policy-isolation.ts`, `docs/reference/*.md` 3개 | 거의 없음 |
-| **upstream 파일에 삽입한 게이트** | 메인: `src/main/updater.ts`, `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `gitea/repository-ref.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/{feedback,pty}.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`, `components/sidebar/SidebarFeedbackDialog.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄) | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다 |
+| **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `gitea/repository-ref.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄) | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다 |
 | **포크가 재작성해 소유한 문서** | `README.md`(upstream 원문 268줄을 사내 문서로 전면 교체 — 남은 공통 문장이 거의 없어 자동 병합이 되지 않습니다), `CLAUDE.md`(upstream은 `@AGENTS.md` 한 줄짜리 11바이트 스텁 → 126줄로 확장) | **둘 다 upstream에도 존재하므로 upstream이 손댈 때마다 반드시 충돌합니다.** 리베이스에서 사내 버전을 남기려면 `git checkout --theirs README.md CLAUDE.md` — **리베이스에서는 `--ours`가 재배치 대상(upstream), `--theirs`가 재생 중인 사내 커밋**이라 머지와 의미가 뒤집혀 있습니다. 그다음 upstream 변경분 중 필요한 것만 수동으로 반영하세요 |
 
 > 위 목록에는 정책 작업과 무관한 upstream 접근성/드리프트 수정도 섞여 있습니다(예: `src/renderer/src/components/DetachedHeadBadge.tsx`, `src/renderer/src/components/skills/skill-freshness-group.tsx`). 이런 커밋은 upstream에 PR로 올려 없애는 편이 장기적으로 리베이스 충돌 면적을 줄입니다.

@@ -103,7 +103,6 @@ import type {
   MarkdownDocument,
   SearchResult,
   TuiAgent,
-  UpdateStatus,
   WorktreeBaseStatusEvent,
   WorktreeDefaultTabsLaunch,
   WorktreeHeadIdentity,
@@ -251,9 +250,8 @@ import type { AiVaultPrepareSessionResumeArgs } from '../shared/ai-vault-resume-
 import type { AgentType } from '../shared/native-chat-types'
 import {
   ORCA_APP_RESTART_ABORTED_EVENT,
-  ORCA_APP_RESTART_STARTED_EVENT,
-  ORCA_UPDATER_QUIT_AND_INSTALL_ABORTED_EVENT
-} from '../shared/updater-renderer-events'
+  ORCA_APP_RESTART_STARTED_EVENT
+} from '../shared/app-restart-renderer-events'
 import {
   ORCA_INTERNAL_FILE_DRAG_TYPE,
   createNativeFileDropPayload,
@@ -281,33 +279,19 @@ import type {
 } from '../shared/localhost-worktree-labels'
 import type {
   CrashReportBreadcrumbData,
-  CrashReportCopyDiagnosticsArgs,
-  CrashReportSubmitArgs,
-  CrashReportSubmitResult,
   ReactErrorBoundaryReportArgs,
   ReactErrorBoundaryReportResult
 } from '../shared/crash-reporting'
 import type { RendererHeapStatistics } from '../shared/renderer-heap-statistics'
 import { readRendererHeapStatistics } from './renderer-heap-statistics-reader'
-import {
-  createUpdaterQuitAbortRelay,
-  prepareRendererForAppRestart
-} from '../shared/renderer-restart-preparation'
-import {
-  prepareAndInvokeUpdaterInstall,
-  registerRendererRestartIpcRelays
-} from './renderer-restart-wiring'
+import { prepareRendererForAppRestart } from '../shared/renderer-restart-preparation'
+import { registerRendererRestartIpcRelays } from './renderer-restart-wiring'
 
 type NativeFileDropCallback = (data: NativeFileDropPayload) => void
 
 const nativeFileDropCallbacks: NativeFileDropCallback[] = []
 let nativeFileDropListenerRegistered = false
-const updaterQuitAbortRelay = createUpdaterQuitAbortRelay(
-  window,
-  ORCA_UPDATER_QUIT_AND_INSTALL_ABORTED_EVENT
-)
-
-registerRendererRestartIpcRelays(ipcRenderer, window, updaterQuitAbortRelay)
+registerRendererRestartIpcRelays(ipcRenderer, window)
 
 function getLinuxDisplayServer(): 'wayland' | 'x11' | null {
   if (process.platform !== 'linux') {
@@ -483,6 +467,7 @@ const api = {
     getIdentity: (): Promise<AppIdentity> => ipcRenderer.invoke('app:getIdentity'),
     getFeatureWallAssetBaseUrl: (): Promise<string> =>
       ipcRenderer.invoke('app:getFeatureWallAssetBaseUrl'),
+    getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
     relaunch: (): Promise<void> => ipcRenderer.invoke('app:relaunch'),
     restart: async (): Promise<void> => {
       await prepareRendererForAppRestart(window, {
@@ -1248,32 +1233,13 @@ const api = {
     }
   },
 
-  feedback: {
-    submit: (args: {
-      feedback: string
-      submitAnonymously?: boolean
-      githubLogin: string | null
-      githubEmail: string | null
-      images?: { contentType: string; data: Uint8Array }[]
-    }): Promise<
-      { ok: true; imagesDelivered?: boolean } | { ok: false; status: number | null; error: string }
-    > => ipcRenderer.invoke('feedback:submit', args)
-  },
-
   crashReports: {
-    getLatestPending: () => ipcRenderer.invoke('crashReports:getLatestPending'),
-    getLatestReport: () => ipcRenderer.invoke('crashReports:getLatestReport'),
-    dismiss: (args: { reportId: string }) => ipcRenderer.invoke('crashReports:dismiss', args),
     recordRendererError: (
       args: ReactErrorBoundaryReportArgs
     ): Promise<ReactErrorBoundaryReportResult> =>
       ipcRenderer.invoke('crashReports:recordRendererError', args),
     recordBreadcrumb: (args: { name: string; data?: CrashReportBreadcrumbData }): void =>
       ipcRenderer.send('crashReports:recordBreadcrumb', args),
-    submit: (args: CrashReportSubmitArgs): Promise<CrashReportSubmitResult> =>
-      ipcRenderer.invoke('crashReports:submit', args),
-    copyLatestDiagnostics: (args?: CrashReportCopyDiagnosticsArgs) =>
-      ipcRenderer.invoke('crashReports:copyLatestDiagnostics', args),
     readHeapStatistics: (): RendererHeapStatistics | null => readRendererHeapStatistics()
   },
 
@@ -2960,30 +2926,6 @@ const api = {
     }
   } satisfies PreloadApi['remoteWorkspace'],
 
-  updater: {
-    getStatus: () => ipcRenderer.invoke('updater:getStatus'),
-    getVersion: () => ipcRenderer.invoke('updater:getVersion'),
-    check: (options) => ipcRenderer.invoke('updater:check', options),
-    download: () => ipcRenderer.invoke('updater:download'),
-    dismissNudge: () => ipcRenderer.invoke('updater:dismissNudge'),
-    dismissAvailableUpdate: () => ipcRenderer.invoke('updater:dismissAvailableUpdate'),
-    listBuilds: (channel) => ipcRenderer.invoke('updater:listBuilds', channel),
-    quitAndInstall: (): Promise<void> =>
-      prepareAndInvokeUpdaterInstall(window, updaterQuitAbortRelay, () =>
-        ipcRenderer.invoke('updater:quitAndInstall')
-      ),
-    onStatus: (callback) => {
-      const listener = (_event: Electron.IpcRendererEvent, status: UpdateStatus) => callback(status)
-      ipcRenderer.on('updater:status', listener)
-      return () => ipcRenderer.removeListener('updater:status', listener)
-    },
-    onClearDismissal: (callback) => {
-      const listener = (_event: Electron.IpcRendererEvent) => callback()
-      ipcRenderer.on('updater:clearDismissal', listener)
-      return () => ipcRenderer.removeListener('updater:clearDismissal', listener)
-    }
-  } satisfies PreloadApi['updater'],
-
   notebook: {
     runPythonCell: (args: {
       filePath: string
@@ -3407,21 +3349,6 @@ const api = {
     },
     consumePendingOpenSettings: (): Promise<boolean> =>
       ipcRenderer.invoke('ui:consumePendingOpenSettings'),
-    onOpenSetupGuide: (callback: () => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent) => callback()
-      ipcRenderer.on('ui:openSetupGuide', listener)
-      return () => ipcRenderer.removeListener('ui:openSetupGuide', listener)
-    },
-    onOpenFeatureTour: (callback: () => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent) => callback()
-      ipcRenderer.on('ui:openFeatureTour', listener)
-      return () => ipcRenderer.removeListener('ui:openFeatureTour', listener)
-    },
-    onOpenCrashReport: (callback: () => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent) => callback()
-      ipcRenderer.on('ui:openCrashReport', listener)
-      return () => ipcRenderer.removeListener('ui:openCrashReport', listener)
-    },
     onToggleLeftSidebar: (callback: () => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent) => callback()
       ipcRenderer.on('ui:toggleLeftSidebar', listener)

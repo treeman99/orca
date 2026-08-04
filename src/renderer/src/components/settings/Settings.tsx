@@ -72,7 +72,7 @@ import { ActiveSettingsSectionProvider, SettingsSection } from './SettingsSectio
 import { getSettingsSectionSearchEntries, rankSettingsSearchItems } from './settings-search'
 import { resolveAppearanceAccordionDeepLink } from './appearance-usage-percentage-search'
 import { cn } from '@/lib/utils'
-import { isIntentionalAppRestartInProgress } from '@/lib/updater-beforeunload'
+import { isIntentionalAppRestartInProgress } from '@/lib/app-restart-beforeunload'
 import { registerWindowCloseGuard } from '../window-close-request-coordinator'
 import { checkRuntimeHooks } from '@/runtime/runtime-hooks-client'
 import {

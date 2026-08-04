@@ -198,14 +198,15 @@ async function validateAuthenticatedPairing() {
     typeof statusResult?.runtime?.appVersion === 'string',
     'paired server did not report its Orca app version'
   )
+  // This fork removed the in-app updater, so a paired server must advertise no
+  // remote-update capability and report no remote update support at all.
   assert(
-    statusResult?.runtime?.capabilities?.includes('updater.remote-control.v1'),
-    'paired server did not advertise remote updater capability'
+    !statusResult?.runtime?.capabilities?.includes('updater.remote-control.v1'),
+    'paired server still advertises a remote updater capability'
   )
   assert(
-    statusResult?.runtime?.remoteUpdateSupport?.automatic === false &&
-      statusResult.runtime.remoteUpdateSupport.reason === 'manual-service-update-required',
-    'direct headless server did not require a safe manual service update'
+    statusResult?.runtime?.remoteUpdateSupport === undefined,
+    'paired server still reports remote update support'
   )
   stopContainer(server.name)
   console.log('PASS paired E2EE updater inventory and manual-service fallback')

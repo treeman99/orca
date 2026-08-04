@@ -194,7 +194,7 @@ publish:
 
 `ORCA_DISABLE_PUBLISH_TARGET`은 **빌드 셸 전용 변수**입니다. 앱 런타임 환경변수가 아니며 설치된 Orca는 이 값을 읽지 않습니다.
 
-> 3번은 **빌드 시점** phone-home과 업데이터 메타 생성만 막습니다. 앱이 실행 중에 GitHub 릴리스를 조회하는 **런타임 자동 업데이트**는 별개이며, 관리자 정책 파일의 `disableAutoUpdate`(또는 마스터 스위치 `lockdown`)로 끕니다 — `src/shared/enterprise-policy.ts:19`, 차단 지점은 `src/main/updater.ts:1179` / `:1251` / `:1458`. 정책 파일은 **설치 프로그램에 내장된 기본값**(`resources/enterprise-policy.json` → `<설치폴더>\resources\enterprise-policy.json`)으로 이미 실리므로 별도 배포 없이 적용되고, 중앙에서 덮어쓰려면 그보다 우선하는 머신 전역 경로 `%ProgramData%\Orca\enterprise-policy.json`을 씁니다(`src/main/enterprise/enterprise-policy-file.ts:53-63`, `:199-207`, 탐색 순서 `:80-105`). 전체 외부 연동 잠금은 [외부 연동 감사](./external-integrations-audit.md) 참고.
+> 3번은 **빌드 시점** phone-home과 업데이터 메타 생성만 막습니다. 앱이 실행 중에 GitHub 릴리스를 조회하는 **런타임 자동 업데이트**는 이 포크에서 **코드째 제거**되었으므로 정책 설정이 필요 없습니다([외부 연동 감사 §3](./external-integrations-audit.md)). 정책 파일은 **설치 프로그램에 내장된 기본값**(`resources/enterprise-policy.json` → `<설치폴더>\resources\enterprise-policy.json`)으로 이미 실리므로 별도 배포 없이 적용되고, 중앙에서 덮어쓰려면 그보다 우선하는 머신 전역 경로 `%ProgramData%\Orca\enterprise-policy.json`을 씁니다(`src/main/enterprise/enterprise-policy-file.ts:53-63`, `:199-207`, 탐색 순서 `:80-105`). 전체 외부 연동 잠금은 [외부 연동 감사](./external-integrations-audit.md) 참고.
 
 ### 5-2. `ORCA_MAC_RELEASE` 환경변수 남겨두기
 
@@ -290,9 +290,9 @@ win: {
 $env:ORCA_WIN_PUBLISHER_NAME = "<사내 인증서 CN>"
 ```
 
-이 항목은 **`publish`를 살려 둔 빌드에만** 해당합니다. §5-1의 3번(`ORCA_DISABLE_PUBLISH_TARGET=1`)을 적용하면 `app-update.yml` 자체가 없어지지만, 이것을 자동 업데이트 차단으로 세지 마십시오 — 조회는 그대로 나가고(§5-1), 실제로 멈추는 지점은 다운로드가 그 없는 파일을 읽다 실패하는 곳입니다(`AppUpdater.js:585` → `:545`). Authenticode 게시자 확인은 그보다 **뒤에** 있으므로(`NsisUpdater.js:52`) 이 구성에서는 아예 도달하지 않습니다. 반대로 파일은 있는데 `publisherName`만 비어 있으면 `verifySignature`가 곧바로 `null`을 반환해 게시자 확인을 건너뜁니다(`NsisUpdater.js:84-99`). 즉 어느 쪽이든 이 경로에 서명 검증을 기대해서는 안 됩니다. **자동 업데이트를 끄는 유일하게 확실한 수단은 정책 파일의 `disableAutoUpdate`입니다.**
+이 항목은 **역사적 참고입니다.** 이 포크는 electron-updater를 코드와 의존성에서 모두 제거했으므로 런타임 업데이트 조회 자체가 없고, 위에서 설명한 Authenticode 게시자 확인 경로에도 도달하지 않습니다([외부 연동 감사 §3](./external-integrations-audit.md)). 배포는 사내 재배포로만 이루어집니다.
 
-`win.verifyUpdateCodeSignature: false`는 **추가하지 마십시오** — Windows에서 유일한 Authenticode 검증을 꺼서 임의의 설치 프로그램을 수락하게 됩니다. 자동 업데이트 자체를 끄려면 정책 파일의 `disableAutoUpdate`를 쓰십시오(§5-1).
+`win.verifyUpdateCodeSignature: false`는 **추가하지 마십시오** — Windows에서 유일한 Authenticode 검증을 꺼서 임의의 설치 프로그램을 수락하게 됩니다. (자동 업데이트 자체는 이 포크에 없습니다.)
 
 ---
 

@@ -245,6 +245,8 @@ export function registerAppHandlers(store: Store, options: RegisterAppHandlersOp
 
   ipcMain.handle('app:getFeatureWallAssetBaseUrl', (): string => getFeatureWallAssetBaseUrl())
 
+  ipcMain.handle('app:getVersion', (): string => app.getVersion())
+
   ipcMain.handle('app:getIdentity', (): AppIdentity => {
     const identity = getDevInstanceIdentity(is.dev)
     return {

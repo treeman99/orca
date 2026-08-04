@@ -15,7 +15,6 @@ const {
   registerWorktreeHandlersMock,
   registerPtyHandlersMock,
   hydrateLocalPtyRegistryAtBootMock,
-  setupAutoUpdaterMock,
   browserManagerUnregisterAllMock,
   runWorktreeChangeInvalidatorsMock,
   acknowledgePendingTccPromptNoticeMock,
@@ -36,7 +35,6 @@ const {
   registerWorktreeHandlersMock: vi.fn(),
   registerPtyHandlersMock: vi.fn(),
   hydrateLocalPtyRegistryAtBootMock: vi.fn(),
-  setupAutoUpdaterMock: vi.fn(),
   browserManagerUnregisterAllMock: vi.fn(),
   runWorktreeChangeInvalidatorsMock: vi.fn(),
   acknowledgePendingTccPromptNoticeMock: vi.fn(),
@@ -90,14 +88,6 @@ vi.mock('../browser/browser-manager', () => ({
   browserManager: {
     unregisterAll: browserManagerUnregisterAllMock
   }
-}))
-
-vi.mock('../updater', () => ({
-  checkForUpdates: vi.fn(),
-  getUpdateStatus: vi.fn(),
-  quitAndInstall: vi.fn(),
-  dismissNudge: vi.fn(),
-  setupAutoUpdater: setupAutoUpdaterMock
 }))
 
 vi.mock('../macos-tcc-prompt-notice', () => ({
@@ -189,18 +179,6 @@ function getClosedHandlers(mainWindowOnMock: MockFn): (() => void)[] {
     .map(([, handler]) => handler as () => void)
 }
 
-// Updater setup is deferred to first paint; fire the captured ready-to-show
-// handler and flush its setImmediate hop.
-async function fireReadyToShow(mainWindow: MainWindowStub): Promise<void> {
-  const handler = mainWindow.once.mock.calls.find(([event]) => event === 'ready-to-show')?.[1] as
-    | (() => void)
-    | undefined
-  handler?.()
-  await new Promise((resolve) => {
-    setImmediate(resolve)
-  })
-}
-
 describe('attachMainWindowServices', () => {
   beforeEach(() => {
     onMock.mockReset()
@@ -216,7 +194,6 @@ describe('attachMainWindowServices', () => {
     registerWorktreeHandlersMock.mockReset()
     registerPtyHandlersMock.mockReset()
     hydrateLocalPtyRegistryAtBootMock.mockReset()
-    setupAutoUpdaterMock.mockReset()
     browserManagerUnregisterAllMock.mockReset()
     acknowledgePendingTccPromptNoticeMock.mockReset()
     consumePendingTccPromptNoticeMock.mockReset()
@@ -274,46 +251,6 @@ describe('attachMainWindowServices', () => {
 
     expect(hydrateLocalPtyRegistryAtBootMock).toHaveBeenCalledTimes(2)
     expect(hydrateLocalPtyRegistryAtBootMock).toHaveBeenLastCalledWith(store)
-  })
-
-  it('passes injected update quit cleanup to the auto-updater', async () => {
-    const onBeforeUpdateQuit = vi.fn()
-    const store = createStore()
-    const mainWindow = createMainWindow()
-
-    attachMainWindowServices(
-      mainWindow as never,
-      store,
-      createRuntime() as never,
-      undefined,
-      undefined,
-      { onBeforeUpdateQuit, updateInstallMode: 'supervised-headless-serve' }
-    )
-
-    // Deferred to first paint — must not be configured at attach time.
-    expect(setupAutoUpdaterMock).not.toHaveBeenCalled()
-    await fireReadyToShow(mainWindow)
-    expect(setupAutoUpdaterMock).toHaveBeenCalledTimes(1)
-    expect(setupAutoUpdaterMock).toHaveBeenCalledWith(
-      mainWindow,
-      expect.objectContaining({ installMode: 'supervised-headless-serve' })
-    )
-    await setupAutoUpdaterMock.mock.calls[0][1].onBeforeQuit()
-
-    expect(onBeforeUpdateQuit).toHaveBeenCalledTimes(1)
-    expect(store.flushPendingAsync).toHaveBeenCalledTimes(1)
-  })
-
-  it('flushes the store before update quit when no cleanup is injected', async () => {
-    const store = createStore()
-    const mainWindow = createMainWindow()
-
-    attachMainWindowServices(mainWindow as never, store, createRuntime() as never)
-
-    await fireReadyToShow(mainWindow)
-    await setupAutoUpdaterMock.mock.calls[0][1].onBeforeQuit()
-
-    expect(store.flushPendingAsync).toHaveBeenCalledTimes(1)
   })
 
   it('replaces the TCC handlers when the main window is reattached', () => {

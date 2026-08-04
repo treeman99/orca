@@ -33,7 +33,7 @@ import {
   type EditorRequestFileCloseDetail,
   requestEditorSaveQuiesce
 } from './editor/editor-autosave'
-import { isIntentionalAppRestartInProgress } from '@/lib/updater-beforeunload'
+import { isIntentionalAppRestartInProgress } from '@/lib/app-restart-beforeunload'
 import { preventUnloadAndScheduleShutdownCheckpointReset } from '@/lib/shutdown-checkpoint-guard'
 import EditorAutosaveController from './editor/EditorAutosaveController'
 import type {

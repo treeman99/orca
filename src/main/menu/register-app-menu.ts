@@ -5,7 +5,6 @@ import {
   type KeybindingActionId,
   type KeybindingOverrides
 } from '../../shared/keybindings'
-import type { UpdateCheckOptions } from '../../shared/types'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { translateMain } from '../i18n/main-i18n'
 
@@ -25,10 +24,6 @@ export function getNextDefaultOnAppearanceSettingValue(current: boolean | undefi
 
 type RegisterAppMenuOptions = {
   onOpenSettings: () => void
-  onOpenSetupGuide: (window?: Electron.BaseWindow | null) => void
-  onOpenFeatureTour: (window?: Electron.BaseWindow | null) => void
-  onOpenCrashReport: (window?: Electron.BaseWindow | null) => void
-  onCheckForUpdates: (options: UpdateCheckOptions) => void
   onBeforeReload?: (options: { ignoreCache: boolean; webContentsId: number }) => void
   onZoomIn: () => void
   onZoomOut: () => void
@@ -46,10 +41,6 @@ type RegisterAppMenuOptions = {
 function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
   const {
     onOpenSettings,
-    onOpenSetupGuide,
-    onOpenFeatureTour,
-    onOpenCrashReport,
-    onCheckForUpdates,
     onBeforeReload,
     onZoomIn,
     onZoomOut,
@@ -88,56 +79,9 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     webContents.reload()
   }
 
-  // Why: modifier-click update checks are hidden power-user affordances.
-  // Extracted so the macOS app-menu entry and Windows/Linux Help entry share
-  // identical RC/perf channel routing.
-  const checkForUpdatesClick: Electron.MenuItemConstructorOptions['click'] = (
-    _menuItem,
-    _window,
-    event
-  ) => {
-    const modifierClick = !event.triggeredByAccelerator
-    const localBuild = isMac && modifierClick && event.altKey === true
-    const includePerfPrerelease =
-      !localBuild && modifierClick && (isMac ? event.metaKey === true : event.ctrlKey === true)
-    const includePrerelease = !localBuild && modifierClick && event.shiftKey === true
-    onCheckForUpdates({
-      includePrerelease,
-      includePerfPrerelease,
-      ...(localBuild ? { localBuild: true } : {})
-    })
-  }
-
-  // Removed rather than disabled: the updater already refuses under policy, so leaving
-  // the item would answer "You're up to date" — a claim the build cannot make.
-  const checkForUpdatesItems: Electron.MenuItemConstructorOptions[] = getEnterprisePolicy()
-    .disableAutoUpdate
-    ? []
-    : [
-        {
-          label: translateMain('menu.checkForUpdates', 'Check for Updates...'),
-          click: checkForUpdatesClick
-        }
-      ]
-
   const settingsItem: Electron.MenuItemConstructorOptions = {
     label: `${translateMain('menu.settings', 'Settings')}\t${shortcutLabel('app.settings')}`,
     click: () => onOpenSettings()
-  }
-
-  const featureTourItem: Electron.MenuItemConstructorOptions = {
-    label: translateMain('menu.exploreOrca', 'Explore Orca'),
-    click: (_menuItem, window) => onOpenFeatureTour(window)
-  }
-
-  const setupGuideItem: Electron.MenuItemConstructorOptions = {
-    label: translateMain('menu.gettingStarted', 'Getting Started with Orca'),
-    click: (_menuItem, window) => onOpenSetupGuide(window)
-  }
-
-  const crashReportItem: Electron.MenuItemConstructorOptions = {
-    label: translateMain('menu.reportCrash', 'Report Crash...'),
-    click: (_menuItem, window) => onOpenCrashReport(window)
   }
 
   // Why: the macOS app-menu (named after the app) is mandatory on darwin and
@@ -149,7 +93,6 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     label: options.appMenuLabel ?? app.name,
     submenu: [
       { role: 'about' },
-      ...checkForUpdatesItems,
       settingsItem,
       { type: 'separator' },
       { role: 'services' },
@@ -304,21 +247,12 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     submenu: [{ role: 'minimize' }, { role: 'zoom' }]
   }
 
+  // Fork: About is the only Help entry on every platform. Crash reporting, the
+  // feature tour, the setup guide and the update check all left with the vendor
+  // surfaces they belonged to — see docs/reference/external-integrations-audit.md.
   const helpMenu: Electron.MenuItemConstructorOptions = {
     label: translateMain('menu.help', 'Help'),
-    submenu: [
-      crashReportItem,
-      { type: 'separator' },
-      featureTourItem,
-      setupGuideItem,
-      ...(isMac
-        ? []
-        : ([
-            { type: 'separator' },
-            { role: 'about' },
-            ...checkForUpdatesItems
-          ] satisfies Electron.MenuItemConstructorOptions[]))
-    ]
+    submenu: [{ role: 'about' }]
   }
 
   const template: Electron.MenuItemConstructorOptions[] = [

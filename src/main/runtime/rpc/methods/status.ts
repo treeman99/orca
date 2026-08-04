@@ -1,17 +1,15 @@
 import { defineMethod, type RpcMethod } from '../core'
-import { getRemoteServerUpdaterSnapshot } from '../../remote-server-updater'
 
 export const STATUS_METHODS: RpcMethod[] = [
   defineMethod({
     name: 'status.get',
     params: null,
-    handler: (_params, { runtime }) => {
-      const snapshot = getRemoteServerUpdaterSnapshot(runtime.getRuntimeId())
-      return {
-        ...runtime.getStatus(),
-        appVersion: snapshot.appVersion,
-        remoteUpdateSupport: snapshot.support
-      }
-    }
+    // Why env rather than `app.getVersion()`: main stamps ORCA_APP_VERSION at
+    // startup, and keeping electron out of the RPC layer lets the relay and
+    // headless serve share this method.
+    handler: (_params, { runtime }) => ({
+      ...runtime.getStatus(),
+      appVersion: process.env.ORCA_APP_VERSION ?? '0.0.0-dev'
+    })
   })
 ]
