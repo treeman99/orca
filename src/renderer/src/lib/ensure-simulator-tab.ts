@@ -5,8 +5,6 @@ import { shouldShutdownSimulatorForPaneUnmountFromTabs } from './simulator-tab-s
 import { translate } from '@/i18n/i18n'
 import { isMobileEmulatorAvailable } from './mobile-emulator-availability'
 
-export const isMacOsHost = typeof navigator !== 'undefined' && navigator.userAgent.includes('Mac')
-
 type EnsureSimulatorTabOptions = {
   targetGroupId?: string
   placement?: 'activeGroup' | 'rightSplit'
@@ -104,22 +102,6 @@ export function ensureSimulatorTab(
     store.focusGroup(worktreeId, tab.groupId)
   }
   return tab.id
-}
-
-export function countSimulatorTabs(
-  worktreeId: string,
-  options: { excludingTabId?: string } = {}
-): number {
-  return (useAppStore.getState().unifiedTabsByWorktree[worktreeId] ?? []).filter(
-    (tab) => tab.contentType === 'simulator' && tab.id !== options.excludingTabId
-  ).length
-}
-
-export function shouldShutdownSimulatorForPaneUnmount(worktreeId: string, tabId?: string): boolean {
-  return shouldShutdownSimulatorForPaneUnmountFromTabs(
-    useAppStore.getState().unifiedTabsByWorktree[worktreeId] ?? [],
-    tabId
-  )
 }
 
 export { shouldShutdownSimulatorForPaneUnmountFromTabs }

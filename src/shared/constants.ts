@@ -306,6 +306,7 @@ export function getDefaultSettings(homedir: string): GlobalSettings {
     // settings objects (which omit them) keep the default-on behavior.
     terminalSshViewParking: true,
     terminalHiddenWorktreeRetentionBudget: true,
+    browserGuestWorktreeRetentionBudget: true,
     terminalMainSideEffectAuthority: true,
     terminalHiddenDeliveryGate: true,
     terminalModelQueryAuthority: true,
@@ -438,6 +439,7 @@ export function getDefaultPersistedState(homedir: string): PersistedState {
     sshTargets: [],
     deletedSshConfigAliases: [],
     sshRemotePtyLeases: [],
+    sshPtyConsumerRecoveries: [],
     claudeLivePtySessionIds: [],
     migrationUnsupportedPtyEntries: [],
     legacyPaneKeyAliasEntries: [],

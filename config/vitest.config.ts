@@ -22,7 +22,7 @@ export default defineConfig({
       'src/**/*.test.tsx',
       'config/scripts/**/*.test.ts',
       'config/scripts/**/*.test.mjs',
-      'tools/**/*.test.mjs',
+      'tests/tools/**/*.test.mjs',
       'tests/e2e/**/*.unit.test.ts'
     ],
     // Why: the corporate policy file is ambient process state; see the setup file.

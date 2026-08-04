@@ -444,6 +444,7 @@ export function createMainWindow(
   // so register it with the window's other navigation policy.
   registerPluginPanelNavigationGuard(mainWindow.webContents)
 
+  const browserWindowClosePreload = join(__dirname, 'browser-window-close-preload.js')
   mainWindow.webContents.on('will-attach-webview', (event, webPreferences, params) => {
     const src = typeof params.src === 'string' ? params.src : ''
     const normalizedSrc = normalizeBrowserNavigationUrl(src)
@@ -455,7 +456,9 @@ export function createMainWindow(
       return
     }
 
-    delete webPreferences.preload
+    delete params.preload
+    // Why: preload runs in the page's main world before inline scripts can call window.close().
+    webPreferences.preload = browserWindowClosePreload
     // Why: older Electron builds expose preloadURL alongside preload; delete both so the guest can't inherit the main preload bridge.
     delete (webPreferences as Record<string, unknown>).preloadURL
     webPreferences.nodeIntegration = false

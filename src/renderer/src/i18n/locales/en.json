@@ -322,6 +322,14 @@
             "f518e89aa5": "Project already exists in that profile",
             "f03ae7f27b": "Failed to transfer project"
           }
+        },
+        "runtime": {
+          "status": {
+            "runtimeHostDisconnectedDescription": "Check that Orca is running on this server and that your network connection is working, then try again.",
+            "runtimeHostUnreachableNamed": "Can't reach {{hostName}}",
+            "runtimeHostUnreachable": "Can't reach Orca server",
+            "tryAgain": "Try again"
+          }
         }
       }
     },
@@ -493,7 +501,12 @@
             "9e37a5b1b3": "Run independent work in parallel",
             "bddc4c09b8": "Run a phased workflow",
             "ab0e9803b7": "Hand off to another worktree",
-            "5e0d489fe1": "Hand off an active task"
+            "5e0d489fe1": "Hand off an active task",
+            "handoffSummary": "Move ownership to another agent with enough context to continue.",
+            "worktreeHandoffSummary": "Move work to an agent that is already running in a different branch.",
+            "childSequenceSummary": "Use child agents one after another when each phase depends on the last.",
+            "childParallelSummary": "Split non-overlapping investigation or implementation tasks across child agents.",
+            "prSplitSummary": "Give each child agent its own worktree so parallel implementation stays reviewable."
           }
         }
       },
@@ -840,7 +853,11 @@
         "9263e75f49": "Codex is using the previous account",
         "d3e8a1f4b2": "Account switched",
         "9375620cc3": "Restart this session to use {{value0}}. It stays on the previous account until you do.",
-        "6133594b12": "Keep old account"
+        "6133594b12": "Keep old account",
+        "8f0d5c92a1": "Codex setup changed",
+        "3ea91b5c07": "This Codex session is using an outdated configuration",
+        "e6b7139d2a": "Restart this session to load your current Codex configuration.",
+        "7b1d20f4c8": "Keep current session"
       },
       "FirstLaunchBanner": {
         "b9e1b966c7": "Dismiss notice",
@@ -1881,7 +1898,10 @@
         "75a38d7df8": "GitHub data is temporarily unavailable. Its API may be down, rate-limited, or unreachable. Please try again shortly.",
         "noGithubSourceDetected": "No GitHub source detected for",
         "noGithubSourceDetectedHint": "it may have no GitHub remote, or the source could not be resolved.",
-        "jiraLinkSourceUnavailable": "Couldn’t link this Jira issue. Reconnect Jira or pick the matching site, then try again."
+        "jiraLinkSourceUnavailable": "Couldn’t link this Jira issue. Reconnect Jira or pick the matching site, then try again.",
+        "loadPageUnreachable": "Page {{value0}} is beyond what GitHub search can return.",
+        "loadPageFailed": "Page {{value0}} could not be loaded from GitHub.",
+        "loadPageNoMoreResults": "No more results on page {{value0}}."
       },
       "Terminal": {
         "73768427cf": "Close",
@@ -3646,7 +3666,8 @@
           "908c470587": "codex",
           "eb6a066185": "claude",
           "eee19cfade": "overview",
-          "grokUsageTab": "Grok"
+          "grokUsageTab": "Grok",
+          "trackingSince": "Tracking since {{value0}}"
         },
         "UsageOverviewPane": {
           "22ed1b7669": "sessions",
@@ -3734,7 +3755,10 @@
               "6762f6a682": "tokens",
               "a7f937fb29": "{{value0}} sessions - {{value1}} {{value2}}",
               "c8f3a2d1e0b4": "turns",
-              "d9a4b3e2f1c5": "events"
+              "d9a4b3e2f1c5": "events",
+              "statusScanning": "Scanning",
+              "statusEnabled": "Enabled",
+              "statusOff": "Off"
             }
           }
         },
@@ -4583,7 +4607,10 @@
           "setParentWorkspace": "Set Parent Worktree...",
           "workspaceSection": "Workspace",
           "primaryDeleteDisabled": "Primary worktree — can't be deleted. Remove the project instead.",
-          "deleteWorktree": "Delete Worktree"
+          "deleteWorktree": "Delete Worktree",
+          "sleepWithDescendants": "Sleep with Descendants ({{value0}})",
+          "sleepWithDescendantsDescription": "Close active panels in this workspace and every nested descendant to free up memory and CPU.",
+          "deleteWithDescendants": "Delete with Descendants…"
         },
         "WorktreeList": {
           "7a8b9c0d1e": "Update required",
@@ -5704,7 +5731,10 @@
           "6b5a2cd3a5": "Accessibility",
           "6b17602073": "Reset access",
           "506f2acf7a": "Resetting access...",
-          "4b65070096": "darwin"
+          "4b65070096": "darwin",
+          "statusGranted": "Granted",
+          "statusUnsupported": "macOS only",
+          "statusNotEnabled": "Not enabled"
         },
         "DeveloperPermissionsPane": {
           "4c17304beb": "Refresh",
@@ -5733,7 +5763,17 @@
           "e5b5f3d6b9": "Camera",
           "cc8151d9fa": "Voice input, transcription, audio recording, sox, ffmpeg, and Whisper CLIs.",
           "16381e040a": "Microphone",
-          "dac08ec03e": "Working..."
+          "dac08ec03e": "Working...",
+          "actionRequest": "Request",
+          "actionOpenSettings": "Open Settings",
+          "actionTriggerPrompt": "Trigger Prompt",
+          "statusGranted": "Granted",
+          "statusDenied": "Denied",
+          "statusNotRequested": "Not requested",
+          "statusRestricted": "Restricted",
+          "statusUnsupported": "macOS only",
+          "statusEntitled": "Entitled",
+          "statusCheckManually": "Check manually"
         },
         "ExperimentalPane": {
           "9762364929": "Uses APFS clone-copy on macOS when possible, otherwise symlinks configured folders or files into created worktrees.",
@@ -6377,7 +6417,13 @@
         "OrchestrationSkillAgentCoverage": {
           "6dec5ce2d2": "Agent coverage",
           "ffe13e36fb": "Missing",
-          "1e8f8d8fae": "Ready"
+          "1e8f8d8fae": "Ready",
+          "checking": "Checking installed agents and skill paths…",
+          "noAgents": "No agent CLIs detected on PATH. Install agents in Settings → Agents, then re-check.",
+          "fullCoverage_one": "All 1 detected agent has the skill.",
+          "fullCoverage_other": "All {{value0}} detected agents have the skill.",
+          "noCoverage": "Install the skill above, then re-check.",
+          "partialCoverage": "{{value0}} of {{value1}} detected agents have the skill."
         },
         "OrchestrationSkillPromptDialog": {
           "f08d45293d": "Copy command",
@@ -9188,7 +9234,11 @@
                   "6f30fc4216": "GitHub CLI status is not available in this runtime yet.",
                   "6b2cfb52b4": "gh",
                   "b4d900e7f1": "Pull requests, issues, and checks via the",
-                  "account_scope_prefix": "Account scope"
+                  "account_scope_prefix": "Account scope",
+                  "statusConnected": "Connected",
+                  "statusUnavailable": "Unavailable",
+                  "statusNotInstalled": "Not installed",
+                  "statusNotAuthenticated": "Not authenticated"
                 }
               }
             }
@@ -9282,7 +9332,8 @@
           "readyTitle": "Computer Use is ready.",
           "readyDescription": "Agents can inspect and operate app windows when you ask.",
           "permissionsTitle": "Finish setup to use local apps.",
-          "permissionsRequired": "{{value0}} permission{{value1}} required before agents can operate app windows."
+          "permissionsRequired_one": "1 permission required before agents can operate app windows.",
+          "permissionsRequired_other": "{{value0}} permissions required before agents can operate app windows."
         },
         "providerAccountScope": {
           "remoteServer": "Remote server: {{value0}}",
@@ -10213,7 +10264,8 @@
           "description": "Switch update channels or jump to any published build, including older ones. Downgrades are allowed and unvetted builds can be broken.",
           "devOnly": "Dev only",
           "channelAriaLabel": "Update channel",
-          "hourlyWarning": "Hourly builds are macOS-only, ship straight from main with no test gate, and are signed but not notarized. Keep a stable build handy.",
+          "hourlyWarning": "Hourly builds are macOS-only and ship straight from main with no test gate. Keep a stable build handy.",
+          "adhocWarning": "Adhoc builds are macOS-only and come from a branch that has not landed. Whoever cut one may abandon it — keep a stable build handy.",
           "loadingBuilds": "Loading builds…",
           "noBuilds": "No builds found",
           "refresh": "Refresh build list",
@@ -10221,8 +10273,8 @@
           "alreadyRunning": "This is the build you are running.",
           "willSwitch": "{{value0}} → {{value1}}",
           "webUnavailable": "Switching builds is only available in the desktop app.",
-          "hourlyMacOnlyAria": "Hourly (macOS only)",
-          "hourlyMacOnly": "Hourly builds are produced only for macOS. Linux and Windows stay on Stable or RC."
+          "devChannelMacOnlyAria": "{{value0}} (macOS only)",
+          "devChannelMacOnly": "{{value0}} builds are produced only for macOS. Linux and Windows stay on Stable or RC."
         }
       },
       "right": {
@@ -11292,6 +11344,7 @@
             "transcriptsSkipped": "{{count}} transcript skipped",
             "noAgentSessionsFound": "No agent sessions found",
             "noSessionsMatchFilters": "No sessions match the current filters",
+            "noAgentsSelected": "No agents selected",
             "sessionId": "Session ID",
             "logPath": "Log path",
             "originalPaneUnavailable": "Original pane is no longer available.",
@@ -11315,6 +11368,8 @@
             "viewOptionsAriaLabel": "Session History view options",
             "viewOptions": "View options",
             "agents": "Agents",
+            "selectAllAgents": "Select all",
+            "clearAgents": "Clear",
             "sort": "Sort",
             "lastUpdated": "Last updated",
             "created": "Created",
@@ -11388,7 +11443,14 @@
             "sessionRole": "Session",
             "jumpToOriginalPane": "Jump to Original Pane",
             "worktree": "Worktree",
-            "jumpToWorktree": "Jump to Worktree"
+            "jumpToWorktree": "Jump to Worktree",
+            "firstPrompt": "First prompt",
+            "firstPromptCopied": "First prompt copied",
+            "copyFirstPrompt": "Copy first prompt",
+            "copied": "Copied",
+            "copy": "Copy",
+            "noFirstPromptAvailable": "No first prompt available",
+            "loadingFirstPrompt": "Loading first prompt…"
           },
           "AiVaultSessionRow": {
             "noPreviewAvailable": "No conversation preview available",
@@ -14834,5 +14896,19 @@
     "submoduleDetachedHeadTooltip": "This submodule has a detached HEAD, so it is not on any branch",
     "submoduleBranchTooltip": "Branch checked out inside this submodule",
     "submoduleBranchDiffersFromParent": "(differs from root)"
+  },
+  "featureTips": {
+    "voice": {
+      "demoPrompt": "Review this diff for edge cases and add tests for anything you find.",
+      "startDictation": "Start dictation",
+      "agentPromptTitle": "Agent prompt",
+      "listening": "Listening...",
+      "focusPaneInstruction": "Focus a terminal, editor, or agent prompt, then press",
+      "startInstruction": "to start voice dictation. Press",
+      "stopInstruction": "again to stop.",
+      "unassignedInstruction": "Assign a dictation shortcut before starting voice dictation in a focused pane.",
+      "settingsInstruction": "Change the model, dictation mode, or shortcut anytime in",
+      "settingsLink": "Settings → Voice"
+    }
   }
 }
