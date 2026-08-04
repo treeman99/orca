@@ -154,9 +154,9 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 
 ### 3-2. `llmEndpoints` — 사내에서 직접 서비스하는 모델
 
-사내가 오픈웨이트 모델을 직접 서비스한다면, 사용자가 세션을 Bedrock 대신 그쪽으로 돌릴 수 있습니다. **엔드포인트는 관리자 소유, 토큰은 사용자 소유**로 나뉘어 있습니다.
+사내가 오픈웨이트 모델을 직접 서비스한다면, 사용자가 세션을 Bedrock 대신 그쪽으로 돌릴 수 있습니다. **정책 파일의 엔드포인트는 관리자 소유이고 토큰은 사용자 소유**이지만, 아래처럼 **사용자가 엔드포인트 자체를 추가하는 별도 레인이 있습니다** — 즉 실제 목록은 관리자 배포분과 사용자 추가분의 합집합입니다.
 
-> **사용자 직접 추가(UI):** 관리자가 정책 파일에 넣지 않아도, 사용자가 **설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"(영문 UI: Accounts → Self-hosted models)** 에서 URL·프로토콜·토큰을 입력해 엔드포인트를 직접 추가할 수 있습니다(`src/renderer/src/components/settings/CorporateLlmEndpointsSection.tsx`). 저장 위치는 사용자 프로파일(`%APPDATA%\Orca\corporate-llm-user-endpoints.json`, 토큰은 별도 암호화 저장)이며, 정책 엔드포인트와 동일하게 모델 피커·실행 주입 경로를 탑니다(`corporate-llm-endpoint-registry.ts`). URL은 https만 허용됩니다(루프백 예외). 단 `enforceNetworkAllowlist: true`인 경우 그 호스트가 허용목록에 없으면 차단되므로, 하드 잠금 배포에서는 관리자가 `llmEndpoints`(또는 `allowedNetworkHosts`)로 호스트를 열어줘야 합니다.
+> **사용자 직접 추가(UI):** 관리자가 정책 파일에 넣지 않아도, 사용자가 **설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"(영문 UI: Accounts → Self-hosted models)** 에서 URL·프로토콜·토큰을 입력해 엔드포인트를 직접 추가할 수 있습니다(`src/renderer/src/components/settings/CorporateLlmEndpointsSection.tsx`). 저장 위치는 사용자 프로파일(`%APPDATA%\Orca\corporate-llm-user-endpoints.json`, 토큰은 별도 암호화 저장)이며, 정책 엔드포인트와 동일하게 모델 피커·실행 주입 경로를 탑니다(`corporate-llm-endpoint-registry.ts`). URL은 https만 허용됩니다(루프백 예외, 쓰기 시점 검증). **이 레인을 끄는 정책 스위치는 없고, `enforceNetworkAllowlist: true`도 이것을 막지 못합니다** — 실제 전송 주체가 에이전트 CLI 서브프로세스라 허용목록이 원리적으로 보지 못하기 때문입니다(감사 문서 §0.2 #1·#14). 하드 잠금 배포에서 사용자 지정 목적지를 통제하려면 망 계층(프록시 강제·방화벽)이 유일한 수단입니다.
 
 #### 엔드포인트 항목 스키마 (`src/shared/enterprise-llm-endpoints.ts`)
 
