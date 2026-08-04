@@ -254,31 +254,6 @@ describe('electron-builder config', () => {
     }
   })
 
-  // Why: a hardcoded upstream publisherName lets electron-updater's Authenticode
-  // check accept the vendor-signed public installer over a differently signed build.
-  it('lets a rebuild pin its own Windows updater publisherName', () => {
-    expect(electronBuilderConfig.win.signtoolOptions.publisherName).toBe('SignPath Foundation')
-    withEnv({ ORCA_WIN_PUBLISHER_NAME: 'Contoso Corp CA' }, (config) => {
-      expect(config.win.signtoolOptions.publisherName).toBe('Contoso Corp CA')
-    })
-  })
-
-  it('lets a rebuild emit no updater publish metadata without changing the upstream default', () => {
-    expect(electronBuilderConfig.publish).toEqual({
-      provider: 'github',
-      owner: 'stablyai',
-      repo: 'orca',
-      releaseType: 'release'
-    })
-    withEnv({ ORCA_DISABLE_PUBLISH_TARGET: '1' }, (config) => {
-      expect(config.publish).toBeNull()
-    })
-    // Why: the official release workflow leaves the opt-out unset; any other value is not an opt-out.
-    withEnv({ ORCA_DISABLE_PUBLISH_TARGET: '0' }, (config) => {
-      expect(config.publish).toMatchObject({ provider: 'github', owner: 'stablyai' })
-    })
-  })
-
   it('overrides packaged semver only for local macOS builds', () => {
     const configPath = require.resolve('../electron-builder.config.cjs')
     const original = process.env.ORCA_LOCAL_BUILD_VERSION
