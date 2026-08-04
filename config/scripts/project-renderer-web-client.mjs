@@ -1,9 +1,9 @@
 import {
+  copyFileSync,
   cpSync,
   mkdirSync,
   readFileSync,
   readdirSync,
-  renameSync,
   rmSync,
   statSync,
   writeFileSync
@@ -119,6 +119,39 @@ function includeReferencedOutputs() {
   }
 }
 
+// Why: Windows reports a filter driver's hold as any of these, and UNKNOWN covers the
+// lock violations libuv leaves untranslated.
+const lockedPathErrorCodes = new Set([
+  'EACCES',
+  'EBUSY',
+  'EEXIST',
+  'EMFILE',
+  'ENFILE',
+  'ENOTEMPTY',
+  'EPERM',
+  'UNKNOWN'
+])
+
+function sleepSync(milliseconds) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
+}
+
+// Why: an antivirus scan holds a just-written file for seconds and neither Node primitive
+// waits it out — rmSync divides retryDelay by 1000 before Sleep() on Windows, cpSync has
+// no retry at all.
+function withFsRetry(operation, { attempts = 8, delayMs = 200 } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return operation()
+    } catch (error) {
+      if (attempt >= attempts || !lockedPathErrorCodes.has(error?.code)) {
+        throw error
+      }
+      sleepSync(attempt * delayMs)
+    }
+  }
+}
+
 async function minifyWebOutput() {
   await Promise.all(
     [...selectedFiles]
@@ -126,34 +159,59 @@ async function minifyWebOutput() {
       .map(async (outputPath) => {
         const targetPath = join(stagingOutput, outputPath)
         const loader = outputPath.endsWith('.css') ? 'css' : 'js'
-        const result = await transform(readFileSync(targetPath, 'utf8'), {
-          legalComments: 'none',
-          loader,
-          minify: true,
-          target: 'es2020'
-        })
-        writeFileSync(targetPath, result.code)
+        const result = await transform(
+          withFsRetry(() => readFileSync(targetPath, 'utf8')),
+          {
+            legalComments: 'none',
+            loader,
+            minify: true,
+            target: 'es2020'
+          }
+        )
+        withFsRetry(() => writeFileSync(targetPath, result.code))
       })
   )
+}
+
+// Why: renaming the staged tree into place is what fails on locked-down Windows. Copying
+// file by file also keeps every call on libuv's copyfile path, where a lock surfaces as a
+// retryable errno instead of the Win32 code std::filesystem leaks through cpSync.
+function publishWebOutput() {
+  try {
+    for (const outputPath of selectedFiles) {
+      const targetPath = join(webOutput, outputPath)
+      mkdirSync(dirname(targetPath), { recursive: true })
+      withFsRetry(() => copyFileSync(join(stagingOutput, outputPath), targetPath))
+    }
+  } catch (error) {
+    // Why: a torn out/web keeps a fresh web-index.html, and every freshness check keys on
+    // that file — absent is the only state the consumers already handle.
+    try {
+      withFsRetry(() => rmSync(webOutput, { force: true, recursive: true }))
+    } catch (cleanupError) {
+      console.warn(`Could not remove the partial ${webOutput}: ${cleanupError?.message}`)
+    }
+    throw error
+  }
 }
 
 assertEntryIsolation()
 visitManifestEntry('web-index.html')
 includeReferencedOutputs()
 
-rmSync(stagingOutput, { force: true, recursive: true })
+withFsRetry(() => rmSync(stagingOutput, { force: true, recursive: true }))
 try {
   for (const outputPath of selectedFiles) {
     const targetPath = join(stagingOutput, outputPath)
     mkdirSync(dirname(targetPath), { recursive: true })
-    cpSync(join(rendererOutput, outputPath), targetPath)
+    withFsRetry(() => cpSync(join(rendererOutput, outputPath), targetPath))
   }
   await minifyWebOutput()
 
-  rmSync(webOutput, { force: true, recursive: true })
-  renameSync(stagingOutput, webOutput)
+  withFsRetry(() => rmSync(webOutput, { force: true, recursive: true }))
+  publishWebOutput()
 } finally {
-  rmSync(stagingOutput, { force: true, recursive: true })
+  withFsRetry(() => rmSync(stagingOutput, { force: true, recursive: true }))
 }
 
 const outputBytes = [...selectedFiles].reduce(

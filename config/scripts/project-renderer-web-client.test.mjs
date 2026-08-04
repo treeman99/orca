@@ -13,6 +13,20 @@ function writeFixtureFile(root, relativePath, contents) {
   writeFileSync(targetPath, contents)
 }
 
+// Why: --require runs before the ESM graph loads, and syncBuiltinESMExports pushes the
+// patch into the script's `import { … } from 'node:fs'` bindings.
+function writeFsHook(root, name, lines) {
+  writeFixtureFile(
+    root,
+    name,
+    [
+      "const fs = require('node:fs')",
+      ...lines,
+      "require('node:module').syncBuiltinESMExports()"
+    ].join('\n')
+  )
+}
+
 function createRendererFixture() {
   const root = mkdtempSync(join(tmpdir(), 'orca-web-projection-'))
   temporaryRoots.push(root)
@@ -85,6 +99,94 @@ describe('renderer web client projection', () => {
     expect(existsSync(join(root, 'out/web/assets/desktop-entry.js'))).toBe(false)
     expect(existsSync(join(root, 'out/web/stale.js'))).toBe(false)
     expect(readFileSync(join(root, 'out/web/assets/web.css'), 'utf8')).toBe('.root{color:red}\n')
+  })
+
+  it('never renames the projected tree into place', () => {
+    const root = createRendererFixture()
+    writeFsHook(root, 'poison-rename.cjs', [
+      'fs.renameSync = () => {',
+      "  throw new Error('FS_RENAME_CALLED')",
+      '}'
+    ])
+    const hook = ['--require', join(root, 'poison-rename.cjs')]
+
+    // Why: without this control the test would also pass when the hook stops reaching the
+    // script's ESM `import { … } from 'node:fs'` bindings.
+    const control = spawnSync(
+      process.execPath,
+      [
+        ...hook,
+        '--input-type=module',
+        '-e',
+        "import { renameSync } from 'node:fs'\nrenameSync('a', 'b')"
+      ],
+      { cwd: root, encoding: 'utf8' }
+    )
+    expect(control.stderr).toContain('FS_RENAME_CALLED')
+
+    const result = spawnSync(process.execPath, [...hook, scriptPath], {
+      cwd: root,
+      encoding: 'utf8'
+    })
+
+    expect(result.stderr).not.toContain('FS_RENAME_CALLED')
+    expect(result.status, result.stderr).toBe(0)
+    expect(existsSync(join(root, 'out/web/web-index.html'))).toBe(true)
+  })
+
+  it('retries a locked destination removal instead of failing the build', () => {
+    const root = createRendererFixture()
+    writeFsHook(root, 'flaky-rm.cjs', [
+      'const realRmSync = fs.rmSync',
+      'let failures = 3',
+      'fs.rmSync = (target, options) => {',
+      "  if (!String(target).endsWith('web') || failures === 0) {",
+      '    return realRmSync(target, options)',
+      '  }',
+      '  failures -= 1',
+      "  process.stderr.write('RM_ATTEMPT\\n')",
+      "  const error = new Error('EBUSY: resource busy or locked')",
+      "  error.code = 'EBUSY'",
+      '  throw error',
+      '}'
+    ])
+
+    const result = spawnSync(
+      process.execPath,
+      ['--require', join(root, 'flaky-rm.cjs'), scriptPath],
+      { cwd: root, encoding: 'utf8' }
+    )
+
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stderr.split('RM_ATTEMPT').length - 1).toBe(3)
+    expect(existsSync(join(root, 'out/web/stale.js'))).toBe(false)
+  })
+
+  it('removes out/web instead of leaving it torn when publishing fails', () => {
+    const root = createRendererFixture()
+    writeFsHook(root, 'poison-copy.cjs', [
+      "const { sep } = require('node:path')",
+      'const realCopyFileSync = fs.copyFileSync',
+      'fs.copyFileSync = (source, destination) => {',
+      // Only the publish step writes under out/web; staging goes to .web-projection-<pid>.
+      "  if (String(destination).includes(sep + 'web' + sep) && String(destination).endsWith('logo.png')) {",
+      "    const error = new Error('EROFS: read-only file system')",
+      "    error.code = 'EROFS'",
+      '    throw error',
+      '  }',
+      '  return realCopyFileSync(source, destination)',
+      '}'
+    ])
+
+    const result = spawnSync(
+      process.execPath,
+      ['--require', join(root, 'poison-copy.cjs'), scriptPath],
+      { cwd: root, encoding: 'utf8' }
+    )
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('EROFS')
+    expect(existsSync(join(root, 'out/web'))).toBe(false)
   })
 
   it('fails when the renderer manifest omits the web entry', () => {
