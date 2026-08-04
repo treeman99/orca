@@ -18,6 +18,9 @@ const sourceScriptPath = fileURLToPath(new URL('./rebuild-native-deps.mjs', impo
 const sourceInstallScriptPath = fileURLToPath(
   new URL('./install-electron-package-binary.mjs', import.meta.url)
 )
+const sourceMoveModulePath = fileURLToPath(
+  new URL('./move-path-with-copy-fallback.mjs', import.meta.url)
+)
 
 describe('rebuild-native-deps Electron install fallback', () => {
   it('continues non-strict postinstall when Electron retry download fails', () => {
@@ -304,6 +307,10 @@ function mkTempProject() {
   copyFileSync(
     sourceInstallScriptPath,
     join(projectDir, 'config', 'scripts', 'install-electron-package-binary.mjs')
+  )
+  copyFileSync(
+    sourceMoveModulePath,
+    join(projectDir, 'config', 'scripts', 'move-path-with-copy-fallback.mjs')
   )
   return projectDir
 }

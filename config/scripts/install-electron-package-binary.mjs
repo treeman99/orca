@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 
 import {
-  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
-  renameSync,
   rmSync,
   writeFileSync
 } from 'node:fs'
@@ -15,6 +13,7 @@ import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { platform as osPlatform, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { movePathWithCopyFallback } from './move-path-with-copy-fallback.mjs'
 
 const projectDir = resolve(import.meta.dirname, '../..')
 const electronPackageDir = resolve(projectDir, 'node_modules/electron')
@@ -24,6 +23,7 @@ const { downloadArtifact } = electronRequire('@electron/get')
 const targetPlatform = getElectronTargetPlatform()
 const targetArch = getElectronTargetArch()
 const platformPath = getElectronPlatformPath(targetPlatform)
+const extractStagingPrefix = '.orca-extract-'
 const transientDownloadErrorCodes = new Set([
   'EAI_AGAIN',
   'ECONNREFUSED',
@@ -96,6 +96,24 @@ function getElectronExecutablePath() {
 function resetPartialElectronInstall() {
   rmSync(resolve(electronPackageDir, 'dist'), { recursive: true, force: true })
   rmSync(resolve(electronPackageDir, 'path.txt'), { force: true })
+  removeExtractStagingLeftovers()
+}
+
+// Why: a build killed mid-extract leaves one staging directory per pid beside dist.
+function removeExtractStagingLeftovers() {
+  for (const entry of safeReaddir(electronPackageDir)) {
+    if (entry.startsWith(extractStagingPrefix)) {
+      removeQuietly(resolve(electronPackageDir, entry))
+    }
+  }
+}
+
+function removeQuietly(targetPath) {
+  try {
+    rmSync(targetPath, { force: true, recursive: true })
+  } catch {
+    // Why: a locked leftover must not mask the failure that led here.
+  }
 }
 
 function repairElectronPathFile() {
@@ -120,9 +138,11 @@ function repairElectronPathFile() {
 
 async function installElectronPackageBinary() {
   const electronDistDir = resolve(electronPackageDir, 'dist')
-  const tempDir = mkdtempSync(resolve(tmpdir(), 'orca-electron-'))
-  const cacheRoot = join(tempDir, 'cache')
-  const extractDir = join(tempDir, 'extract')
+  const downloadTempDir = mkdtempSync(resolve(tmpdir(), 'orca-electron-'))
+  const cacheRoot = join(downloadTempDir, 'cache')
+  // Why: Windows cannot rename a directory across drives and %TEMP% frequently sits on
+  // another one, so the tree we rename into dist must be staged beside dist.
+  const extractDir = resolve(electronPackageDir, `${extractStagingPrefix}${process.pid}`)
 
   try {
     const downloadOptions = {
@@ -132,31 +152,36 @@ async function installElectronPackageBinary() {
       arch: targetArch,
       cacheRoot,
       force: true,
-      tempDirectory: tempDir,
+      tempDirectory: downloadTempDir,
       ...(shouldUseRemoteChecksums() ? {} : { checksums: electronRequire('./checksums.json') })
     }
     const zipPath = await downloadElectronArtifactWithRetry(downloadOptions)
 
     // Why: CI has observed partial extracts directly under node_modules/electron
-    // that leave only dist/locales. Verify in temp before replacing package dist.
+    // that leave only dist/locales. Verify in staging before replacing package dist.
     extractElectronArchive(zipPath, extractDir)
     const extractedExecutable = resolve(extractDir, platformPath)
     if (!existsSync(extractedExecutable)) {
-      console.error('[electron-package] Electron archive extract did not contain executable.')
-      console.error(`  platformPath=${platformPath}`)
-      console.error(`  extractDir=${extractDir}`)
-      console.error(`  extractEntries=${safeReaddir(extractDir).join(', ')}`)
-      process.exit(1)
+      // Why: throwing instead of process.exit lets the finally below clear staging.
+      throw new Error(
+        [
+          '[electron-package] Electron archive extract did not contain executable.',
+          `  platformPath=${platformPath}`,
+          `  extractDir=${extractDir}`,
+          `  extractEntries=${safeReaddir(extractDir).slice(0, 40).join(', ')}`
+        ].join('\n')
+      )
     }
 
     moveExtractedElectronDist(extractDir, electronDistDir)
 
     const srcTypeDefPath = resolve(electronDistDir, 'electron.d.ts')
     if (existsSync(srcTypeDefPath)) {
-      renameSync(srcTypeDefPath, resolve(electronPackageDir, 'electron.d.ts'))
+      movePathWithCopyFallback(srcTypeDefPath, resolve(electronPackageDir, 'electron.d.ts'))
     }
   } finally {
-    rmSync(tempDir, { recursive: true, force: true })
+    removeQuietly(downloadTempDir)
+    removeQuietly(extractDir)
   }
 }
 
@@ -256,20 +281,7 @@ function extractElectronArchive(zipPath, extractDir) {
 
 function moveExtractedElectronDist(extractDir, electronDistDir) {
   rmSync(electronDistDir, { recursive: true, force: true })
-  try {
-    // Why: macOS Electron archives rely on framework symlinks. Moving the
-    // verified tree preserves them exactly; copying has broken them in CI.
-    renameSync(extractDir, electronDistDir)
-  } catch (/** @type {any} */ err) {
-    if (err?.code !== 'EXDEV') {
-      throw err
-    }
-    cpSync(extractDir, electronDistDir, {
-      recursive: true,
-      dereference: false,
-      verbatimSymlinks: true
-    })
-  }
+  movePathWithCopyFallback(extractDir, electronDistDir)
 }
 
 function getExtractorCommand(zipPath, extractDir) {
@@ -336,13 +348,13 @@ function logElectronInstallDiagnostics() {
   console.error(`  pathFile=${pathFile} exists=${existsSync(pathFile)}`)
   console.error(`  platformPath=${platformPath}`)
   if (existsSync(electronDistDir)) {
-    console.error(`  distEntries=${safeReaddir(electronDistDir).join(', ')}`)
+    console.error(`  distEntries=${safeReaddir(electronDistDir).slice(0, 40).join(', ')}`)
   }
 }
 
 function safeReaddir(targetPath) {
   try {
-    return readdirSync(targetPath).slice(0, 40)
+    return readdirSync(targetPath)
   } catch {
     return []
   }

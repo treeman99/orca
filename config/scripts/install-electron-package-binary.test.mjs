@@ -5,17 +5,22 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const sourceScriptPath = fileURLToPath(
   new URL('./install-electron-package-binary.mjs', import.meta.url)
+)
+const sourceMoveModulePath = fileURLToPath(
+  new URL('./move-path-with-copy-fallback.mjs', import.meta.url)
 )
 
 describe('install-electron-package-binary', () => {
@@ -44,6 +49,27 @@ describe('install-electron-package-binary', () => {
         ).toBe(true)
       }
       expect(result.stdout).toContain('Repaired Electron path.txt -> electron')
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true })
+    }
+  })
+
+  it('stages the extract beside the Electron package, not on the temp volume', () => {
+    const projectDir = mkTempProject()
+
+    try {
+      writeFakeElectronPackage(projectDir)
+      writeFakeElectronGet(projectDir)
+      writeFakeExtractor(projectDir, { createExecutable: true })
+
+      const result = runInstallScript(projectDir)
+
+      expect(result.status, result.stderr).toBe(0)
+      const extractDir = readFileSync(join(projectDir, 'extract-dir.log'), 'utf8').trim()
+      expect(dirname(extractDir)).toBe(realpathSync(join(projectDir, 'node_modules', 'electron')))
+      expect(basename(extractDir)).toMatch(/^\.orca-extract-\d+$/)
+      expect(extractDir).not.toContain('orca-electron-')
+      expect(listExtractStagingLeftovers(projectDir)).toEqual([])
     } finally {
       rmSync(projectDir, { recursive: true, force: true })
     }
@@ -206,6 +232,7 @@ describe('install-electron-package-binary', () => {
       expect(result.status).toBe(1)
       expect(result.stderr).toContain('Electron archive extract did not contain executable')
       expect(result.stderr).toContain('extractEntries=locales')
+      expect(listExtractStagingLeftovers(projectDir)).toEqual([])
     } finally {
       rmSync(projectDir, { recursive: true, force: true })
     }
@@ -237,7 +264,17 @@ function mkTempProject() {
     sourceScriptPath,
     join(projectDir, 'config', 'scripts', 'install-electron-package-binary.mjs')
   )
+  copyFileSync(
+    sourceMoveModulePath,
+    join(projectDir, 'config', 'scripts', 'move-path-with-copy-fallback.mjs')
+  )
   return projectDir
+}
+
+function listExtractStagingLeftovers(projectDir) {
+  return readdirSync(join(projectDir, 'node_modules', 'electron')).filter((entry) =>
+    entry.startsWith('.orca-extract-')
+  )
 }
 
 function runInstallScript(projectDir, extraEnv = {}) {
@@ -317,9 +354,10 @@ function writeFakeExtractor(projectDir, { createExecutable }) {
   writeFileSync(
     join(projectDir, 'fake-extractor.cjs'),
     `
-const { mkdirSync, symlinkSync, writeFileSync } = require('node:fs')
+const { appendFileSync, mkdirSync, symlinkSync, writeFileSync } = require('node:fs')
 const { join } = require('node:path')
 const extractDir = process.argv[3]
+appendFileSync('extract-dir.log', extractDir + '\\n')
 mkdirSync(join(extractDir, 'locales'), { recursive: true })
 if (${JSON.stringify(createExecutable)}) {
   writeFileSync(join(extractDir, 'electron'), '')
