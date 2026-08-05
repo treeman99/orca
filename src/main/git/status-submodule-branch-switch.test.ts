@@ -6,10 +6,11 @@
  * submodule's checked-out HEAD drift apart with nobody having edited anything.
  * Two things went wrong on top of that:
  *
- * 1. `getSubmoduleStatus` synthesizes the recorded->checkout commit range as
+ * 1. `getSubmoduleStatus` synthesized the recorded->checkout commit range as
  *    `unstaged` rows, so every file the pull brought in sat next to the one file
- *    the user actually edited, indistinguishable from it. Those rows now carry
- *    `submoduleCommitRange` so the panel can say they are committed already.
+ *    the user actually edited, indistinguishable from it. The expansion is now
+ *    plainly the submodule's own `git status`, and the pointer move is shown by
+ *    the gitlink row's own diff.
  * 2. `--ignore-submodules=none` overrode a repo- or user-configured
  *    `submodule.<name>.ignore`, so the gitlink row appeared in Orca while the
  *    same repo's `git status` stayed silent. The configured intent is now
@@ -24,7 +25,12 @@ import * as fs from 'node:fs/promises'
 import { mkdtempSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
-import { getStatus, getSubmoduleStatus, invalidateGitReadCaches } from './status'
+import {
+  discardSubmoduleChanges,
+  getStatus,
+  getSubmoduleStatus,
+  invalidateGitReadCaches
+} from './status'
 
 const SUBMODULE_PATH = 'vendor/sub'
 
@@ -204,5 +210,59 @@ describe('submodule after pull-then-switch-branch', () => {
 
     expect(result.entries.map((entry) => entry.path)).toEqual([SUBMODULE_PATH])
     expect(git(rootPath, ['status', '--porcelain']).trim()).toBe(`M ${SUBMODULE_PATH}`)
+  })
+
+  // Requirement: a file inside a submodule must be discardable on its own, restored by THAT
+  // repository. The parent has no index entry for it, so this cannot go through the parent.
+  describe('discardSubmoduleChanges', () => {
+    it("restores a tracked file to the submodule's HEAD without detaching its branch", async () => {
+      const branchBefore = git(submodulePath, ['rev-parse', '--abbrev-ref', 'HEAD']).trim()
+      appendFileSync(path.join(submodulePath, 'subfile.txt'), 'my edit\n')
+
+      await discardSubmoduleChanges(rootPath, SUBMODULE_PATH, 'subfile.txt')
+      invalidateGitReadCaches()
+
+      expect(git(submodulePath, ['status', '--porcelain'])).toBe('')
+      // The branch the user checked out inside the submodule must survive.
+      expect(git(submodulePath, ['rev-parse', '--abbrev-ref', 'HEAD']).trim()).toBe(branchBefore)
+    })
+
+    it('removes an untracked file inside the submodule', async () => {
+      writeFileSync(path.join(submodulePath, 'scratch.txt'), 'temp\n')
+
+      await discardSubmoduleChanges(rootPath, SUBMODULE_PATH, 'scratch.txt')
+      invalidateGitReadCaches()
+
+      expect(git(submodulePath, ['status', '--porcelain'])).toBe('')
+    })
+
+    it('leaves the parent worktree alone', async () => {
+      writeFileSync(path.join(rootPath, 'subfile.txt'), 'parent copy\n')
+      appendFileSync(path.join(submodulePath, 'subfile.txt'), 'my edit\n')
+
+      await discardSubmoduleChanges(rootPath, SUBMODULE_PATH, 'subfile.txt')
+
+      // Same basename in the parent: a discard routed to the wrong repository eats it.
+      expect(await fs.readFile(path.join(rootPath, 'subfile.txt'), 'utf8')).toBe('parent copy\n')
+    })
+
+    it('refuses a path that escapes the submodule', async () => {
+      await expect(
+        discardSubmoduleChanges(rootPath, SUBMODULE_PATH, '../../subfile.txt')
+      ).rejects.toThrow(/outside the worktree/)
+    })
+
+    // The failure the root guard exists for: git walks up from a plain directory to the
+    // parent, and the restore would rewrite the PARENT's copy.
+    it('refuses when the submodule is no longer a repository', async () => {
+      writeFileSync(path.join(rootPath, 'subfile.txt'), 'parent copy\n')
+      await fs.rm(path.join(submodulePath, '.git'), { recursive: true, force: true })
+      invalidateGitReadCaches()
+
+      await expect(
+        discardSubmoduleChanges(rootPath, SUBMODULE_PATH, 'subfile.txt')
+      ).rejects.toThrow(/Access denied/)
+      expect(await fs.readFile(path.join(rootPath, 'subfile.txt'), 'utf8')).toBe('parent copy\n')
+    })
   })
 })

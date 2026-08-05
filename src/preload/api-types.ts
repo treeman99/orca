@@ -3027,6 +3027,19 @@ export type PreloadApi = {
       filePath: string
       connectionId?: string
     }) => Promise<void>
+    /** `filePath` is relative to the SUBMODULE root, not the parent worktree. */
+    submoduleDiscard: (args: {
+      worktreePath: string
+      submodulePath: string
+      filePath: string
+      connectionId?: string
+    }) => Promise<void>
+    /** `git submodule update --init` — restores the recorded pointer, detaching its HEAD. */
+    submoduleRestorePointer: (args: {
+      worktreePath: string
+      submodulePath: string
+      connectionId?: string
+    }) => Promise<void>
     bulkDiscard: (args: {
       worktreePath: string
       filePaths: string[]

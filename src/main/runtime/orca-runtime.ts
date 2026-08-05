@@ -8732,6 +8732,10 @@ export class OrcaRuntimeService {
     this.gitCommands.bulkDiscardRuntimeGitPaths.bind(this.gitCommands)
   discardRuntimeGitPath: RuntimeGitCommands['discardRuntimeGitPath'] =
     this.gitCommands.discardRuntimeGitPath.bind(this.gitCommands)
+  discardRuntimeGitSubmodulePath: RuntimeGitCommands['discardRuntimeGitSubmodulePath'] =
+    this.gitCommands.discardRuntimeGitSubmodulePath.bind(this.gitCommands)
+  restoreRuntimeGitSubmodulePointer: RuntimeGitCommands['restoreRuntimeGitSubmodulePointer'] =
+    this.gitCommands.restoreRuntimeGitSubmodulePointer.bind(this.gitCommands)
   getRuntimeGitRemoteFileUrl: RuntimeGitCommands['getRuntimeGitRemoteFileUrl'] =
     this.gitCommands.getRuntimeGitRemoteFileUrl.bind(this.gitCommands)
   getRuntimeGitRemoteCommitUrl: RuntimeGitCommands['getRuntimeGitRemoteCommitUrl'] =

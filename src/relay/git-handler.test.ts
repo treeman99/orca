@@ -765,8 +765,10 @@ describe('GitHandler', () => {
       expect(result.modifiedContent).toBe(`Subproject commit ${newOid}\n`)
     })
 
-    // Why: a moved gitlink with a clean submodule has no uncommitted rows, so status/diff must surface the committed commit-range changes.
-    it('lists commit-range files and diffs them when the pointer moved', async () => {
+    // The pointer moved and the submodule worktree is clean, so its own `git status` is
+    // empty — and that is exactly what the expansion must report. The commit the parent has
+    // not yet recorded is the submodule's history, shown by the gitlink row's pointer diff.
+    it('reports nothing for a moved pointer with a clean submodule worktree', async () => {
       gitInit(tmpDir)
       writeFileSync(path.join(tmpDir, 'root.txt'), 'root')
       gitCommit(tmpDir, 'initial')
@@ -778,23 +780,22 @@ describe('GitHandler', () => {
       const status = (await dispatcher.callRequest('git.submoduleStatus', {
         worktreePath: tmpDir,
         submodulePath: 'flutter_mine'
-      })) as { entries: { path?: unknown; status?: unknown; area?: unknown }[] }
-      const ranged = status.entries.find((e) => e.path === 'lib.txt')
-      expect(ranged).toBeDefined()
-      expect(ranged!.status).toBe('modified')
-      expect(ranged!.area).toBe('unstaged')
+      })) as { entries: { path?: unknown }[] }
 
+      expect(status.entries).toEqual([])
+
+      // And the inner diff answers what `git diff` in that folder answers: nothing.
       const diff = (await dispatcher.callRequest('git.diff', {
         worktreePath: tmpDir,
         filePath: 'flutter_mine/lib.txt',
         staged: false
       })) as { kind: string; originalContent: string; modifiedContent: string }
-      expect(diff.kind).toBe('text')
-      expect(normalizeGitFileText(diff.originalContent)).toBe('v1\n')
-      expect(normalizeGitFileText(diff.modifiedContent)).toBe('v2\n')
+      expect(normalizeGitFileText(diff.originalContent)).toBe(
+        normalizeGitFileText(diff.modifiedContent)
+      )
     })
 
-    it('lists and diffs staged submodule pointer changes from parent HEAD to index', async () => {
+    it('reports the submodule status regardless of the requested area', async () => {
       gitInit(tmpDir)
       writeFileSync(path.join(tmpDir, 'root.txt'), 'root')
       gitCommit(tmpDir, 'initial')
@@ -808,20 +809,9 @@ describe('GitHandler', () => {
         worktreePath: tmpDir,
         submodulePath: 'flutter_mine',
         area: 'staged'
-      })) as { entries: { path?: unknown; status?: unknown; area?: unknown }[] }
-      const ranged = status.entries.find((e) => e.path === 'lib.txt')
-      expect(ranged).toBeDefined()
-      expect(ranged!.status).toBe('modified')
-      expect(ranged!.area).toBe('unstaged')
+      })) as { entries: { path?: unknown }[] }
 
-      const diff = (await dispatcher.callRequest('git.diff', {
-        worktreePath: tmpDir,
-        filePath: 'flutter_mine/lib.txt',
-        staged: true
-      })) as { kind: string; originalContent: string; modifiedContent: string }
-      expect(diff.kind).toBe('text')
-      expect(normalizeGitFileText(diff.originalContent)).toBe('v1\n')
-      expect(normalizeGitFileText(diff.modifiedContent)).toBe('v2\n')
+      expect(status.entries).toEqual([])
     })
   })
 

@@ -14,7 +14,8 @@ import type { GitStatusEntry } from '../../../../shared/types'
 import type { DiscardAllArea } from './discard-all-sequence'
 import {
   getDiscardAreaConfirmationCopy,
-  getDiscardEntryConfirmationCopy
+  getDiscardEntryConfirmationCopy,
+  getSubmoduleDiscardScopeNote
 } from './source-control-discard-confirmation'
 import { translate } from '@/i18n/i18n'
 
@@ -49,7 +50,10 @@ export function SourceControlDiscardDialog({
       return null
     }
     if (pendingDiscard.kind === 'entry') {
-      return getDiscardEntryConfirmationCopy(pendingDiscard.entry)
+      return {
+        ...getDiscardEntryConfirmationCopy(pendingDiscard.entry),
+        scopeNote: getSubmoduleDiscardScopeNote(pendingDiscard.entry)
+      }
     }
     return getDiscardAreaConfirmationCopy(pendingDiscard.area, pendingDiscard.paths.length)
   }, [pendingDiscard])
@@ -86,6 +90,14 @@ export function SourceControlDiscardDialog({
               )}
           </DialogDescription>
         </DialogHeader>
+        {pendingDiscardCopy?.scopeNote ? (
+          // Why its own block and not part of the description: the description says what a
+          // discard does; this says which repository it happens in, and for a gitlink row
+          // that the submodule's checked-out branch does not survive it.
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-muted-foreground">
+            {pendingDiscardCopy.scopeNote}
+          </div>
+        ) : null}
         {pendingDiscard?.kind === 'area' ? (
           <div className="rounded-md border border-border/70 bg-muted/35 px-3 py-2 text-xs text-muted-foreground">
             {pendingDiscard.paths.length}{' '}

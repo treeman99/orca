@@ -40,6 +40,13 @@ export type IGitProvider = {
   bulkStageFiles(worktreePath: string, filePaths: string[]): Promise<void>
   bulkUnstageFiles(worktreePath: string, filePaths: string[]): Promise<void>
   discardChanges(worktreePath: string, filePath: string): Promise<void>
+  /** `filePath` is relative to the SUBMODULE root, not the parent worktree. */
+  discardSubmoduleChanges(
+    worktreePath: string,
+    submodulePath: string,
+    filePath: string
+  ): Promise<void>
+  restoreSubmodulePointer(worktreePath: string, submodulePath: string): Promise<void>
   bulkDiscardChanges(worktreePath: string, filePaths: string[]): Promise<void>
   detectConflictOperation(worktreePath: string): Promise<GitConflictOperation>
   abortMerge(worktreePath: string): Promise<void>

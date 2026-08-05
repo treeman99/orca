@@ -7,6 +7,36 @@ export type DiscardConfirmationCopy = {
   title: string
   description: string
   confirmLabel: string
+  /** Extra line shown when the row is not what the parent worktree would suggest. */
+  scopeNote?: string
+}
+
+/**
+ * The scope line for a submodule row, or undefined for an ordinary file.
+ *
+ * Why it exists: "restore to HEAD" means the SUBMODULE's HEAD, which is whatever branch that
+ * repository is parked on — not the commit the parent records. And a gitlink row is not a
+ * file at all: putting its pointer back detaches the submodule's HEAD, so the branch the user
+ * had checked out inside it is gone. Neither is guessable from the path.
+ */
+export function getSubmoduleDiscardScopeNote(
+  entry: Pick<GitStatusEntry, 'path' | 'submoduleRoot' | 'submodule'>
+): string | undefined {
+  if (entry.submodule) {
+    return translate(
+      'sourceControl.discardSubmodulePointerScope',
+      'This restores the submodule "{{path}}" to the commit this repository records. The submodule ends up on a detached HEAD — the branch checked out inside it will not be kept.',
+      { path: entry.path }
+    )
+  }
+  if (entry.submoduleRoot) {
+    return translate(
+      'sourceControl.discardSubmoduleFileScope',
+      'This file belongs to the submodule "{{path}}" and is restored to THAT submodule\'s HEAD, not to the commit this repository records.',
+      { path: entry.submoduleRoot }
+    )
+  }
+  return undefined
 }
 
 export function getDiscardEntryConfirmationCopy(

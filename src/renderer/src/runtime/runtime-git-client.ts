@@ -903,6 +903,53 @@ export async function discardRuntimeGitPath(
   )
 }
 
+/** Discard a file inside a submodule. `filePath` is relative to the SUBMODULE root. */
+export async function discardRuntimeGitSubmodulePath(
+  context: RuntimeGitContext,
+  submodulePath: string,
+  filePath: string
+): Promise<void> {
+  const target = getActiveRuntimeTarget(context.settings)
+  if (target.kind === 'local' || !context.worktreeId) {
+    await window.api.git.submoduleDiscard({
+      worktreePath: resolveLocalWorktreePath(context),
+      submodulePath,
+      filePath,
+      connectionId: context.connectionId
+    })
+    return
+  }
+  await callRuntimeRpc(
+    target,
+    'git.submoduleDiscard',
+    { worktree: toRuntimeWorktreeSelector(context.worktreeId), submodulePath, filePath },
+    { timeoutMs: 15_000 }
+  )
+}
+
+/** Restore a submodule pointer to the commit the parent records. Detaches its HEAD. */
+export async function restoreRuntimeGitSubmodulePointer(
+  context: RuntimeGitContext,
+  submodulePath: string
+): Promise<void> {
+  const target = getActiveRuntimeTarget(context.settings)
+  if (target.kind === 'local' || !context.worktreeId) {
+    await window.api.git.submoduleRestorePointer({
+      worktreePath: resolveLocalWorktreePath(context),
+      submodulePath,
+      connectionId: context.connectionId
+    })
+    return
+  }
+  await callRuntimeRpc(
+    target,
+    'git.submoduleRestorePointer',
+    { worktree: toRuntimeWorktreeSelector(context.worktreeId), submodulePath },
+    // Why longer: `submodule update --init` can clone.
+    { timeoutMs: 120_000 }
+  )
+}
+
 export async function getRuntimeGitRemoteFileUrl(
   context: RuntimeGitContext,
   args: { relativePath: string; line: number }

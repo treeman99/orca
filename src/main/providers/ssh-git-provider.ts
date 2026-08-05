@@ -451,6 +451,44 @@ export class SshGitProvider implements IGitProvider {
     }
   }
 
+  async discardSubmoduleChanges(
+    worktreePath: string,
+    submodulePath: string,
+    filePath: string
+  ): Promise<void> {
+    this.gitDiffReadDedupe.clear()
+    try {
+      await this.mux.request('git.submoduleDiscard', { worktreePath, submodulePath, filePath })
+    } catch (error) {
+      // Why not let this fail silently: an older relay would answer method-not-found and the
+      // user would be told nothing while believing the file was restored.
+      if (isJsonRpcMethodNotFoundError(error)) {
+        throw new Error(
+          'SSH submodule discard is unavailable on this relay. Reconnect the SSH target to update Orca on the host, then try again.'
+        )
+      }
+      throw error
+    } finally {
+      this.gitDiffReadDedupe.clear()
+    }
+  }
+
+  async restoreSubmodulePointer(worktreePath: string, submodulePath: string): Promise<void> {
+    this.gitDiffReadDedupe.clear()
+    try {
+      await this.mux.request('git.submoduleRestorePointer', { worktreePath, submodulePath })
+    } catch (error) {
+      if (isJsonRpcMethodNotFoundError(error)) {
+        throw new Error(
+          'SSH submodule restore is unavailable on this relay. Reconnect the SSH target to update Orca on the host, then try again.'
+        )
+      }
+      throw error
+    } finally {
+      this.gitDiffReadDedupe.clear()
+    }
+  }
+
   async bulkDiscardChanges(worktreePath: string, filePaths: string[]): Promise<void> {
     this.gitDiffReadDedupe.clear()
     try {

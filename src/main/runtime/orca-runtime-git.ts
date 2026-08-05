@@ -36,6 +36,8 @@ import {
   commitChanges,
   detectConflictOperation,
   discardChanges,
+  discardSubmoduleChanges,
+  restoreSubmodulePointer,
   getBranchCompare,
   getBranchDiff,
   getCommitCompare,
@@ -965,6 +967,64 @@ export class RuntimeGitCommands {
       return { ok: true }
     }
     await discardChanges(target.worktree.path, relativePath, localGitOptionsForTarget(target))
+    return { ok: true }
+  }
+
+  /**
+   * Discard a file inside a submodule. `filePath` is relative to the SUBMODULE root.
+   *
+   * The path is normalized once, before the branch, so a `.`/`./x`/backslash spelling cannot
+   * behave one way locally and another over SSH — an empty pathspec means the whole worktree.
+   */
+  async discardRuntimeGitSubmodulePath(
+    worktreeSelector: string,
+    submodulePath: string,
+    filePath: string
+  ): Promise<{ ok: true }> {
+    const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
+    const relativePath = normalizeRuntimeGitRelativePath(filePath)
+    const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
+    if (target.connectionId) {
+      const provider = getSshGitProvider(target.connectionId)
+      if (!provider) {
+        throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
+      }
+      await provider.discardSubmoduleChanges(
+        target.worktree.path,
+        relativeSubmodulePath,
+        relativePath
+      )
+      return { ok: true }
+    }
+    await discardSubmoduleChanges(
+      target.worktree.path,
+      relativeSubmodulePath,
+      relativePath,
+      localGitOptionsForTarget(target)
+    )
+    return { ok: true }
+  }
+
+  /** Put a submodule pointer back to the commit the parent records. Detaches its HEAD. */
+  async restoreRuntimeGitSubmodulePointer(
+    worktreeSelector: string,
+    submodulePath: string
+  ): Promise<{ ok: true }> {
+    const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
+    const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
+    if (target.connectionId) {
+      const provider = getSshGitProvider(target.connectionId)
+      if (!provider) {
+        throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
+      }
+      await provider.restoreSubmodulePointer(target.worktree.path, relativeSubmodulePath)
+      return { ok: true }
+    }
+    await restoreSubmodulePointer(
+      target.worktree.path,
+      relativeSubmodulePath,
+      localGitOptionsForTarget(target)
+    )
     return { ok: true }
   }
 

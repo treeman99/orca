@@ -42,6 +42,7 @@ import {
 import {
   getStatus,
   getSubmoduleStatus,
+  resolveSubmoduleWorktreePath,
   abortMerge,
   abortRebase,
   detectConflictOperation,
@@ -53,6 +54,8 @@ import {
   bulkUnstageFiles,
   bulkDiscardChanges,
   discardChanges,
+  discardSubmoduleChanges,
+  restoreSubmodulePointer,
   getStagedCommitContext,
   getBranchCompare,
   getBranchDiff,
@@ -2141,6 +2144,65 @@ export function registerFilesystemHandlers(
         worktreePath
       )
       await discardChanges(worktreePath, filePath, gitOptions)
+    }
+  )
+
+  ipcMain.handle(
+    'git:submoduleDiscard',
+    async (
+      _event,
+      args: {
+        worktreePath: string
+        submodulePath: string
+        filePath: string
+        connectionId?: string
+      }
+    ): Promise<void> => {
+      if (args.connectionId) {
+        const provider = getSshGitProvider(args.connectionId)
+        if (!provider) {
+          throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
+        }
+        return provider.discardSubmoduleChanges(
+          args.worktreePath,
+          args.submodulePath,
+          args.filePath
+        )
+      }
+      const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
+      const gitOptions = getLocalGitOptionsForRegisteredWorktree(
+        store,
+        args.worktreePath,
+        worktreePath
+      )
+      // Why validate against the SUBMODULE root: `filePath` is relative to it, so checking it
+      // against the parent would accept a name that escapes the submodule.
+      const submoduleWorktreePath = resolveSubmoduleWorktreePath(worktreePath, args.submodulePath)
+      const filePath = validateGitRelativeFilePath(submoduleWorktreePath, args.filePath)
+      await discardSubmoduleChanges(worktreePath, args.submodulePath, filePath, gitOptions)
+    }
+  )
+
+  ipcMain.handle(
+    'git:submoduleRestorePointer',
+    async (
+      _event,
+      args: { worktreePath: string; submodulePath: string; connectionId?: string }
+    ): Promise<void> => {
+      if (args.connectionId) {
+        const provider = getSshGitProvider(args.connectionId)
+        if (!provider) {
+          throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
+        }
+        return provider.restoreSubmodulePointer(args.worktreePath, args.submodulePath)
+      }
+      const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
+      const gitOptions = getLocalGitOptionsForRegisteredWorktree(
+        store,
+        args.worktreePath,
+        worktreePath
+      )
+      await restoreSubmodulePointer(worktreePath, args.submodulePath, gitOptions)
     }
   )
 

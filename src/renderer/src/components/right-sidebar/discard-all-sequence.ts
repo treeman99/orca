@@ -1,3 +1,4 @@
+import { isSubmoduleGitlinkRow } from './source-control-submodule-gitlink-row'
 import type { GitStatusEntry } from '../../../../shared/types'
 
 export type DiscardAllArea = 'staged' | 'unstaged' | 'untracked'
@@ -6,6 +7,13 @@ export type DiscardAllArea = 'staged' | 'unstaged' | 'untracked'
  * Collect the paths a "Discard all" bulk action should operate on for a given
  * area. Unresolved and locally-resolved conflicts are excluded — discarding
  * those can silently re-create the conflict or lose the resolution.
+ *
+ * Gitlink rows are excluded too, because `git restore` cannot act on one: on a moved or
+ * dirty pointer it exits 0 having changed nothing, and on a deleted submodule directory it
+ * clears the row while leaving an empty, uninitialized directory behind. Either way the
+ * "discarded N files" report would be a lie. Restoring a pointer is a per-row action with its
+ * own confirmation, because it detaches the submodule's HEAD. Stage-all already excludes the
+ * same rows for the same kind of reason.
  */
 export function getDiscardAllPaths(
   entries: readonly GitStatusEntry[],
@@ -16,7 +24,8 @@ export function getDiscardAllPaths(
       (entry) =>
         entry.area === area &&
         entry.conflictStatus !== 'unresolved' &&
-        entry.conflictStatus !== 'resolved_locally'
+        entry.conflictStatus !== 'resolved_locally' &&
+        !isSubmoduleGitlinkRow(entry)
     )
     .map((entry) => entry.path)
 }

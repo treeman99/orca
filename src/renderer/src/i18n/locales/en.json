@@ -14898,7 +14898,10 @@
     "submoduleBranchDiffersFromParent": "(differs from root)",
     "submoduleNewCommits": "new commits",
     "submoduleModifiedContent": "modified content",
-    "submoduleUntrackedContent": "untracked content"
+    "submoduleUntrackedContent": "untracked content",
+    "discardFailed": "Could not discard {{path}}: {{message}}",
+    "discardSubmodulePointerScope": "This restores the submodule \"{{path}}\" to the commit this repository records. The submodule ends up on a detached HEAD — the branch checked out inside it will not be kept.",
+    "discardSubmoduleFileScope": "This file belongs to the submodule \"{{path}}\" and is restored to THAT submodule's HEAD, not to the commit this repository records."
   },
   "featureTips": {
     "voice": {

@@ -24,12 +24,47 @@ describe('source control entry actions', () => {
     expect(canUnstageStatusEntry(entry({ area: 'unstaged' }))).toBe(false)
   })
 
-  it('hides Discard for submodule-internal rows and conflict rows, keeps it for normal rows', () => {
+  it('offers Discard for a file inside a submodule, routed to that repository', () => {
+    // Why this opened up: the discard now runs in the submodule's own repository, so an inner
+    // file is restorable there even though the parent can neither stage nor unstage it.
+    expect(canDiscardStatusEntry(entry({ area: 'unstaged', submoduleRoot: 'vendor/lib' }))).toBe(
+      true
+    )
+    expect(
+      canDiscardStatusEntry(
+        entry({ area: 'untracked', status: 'untracked', submoduleRoot: 'vendor/lib' })
+      )
+    ).toBe(true)
+  })
+
+  it('hides Discard for gitlink rows at any depth, and for conflict and staged rows', () => {
     expect(canDiscardStatusEntry(entry({ area: 'unstaged' }))).toBe(true)
     expect(canDiscardStatusEntry(entry({ area: 'untracked', status: 'untracked' }))).toBe(true)
-    expect(canDiscardStatusEntry(entry({ area: 'unstaged', submoduleRoot: 'vendor/lib' }))).toBe(
-      false
-    )
+    // The gitlink row is a recorded pointer, not a file; `git restore` cannot move it.
+    expect(
+      canDiscardStatusEntry(
+        entry({
+          area: 'unstaged',
+          submodule: { commitChanged: true, trackedChanges: false, untrackedChanges: false }
+        })
+      )
+    ).toBe(false)
+    // Nested gitlink: `submoduleRoot` is set too, which is how it used to slip through.
+    expect(
+      canDiscardStatusEntry(
+        entry({
+          area: 'unstaged',
+          submoduleRoot: 'vendor/lib',
+          submodule: { commitChanged: true, trackedChanges: false, untrackedChanges: false }
+        })
+      )
+    ).toBe(false)
+    // An older relay can still send these; the files are already committed inside the submodule.
+    expect(
+      canDiscardStatusEntry(
+        entry({ area: 'unstaged', submoduleRoot: 'vendor/lib', submoduleCommitRange: true })
+      )
+    ).toBe(false)
     expect(canDiscardStatusEntry(entry({ area: 'staged' }))).toBe(false)
     expect(canDiscardStatusEntry(entry({ area: 'unstaged', conflictStatus: 'unresolved' }))).toBe(
       false

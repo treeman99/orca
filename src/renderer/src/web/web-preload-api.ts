@@ -1982,6 +1982,21 @@ function createGitApi(): NonNullable<Partial<PreloadApi>['git']> {
         area
       })
     },
+    submoduleDiscard: async ({ worktreePath, submodulePath, filePath }) => {
+      const worktree = await resolveRuntimeWorktreeByPath(worktreePath)
+      await callRuntimeResult('git.submoduleDiscard', {
+        worktree: toRuntimeWorktreeSelector(worktree.id),
+        submodulePath,
+        filePath
+      })
+    },
+    submoduleRestorePointer: async ({ worktreePath, submodulePath }) => {
+      const worktree = await resolveRuntimeWorktreeByPath(worktreePath)
+      await callRuntimeResult('git.submoduleRestorePointer', {
+        worktree: toRuntimeWorktreeSelector(worktree.id),
+        submodulePath
+      })
+    },
     checkIgnored: async ({ worktreePath, paths }) => {
       const worktree = await resolveRuntimeWorktreeByPath(worktreePath)
       return callRuntimeResult('git.checkIgnored', {

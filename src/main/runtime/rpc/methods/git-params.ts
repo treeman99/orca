@@ -40,6 +40,21 @@ export const GitFilePath = WorktreeSelector.extend({
     .pipe(z.string().min(1, 'Missing file path'))
 })
 
+/**
+ * A file inside a submodule. `submodulePath` reuses the GitSubmoduleStatus rules (non-empty,
+ * never a leading `-`) so the arg-injection guard cannot drift between the two surfaces;
+ * `area` is dropped because a discard has no area.
+ */
+export const GitSubmoduleFilePath = GitSubmoduleStatus.omit({ area: true }).extend({
+  // Relative to the SUBMODULE root, not the parent worktree.
+  filePath: z
+    .unknown()
+    .transform((v) => (typeof v === 'string' ? v : ''))
+    .pipe(z.string().min(1, 'Missing file path'))
+})
+
+export const GitSubmodulePointer = GitSubmoduleStatus.omit({ area: true })
+
 export const GitDiff = GitFilePath.extend({
   staged: z.boolean(),
   compareAgainstHead: z.boolean().optional()

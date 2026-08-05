@@ -28,6 +28,8 @@ export type UseSourceControlSubmoduleStatusResult = {
   expandedSubmoduleKeys: Set<string>
   submoduleStatusByKey: Record<string, SubmoduleStatusState>
   toggleSubmodule: (entry: Pick<GitStatusEntry, 'area' | 'path'>) => void
+  /** Re-read one expanded submodule immediately, keyed by its path. */
+  refreshSubmodule: (submodulePath: string) => void
 }
 
 /**
@@ -196,5 +198,24 @@ export function useSourceControlSubmoduleStatus(
     })
   }, [hasExpandedSubmodules])
 
-  return { expandedSubmoduleKeys, submoduleStatusByKey, toggleSubmodule }
+  /**
+   * Re-read one submodule right now, by PATH rather than by expansion key.
+   *
+   * Why by path: a child row carries the submodule's own area, so a discard of an untracked
+   * file inside `vendor/sub` reports `untracked` while the expansion key is keyed on the
+   * PARENT gitlink's area (`unstaged::vendor/sub`). Matching on area would miss it entirely
+   * and the row would sit there, already gone from disk, until the 4s tick.
+   */
+  const refreshSubmodule = useCallback(
+    (submodulePath: string) => {
+      for (const expansionKey of expandedSubmoduleKeys) {
+        if (parseSubmoduleExpansionKey(expansionKey)?.path === submodulePath) {
+          void fetchSubmoduleStatus(expansionKey)
+        }
+      }
+    },
+    [expandedSubmoduleKeys, fetchSubmoduleStatus]
+  )
+
+  return { expandedSubmoduleKeys, submoduleStatusByKey, toggleSubmodule, refreshSubmodule }
 }

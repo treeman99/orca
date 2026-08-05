@@ -3314,6 +3314,18 @@ const api = {
       filePath: string
       connectionId?: string
     }): Promise<void> => ipcRenderer.invoke('git:discard', args),
+    submoduleDiscard: (args: {
+      worktreePath: string
+      submodulePath: string
+      // Relative to the SUBMODULE root, not the parent worktree.
+      filePath: string
+      connectionId?: string
+    }): Promise<void> => ipcRenderer.invoke('git:submoduleDiscard', args),
+    submoduleRestorePointer: (args: {
+      worktreePath: string
+      submodulePath: string
+      connectionId?: string
+    }): Promise<void> => ipcRenderer.invoke('git:submoduleRestorePointer', args),
     bulkDiscard: (args: {
       worktreePath: string
       filePaths: string[]

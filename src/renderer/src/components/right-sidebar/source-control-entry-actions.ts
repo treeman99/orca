@@ -1,3 +1,4 @@
+import { isSubmoduleGitlinkRow } from './source-control-submodule-gitlink-row'
 import type { GitStatusEntry } from '../../../../shared/types'
 import { isStageableStatusEntry } from './discard-all-sequence'
 
@@ -18,10 +19,19 @@ export function canUnstageStatusEntry(entry: GitStatusEntry): boolean {
 }
 
 export function canDiscardStatusEntry(entry: GitStatusEntry): boolean {
-  return (
-    entry.conflictStatus !== 'unresolved' &&
-    entry.conflictStatus !== 'resolved_locally' &&
-    !entry.submoduleRoot &&
-    (entry.area === 'unstaged' || entry.area === 'untracked')
-  )
+  if (entry.conflictStatus === 'unresolved' || entry.conflictStatus === 'resolved_locally') {
+    return false
+  }
+  if (entry.area !== 'unstaged' && entry.area !== 'untracked') {
+    return false
+  }
+  // Why still blocked: an older relay can still send these, and they name files that are
+  // already committed inside the submodule — there is nothing to restore.
+  if (entry.submoduleCommitRange) {
+    return false
+  }
+  // A gitlink row is a recorded pointer, not a file. It gets its own action
+  // (`git submodule update`), which the caller routes; `git restore` cannot move it.
+  // Depth-independent on purpose: a gitlink nested inside an expanded submodule is one too.
+  return !isSubmoduleGitlinkRow(entry)
 }

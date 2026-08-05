@@ -211,6 +211,8 @@ export class GitHandler {
     this.dispatcher.onRequest('git.checkout', (p) => this.checkout(p))
     this.dispatcher.onRequest('git.localBranches', (p) => this.localBranches(p))
     this.dispatcher.onRequest('git.discard', (p) => this.discard(p))
+    this.dispatcher.onRequest('git.submoduleDiscard', (p, c) => this.submoduleDiscard(p, c))
+    this.dispatcher.onRequest('git.submoduleRestorePointer', (p) => this.submoduleRestorePointer(p))
     this.dispatcher.onRequest('git.bulkDiscard', (p) => this.bulkDiscard(p))
     this.dispatcher.onRequest('git.conflictOperation', (p) => this.conflictOperation(p))
     this.dispatcher.onRequest('git.branchCompare', (p) => this.branchCompare(p))
@@ -365,6 +367,13 @@ export class GitHandler {
     const worktreePath = params.worktreePath as string
     const submodulePath = params.submodulePath as string
     const resolved = resolveSubmoduleWorktreePath(worktreePath, submodulePath)
+    // Why before the root probe: that probe spawns git, and an already-cancelled request must
+    // reject as an abort rather than as whatever the probe happens to find.
+    if (context.signal?.aborted) {
+      const error = new Error('The operation was aborted.')
+      error.name = 'AbortError'
+      throw error
+    }
     await assertSubmoduleWorktreeRoot(
       (args, cwd, options) => this.git(args, cwd, { ...options, signal: context.signal }),
       resolved
@@ -618,9 +627,18 @@ export class GitHandler {
   }
 
   private async discard(params: Record<string, unknown>) {
+    await this.discardAtWorktree(params.worktreePath as string, params.filePath as string)
+  }
+
+  /**
+   * Discard one file, with `worktreePath` as the repository git runs in.
+   *
+   * Extracted so the submodule variant reuses this body verbatim: its containment check and
+   * its untracked-removal realpath both have to be anchored at the submodule root, and a
+   * second copy of those checks is exactly what drifts.
+   */
+  private async discardAtWorktree(worktreePath: string, filePath: string) {
     this.clearGitMutationReadCaches()
-    const worktreePath = params.worktreePath as string
-    const filePath = params.filePath as string
     try {
       this.assertInWorktree(worktreePath, filePath)
 
@@ -645,6 +663,40 @@ export class GitHandler {
 
       await removeSafeUntrackedDiscardTarget(worktreePath, filePath, (targetPath) =>
         this.cleanUntrackedPaths(worktreePath, [targetPath])
+      )
+    } finally {
+      this.clearGitMutationReadCaches()
+    }
+  }
+
+  // Why the root assertion: resolveSubmoduleWorktreePath only proves containment in the
+  // parent. For a submodule that is currently a plain directory git walks UP, and this
+  // restore would overwrite the PARENT's copy of a same-named file.
+  private async submoduleDiscard(params: Record<string, unknown>, context: RequestContext) {
+    const worktreePath = params.worktreePath as string
+    const submodulePath = params.submodulePath as string
+    const filePath = params.filePath as string
+    const resolved = resolveSubmoduleWorktreePath(worktreePath, submodulePath)
+    await assertSubmoduleWorktreeRoot(
+      (args, cwd, options) => this.git(args, cwd, { ...options, signal: context.signal }),
+      resolved
+    )
+    await this.discardAtWorktree(resolved, filePath)
+  }
+
+  // `git restore` cannot put a submodule pointer back: on a moved or dirty pointer it exits 0
+  // having changed nothing, and on a deleted submodule directory it clears the row while
+  // leaving an empty, uninitialized directory. `--init` is what actually brings it back.
+  private async submoduleRestorePointer(params: Record<string, unknown>) {
+    this.clearGitMutationReadCaches()
+    const worktreePath = params.worktreePath as string
+    const submodulePath = params.submodulePath as string
+    // Validates containment before the path reaches a command that writes.
+    resolveSubmoduleWorktreePath(worktreePath, submodulePath)
+    try {
+      await this.git(
+        ['submodule', 'update', '--init', '--', this.literalPathspec(submodulePath)],
+        worktreePath
       )
     } finally {
       this.clearGitMutationReadCaches()

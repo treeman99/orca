@@ -24,6 +24,8 @@ import {
   GitRemoteFileUrl,
   GitStatusParams,
   GitSubmoduleStatus,
+  GitSubmoduleFilePath,
+  GitSubmodulePointer,
   GitTargetedRemote,
   WorktreeSelector
 } from './git-params'
@@ -348,6 +350,18 @@ export const GIT_METHODS: RpcMethod[] = [
     params: GitFilePath,
     handler: async (params, { runtime }) =>
       runtime.discardRuntimeGitPath(params.worktree, params.filePath)
+  }),
+  defineMethod({
+    name: 'git.submoduleDiscard',
+    params: GitSubmoduleFilePath,
+    handler: async (params, { runtime }) =>
+      runtime.discardRuntimeGitSubmodulePath(params.worktree, params.submodulePath, params.filePath)
+  }),
+  defineMethod({
+    name: 'git.submoduleRestorePointer',
+    params: GitSubmodulePointer,
+    handler: async (params, { runtime }) =>
+      runtime.restoreRuntimeGitSubmodulePointer(params.worktree, params.submodulePath)
   }),
   defineMethod({
     name: 'git.bulkDiscard',
