@@ -9,9 +9,7 @@
  */
 import * as path from 'node:path'
 import { buildDiffResult } from './git-diff-result'
-import { parseBranchDiff } from './git-handler-utils'
-import { parseNumstat } from '../shared/git-uncommitted-line-stats'
-import { readBlobAtOid, type GitBufferExec, type GitExec } from './git-handler-ops'
+import type { GitExec } from './git-handler-ops'
 
 /**
  * Short TTL for the configured-submodule-paths cache, matching the local
@@ -165,6 +163,30 @@ export function resolveSubmoduleWorktreePath(worktreePath: string, submodulePath
   return resolved
 }
 
+/**
+ * Refuse a path that is inside a repository but is not its root.
+ *
+ * Mirrors the main process: `resolveSubmoduleWorktreePath` only proves the path stays within
+ * the parent. Once a submodule is deinitialized, moved, or left behind by a branch switch,
+ * git walks UP from that directory to the parent repository — so a command aimed at the
+ * submodule silently runs against the parent instead.
+ */
+export async function assertSubmoduleWorktreeRoot(
+  git: GitExec,
+  submoduleWorktreePath: string
+): Promise<void> {
+  let prefix: string
+  try {
+    const { stdout } = await git(['rev-parse', '--show-prefix'], submoduleWorktreePath)
+    prefix = stdout.trim()
+  } catch {
+    throw new Error('Access denied: submodule path is not a git repository')
+  }
+  if (prefix !== '') {
+    throw new Error('Access denied: submodule path is not a git repository root')
+  }
+}
+
 async function readGitlinkOidFromTree(
   git: GitExec,
   worktreePath: string,
@@ -204,85 +226,6 @@ async function readWorkingSubmoduleHead(
   }
 }
 
-/**
- * Resolve the submodule's recorded commit (parent index, falling back to HEAD)
- * and its checked-out worktree commit. When these differ the gitlink moved.
- */
-export async function resolveSubmoduleCommitRange(
-  git: GitExec,
-  worktreePath: string,
-  submodulePath: string,
-  staged = false
-): Promise<{ fromOid: string; toOid: string }> {
-  const submoduleWorktreePath = resolveSubmoduleWorktreePath(worktreePath, submodulePath)
-  const fromOid = staged
-    ? await readGitlinkOidFromTree(git, worktreePath, 'HEAD', submodulePath)
-    : (await readGitlinkOidFromIndex(git, worktreePath, submodulePath)) ||
-      (await readGitlinkOidFromTree(git, worktreePath, 'HEAD', submodulePath))
-  const toOid = staged
-    ? await readGitlinkOidFromIndex(git, worktreePath, submodulePath)
-    : await readWorkingSubmoduleHead(git, submoduleWorktreePath)
-  return { fromOid, toOid }
-}
-
-/**
- * List files changed between two submodule commits as status rows (area
- * `unstaged`), so an expanded moved-pointer submodule shows its committed file
- * changes instead of an empty working-tree status.
- */
-export async function computeSubmoduleRangeEntries(
-  git: GitExec,
-  submoduleWorktreePath: string,
-  fromOid: string,
-  toOid: string
-): Promise<Record<string, unknown>[]> {
-  let nameStatus = ''
-  let numstat = ''
-  try {
-    const [statusResult, numstatResult] = await Promise.all([
-      git(
-        ['-c', 'core.quotePath=false', 'diff', '--name-status', '-M', '-C', fromOid, toOid],
-        submoduleWorktreePath
-      ),
-      git(
-        ['-c', 'core.quotePath=false', 'diff', '-z', '--numstat', '-M', '-C', fromOid, toOid],
-        submoduleWorktreePath
-      )
-    ])
-    nameStatus = statusResult.stdout
-    numstat = numstatResult.stdout
-  } catch {
-    return []
-  }
-  return parseBranchDiff(nameStatus, parseNumstat(numstat)).map((entry) => ({
-    ...entry,
-    area: 'unstaged',
-    // Why: committed inside the submodule, not the user's uncommitted work —
-    // mirrors the main process so SSH renders the same distinction.
-    submoduleCommitRange: true
-  }))
-}
-
-/**
- * Diff a file inside a submodule across two of its commits (recorded vs
- * checked-out), mirroring the local handler's commit-range route.
- */
-export async function buildSubmoduleInnerCommitRangeDiff(
-  gitBuffer: GitBufferExec,
-  submoduleWorktreePath: string,
-  innerPath: string,
-  fromOid: string,
-  toOid: string
-) {
-  const left = await readBlobAtOid(gitBuffer, submoduleWorktreePath, fromOid, innerPath)
-  const right = await readBlobAtOid(gitBuffer, submoduleWorktreePath, toOid, innerPath)
-  return buildDiffResult(left.content, right.content, left.isBinary, right.isBinary, innerPath)
-}
-
-/**
- * Synthesize a gitlink pointer diff (one-line `Subproject commit <oid>` swap),
- * matching git's own rendering of submodule commit changes.
- */
 export async function computeSubmodulePointerDiff(
   git: GitExec,
   worktreePath: string,

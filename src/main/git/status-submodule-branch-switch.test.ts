@@ -115,27 +115,46 @@ describe('submodule after pull-then-switch-branch', () => {
     expect(git(submodulePath, ['status', '--porcelain'])).toBe(' M subfile.txt\n')
   })
 
-  it('marks the pulled files as committed-in-submodule, never as the user edit', async () => {
+  // The contract, stated against the fixture pinned by the case above: an expanded
+  // submodule shows what `git status` in that folder shows, path for path. The files a
+  // pull brought in are committed inside the submodule, so they are the submodule's
+  // history, not rows in anyone's list of uncommitted changes.
+  it('shows exactly what git status shows in the submodule, and nothing else', async () => {
     appendFileSync(path.join(submodulePath, 'subfile.txt'), 'my edit\n')
 
     const result = await getSubmoduleStatus(rootPath, SUBMODULE_PATH)
 
-    const byPath = new Map(result.entries.map((entry) => [entry.path, entry]))
-    // The three files the pull brought in are still surfaced (that is what makes a
-    // moved pointer reviewable at all) but every one of them is tagged.
+    expect(result.entries.map((entry) => entry.path)).toEqual(['subfile.txt'])
+    expect(result.entries[0]?.area).toBe('unstaged')
     for (const pulled of ['pulled-a.txt', 'pulled-b.txt', 'pulled-c.txt']) {
-      expect(byPath.get(pulled)?.submoduleCommitRange).toBe(true)
+      expect(result.entries.map((entry) => entry.path)).not.toContain(pulled)
     }
-    // The file the user actually edited is a working-tree row and stays untagged.
-    expect(byPath.get('subfile.txt')?.submoduleCommitRange).toBeUndefined()
-    expect(byPath.get('subfile.txt')?.area).toBe('unstaged')
   })
 
-  it('tags every range row when the submodule worktree is otherwise clean', async () => {
+  it('is empty when the pointer moved but the submodule worktree is clean', async () => {
+    // The terminal agrees: nothing to report inside the submodule.
+    expect(git(submodulePath, ['status', '--porcelain'])).toBe('')
+
     const result = await getSubmoduleStatus(rootPath, SUBMODULE_PATH)
 
-    expect(result.entries.length).toBeGreaterThan(0)
-    expect(result.entries.every((entry) => entry.submoduleCommitRange === true)).toBe(true)
+    expect(result.entries).toEqual([])
+  })
+
+  // The `staged` flag used to switch the expansion to a HEAD->index range; it is now
+  // accepted for wire compatibility and must change nothing.
+  it('ignores the staged flag rather than synthesizing a range', async () => {
+    const staged = await getSubmoduleStatus(rootPath, SUBMODULE_PATH, { staged: true })
+
+    expect(staged.entries).toEqual([])
+  })
+
+  // The path only proves containment, so a submodule that is no longer a repository would
+  // let git walk up and answer with the PARENT's status.
+  it('refuses a submodule path that is not a repository root', async () => {
+    await fs.rm(path.join(submodulePath, '.git'), { recursive: true, force: true })
+    invalidateGitReadCaches()
+
+    await expect(getSubmoduleStatus(rootPath, SUBMODULE_PATH)).rejects.toThrow(/Access denied/)
   })
 
   it('drops the commit-drift-only gitlink row when the repo configured ignore = all', async () => {

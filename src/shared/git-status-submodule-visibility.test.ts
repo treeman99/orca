@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildGitStatusCommandArgs } from './git-status-command-args'
 import { StatusPorcelainParser, parseSubmoduleStatus } from './git-status-porcelain-parser'
-import { mergeSubmoduleRangeWithWorkingEntries } from './git-submodule-range-merge'
-import type { GitStatusEntry } from './git-status-types'
 
 // Fixtures below are verbatim `git status --porcelain=v2 --branch --untracked-files=all`
 // output captured from a real Git 2.50 repo: root on `main`, submodule `vendor/sub`
@@ -120,44 +118,5 @@ describe('parseSubmoduleStatus over the sub-state field', () => {
       trackedChanges: false,
       untrackedChanges: false
     })
-  })
-})
-
-describe('mergeSubmoduleRangeWithWorkingEntries', () => {
-  const working: GitStatusEntry[] = [
-    { path: 'other.txt', status: 'modified', area: 'staged' },
-    { path: 'subfile.txt', status: 'modified', area: 'unstaged' },
-    { path: 'newfile.txt', status: 'untracked', area: 'untracked' }
-  ]
-
-  it('keeps the uncommitted row when a commit-range row targets the same file and area', () => {
-    // Why: a submodule parked on another branch has a moved gitlink, so the range
-    // overlaps the files being edited; letting the range win deleted the user's
-    // actual uncommitted change from the panel.
-    const range: GitStatusEntry[] = [{ path: 'subfile.txt', status: 'modified', area: 'unstaged' }]
-
-    const merged = mergeSubmoduleRangeWithWorkingEntries(range, working)
-
-    expect(merged).toEqual(working)
-  })
-
-  it('does not let an unstaged range row evict a staged working row for the same file', () => {
-    const range: GitStatusEntry[] = [{ path: 'other.txt', status: 'modified', area: 'unstaged' }]
-
-    const merged = mergeSubmoduleRangeWithWorkingEntries(range, working)
-
-    expect(merged).toContainEqual({ path: 'other.txt', status: 'modified', area: 'staged' })
-    expect(merged).toContainEqual({ path: 'other.txt', status: 'modified', area: 'unstaged' })
-  })
-
-  it('still surfaces range rows for files that are clean in the submodule worktree', () => {
-    const range: GitStatusEntry[] = [
-      { path: 'moved-only.txt', status: 'modified', area: 'unstaged' }
-    ]
-
-    const merged = mergeSubmoduleRangeWithWorkingEntries(range, working)
-
-    expect(merged[0]).toEqual({ path: 'moved-only.txt', status: 'modified', area: 'unstaged' })
-    expect(merged).toHaveLength(working.length + 1)
   })
 })

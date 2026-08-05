@@ -39,15 +39,13 @@ import {
 } from './runner'
 import { StatusPorcelainParser } from '../../shared/git-status-porcelain-parser'
 import { buildGitStatusCommandArgs } from '../../shared/git-status-command-args'
-import { mergeSubmoduleRangeWithWorkingEntries } from '../../shared/git-submodule-range-merge'
 import { applySubmoduleIgnorePolicyToEntries } from '../../shared/git-submodule-ignore-policy'
 import {
   clearSubmoduleIgnorePolicyCache,
   readSubmoduleIgnorePolicy
 } from './submodule-ignore-config'
-import { gitDiffHasChange } from '../../shared/git-diff-change-presence'
 import { findExistingWorktreeSymlinkPaths } from './worktree-symlink-detection'
-import { capGitStatusEntries, resolveGitStatusLimit } from '../../shared/git-status-limit'
+import { resolveGitStatusLimit } from '../../shared/git-status-limit'
 import { describeMaxBufferOverflowError, isMaxBufferOverflowError } from './max-buffer-overflow'
 import {
   removeSafeUntrackedDiscardTarget,
@@ -458,8 +456,49 @@ export function resolveSubmoduleWorktreePath(worktreePath: string, submodulePath
 }
 
 /**
+ * Refuse a path that is inside a repository but is not its root.
+ *
+ * Why this is not paranoia: `resolveSubmoduleWorktreePath` only proves the path stays
+ * within the parent. Once a submodule is deinitialized, moved, or left behind by a branch
+ * switch, that directory is an ordinary folder — and git walks UP from it to the parent
+ * repository, so a command aimed at the submodule silently runs against the parent and,
+ * for a destructive one, rewrites the parent's copy of the file.
+ *
+ * `--show-prefix` rather than comparing `--show-toplevel` to the path: it answers "how far
+ * below the root am I" directly, so WSL mounts, symlinked checkouts, and case-insensitive
+ * filesystems cannot make two spellings of the same directory disagree.
+ */
+export async function assertSubmoduleWorktreeRoot(
+  submoduleWorktreePath: string,
+  options: GitRuntimeOptions = {}
+): Promise<void> {
+  let prefix: string
+  try {
+    const { stdout } = await gitExecFileAsync(['rev-parse', '--show-prefix'], {
+      ...gitOptionsForWorktree(submoduleWorktreePath, options),
+      env: gitOptionalLocksDisabledEnv()
+    })
+    prefix = stdout.trim()
+  } catch {
+    throw new Error('Access denied: submodule path is not a git repository')
+  }
+  if (prefix !== '') {
+    throw new Error('Access denied: submodule path is not a git repository root')
+  }
+}
+
+/**
  * Run a plain status inside a submodule's own worktree (lazy "expand submodule"
  * flow). Entry paths are relative to the submodule root; the renderer prefixes them.
+ *
+ * This is deliberately nothing more than `git status` in that directory. It used to also
+ * synthesize rows for the files between the parent's recorded gitlink and the submodule's
+ * checked-out HEAD, which put someone else's already-committed files in a list the user
+ * reads as their own working changes. Those files belong to the submodule's history; the
+ * pointer move itself is expressed by the gitlink row's own diff.
+ *
+ * `staged` is accepted and ignored: the IPC/RPC contract still carries it, and a submodule's
+ * status is the same question whichever parent section its gitlink row happens to sit in.
  */
 export async function getSubmoduleStatus(
   worktreePath: string,
@@ -467,100 +506,8 @@ export async function getSubmoduleStatus(
   options: GetStatusOptions & { staged?: boolean } = {}
 ): Promise<GitStatusResult> {
   const submoduleWorktreePath = resolveSubmoduleWorktreePath(worktreePath, submodulePath)
-  const limit = resolveGitStatusLimit(options.limit)
-  // Why: staged expansion only represents HEAD→index; scanning the submodule worktree is wasted work.
-  const workingResult = options.staged
-    ? ({ entries: [], conflictOperation: 'unknown' } satisfies GitStatusResult)
-    : await getStatus(submoduleWorktreePath, options)
-  // Why: a moved gitlink (clean worktree) has no status rows; surface the parent-commit→checkout range as inner rows.
-  const fromOid = options.staged
-    ? await readGitlinkOidFromTree(worktreePath, 'HEAD', submodulePath, options)
-    : (await readGitlinkOidFromIndex(worktreePath, submodulePath, options)) ||
-      (await readGitlinkOidFromTree(worktreePath, 'HEAD', submodulePath, options))
-  const toOid = options.staged
-    ? await readGitlinkOidFromIndex(worktreePath, submodulePath, options)
-    : await readWorkingSubmoduleHead(submoduleWorktreePath, options)
-  if (fromOid && toOid && fromOid !== toOid) {
-    const rangeEntries = await computeSubmoduleRangeEntries(
-      submoduleWorktreePath,
-      fromOid,
-      toOid,
-      options
-    )
-    if (options.staged) {
-      return { ...workingResult, ...capGitStatusEntries(rangeEntries, limit) }
-    }
-    // Why: a submodule parked on its own branch normally has a moved gitlink, so
-    // the range overlaps the working tree constantly. Uncommitted rows must win —
-    // they are the only actionable ones, and keying by area (not path) keeps a
-    // staged row from being dropped by an unstaged-area range row for the same file.
-    const entries = mergeSubmoduleRangeWithWorkingEntries(rangeEntries, workingResult.entries)
-    return {
-      ...workingResult,
-      ...capGitStatusEntries(entries, limit, workingResult)
-    }
-  }
-  if (options.staged) {
-    return { ...workingResult, entries: [] }
-  }
-  return workingResult
-}
-
-/**
- * List files changed between two submodule commits as status rows — used when a
- * gitlink pointer moved so the expanded submodule shows committed changes.
- */
-async function computeSubmoduleRangeEntries(
-  submoduleWorktreePath: string,
-  fromOid: string,
-  toOid: string,
-  options: GitRuntimeOptions = {}
-): Promise<GitStatusEntry[]> {
-  const gitOptions = {
-    ...gitOptionsForWorktree(submoduleWorktreePath, options),
-    env: gitOptionalLocksDisabledEnv()
-  }
-  let nameStatus = ''
-  let numstat = ''
-  try {
-    const [statusResult, numstatResult] = await Promise.all([
-      gitExecFileAsync(
-        ['-c', 'core.quotePath=false', 'diff', '--name-status', '-M', '-C', fromOid, toOid],
-        gitOptions
-      ),
-      gitExecFileAsync(
-        ['-c', 'core.quotePath=false', 'diff', '-z', '--numstat', '-M', '-C', fromOid, toOid],
-        gitOptions
-      )
-    ])
-    nameStatus = statusResult.stdout
-    numstat = numstatResult.stdout
-  } catch {
-    return []
-  }
-  const statsByPath = parseNumstat(numstat)
-  const entries: GitStatusEntry[] = []
-  for (const line of nameStatus.split(/\r?\n/)) {
-    if (!line) {
-      continue
-    }
-    const change = parseBranchChangeLine(line)
-    if (!change) {
-      continue
-    }
-    entries.push({
-      path: change.path,
-      status: change.status,
-      area: 'unstaged',
-      // Why: these files are committed inside the submodule — the pointer drift a
-      // branch switch leaves behind is someone else's work, so consumers must not
-      // render them as the user's uncommitted edits.
-      submoduleCommitRange: true,
-      ...(change.oldPath ? { oldPath: change.oldPath } : {}),
-      ...statsByPath.get(change.path)
-    })
-  }
-  return entries
+  await assertSubmoduleWorktreeRoot(submoduleWorktreePath, options)
+  return getStatus(submoduleWorktreePath, options)
 }
 
 async function runNumstat(
@@ -1187,40 +1134,6 @@ async function buildSubmodulePointerDiff(
 }
 
 /**
- * Diff a file inside a submodule across two of its commits — used when the parent
- * gitlink moved but the submodule worktree is clean (change is committed).
- */
-async function buildSubmoduleInnerCommitRangeDiff(
-  submoduleWorktreePath: string,
-  innerPath: string,
-  fromOid: string,
-  toOid: string,
-  options: GitRuntimeOptions
-): Promise<GitDiffResult> {
-  let originalContent = ''
-  let modifiedContent = ''
-  let originalIsBinary = false
-  let modifiedIsBinary = false
-  try {
-    const left = await readGitBlobAtOidPath(submoduleWorktreePath, fromOid, innerPath, options)
-    originalContent = left.content
-    originalIsBinary = left.isBinary
-    const right = await readGitBlobAtOidPath(submoduleWorktreePath, toOid, innerPath, options)
-    modifiedContent = right.content
-    modifiedIsBinary = right.isBinary
-  } catch {
-    // Fallback to empty content; a missing blob (add/delete) reads as one side.
-  }
-  return buildDiffResult(
-    originalContent,
-    modifiedContent,
-    originalIsBinary,
-    modifiedIsBinary,
-    innerPath
-  )
-}
-
-/**
  * Get original and modified content for diffing a file.
  */
 export async function getDiff(
@@ -1269,32 +1182,11 @@ async function loadDiff(
           submoduleWorktreePath
         )
       }
+      // Why straight through: an inner row now only ever comes from the submodule's own
+      // `git status`, so its diff is the submodule's own working-tree diff. Preferring the
+      // parent's recorded-gitlink→HEAD range here is what made a list of the user's edits
+      // open someone else's committed change.
       const innerPath = normalizedFilePath.slice(matchedSubmodule.length + 1)
-      const fromOid = staged
-        ? await readGitlinkOidFromTree(worktreePath, 'HEAD', matchedSubmodule, options)
-        : (await readGitlinkOidFromIndex(worktreePath, matchedSubmodule, options)) ||
-          (await readGitlinkOidFromTree(worktreePath, 'HEAD', matchedSubmodule, options))
-      const toOid = staged
-        ? await readGitlinkOidFromIndex(worktreePath, matchedSubmodule, options)
-        : await readWorkingSubmoduleHead(submoduleWorktreePath, options)
-      // Why: a moved gitlink means the submodule carries commits the parent hasn't
-      // recorded — but a submodule parked on its own branch has a moved gitlink
-      // permanently, so "the pointer moved" is NOT evidence that *this file's*
-      // change is committed. When the range shows nothing for this path the change
-      // is an uncommitted working-tree edit, and returning the range diff rendered
-      // an empty diff for a file the user had just modified.
-      if (fromOid && toOid && fromOid !== toOid) {
-        const rangeDiff = await buildSubmoduleInnerCommitRangeDiff(
-          submoduleWorktreePath,
-          innerPath,
-          fromOid,
-          toOid,
-          options
-        )
-        if (gitDiffHasChange(rangeDiff)) {
-          return rangeDiff
-        }
-      }
       return getDiff(submoduleWorktreePath, innerPath, staged, compareAgainstHead, options)
     }
   }

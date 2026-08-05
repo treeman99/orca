@@ -182,9 +182,11 @@ describe('submodule on its own branch', () => {
     expect(diff.modifiedContent).toBe('one\nunstaged-edit\n')
   })
 
-  it('still shows the commit range for a file only changed by the moved gitlink', async () => {
-    // Why: the fallback must not swallow the committed-range route, which is the
-    // only way to see work the submodule committed but the root has not recorded.
+  it('diffs a clean inner file against the submodule worktree, not the recorded range', async () => {
+    // Why the inversion: a file the submodule already committed is not an uncommitted
+    // change, so it no longer appears in the expansion at all — and asking for its diff
+    // must answer the same question `git diff` in that folder answers, which is nothing.
+    // The pointer move itself is shown by the gitlink row's own diff.
     const submodulePath = path.join(rootPath, SUBMODULE_PATH)
     git(submodulePath, ['reset', '-q'])
     git(submodulePath, ['checkout', '--', 'other.txt'])
@@ -192,7 +194,6 @@ describe('submodule on its own branch', () => {
 
     const diff = await getDiff(rootPath, `${SUBMODULE_PATH}/other.txt`, false)
 
-    expect(diff.originalContent).toBe('two\n')
-    expect(diff.modifiedContent).toBe('two\ncommitted-on-other-branch\n')
+    expect(diff.originalContent).toBe(diff.modifiedContent)
   })
 })

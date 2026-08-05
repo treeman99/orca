@@ -115,7 +115,10 @@ describe('GitHandler — submodule after pull-then-switch-branch', () => {
     })) as StatusResponse
   }
 
-  it('marks the pulled files as committed-in-submodule, never as the user edit', async () => {
+  // SSH parity for the main-process contract: an expanded submodule shows what
+  // `git status` in that folder shows, path for path. Split relay behaviour here is
+  // exactly the asymmetry this file exists to catch.
+  it('shows exactly what git status shows in the submodule, and nothing else', async () => {
     appendFileSync(path.join(submodulePath, 'subfile.txt'), 'my edit\n')
 
     const { entries } = (await dispatcher.callRequest('git.submoduleStatus', {
@@ -123,11 +126,29 @@ describe('GitHandler — submodule after pull-then-switch-branch', () => {
       submodulePath: SUBMODULE_PATH
     })) as StatusResponse
 
-    const byPath = new Map(entries.map((entry) => [entry.path, entry]))
+    expect(entries.map((entry) => entry.path)).toEqual(['subfile.txt'])
     for (const pulled of ['pulled-a.txt', 'pulled-b.txt', 'pulled-c.txt']) {
-      expect(byPath.get(pulled)?.submoduleCommitRange).toBe(true)
+      expect(entries.map((entry) => entry.path)).not.toContain(pulled)
     }
-    expect(byPath.get('subfile.txt')?.submoduleCommitRange).toBeUndefined()
+  })
+
+  it('is empty when the pointer moved but the submodule worktree is clean', async () => {
+    const { entries } = (await dispatcher.callRequest('git.submoduleStatus', {
+      worktreePath: rootPath,
+      submodulePath: SUBMODULE_PATH
+    })) as StatusResponse
+
+    expect(entries).toEqual([])
+  })
+
+  it('ignores the staged area rather than synthesizing a range', async () => {
+    const { entries } = (await dispatcher.callRequest('git.submoduleStatus', {
+      worktreePath: rootPath,
+      submodulePath: SUBMODULE_PATH,
+      area: 'staged'
+    })) as StatusResponse
+
+    expect(entries).toEqual([])
   })
 
   it('drops the commit-drift-only gitlink row when the repo configured ignore = all', async () => {

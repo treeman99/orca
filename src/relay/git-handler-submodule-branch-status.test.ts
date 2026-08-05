@@ -160,11 +160,13 @@ describe('GitHandler — submodule on its own branch', () => {
     expect(diff.modifiedContent).toBe('one\nunstaged-edit\n')
   })
 
-  it('still shows the commit range for a file only changed by the moved gitlink', async () => {
-    // Why: the fallback must not swallow the committed-range route, which is the
-    // only way to see work the submodule committed but the root has not recorded.
-    git(path.join(rootPath, SUBMODULE_PATH), ['checkout', '--', 'other.txt'])
+  it('diffs a clean inner file against the submodule worktree, not the recorded range', async () => {
+    // SSH parity: a file the submodule already committed is no longer an entry in the
+    // expansion, so its diff must answer what `git diff` in that folder answers — nothing.
+    // Order matters: reset first, or `checkout --` restores the staged edit into the
+    // worktree and the file is not clean after all.
     git(path.join(rootPath, SUBMODULE_PATH), ['reset', '-q'])
+    git(path.join(rootPath, SUBMODULE_PATH), ['checkout', '--', 'other.txt'])
 
     const diff = (await dispatcher.callRequest('git.diff', {
       worktreePath: rootPath,
@@ -172,7 +174,6 @@ describe('GitHandler — submodule on its own branch', () => {
       staged: false
     })) as DiffResponse
 
-    expect(diff.originalContent).toBe('two\n')
-    expect(diff.modifiedContent).toBe('two\ncommitted-on-other-branch\n')
+    expect(diff.originalContent).toBe(diff.modifiedContent)
   })
 })

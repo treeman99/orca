@@ -15,19 +15,16 @@ import {
   computeDiff,
   branchCompare as branchCompareOp,
   branchDiffEntries,
-  validateGitExecArgs,
-  type GitExec
+  validateGitExecArgs
 } from './git-handler-ops'
 import {
-  buildSubmoduleInnerCommitRangeDiff,
+  assertSubmoduleWorktreeRoot,
   computeSubmodulePointerDiff,
-  computeSubmoduleRangeEntries,
   clearSubmodulePathsCache,
   createSubmodulePathsCache,
   findContainingSubmodule,
   listSubmodulePathsCached,
   resolveSubmoduleWorktreePath,
-  resolveSubmoduleCommitRange,
   type SubmodulePathsCache
 } from './git-handler-submodule-ops'
 import { commitCompare as commitCompareOp, commitDiffEntry } from './git-handler-commit-diff-ops'
@@ -48,9 +45,6 @@ import {
   createSubmoduleIgnorePolicyCache,
   type SubmoduleIgnorePolicyCache
 } from './git-submodule-ignore-config'
-import { capGitStatusEntries, resolveGitStatusLimit } from '../shared/git-status-limit'
-import { mergeSubmoduleRangeWithWorkingEntries } from '../shared/git-submodule-range-merge'
-import { gitDiffHasChange } from '../shared/git-diff-change-presence'
 import { checkIgnoredPathsOp } from './git-handler-check-ignore'
 import { resolveRelayPushTarget } from './git-handler-push-target'
 import {
@@ -101,15 +95,6 @@ import { streamRelayGitStdout } from './git-stdout-stream'
 const execFileAsync = promisify(execFile)
 const MAX_GIT_BUFFER = 10 * 1024 * 1024
 const BULK_CHUNK_SIZE = 100
-
-function resolveSubmoduleStatusArea(
-  params: Record<string, unknown>
-): 'staged' | 'unstaged' | 'untracked' {
-  if (params.area === 'staged' || params.area === 'unstaged' || params.area === 'untracked') {
-    return params.area
-  }
-  return 'unstaged'
-}
 
 function isWindowsAbsolutePath(value: string): boolean {
   return /^[A-Za-z]:[\\/]/.test(value) || value.startsWith('\\\\')
@@ -371,58 +356,33 @@ export class GitHandler {
     })
   }
 
-  // Why: fetch per-file submodule changes from the submodule worktree.
+  // Why: fetch the submodule's own `git status`, nothing more. It used to also synthesize
+  // rows for the parent's recorded gitlink -> the submodule's HEAD, which put files that are
+  // already committed inside the submodule into a list the user reads as their own changes.
+  // `area` is still accepted for wire compatibility and deliberately ignored — a submodule's
+  // status is the same question whichever parent section its gitlink row sits in.
   private async getSubmoduleStatus(params: Record<string, unknown>, context: RequestContext) {
     const worktreePath = params.worktreePath as string
     const submodulePath = params.submodulePath as string
-    const area = resolveSubmoduleStatusArea(params)
-    const staged = area === 'staged'
     const resolved = resolveSubmoduleWorktreePath(worktreePath, submodulePath)
-    const limit = resolveGitStatusLimit(params.limit)
-    // Why: staged expansion only represents HEAD→index; scanning the submodule worktree is wasted work.
-    const workingResult = staged
-      ? { entries: [], conflictOperation: 'unknown' }
-      : await getStatusOp(
-          this.git.bind(this),
-          streamRelayGitStdout,
-          {
-            ...params,
-            worktreePath: resolved
-          },
-          // Why the cache: the narrowing in getStatusOp is gated on it, so leaving
-          // it out skipped `submodule.<name>.ignore` for a NESTED gitlink inside an
-          // expanded submodule — over SSH only. The main process has no such gate
-          // (getSubmoduleStatus routes through getStatus), so omitting it broke the
-          // local/relay parity this rule is supposed to hold.
-          { signal: context.signal, submoduleIgnorePolicyCache: this.submoduleIgnorePolicyCache }
-        )
-    // Why: pointer/range probes are part of the same SSH request and must not outlive its cancellation.
-    const requestGit: GitExec = (args, cwd, options) =>
-      this.git(args, cwd, { ...options, signal: context.signal })
-    // Why: moved clean gitlinks need committed changes surfaced.
-    const { fromOid, toOid } = await resolveSubmoduleCommitRange(
-      requestGit,
-      worktreePath,
-      submodulePath,
-      staged
+    await assertSubmoduleWorktreeRoot(
+      (args, cwd, options) => this.git(args, cwd, { ...options, signal: context.signal }),
+      resolved
     )
-    if (fromOid && toOid && fromOid !== toOid) {
-      const rangeEntries = await computeSubmoduleRangeEntries(requestGit, resolved, fromOid, toOid)
-      if (staged) {
-        return { ...workingResult, ...capGitStatusEntries(rangeEntries, limit) }
-      }
-      // Why: mirrors the main-process merge — uncommitted rows win over range rows
-      // so a submodule on its own branch doesn't hide the user's actual edits.
-      const entries = mergeSubmoduleRangeWithWorkingEntries(rangeEntries, workingResult.entries)
-      return {
-        ...workingResult,
-        ...capGitStatusEntries(entries, limit, workingResult)
-      }
-    }
-    if (staged) {
-      return { ...workingResult, entries: [] }
-    }
-    return workingResult
+    return getStatusOp(
+      this.git.bind(this),
+      streamRelayGitStdout,
+      {
+        ...params,
+        worktreePath: resolved
+      },
+      // Why the cache: the narrowing in getStatusOp is gated on it, so leaving
+      // it out skipped `submodule.<name>.ignore` for a NESTED gitlink inside an
+      // expanded submodule — over SSH only. The main process has no such gate
+      // (getSubmoduleStatus routes through getStatus), so omitting it broke the
+      // local/relay parity this rule is supposed to hold.
+      { signal: context.signal, submoduleIgnorePolicyCache: this.submoduleIgnorePolicyCache }
+    )
   }
 
   private async checkIgnored(params: Record<string, unknown>) {
@@ -476,27 +436,8 @@ export class GitHandler {
               matchedSubmodule
             )
             const innerPath = normalizedFilePath.slice(matchedSubmodule.length + 1)
-            const { fromOid, toOid } = await resolveSubmoduleCommitRange(
-              this.git.bind(this),
-              worktreePath,
-              matchedSubmodule,
-              staged
-            )
-            // Why: mirrors the main process — a submodule on its own branch has a
-            // permanently moved gitlink, so the range is not evidence that this
-            // file's change is committed. An empty range means an uncommitted edit.
-            if (fromOid && toOid && fromOid !== toOid) {
-              const rangeDiff = await buildSubmoduleInnerCommitRangeDiff(
-                this.gitBuffer.bind(this),
-                submoduleWorktreePath,
-                innerPath,
-                fromOid,
-                toOid
-              )
-              if (gitDiffHasChange(rangeDiff)) {
-                return rangeDiff
-              }
-            }
+            // Why straight through: an inner row now only ever comes from the submodule's
+            // own status, so its diff is the submodule's own working-tree diff.
             return computeDiff(
               this.gitBuffer.bind(this),
               submoduleWorktreePath,
