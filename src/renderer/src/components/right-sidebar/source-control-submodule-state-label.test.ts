@@ -1,15 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GitStatusEntry } from '../../../../shared/types'
-import en from '@/i18n/locales/en.json'
-import es from '@/i18n/locales/es.json'
-import ja from '@/i18n/locales/ja.json'
-import ko from '@/i18n/locales/ko.json'
-import zh from '@/i18n/locales/zh.json'
-import {
-  getSubmoduleCommitRangeLabel,
-  getSubmoduleCommitRangeTooltip,
-  getSubmoduleRowStateLabel
-} from './source-control-submodule-state-label'
+import { getSubmoduleRowStateLabel } from './source-control-submodule-state-label'
 
 function gitlinkRow(submodule: GitStatusEntry['submodule']): GitStatusEntry {
   return { path: 'vendor/sub', status: 'modified', area: 'unstaged', submodule }
@@ -34,63 +25,37 @@ describe('getSubmoduleRowStateLabel', () => {
     ).toBe('new commits, modified content, untracked content')
   })
 
-  it('labels nothing for an ordinary file or for a row inside a submodule', () => {
+  it('labels nothing for an ordinary file', () => {
     expect(
       getSubmoduleRowStateLabel({ path: 'a.txt', status: 'modified', area: 'unstaged' })
-    ).toBeNull()
-    expect(
-      getSubmoduleRowStateLabel({
-        ...gitlinkRow({ commitChanged: true, trackedChanges: false, untrackedChanges: false }),
-        path: 'vendor/sub/inner.txt',
-        submoduleRoot: 'vendor/sub'
-      })
     ).toBeNull()
   })
 })
 
-describe('getSubmoduleCommitRangeLabel', () => {
-  it('marks a recorded-gitlink→checkout row as already committed', () => {
-    expect(
-      getSubmoduleCommitRangeLabel({
-        path: 'vendor/sub/pulled-a.txt',
-        status: 'added',
-        area: 'unstaged',
-        submoduleRoot: 'vendor/sub',
-        submoduleCommitRange: true
-      })
-    ).toBe('committed in submodule')
-  })
-
-  it('serves the row tooltip from the catalog in every shipped locale', () => {
-    // Why pin this: the tooltip started life as a module-scope const in
-    // SourceControl.tsx, which the coverage auditor never classifies — it only
-    // inspects literals inside JSX attributes, object properties and calls. The
-    // gate stayed green while the string rendered untranslated English next to a
-    // sub-label this same feature had translated five ways.
-    const key = 'sourceControl.submoduleCommitRangeTooltip'
-    const catalogs: Record<string, { sourceControl?: Record<string, string> }> = {
-      en,
-      es,
-      ja,
-      ko,
-      zh
+// Why: `git status` annotates a gitlink at any depth. Gating the label on `submoduleRoot`
+// dropped it for a submodule nested inside an expanded one, which now shows that folder's
+// status verbatim and so would have carried a bare, unexplained path.
+describe('nested gitlink rows', () => {
+  it('labels a gitlink that lives inside an expanded submodule', () => {
+    const nested: GitStatusEntry = {
+      path: 'vendor/sub/inner',
+      status: 'modified',
+      area: 'unstaged',
+      submoduleRoot: 'vendor/sub',
+      submodule: { commitChanged: true, trackedChanges: false, untrackedChanges: false }
     }
 
-    for (const [locale, catalog] of Object.entries(catalogs)) {
-      const value = catalog.sourceControl?.submoduleCommitRangeTooltip
-      expect(value, `${key} missing from ${locale}.json`).toBeTruthy()
-    }
-    expect(getSubmoduleCommitRangeTooltip()).toBe(en.sourceControl.submoduleCommitRangeTooltip)
+    expect(getSubmoduleRowStateLabel(nested)).toBe('new commits')
   })
 
-  it('leaves the user own uncommitted edit unlabelled', () => {
-    expect(
-      getSubmoduleCommitRangeLabel({
-        path: 'vendor/sub/subfile.txt',
-        status: 'modified',
-        area: 'unstaged',
-        submoduleRoot: 'vendor/sub'
-      })
-    ).toBeNull()
+  it('stays null for an ordinary file inside a submodule', () => {
+    const inner: GitStatusEntry = {
+      path: 'vendor/sub/a.txt',
+      status: 'modified',
+      area: 'unstaged',
+      submoduleRoot: 'vendor/sub'
+    }
+
+    expect(getSubmoduleRowStateLabel(inner)).toBeNull()
   })
 })

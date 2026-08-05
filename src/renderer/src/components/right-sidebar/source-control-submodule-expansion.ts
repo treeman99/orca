@@ -59,14 +59,20 @@ export function parseSubmoduleExpansionKey(
 }
 
 /**
- * Any changed submodule is shown as an expandable row: worktree dirtiness
- * (tracked/untracked) expands to the inner `git status`, and a moved commit
- * pointer expands to the files changed between the recorded and checked-out
- * commits. Already-inner rows (`submoduleRoot` set) never expand again.
+ * A changed submodule row opens to that submodule's own `git status`.
+ *
+ * `commitChanged` still counts even though a moved pointer produces no status rows on its
+ * own: the branch label beside the row is fetched by this same predicate, and a submodule
+ * parked on its own branch with a clean worktree is exactly the case where "which branch is
+ * this on" is the only thing worth showing. It opens to an explained empty list.
+ *
+ * A staged gitlink row does not open. Its expansion would be the same submodule status the
+ * unstaged row already shows, and staging a gitlink records a pointer, not file contents —
+ * the same reason the parent cannot stage anything inside a submodule.
  */
 export function isExpandableSubmoduleEntry(entry: GitStatusEntry): boolean {
   const submodule = entry.submodule
-  if (!submodule || entry.submoduleRoot) {
+  if (!submodule || entry.submoduleRoot || entry.area === 'staged') {
     return false
   }
   return submodule.commitChanged || submodule.trackedChanges || submodule.untrackedChanges
@@ -76,21 +82,21 @@ export function isExpandableSubmoduleEntry(entry: GitStatusEntry): boolean {
  * Build the read-only inner entry for a submodule child row. The inner path is
  * relative to the submodule root, so it is prefixed with the submodule path
  * (drives diff routing) and stamped with `submoduleRoot` (drives read-only
- * gating). Staged parent gitlink rows force staged children because their
- * expansion represents HEAD->index, but worktree-only rows keep the inner
- * entry's own area so staged-only submodule changes don't open empty diffs.
+ * gating).
+ *
+ * The child keeps its OWN area. It used to be overwritten by the parent gitlink's when that
+ * was staged, back when a staged expansion meant a HEAD->index range; the expansion is now
+ * the submodule's own status, where a row's area is a fact about the submodule's index and
+ * relabelling it would make the panel disagree with `git status` in that folder.
  */
 export function buildSubmoduleChildEntry(
   submodulePath: string,
-  innerEntry: GitStatusEntry,
-  parentArea: GitStatusEntry['area'] = innerEntry.area
+  innerEntry: GitStatusEntry
 ): GitStatusEntry {
-  const area = parentArea === 'staged' ? 'staged' : innerEntry.area
   return {
     ...innerEntry,
     path: `${submodulePath}/${innerEntry.path}`,
     ...(innerEntry.oldPath ? { oldPath: `${submodulePath}/${innerEntry.oldPath}` } : {}),
-    area,
     submoduleRoot: submodulePath
   }
 }
@@ -104,7 +110,7 @@ export function buildSubmoduleChildNodes(
 ): (SubmoduleSectionTreeNode & { type: 'file' })[] {
   const submodulePath = parent.entry.path
   return innerEntries.map((innerEntry) => {
-    const childEntry = buildSubmoduleChildEntry(submodulePath, innerEntry, parent.entry.area)
+    const childEntry = buildSubmoduleChildEntry(submodulePath, innerEntry)
     return {
       type: 'file',
       key: `${childEntry.area}::${childEntry.path}`,
@@ -182,7 +188,7 @@ export function injectExpandedSubmoduleEntries(
     for (const innerEntry of state.entries) {
       result.push({
         type: 'entry',
-        entry: buildSubmoduleChildEntry(submodulePath, innerEntry, entry.area)
+        entry: buildSubmoduleChildEntry(submodulePath, innerEntry)
       })
     }
     if (state.didHitLimit) {

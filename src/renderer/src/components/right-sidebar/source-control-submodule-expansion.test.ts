@@ -464,12 +464,18 @@ describe('getSubmoduleExpansionKey', () => {
     ).toBe(FLUTTER_KEY)
   })
 
-  it('keeps staged children in the staged area for diff routing', () => {
+  // A staged gitlink row no longer opens at all: its expansion would repeat the submodule
+  // status the unstaged row already shows, and staging a gitlink records a pointer rather
+  // than file contents.
+  it('does not expand a staged gitlink row', () => {
     const entry = submoduleEntry({
       path: 'flutter_mine',
       area: 'staged',
       submodule: { commitChanged: true, trackedChanges: false, untrackedChanges: false }
     })
+
+    expect(isExpandableSubmoduleEntry(entry)).toBe(false)
+
     const result = injectExpandedSubmoduleEntries(
       [entry],
       new Set(['staged::flutter_mine']),
@@ -483,13 +489,36 @@ describe('getSubmoduleExpansionKey', () => {
       EMPTY
     )
 
-    expect(result[1]).toMatchObject({
-      type: 'entry',
-      entry: {
-        path: 'flutter_mine/lib/main.dart',
-        area: 'staged',
-        submoduleRoot: 'flutter_mine'
-      }
+    expect(result).toHaveLength(1)
+  })
+
+  // The child's area is a fact about the SUBMODULE's index; relabelling it would make the
+  // panel disagree with `git status` run in that folder.
+  it('keeps each child row in the area the submodule reported', () => {
+    const entry = submoduleEntry({
+      path: 'flutter_mine',
+      area: 'unstaged',
+      submodule: { commitChanged: false, trackedChanges: true, untrackedChanges: true }
     })
+    const result = injectExpandedSubmoduleEntries(
+      [entry],
+      new Set([FLUTTER_KEY]),
+      {
+        [FLUTTER_KEY]: {
+          status: 'loaded',
+          entries: [
+            { path: 'lib/main.dart', status: 'modified', area: 'staged' },
+            { path: 'lib/new.dart', status: 'untracked', area: 'untracked' }
+          ]
+        }
+      },
+      LOADING,
+      EMPTY
+    )
+
+    expect(result.slice(1)).toMatchObject([
+      { type: 'entry', entry: { path: 'flutter_mine/lib/main.dart', area: 'staged' } },
+      { type: 'entry', entry: { path: 'flutter_mine/lib/new.dart', area: 'untracked' } }
+    ])
   })
 })

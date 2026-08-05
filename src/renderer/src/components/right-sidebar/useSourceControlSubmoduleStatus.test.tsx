@@ -230,12 +230,9 @@ describe('useSourceControlSubmoduleStatus', () => {
     })
   })
 
-  it('passes the row area when expanding a staged submodule row', async () => {
-    mocks.getRuntimeGitSubmoduleStatus.mockResolvedValue({
-      entries: [innerEntry('from-index.ts')],
-      didHitLimit: true
-    })
-
+  // A staged gitlink row no longer opens: its expansion would repeat the submodule status
+  // the unstaged row already shows, and staging a gitlink records a pointer, not contents.
+  it('never fetches for a staged submodule row', async () => {
     const container = document.createElement('div')
     const root = createRoot(container)
     roots.push(root)
@@ -249,16 +246,8 @@ describe('useSourceControlSubmoduleStatus', () => {
     })
     await flush()
 
-    expect(mocks.getRuntimeGitSubmoduleStatus).toHaveBeenCalledWith(
-      expect.objectContaining({ worktreeId: 'A', worktreePath: '/a' }),
-      'sub',
-      'staged'
-    )
-    expect(latest?.submoduleStatusByKey['staged::sub']).toEqual({
-      status: 'loaded',
-      entries: [innerEntry('from-index.ts')],
-      didHitLimit: true
-    })
+    expect(mocks.getRuntimeGitSubmoduleStatus).not.toHaveBeenCalled()
+    expect(latest?.submoduleStatusByKey['staged::sub']).toBeUndefined()
   })
 
   it('keeps the submodule own branch and head from the inner status', async () => {

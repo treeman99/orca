@@ -1,5 +1,6 @@
 import type { GitStatusEntry } from '../../../../shared/types'
 import { translate } from '@/i18n/i18n'
+import { isSubmoduleGitlinkRow } from './source-control-submodule-gitlink-row'
 
 /**
  * The sub-label that tells a submodule row apart from an ordinary edited file.
@@ -12,7 +13,11 @@ import { translate } from '@/i18n/i18n'
  */
 export function getSubmoduleRowStateLabel(entry: GitStatusEntry): string | null {
   const submodule = entry.submodule
-  if (!submodule || entry.submoduleRoot) {
+  // Why depth-independent: `git status` annotates a gitlink at any depth, so a submodule
+  // nested inside an expanded one must carry the same parenthetical. Gating on
+  // `submoduleRoot` silently dropped it there, and the expansion now advertises itself as
+  // that folder's `git status`.
+  if (!submodule || !isSubmoduleGitlinkRow(entry)) {
     return null
   }
   const parts: string[] = []
@@ -26,27 +31,4 @@ export function getSubmoduleRowStateLabel(entry: GitStatusEntry): string | null 
     parts.push(translate('sourceControl.submoduleUntrackedContent', 'untracked content'))
   }
   return parts.length > 0 ? parts.join(', ') : null
-}
-
-/**
- * Label for a row synthesized from the parent's recorded gitlink → the
- * submodule's checked-out HEAD. These files are committed inside the submodule;
- * after a branch switch they are whatever the other branch recorded, so saying
- * so is the difference between "someone else's commit" and "my edit".
- */
-export function getSubmoduleCommitRangeLabel(entry: GitStatusEntry): string | null {
-  return entry.submoduleCommitRange
-    ? translate('sourceControl.submoduleCommittedInSubmodule', 'committed in submodule')
-    : null
-}
-
-/** Tooltip for that same row. Lives here, not as a module const in
- *  SourceControl.tsx, because the coverage auditor only classifies literals
- *  *inside* JSX props or calls — a bare const initializer slips past the gate
- *  while still rendering untranslated English. */
-export function getSubmoduleCommitRangeTooltip(): string {
-  return translate(
-    'sourceControl.submoduleCommitRangeTooltip',
-    'Already committed inside the submodule — this file differs between the commit the parent records and the one checked out, not because you edited it'
-  )
 }

@@ -14898,9 +14898,7 @@
     "submoduleBranchDiffersFromParent": "(differs from root)",
     "submoduleNewCommits": "new commits",
     "submoduleModifiedContent": "modified content",
-    "submoduleUntrackedContent": "untracked content",
-    "submoduleCommittedInSubmodule": "committed in submodule",
-    "submoduleCommitRangeTooltip": "Already committed inside the submodule — this file differs between the commit the parent records and the one checked out, not because you edited it"
+    "submoduleUntrackedContent": "untracked content"
   },
   "featureTips": {
     "voice": {

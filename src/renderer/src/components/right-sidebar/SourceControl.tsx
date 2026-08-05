@@ -82,11 +82,7 @@ import {
   runDiscardAllForArea,
   type DiscardAllArea
 } from './discard-all-sequence'
-import {
-  getSubmoduleCommitRangeLabel,
-  getSubmoduleCommitRangeTooltip,
-  getSubmoduleRowStateLabel
-} from './source-control-submodule-state-label'
+import { getSubmoduleRowStateLabel } from './source-control-submodule-state-label'
 import {
   canDiscardStatusEntry,
   canStageStatusEntry,
@@ -7912,7 +7908,6 @@ const UncommittedEntryRow = React.memo(function UncommittedEntryRow({
   const isUnresolvedConflict = entry.conflictStatus === 'unresolved'
   const isSubmoduleWorktreeOnly = isSubmoduleWorktreeOnlyChange(entry)
   const submoduleStateLabel = getSubmoduleRowStateLabel(entry)
-  const submoduleCommitRangeLabel = getSubmoduleCommitRangeLabel(entry)
   const conflictLabel = entry.conflictKind
     ? getLocalizedConflictKindLabel(entry.conflictKind)
     : null
@@ -8007,16 +8002,6 @@ const UncommittedEntryRow = React.memo(function UncommittedEntryRow({
             // gitlink left behind by checkout/pull reads as a file the user edited.
             <div className="truncate text-[11px] text-muted-foreground">
               ({submoduleStateLabel})
-            </div>
-          )}
-          {submoduleCommitRangeLabel && (
-            // Why: this row came from the recorded-gitlink→checkout range, so it is
-            // committed inside the submodule, not uncommitted work of the user's.
-            <div
-              className="truncate text-[11px] text-muted-foreground"
-              title={getSubmoduleCommitRangeTooltip()}
-            >
-              ({submoduleCommitRangeLabel})
             </div>
           )}
           {isSubmoduleWorktreeOnly && (
