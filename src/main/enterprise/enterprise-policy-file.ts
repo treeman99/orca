@@ -73,9 +73,13 @@ function machineWidePolicyPath(platform: NodeJS.Platform, env: PolicyEnv): strin
  * the machine-wide file an administrator deployed.
  *
  * `bundledPolicyPath` is the build's own default (see `getEnterprisePolicy`).
- * It is deliberately ignored when the environment may override, because only a
- * packaged build has resources to bundle — keeping it out of that branch is
- * what stops `pnpm dev` and vitest from picking up a shipped lockdown.
+ * It ranks differently in the two modes on purpose. In a packaged build it sits
+ * above everything a standard user can write. In an unpackaged one it is the
+ * LAST resort, below both the machine-wide file and the developer's own per-user
+ * one — enough to make `pnpm dev` of this fork show the fleet's UI without any
+ * setup (which is what made "codex is still listed" so easy to misread), while a
+ * local override and `ORCA_ENTERPRISE_POLICY=off` both still win. vitest and the
+ * E2E harness set that opt-out, so the suite never picks up the lockdown.
  */
 export function enterprisePolicySearchPaths(
   env: PolicyEnv,
@@ -99,7 +103,7 @@ export function enterprisePolicySearchPaths(
     ? pathFor(platform).join(userDataDir, ENTERPRISE_POLICY_FILE_NAME)
     : null
   const candidates = allowEnvOverride
-    ? [machineWidePolicyPath(platform, env), perUser]
+    ? [machineWidePolicyPath(platform, env), perUser, bundledPolicyPath]
     : [machineWidePolicyPath(platform, env), bundledPolicyPath, explicitPath, perUser]
   return candidates.filter((candidate): candidate is string => candidate !== null)
 }
@@ -206,6 +210,34 @@ function packagedBundledPolicyPath(): string | null {
     : null
 }
 
+// The same default, read from the checkout `pnpm dev` is running — `resources/` is
+// exactly what the installer copies to `resourcesPath`. Without it an unpackaged run
+// of this fork resolved NO policy at all, so every screen looked upstream (all the
+// agent pickers, vendor accounts, mobile) and a dev check "proved" a gate was broken
+// that in fact never had a policy to apply.
+//
+// Measured, not assumed: electron-vite spawns `electron out/main/index.js`, and Electron
+// then reports the ENTRY's directory as the app path — so getAppPath() is `<checkout>/out/main`
+// and joining `resources/` onto it silently finds nothing. A plain `electron .` launch
+// reports the checkout itself, so only trim the suffix when it is really there.
+const DEV_MAIN_BUNDLE_DIR = path.join('out', 'main')
+
+function devCheckoutPolicyPath(): string | null {
+  try {
+    const appPath = app?.getAppPath?.()
+    if (!appPath) {
+      // Electron is absent (unit tests): no checkout default, so the suite stays upstream.
+      return null
+    }
+    const checkoutRoot = appPath.endsWith(DEV_MAIN_BUNDLE_DIR)
+      ? path.resolve(appPath, '..', '..')
+      : appPath
+    return path.join(checkoutRoot, 'resources', ENTERPRISE_POLICY_FILE_NAME)
+  } catch {
+    return null
+  }
+}
+
 let cached: EnterprisePolicy | null = null
 
 /**
@@ -224,7 +256,7 @@ export function getEnterprisePolicy(): EnterprisePolicy {
     process.platform,
     currentUserDataDir(),
     allowEnvOverride,
-    allowEnvOverride ? null : packagedBundledPolicyPath()
+    allowEnvOverride ? devCheckoutPolicyPath() : packagedBundledPolicyPath()
   )
   searchedPaths = candidates
   const loaded = readPolicyDocument(candidates)

@@ -7,9 +7,20 @@ vi.mock('node:fs', () => ({
   readFileSync: (target: string, encoding: string) => readFileSyncMock(target, encoding)
 }))
 
-const { electronApp } = vi.hoisted(() => ({
-  electronApp: { getPath: () => '/home/dev/.config/Orca', isPackaged: false }
-}))
+// `checkout.root` empty means "no checkout default resolvable", which is what every
+// case except the dev-run ones wants — otherwise the fork's own resources/ policy
+// would join the search in an unpackaged build and change unrelated expectations.
+const { electronApp, checkout } = vi.hoisted(() => {
+  const checkout = { root: '' }
+  return {
+    checkout,
+    electronApp: {
+      getPath: () => '/home/dev/.config/Orca',
+      getAppPath: () => checkout.root,
+      isPackaged: false
+    }
+  }
+})
 vi.mock('electron', () => ({ app: electronApp }))
 
 import {
@@ -62,6 +73,7 @@ beforeEach(() => {
   readFileSyncMock.mockReset()
   readFileSyncMock.mockImplementation(enoent)
   electronApp.isPackaged = false
+  checkout.root = ''
   stubResourcesPath(undefined)
 })
 
@@ -226,16 +238,28 @@ describe('enterprisePolicySearchPaths', () => {
   // appear here, config/vitest-enterprise-policy-isolation.ts would stop working and
   // the whole suite would run under lockdown on a corporate build machine.
   describe('with the environment override allowed (dev and vitest)', () => {
-    it('omits the bundled candidate even when one is supplied', () => {
+    it('keeps the checkout default as the last resort so a dev run is still locked down', () => {
       expect(
         enterprisePolicySearchPaths(
           {},
           'linux',
           '/home/dev/.config/Orca',
           true,
-          '/opt/Orca/resources/enterprise-policy.json'
+          '/checkout/resources/enterprise-policy.json'
         )
-      ).toEqual([MACHINE_WIDE_LINUX, USER_LEVEL])
+      ).toEqual([MACHINE_WIDE_LINUX, USER_LEVEL, '/checkout/resources/enterprise-policy.json'])
+    })
+
+    it('lets an explicit path replace the checkout default, so an unlocked A/B stays possible', () => {
+      expect(
+        enterprisePolicySearchPaths(
+          { [ENTERPRISE_POLICY_PATH_ENV]: '/home/dev/relaxed.json' },
+          'linux',
+          '/home/dev/.config/Orca',
+          true,
+          '/checkout/resources/enterprise-policy.json'
+        )
+      ).toEqual(['/home/dev/relaxed.json'])
     })
 
     it('still resolves to no candidates at all for the suite opt-out', () => {
@@ -443,7 +467,7 @@ describe('getEnterprisePolicy', () => {
     })
   })
 
-  it('does not search a bundled path in an unpackaged build', () => {
+  it('does not search the installer resources path in an unpackaged build', () => {
     stubResourcesPath(RESOURCES_DIR)
     vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '')
     readFileSyncMock.mockImplementation((target: string) =>
@@ -451,6 +475,43 @@ describe('getEnterprisePolicy', () => {
     )
     expect(getEnterprisePolicy().lockdown).toBe(false)
     expect(getEnterprisePolicyResolutionTrace().searchedPaths).not.toContain(BUNDLED)
+  })
+
+  // The regression this pair pins: `pnpm dev` used to resolve NO policy, so Settings →
+  // Agents and the automation picker listed every vendor and looked like a broken gate.
+  describe('with the fork checkout as the default (pnpm dev)', () => {
+    const CHECKOUT_POLICY = path.join('/checkout', 'resources', 'enterprise-policy.json')
+
+    beforeEach(() => {
+      // What electron-vite's `electron out/main/index.js` actually reports, not the checkout.
+      checkout.root = path.join('/checkout', 'out', 'main')
+      vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '')
+    })
+
+    it('also finds it when the launcher reports the checkout itself', () => {
+      checkout.root = '/checkout'
+      readFileSyncMock.mockImplementation((target: string) =>
+        target === CHECKOUT_POLICY ? '{ "allowedAgents": ["claude"] }' : enoent()
+      )
+      expect(getEnterprisePolicy().allowedAgents).toEqual(['claude'])
+    })
+
+    it("applies the checkout's own policy so a dev run shows the fleet's agent list", () => {
+      readFileSyncMock.mockImplementation((target: string) =>
+        target === CHECKOUT_POLICY ? '{ "allowedAgents": ["claude", "opencode"] }' : enoent()
+      )
+      expect(getEnterprisePolicy().allowedAgents).toEqual(['claude', 'opencode'])
+    })
+
+    it("keeps a developer's per-user file above it", () => {
+      readFileSyncMock.mockImplementation((target: string) => {
+        if (target === userLevelPath()) {
+          return '{ "allowedAgents": ["codex"] }'
+        }
+        return target === CHECKOUT_POLICY ? '{ "allowedAgents": ["claude"] }' : enoent()
+      })
+      expect(getEnterprisePolicy().allowedAgents).toEqual(['codex'])
+    })
   })
 
   it('still honors the opt-out in an unpackaged build so the suite can isolate itself', () => {

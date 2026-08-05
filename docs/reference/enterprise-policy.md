@@ -24,7 +24,7 @@ Orca가 `process.env`에서 읽는 값은 **Orca가 스폰하는 프로세스가
 
 > 🔒 **이것이 보안 경계입니다.** Windows에서는 표준 사용자도 관리자 권한 없이 자기 계정의 환경변수를 만들 수 있습니다(`setx ORCA_ENTERPRISE_POLICY off` 한 줄). 환경변수 무력화가 무조건 통했다면 사내 잠금이 **명령어 하나로 우회**됐을 것입니다. 그래서 패키징 빌드에서는 환경변수가 후보를 **추가**만 할 수 있고, 관리자가 배포한 머신 전역 파일이나 빌드에 내장된 번들 정책에서 **다른 곳으로 돌리거나 그것을 끄지 못합니다** (`enterprise-policy-file.ts:65-79` 주석). 판정 신호로 `app.isPackaged`를 쓰는 이유도 같습니다 — 표준 사용자가 바꿀 수 없는 유일한 신호입니다 (`:189-190` 주석).
 
-비패키징에서 옛 동작을 남겨 둔 것은 개발·테스트 때문입니다. `config/vitest-enterprise-policy-isolation.ts:6`이 `ORCA_ENTERPRISE_POLICY=off`를 박아, 이 포크를 빌드하는 사내 머신(머신 전역 정책 파일이 이미 깔려 있는 PC)에서 vitest가 lockdown 상태로 돌지 않게 합니다. 테스트 러너는 패키징 빌드가 아니므로 이 값이 그대로 듣습니다. **번들 정책도 같은 경계 위에 있습니다** — 후보 조립이 `allowEnvOverride`가 `false`인 분기에서만 번들을 넣으므로(`enterprise-policy-file.ts:101-104`), `pnpm dev`와 vitest에는 애초에 나타나지 않습니다.
+비패키징에서 옛 동작을 남겨 둔 것은 개발·테스트 때문입니다. `config/vitest-enterprise-policy-isolation.ts:6`이 `ORCA_ENTERPRISE_POLICY=off`를 박아, 이 포크를 빌드하는 사내 머신(머신 전역 정책 파일이 이미 깔려 있는 PC)에서 vitest가 lockdown 상태로 돌지 않게 합니다. 테스트 러너는 패키징 빌드가 아니므로 이 값이 그대로 듣습니다. **번들 정책도 이 옵트아웃 뒤에 있습니다** — 비패키징에서는 체크아웃의 `resources/enterprise-policy.json`이 맨 마지막 후보로 붙지만(§2), 무력화 값이면 후보 목록 자체가 비므로 vitest와 E2E는 그 앞에서 멈춥니다.
 
 ### 더 이상 존재하지 않는 환경변수
 
@@ -62,13 +62,18 @@ ORCA_GITHUB_ENTERPRISE_HOST
 | 3 | `ORCA_ENTERPRISE_POLICY`가 가리키는 경로 | 무력화 값(`off` 등)이면 후보에서 빠질 뿐, 위 1·2순위는 그대로 남습니다 |
 | 4 | **사용자별** — `%APPDATA%\Orca\enterprise-policy.json` | `:98-100` |
 
-**비패키징(`pnpm dev`·vitest)** — 번들 후보는 **나타나지 않습니다** (`:101-102`).
+**비패키징(`pnpm dev`·vitest)** — 번들 후보가 **맨 아래**에 붙습니다.
 
 | 순위 | 위치 | 비고 |
 | --- | --- | --- |
 | 1 | `ORCA_ENTERPRISE_POLICY`가 가리키는 경로 | 이 값이 있으면 아래를 아예 보지 않음. 무력화 값이면 후보 없음(정책 미적용) |
 | 2 | 머신 전역 (위와 동일) | |
-| 3 | 사용자별 — `<userData>/enterprise-policy.json` | |
+| 3 | 사용자별 — `<userData>/enterprise-policy.json` | dev 인스턴스는 `<userData>`가 `orca-dev`입니다 |
+| 4 | **체크아웃** — `<체크아웃>/resources/enterprise-policy.json` | 저장소의 번들 원본 그대로. 아래 주석 참고 |
+
+> 🧪 **4순위가 있는 이유.** 없을 때 `pnpm dev`는 정책을 **하나도** 못 찾았고, 그러면 모든 화면이 upstream 그대로 보입니다 — 설정 → 에이전트에 `codex`가, 자동화 편집 창의 에이전트 드롭다운에 `gemini`·`copilot`이 그대로 나옵니다. 게이트가 깨진 것처럼 보이지만 실제로는 **적용할 정책이 없었던 것**이라, dev로 확인할 때마다 같은 오진이 반복됐습니다. 이제 이 포크를 체크아웃에서 그냥 띄우면 플릿과 같은 화면이 나옵니다. **잠금 없는 상태와 비교하려면 `ORCA_ENTERPRISE_POLICY=off`** — 무력화 값은 비패키징에서 여전히 그대로 듣습니다.
+>
+> 경로 해석은 `app.getAppPath()` 기준인데, electron-vite가 `electron out/main/index.js` 형태로 띄우므로 이 값은 체크아웃이 아니라 **`<체크아웃>/out/main`** 입니다(실측). 그래서 그 접미사가 붙어 있을 때만 두 단계 올라갑니다 (`enterprise-policy-file.ts`의 `devCheckoutPolicyPath`).
 
 > **다른 OS 각주.** 이 배포는 Windows x64 전용이라 위 표는 Windows 경로만 싣지만 **코드는 세 OS를 그대로 지원합니다**: 머신 전역 경로가 macOS는 `/Library/Application Support/Orca/enterprise-policy.json`(`enterprise-policy-file.ts:59-61`), Linux는 `/etc/orca/enterprise-policy.json`(`:62`)입니다. 번들 후보도 세 OS 모두에 실립니다(`commonExtraResources`) — macOS는 `Orca.app/Contents/Resources/enterprise-policy.json`, Linux는 `<AppImage 마운트>/resources/enterprise-policy.json`. 4순위의 `<userData>`는 Electron 규약대로 Windows `%APPDATA%\Orca`, macOS `~/Library/Application Support/Orca`, Linux `~/.config/Orca`입니다. 배치 절차는 §6-2.
 
@@ -568,6 +573,7 @@ Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "enterpr
 | 사용자가 자기 파일로 풀어버림? | 불가능. 머신 전역·번들이 먼저 읽히면 `%APPDATA%`의 사용자 파일은 읽히지 않음 (`:80-105`) | — |
 | **사용자가 `setx ORCA_ENTERPRISE_POLICY off`로 풀어버림?** | 패키징 빌드에서는 불가능. 환경변수는 후보를 추가만 하고 머신 전역·번들이 항상 먼저 탐색됩니다 (`:90-104`, `:191-197`) | 단, **`pnpm dev`로 띄운 비패키징 인스턴스에는 그대로 듣습니다.** 사용자 PC에 개발 체크아웃을 두지 마세요 |
 | 개발 인스턴스로 커스텀 경로를 지정했는데 무시됨 | 패키징 빌드로 시험했기 때문. 머신 전역·번들 파일이 있으면 환경변수 경로는 3순위라 읽히지 않습니다 (§2) | 커스텀 경로는 비패키징에서만 1순위입니다. 플릿에서는 번들 기본값 또는 머신 전역 경로를 쓰세요 |
+| **설정 → 에이전트나 자동화 드롭다운에 `codex`·`gemini`·`copilot`이 그대로 보임** | 십중팔구 게이트 문제가 아니라 **정책이 하나도 적용되지 않은 인스턴스**를 보고 있는 것입니다. ① upstream Orca(사내 포크가 아닌 빌드)를 열었거나, ② `ORCA_ENTERPRISE_POLICY=off`가 걸려 있거나, ③ 이 포크 이전 버전의 `pnpm dev`. `allowedAgents`는 lockdown을 **상속하지 않으므로**, 정책 파일이 없으면 제한이 전혀 걸리지 않습니다 | §7-2 트레이스의 `…source_path`를 먼저 보세요 — `(none found)`이면 정책 자체가 없는 것이라 UI 코드를 아무리 고쳐도 바뀌지 않습니다. 그다음 `…allowed_agents`에 `claude`·`opencode`가 있는지 확인. 사내 포크의 체크아웃이라면 `pnpm dev`만으로 4순위 후보가 잡힙니다(§2) |
 | 테스트/CI에서 정책이 안 먹음 | 의도된 동작. `config/vitest-enterprise-policy-isolation.ts`가 `ORCA_ENTERPRISE_POLICY=off`, `GH_HOST` 삭제, `GH_CONFIG_DIR`을 없는 경로로 고정. 테스트 러너는 비패키징이라 이 값들이 유효합니다 | — |
 | **`gh`를 사내 호스트로 바꿨는데 앱은 계속 github.com으로 보임** | 원인이 셋입니다. ①`gh auth login --hostname`은 환경변수가 아니라 `hosts.yml`에 씁니다 → 이제 앱이 그 파일을 읽습니다(§3-4). ②userData의 `github-enterprise-host.json`에 `github.com`이 저장돼 있으면 관리자 정책보다 우선했습니다 → 이제 벤더 호스트는 저장되지 않습니다. ③`gh`에 두 개 이상의 호스트가 로그인돼 있으면 `gh` 자신이 `github.com`을 기본값으로 쓰므로 앱도 추정하지 않습니다 | 설정 → Git 및 소스 제어의 "Git 호스트" **출처 문구**를 먼저 보세요(§7-1 표). 그다음 `gh auth status`로 로그인된 호스트가 사내 것 **하나뿐인지** 확인하고, 여러 개면 `gh auth logout --hostname github.com`. 확정적으로 못 박으려면 정책 파일에 `githubEnterpriseHost`를 적으세요 — 추론에 의존하지 않는 유일한 방법입니다 |
 | 리포지토리를 추가한 뒤 origin을 사내 미러로 바꿨는데 계속 github.com으로 보임 | **위와 다른 문제입니다.** `Repo.gitRemoteIdentity`(`repo-git-remote-identity-enrichment.ts`)와 `Repo.upstream`(`repo-icon-autodetect.ts`)은 추가 시점에 1회만 판정하고 다시 프로브하지 않습니다 — 정책이나 `gh` 설정과 무관합니다 | 해당 프로젝트를 제거하고 다시 추가하세요. 이 증상이 "재설치해야 고쳐진다"로 보이는 두 번째 경로입니다 |

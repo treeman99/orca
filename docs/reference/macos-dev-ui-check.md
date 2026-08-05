@@ -3,9 +3,19 @@
 설치 프로그램(`.exe`)을 만들지 않고 **맥북에서 `pnpm dev`로 사내 커스터마이즈의 UI를 확인**하는 절차입니다.
 배포는 여전히 Windows x64 전용이고([README §1](../../README.md)), 이 문서는 **화면 확인용 루프**만 다룹니다.
 
-**핵심**: `pnpm dev`는 비패키징 인스턴스라서 `ORCA_ENTERPRISE_POLICY`가 정책 탐색의 **1순위**가 됩니다
-(`src/main/enterprise/enterprise-policy-file.ts:68-75`). 즉 `%ProgramData%`도 `sudo`도 없이,
-파일 하나를 만들고 환경변수로 가리키면 사내 정책이 적용된 상태의 UI를 그대로 볼 수 있습니다.
+**핵심 1 — 아무 준비 없이 그냥 `pnpm dev`.** 체크아웃의 `resources/enterprise-policy.json`이 비패키징 탐색의
+**마지막 후보**로 붙으므로([정책 문서 §2](./enterprise-policy.md)), 파일도 환경변수도 없이 띄우면 **플릿에
+배포되는 것과 같은 정책**이 걸린 화면이 나옵니다. 잠금 **없는** 상태와 비교하고 싶을 때만
+`ORCA_ENTERPRISE_POLICY=off`를 붙이세요.
+
+> ⚠️ 확인하려는 화면이 **이 체크아웃에서 띄운 창인지** 먼저 확인하세요. `/Applications/Orca.app`(또는 사내 포크가
+> 아닌 아무 빌드)에는 이 저장소의 커밋이 하나도 들어 있지 않습니다 — 거기서 "설정 → 에이전트에 codex가 아직
+> 보인다"를 판정하면 코드를 몇 번을 고쳐도 그대로입니다. dev 인스턴스는 앱 이름이 **`Orca Dev`** 입니다
+> (`src/main/startup/dev-instance-identity.ts`).
+
+**핵심 2 — 값을 바꿔 보고 싶을 때.** `pnpm dev`는 비패키징이라 `ORCA_ENTERPRISE_POLICY`가 탐색의 **1순위**가
+됩니다(`src/main/enterprise/enterprise-policy-file.ts`의 `enterprisePolicySearchPaths`). 즉 `%ProgramData%`도
+`sudo`도 없이, 파일 하나를 만들고 환경변수로 가리키면 그 정책이 적용된 UI를 그대로 볼 수 있습니다(§3).
 
 ---
 
@@ -47,15 +57,18 @@ Electron 헤더로 빌드되고, 둘 다 N-API 애드온입니다).
 
 ---
 
-## 3. 정책 파일 만들고 붙이기
+## 3. 정책 파일 만들고 붙이기 — **값을 바꿔 볼 때만**
 
-macOS의 탐색 후보는 이 순서입니다 (`enterprise-policy-file.ts:37-47`, `:60-82`):
+플릿과 **같은** 정책을 보고 싶은 거라면 이 절은 건너뛰세요. 4순위가 이미 그 파일입니다.
+
+macOS의 탐색 후보는 이 순서입니다:
 
 | 순위 (dev) | 경로 | 비고 |
 | --- | --- | --- |
-| 1 | `$ORCA_ENTERPRISE_POLICY` | **비패키징에서만** 1순위. 이 문서가 쓰는 방법 |
+| 1 | `$ORCA_ENTERPRISE_POLICY` | **비패키징에서만** 1순위. 값을 바꿔 볼 때 쓰는 자리 |
 | 2 | `/Library/Application Support/Orca/enterprise-policy.json` | 머신 전역. `sudo` 필요 |
 | 3 | `~/Library/Application Support/orca-dev/enterprise-policy.json` | dev 인스턴스의 userData(§4). 환경변수 없이 쓰고 싶을 때 |
+| 4 | `<체크아웃>/resources/enterprise-policy.json` | **저장소에 이미 있는 사내 기본값.** 아무것도 안 하면 이게 걸립니다 |
 
 `ORCA_ENTERPRISE_POLICY=off`(또는 `none`/`disabled`/`false`/`0`)로 두면 탐색 자체를 끕니다 — 잠금 없는 상태와 비교할 때 씁니다.
 
