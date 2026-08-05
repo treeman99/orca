@@ -3,12 +3,12 @@ import { Terminal } from 'lucide-react'
 import { CUSTOM_PROMPT_PLACEHOLDER } from '../../../../shared/commit-message-prompt'
 import {
   CUSTOM_AGENT_ID,
-  listCommitMessageAgentCapabilities,
   type CommitMessageAgentCapability,
   type CommitMessageModelCapability
 } from '../../../../shared/commit-message-agent-spec'
 import type { CommitMessageAiSettings } from '../../../../shared/types'
 import { AgentIcon } from '@/lib/agent-catalog'
+import { useCommitMessageAgentCapabilities } from '@/lib/use-commit-message-agent-capabilities'
 import { cn } from '@/lib/utils'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -45,6 +45,7 @@ export function AiCommitPrSettingsFields({
   onThinkingChange,
   writeConfig
 }: AiCommitPrSettingsFieldsProps): JSX.Element {
+  const capabilities = useCommitMessageAgentCapabilities()
   return (
     <div className="flex flex-col gap-2.5">
       <div className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3">
@@ -93,7 +94,7 @@ export function AiCommitPrSettingsFields({
             </span>
           </SelectTrigger>
           <SelectContent portalContainer={selectPortalRoot} position="popper" align="start">
-            {listCommitMessageAgentCapabilities().map((capability) => (
+            {capabilities.map((capability) => (
               <SelectItem key={capability.id} value={capability.id} className="cursor-pointer">
                 <span className="flex items-center gap-2">
                   <AgentIcon agent={capability.id} size={14} />

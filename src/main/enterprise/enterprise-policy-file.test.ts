@@ -448,6 +448,71 @@ describe('getEnterprisePolicy', () => {
       stderr.mockRestore()
     })
 
+    // The reported fleet regression, end to end: an installed build whose bundled policy
+    // restricts agents, and a %ProgramData% file deployed before that key existed.
+    it('keeps the bundled agent allowlist when the machine-wide file predates the key', () => {
+      readFileSyncMock.mockImplementation((target: string) => {
+        if (target === machineWidePath()) {
+          return '{ "lockdown": true, "githubEnterpriseHost": "ghes.example" }'
+        }
+        return target === BUNDLED ? '{ "allowedAgents": ["claude", "opencode"] }' : enoent()
+      })
+
+      const policy = getEnterprisePolicy()
+
+      expect(policy.allowedAgents).toEqual(['claude', 'opencode'])
+      // The admin's own file still owns everything it does set.
+      expect(policy.sourcePath).toBe(machineWidePath())
+      expect(policy.githubEnterpriseHost).toBe('ghes.example')
+      const trace = getEnterprisePolicyResolutionTrace()
+      expect(trace.baselinePath).toBe(BUNDLED)
+      expect(trace.baselineAppliedKeys).toEqual(['allowedAgents'])
+    })
+
+    it('lets the machine-wide file choose a different allowlist', () => {
+      readFileSyncMock.mockImplementation((target: string) => {
+        if (target === machineWidePath()) {
+          return '{ "lockdown": true, "allowedAgents": ["claude", "codex"] }'
+        }
+        return target === BUNDLED ? '{ "allowedAgents": ["claude", "opencode"] }' : enoent()
+      })
+
+      expect(getEnterprisePolicy().allowedAgents).toEqual(['claude', 'codex'])
+      expect(getEnterprisePolicyResolutionTrace().baselineAppliedKeys).toEqual([])
+    })
+
+    // The install directory belongs to the user under per-user NSIS, so the bundled file
+    // must not be a way to switch an administrator's lockdown back off.
+    it('refuses to let the bundled file relax the machine-wide one', () => {
+      readFileSyncMock.mockImplementation((target: string) => {
+        if (target === machineWidePath()) {
+          return '{ "lockdown": true }'
+        }
+        return target === BUNDLED ? '{ "lockdown": false, "disableVoice": false }' : enoent()
+      })
+
+      const policy = getEnterprisePolicy()
+
+      expect(policy.lockdown).toBe(true)
+      expect(policy.disableVoice).toBe(true)
+    })
+
+    // Valid JSON whose contents are not an object used to win the search outright, shutting
+    // out the bundled default below it.
+    it('falls through to the bundled default for a candidate that is not an object', () => {
+      for (const contents of ['null', '[]', '"lockdown"', '42']) {
+        resetEnterprisePolicyCacheForTests()
+        readFileSyncMock.mockImplementation((target: string) => {
+          if (target === machineWidePath()) {
+            return contents
+          }
+          return target === BUNDLED ? '{ "allowedAgents": ["claude"] }' : enoent()
+        })
+
+        expect(getEnterprisePolicy().allowedAgents, contents).toEqual(['claude'])
+      }
+    })
+
     it('records the skipped candidate in the resolution trace', () => {
       const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
       vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, '')

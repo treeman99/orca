@@ -79,7 +79,28 @@ ORCA_GITHUB_ENTERPRISE_HOST
 
 앱 이름은 `app.setName('Orca')`(`src/main/index.ts:1836` → `src/main/startup/dev-instance-identity.ts:57-58`). `pnpm dev`로 띄운 개발 인스턴스만 `Orca Dev`를 씁니다(`dev-instance-identity.ts:83`).
 
-**먼저 성공적으로 파싱된 파일이 그대로 끝입니다** (`enterprise-policy-file.ts:80-105`, `:141-178`). 병합하지 않습니다. 즉 **사용자별 파일로 머신 전역·번들 정책을 완화할 수 없습니다** — 사용자가 자기 `%APPDATA%\Orca\enterprise-policy.json`에 `{"lockdown": false}`를 써도, 위 후보 중 하나가 읽히는 한 그 파일은 읽히지 않습니다.
+**먼저 성공적으로 파싱된 파일이 그대로 끝입니다.** 후보끼리 병합하지 않습니다. 즉 **사용자별 파일로 머신 전역·번들 정책을 완화할 수 없습니다** — 사용자가 자기 `%APPDATA%\Orca\enterprise-policy.json`에 `{"lockdown": false}`를 써도, 위 후보 중 하나가 읽히는 한 그 파일은 읽히지 않습니다.
+
+> ⚠️ **"파싱 성공"에는 내용이 JSON 객체여야 한다는 조건이 포함됩니다.** `null`, `[]`, `"lockdown"`, `42`는 전부 문법상 올바른 JSON이라, 예전에는 이런 파일이 탐색을 **이기고** 아래 후보를 전부 차단했습니다. 지금은 문법 오류와 똑같이 경고를 남기고 다음 후보로 넘어갑니다.
+
+### 2-1. 번들 정책은 채택된 파일 **밑에 깔리는 바닥선**입니다
+
+병합은 하지 않지만, 예외가 하나 있습니다. 채택된 파일이 **말하지 않은** 스위치는 빌드에 내장된 정책 값으로 채워집니다 (`src/shared/enterprise-policy-baseline.ts`).
+
+이 규칙이 생긴 이유는 실제 사고입니다. `allowedAgents`는 `lockdown`을 **상속하지 않으므로**, 그 키가 생기기 전에 배포된 `%ProgramData%\Orca\enterprise-policy.json`(예: `{"lockdown": true}`)이 채택되면 — 다른 잠금은 전부 걸린 것처럼 보이면서 **에이전트 제한만 0**이 됩니다. 설치본에 `allowedAgents`가 내장돼 있어도 그 파일은 한 번도 읽히지 않았습니다.
+
+바닥선의 규칙은 둘뿐이고, 둘 다 **관리자가 항상 이기도록** 만들어져 있습니다:
+
+1. **채택된 파일이 언급한 키는 절대 건드리지 않습니다.** 관리자가 `"allowedAgents": ["claude","codex"]`라고 쓰면 그게 이깁니다. 풀고 싶으면 **명시하세요** — 적지 않으면 내장값이 남습니다.
+2. **조이는 방향으로만 채웁니다.** 내장 정책의 `true`(또는 허용목록)만 반영되고, `false`는 무시됩니다. per-user NSIS 설치에서는 설치 폴더가 **그 사용자 소유**라(§7-5), 그렇지 않으면 표준 사용자가 설치 폴더의 파일에 `false`를 써넣어 관리자의 머신 전역 잠금에 구멍을 낼 수 있습니다.
+
+`llmEndpoints`·`allowedNetworkHosts`·`githubEnterpriseHost`는 **바닥선에서 제외**입니다. 조이는 값이 아니라 넓히는 값이고, 관리자 파일이 그 키들의 주인입니다.
+
+바닥선이 실제로 무엇을 채웠는지는 §7-2 트레이스의 `enterprise.policy.baseline_path`와 `…baseline_applied_keys`에 남고, 같은 내용이 경고로도 나옵니다:
+
+```
+[enterprise-policy] C:\ProgramData\Orca\enterprise-policy.json does not set allowedAgents; kept from <설치폴더>\resources\enterprise-policy.json.
+```
 
 > **"발견"이 아니라 "파싱"입니다 — v1.4.163 이후 바뀐 부분입니다.** 예전에는 후보 하나가 JSON 문법 오류를 내면 거기서 탐색을 **중단**하고 정책을 통째로 포기했습니다. 번들 기본값이 생긴 지금 그 동작은 위험합니다 — 관리자가 GPO로 뿌린 파일의 쉼표 하나가 그 PC를 **완전히 풀린 상태**로 만들기 때문입니다. 지금은 읽기 실패(ENOENT 외 권한/마운트 오류)와 똑같이 **다음 후보로 넘어갑니다** (`enterprise-policy-file.ts:152-158`, `:167-174`). 넘어가더라도 경고는 그대로 남으므로(§7-3), 관리자는 §7-2 트레이스의 `…warnings`에서 자기 파일이 무시된 사실을 확인할 수 있습니다.
 
@@ -246,6 +267,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 
 - **탐지 결과에서 제거 (메인 — 이게 본체입니다):** 허용되지 않은 에이전트는 **에이전트 탐지 결과 자체에서 빠집니다** (`src/main/ipc/preflight.ts`의 `detectInstalledAgents` / `detectRemoteAgents`). "무엇이 감지되었나"가 모든 피커·자동 선택·퀵런치·키보드 단축키의 입력이고, 웹 클라이언트·모바일 클라이언트·CLI·페어링된 데스크톱이 받는 답도 같은 값입니다 — 이들은 렌더러 정책 뷰를 **아예 보지 못하므로**(웹 preload에 `enterprisePolicy` API가 없습니다) 메인 쪽 게이트가 유일한 방어선입니다.
 - **좁혀지는 표면 (렌더러):** 정책은 `enterprisePolicy:get`(+ 동기 채널 `:get-sync`) IPC로 렌더러에 전달되고, **에이전트 카탈로그 자체**가 허용 목록으로 필터됩니다 (`src/renderer/src/lib/agent-catalog.tsx`의 `getAgentCatalog()`). 즉 피커를 새로 추가한 코드가 별도 조치 없이도 게이트를 물려받습니다 — 설정 → 에이전트, 계정 설정, 새 워크스페이스/워크트리 생성, `+` 탭 메뉴와 퀵런치, 자동화 에디터의 에이전트 피커, 온보딩, 소스컨트롤 AI 액션, 터미널 Quick Command, 설정 검색 키워드, 설정 → 단축키의 에이전트별 행이 모두 여기서 나옵니다. 이름·아이콘 조회는 의도적으로 **전체 카탈로그**(`getFullAgentCatalog()` / `getAgentLabel()`)를 쓰므로, 정책이 방금 숨긴 에이전트가 이미 실행 중이어도 자기 이름을 그대로 표시합니다.
+- **탭 카탈로그가 아닌 로스터 2개도 같은 게이트를 탑니다.** 소스컨트롤 AI 텍스트 생성은 `COMMIT_MESSAGE_AGENT_SPECS`, AI Vault 필터는 `AI_VAULT_AGENTS`라는 **별개 상수**를 읽습니다 — 탭 카탈로그를 좁혀도 이쪽은 안 좁혀지므로 각각 따로 걸어야 합니다: `src/renderer/src/lib/use-commit-message-agent-capabilities.ts`(생성 다이얼로그 + feature-wall 설정 행), `AiVaultPanelControls.tsx`의 `visibleAgents`. 고정 테스트는 `agent-allowlist-text-generation-surfaces.policy.test.tsx`. AI Vault의 **저장된** 선택 목록은 일부러 안 좁힙니다 — 정책이 바뀔 때마다 사용자 설정을 덮어쓰게 되기 때문이고, 목록에 없으면 어차피 표시되지 않습니다.
 - **자동 선택 폴백:** 탐지가 아직 진행 중일 때(`null`) 쓰이는 자동 선택 순서도 필터됩니다 (`quick-workspace-agent-selection.ts`). 이게 빠지면 목록은 필터됐는데 **미리 선택된 값이 차단된 에이전트**여서 그대로 실행되는 상태가 됩니다.
 - **외부 자동화:** `hermes`·`openclaw`는 provider id가 곧 에이전트 CLI id라, `allowedAgents`가 자동화 페이지의 외부 소스와 에디터의 Orca/Hermes 대상 토글까지 함께 좁힙니다 (`src/main/automations/external-manager.ts`). 마스터 스위치로 끄고 싶다면 `disableExternalAutomations`를 쓰세요.
 - **폴링 차단 (메인):** 허용되지 않은 벤더의 사용량 미터는 네트워크로 나가지 않습니다 — 예로 Codex는 `chatgpt.com`을 조회하지 않습니다 (`src/main/rate-limits/service.ts`의 `isUsageProviderAllowed`). `claude`는 Bedrock 에이전트라 여기서 게이트되지 않습니다 (Claude 사용량 폴링 자체를 끄려면 `disableUsagePolling`).
@@ -574,6 +596,7 @@ Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "enterpr
 | **사용자가 `setx ORCA_ENTERPRISE_POLICY off`로 풀어버림?** | 패키징 빌드에서는 불가능. 환경변수는 후보를 추가만 하고 머신 전역·번들이 항상 먼저 탐색됩니다 (`:90-104`, `:191-197`) | 단, **`pnpm dev`로 띄운 비패키징 인스턴스에는 그대로 듣습니다.** 사용자 PC에 개발 체크아웃을 두지 마세요 |
 | 개발 인스턴스로 커스텀 경로를 지정했는데 무시됨 | 패키징 빌드로 시험했기 때문. 머신 전역·번들 파일이 있으면 환경변수 경로는 3순위라 읽히지 않습니다 (§2) | 커스텀 경로는 비패키징에서만 1순위입니다. 플릿에서는 번들 기본값 또는 머신 전역 경로를 쓰세요 |
 | **설정 → 에이전트나 자동화 드롭다운에 `codex`·`gemini`·`copilot`이 그대로 보임** | 십중팔구 게이트 문제가 아니라 **정책이 하나도 적용되지 않은 인스턴스**를 보고 있는 것입니다. ① upstream Orca(사내 포크가 아닌 빌드)를 열었거나, ② `ORCA_ENTERPRISE_POLICY=off`가 걸려 있거나, ③ 이 포크 이전 버전의 `pnpm dev`. `allowedAgents`는 lockdown을 **상속하지 않으므로**, 정책 파일이 없으면 제한이 전혀 걸리지 않습니다 | §7-2 트레이스의 `…source_path`를 먼저 보세요 — `(none found)`이면 정책 자체가 없는 것이라 UI 코드를 아무리 고쳐도 바뀌지 않습니다. 그다음 `…allowed_agents`에 `claude`·`opencode`가 있는지 확인. 사내 포크의 체크아웃이라면 `pnpm dev`만으로 4순위 후보가 잡힙니다(§2) |
+| **설치본은 최신인데 잠금은 걸렸고 에이전트 제한만 안 걸림** | `allowedAgents`가 없는 **옛 머신 전역 파일**이 채택된 것입니다. `lockdown`은 상속되므로 나머지 스위치는 전부 켜진 것처럼 보이고, 설정 → 에이전트에는 `disableAgentInstallSuggestions` 때문에 "설치 가능" 섹션이 비어 **감지된 에이전트 한 줄만** 남습니다 — 그 비대칭이 이 시나리오의 지문입니다 | v1.4.168 이후로는 §2-1 바닥선이 내장값을 채우므로 저절로 해결됩니다. 그 전 빌드라면 `…source_path`가 가리키는 파일에 `allowedAgents`를 추가해 재배포하거나 그 파일을 지우세요. 바닥선이 개입했는지는 `…baseline_applied_keys`로 확인합니다 |
 | 테스트/CI에서 정책이 안 먹음 | 의도된 동작. `config/vitest-enterprise-policy-isolation.ts`가 `ORCA_ENTERPRISE_POLICY=off`, `GH_HOST` 삭제, `GH_CONFIG_DIR`을 없는 경로로 고정. 테스트 러너는 비패키징이라 이 값들이 유효합니다 | — |
 | **`gh`를 사내 호스트로 바꿨는데 앱은 계속 github.com으로 보임** | 원인이 셋입니다. ①`gh auth login --hostname`은 환경변수가 아니라 `hosts.yml`에 씁니다 → 이제 앱이 그 파일을 읽습니다(§3-4). ②userData의 `github-enterprise-host.json`에 `github.com`이 저장돼 있으면 관리자 정책보다 우선했습니다 → 이제 벤더 호스트는 저장되지 않습니다. ③`gh`에 두 개 이상의 호스트가 로그인돼 있으면 `gh` 자신이 `github.com`을 기본값으로 쓰므로 앱도 추정하지 않습니다 | 설정 → Git 및 소스 제어의 "Git 호스트" **출처 문구**를 먼저 보세요(§7-1 표). 그다음 `gh auth status`로 로그인된 호스트가 사내 것 **하나뿐인지** 확인하고, 여러 개면 `gh auth logout --hostname github.com`. 확정적으로 못 박으려면 정책 파일에 `githubEnterpriseHost`를 적으세요 — 추론에 의존하지 않는 유일한 방법입니다 |
 | 리포지토리를 추가한 뒤 origin을 사내 미러로 바꿨는데 계속 github.com으로 보임 | **위와 다른 문제입니다.** `Repo.gitRemoteIdentity`(`repo-git-remote-identity-enrichment.ts`)와 `Repo.upstream`(`repo-icon-autodetect.ts`)은 추가 시점에 1회만 판정하고 다시 프로브하지 않습니다 — 정책이나 `gh` 설정과 무관합니다 | 해당 프로젝트를 제거하고 다시 추가하세요. 이 증상이 "재설치해야 고쳐진다"로 보이는 두 번째 경로입니다 |

@@ -12,12 +12,9 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { getAgentLabel, AgentIcon } from '@/lib/agent-catalog'
+import { useCommitMessageAgentCapabilities } from '@/lib/use-commit-message-agent-capabilities'
 import { planSourceControlTextGeneration } from '@/lib/source-control-generation-plan'
-import {
-  CUSTOM_AGENT_ID,
-  isCustomAgentId,
-  listCommitMessageAgentCapabilities
-} from '../../../../shared/commit-message-agent-spec'
+import { CUSTOM_AGENT_ID, isCustomAgentId } from '../../../../shared/commit-message-agent-spec'
 import type { ResolvedSourceControlAiGenerationParams } from '../../../../shared/source-control-ai'
 import { formatLinkedIssueTemplateValue } from '../../../../shared/source-control-ai-action-variables'
 import type { SourceControlTextActionId } from '../../../../shared/source-control-ai-actions'
@@ -89,7 +86,7 @@ export function SourceControlTextGenerationDialogForm({
   onOpenChange,
   onSaveDefaults
 }: SourceControlTextGenerationDialogFormProps): React.JSX.Element {
-  const capabilities = useMemo(() => listCommitMessageAgentCapabilities(), [])
+  const capabilities = useCommitMessageAgentCapabilities()
   const showCustomAgent = Boolean(
     baseParams && (isCustomAgentId(baseParams.agentId) || baseParams.customAgentCommand?.trim())
   )

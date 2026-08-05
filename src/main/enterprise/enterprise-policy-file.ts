@@ -20,6 +20,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
 import { parse as parseJsonc, type ParseError } from 'jsonc-parser'
+import { applyEnterprisePolicyBaseline } from '../../shared/enterprise-policy-baseline'
 import { registerCorporateLlmEndpoints } from '../../shared/corporate-llm-session-catalog'
 import { readGhConfiguredHost } from '../github/gh-config-host'
 import {
@@ -116,6 +117,8 @@ const MAX_BUFFERED_NOTICES = 32
 
 let searchedPaths: readonly string[] = []
 let notices: string[] = []
+let baselinePath: string | null = null
+let baselineAppliedKeys: readonly string[] = []
 
 // Why: a Start-Menu-launched Windows GUI process has no console, so Node hands
 // fd 2 a contentless stub and every one of these vanishes. Keep the write for
@@ -133,17 +136,26 @@ export type EnterprisePolicyResolutionTrace = {
   readonly searchedPaths: readonly string[]
   /** Every diagnostic `warn()` produced while resolving, in emission order. */
   readonly notices: readonly string[]
+  /** The build's own policy file, when it acted as the floor under another one. */
+  readonly baselinePath: string | null
+  /** Keys that floor actually contributed — "why is this on when my file never said so". */
+  readonly baselineAppliedKeys: readonly string[]
 }
 
 /** What discovery actually did on this launch, for the durable trace record. */
 export function getEnterprisePolicyResolutionTrace(): EnterprisePolicyResolutionTrace {
-  return { searchedPaths, notices }
+  return { searchedPaths, notices, baselinePath, baselineAppliedKeys }
 }
 
 type LoadedDocument = { document: unknown; sourcePath: string }
 
-function readPolicyDocument(candidates: string[]): LoadedDocument | null {
-  for (const candidate of candidates) {
+function isPolicyObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** One candidate's parsed document, or null when it is missing, unreadable, or unusable. */
+function readOnePolicyDocument(candidate: string): unknown | null {
+  {
     let contents: string
     try {
       contents = readFileSync(candidate, 'utf8')
@@ -159,7 +171,7 @@ function readPolicyDocument(candidates: string[]): LoadedDocument | null {
       if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
         warn(`could not read ${candidate}: ${String(error)}`)
       }
-      continue
+      return null
     }
     const errors: ParseError[] = []
     // Why: Windows admin tooling (Notepad, PowerShell 5.1 Out-File/Set-Content)
@@ -169,14 +181,31 @@ function readPolicyDocument(candidates: string[]): LoadedDocument | null {
       allowTrailingComma: true
     })
     if (errors.length > 0) {
-      // Why continue rather than give up: with a bundled default below it, one
-      // typo in a centrally-deployed file used to leave that machine COMPLETELY
-      // unlocked. Skipping to the next candidate keeps the shipped lockdown —
-      // loudly, so an administrator still learns their file was ignored.
+      // Why not give up here: with a bundled default below it, one typo in a
+      // centrally-deployed file used to leave that machine COMPLETELY unlocked.
+      // Reporting it unusable keeps the shipped lockdown — loudly, so an
+      // administrator still learns their file was ignored.
       warn(`${candidate} is not valid JSON; ignoring it.`)
-      continue
+      return null
     }
-    return { document, sourcePath: candidate }
+    // Why this too: `null`, `[]`, `"x"` and `42` are all valid JSON, so a file whose
+    // CONTENTS are wrong used to win the search outright and shut out every candidate
+    // below it. The resolver's own object check sits downstream of that choice, where
+    // falling back to the bundled default is no longer possible.
+    if (!isPolicyObject(document)) {
+      warn(`${candidate} does not contain a JSON object; ignoring it.`)
+      return null
+    }
+    return document
+  }
+}
+
+function readPolicyDocument(candidates: string[]): LoadedDocument | null {
+  for (const candidate of candidates) {
+    const document = readOnePolicyDocument(candidate)
+    if (document !== null) {
+      return { document, sourcePath: candidate }
+    }
   }
   return null
 }
@@ -238,6 +267,35 @@ function devCheckoutPolicyPath(): string | null {
   }
 }
 
+/**
+ * Put the build's own policy under the adopted one as a floor (see
+ * enterprise-policy-baseline.ts for why it may only ever restrict).
+ *
+ * Skipped when the bundled file IS the adopted one — merging a document with itself would
+ * only make the trace claim contributions nobody made.
+ */
+function applyBundledBaseline(loaded: LoadedDocument | null, bundled: string | null): unknown {
+  baselinePath = null
+  baselineAppliedKeys = []
+  if (!loaded || !bundled || loaded.sourcePath === bundled) {
+    return loaded?.document ?? null
+  }
+  const baseline = readOnePolicyDocument(bundled)
+  if (baseline === null) {
+    return loaded.document
+  }
+  const { document, appliedKeys } = applyEnterprisePolicyBaseline(loaded.document, baseline)
+  if (appliedKeys.length > 0) {
+    baselinePath = bundled
+    baselineAppliedKeys = appliedKeys
+    // Why loud: this is the one case where a switch is on that the administrator's own file
+    // never mentions, and "my GPO file says nothing about agents" is precisely the report
+    // that sent this fork chasing UI bugs for a week.
+    warn(`${loaded.sourcePath} does not set ${appliedKeys.join(', ')}; kept from ${bundled}.`)
+  }
+  return document
+}
+
 let cached: EnterprisePolicy | null = null
 
 /**
@@ -251,19 +309,21 @@ export function getEnterprisePolicy(): EnterprisePolicy {
   }
   const env = process.env as PolicyEnv
   const allowEnvOverride = environmentMayOverridePolicy()
+  const bundledPath = allowEnvOverride ? devCheckoutPolicyPath() : packagedBundledPolicyPath()
   const candidates = enterprisePolicySearchPaths(
     env,
     process.platform,
     currentUserDataDir(),
     allowEnvOverride,
-    allowEnvOverride ? devCheckoutPolicyPath() : packagedBundledPolicyPath()
+    bundledPath
   )
   searchedPaths = candidates
   const loaded = readPolicyDocument(candidates)
+  const baselined = applyBundledBaseline(loaded, bundledPath)
   // Why read gh's config at all: a GUI-launched app never inherits a shell rc, so `GH_HOST`
   // is routinely absent on exactly the machines that DID run `gh auth login --hostname`.
   const policy = resolveEnterprisePolicy(
-    loaded?.document ?? null,
+    baselined,
     env,
     loaded?.sourcePath ?? null,
     policyDiscoveryDisabled(env, allowEnvOverride)
@@ -286,4 +346,6 @@ export function resetEnterprisePolicyCacheForTests(): void {
   cached = null
   searchedPaths = []
   notices = []
+  baselinePath = null
+  baselineAppliedKeys = []
 }

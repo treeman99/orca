@@ -17,6 +17,7 @@ import { getEnterprisePolicy, getEnterprisePolicyResolutionTrace } from './enter
 
 const NO_FILE_FOUND = '(none found)'
 const UNRESTRICTED_AGENTS = '(unrestricted)'
+const NO_BASELINE_APPLIED = '(not applied)'
 
 /**
  * Emit the one-shot `enterprise.policy` span. Call once, immediately after
@@ -26,7 +27,8 @@ const UNRESTRICTED_AGENTS = '(unrestricted)'
  */
 export function recordEnterprisePolicyTrace(): void {
   const policy = getEnterprisePolicy()
-  const { searchedPaths, notices } = getEnterprisePolicyResolutionTrace()
+  const { searchedPaths, notices, baselinePath, baselineAppliedKeys } =
+    getEnterprisePolicyResolutionTrace()
   const switches: Record<string, boolean> = {}
   for (const key of LOCKDOWN_INHERITING_KEYS) {
     switches[key] = policy[key]
@@ -44,6 +46,10 @@ export function recordEnterprisePolicyTrace(): void {
       'enterprise.policy.allowed_agents': policy.allowedAgents
         ? [...policy.allowedAgents]
         : UNRESTRICTED_AGENTS,
+      // Why both: an admin looking at a switch their own file never set needs to see that
+      // the build's bundled default supplied it, and exactly which keys it supplied.
+      'enterprise.policy.baseline_path': baselinePath ?? NO_BASELINE_APPLIED,
+      'enterprise.policy.baseline_applied_keys': [...baselineAppliedKeys],
       'enterprise.policy.github_enterprise_host': policy.githubEnterpriseHost,
       'enterprise.policy.enforce_network_allowlist': policy.enforceNetworkAllowlist,
       'enterprise.policy.allowed_network_hosts': [...policy.allowedNetworkHosts],

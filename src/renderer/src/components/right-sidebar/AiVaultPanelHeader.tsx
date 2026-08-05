@@ -8,7 +8,8 @@ import type {
   AiVaultSort
 } from '../../../../shared/ai-vault-types'
 import type { ExecutionHostScope } from '../../../../shared/execution-host'
-import { VaultHostScopeMenu, VaultScopeSwitch, VaultViewMenu } from './AiVaultPanelControls'
+import { VaultHostScopeMenu, VaultScopeSwitch } from './AiVaultPanelControls'
+import { VaultViewMenu } from './AiVaultViewMenu'
 import type { AiVaultHostScopeOption } from './ai-vault-host-scope'
 
 type AiVaultPanelHeaderProps = {
