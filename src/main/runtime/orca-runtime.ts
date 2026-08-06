@@ -89,6 +89,7 @@ import {
   AGENT_PROMPT_PASTE_QUIET_MS,
   AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS,
   AGENT_PROMPT_SUBMIT_DELAY_MS,
+  AGENT_PROMPT_SUBMIT_VERIFY_ATTEMPTS,
   AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS,
   buildAgentPromptPasteBytes
 } from '../../shared/agent-prompt-injection'
@@ -281,6 +282,7 @@ import {
   type RuntimeRepoSearchRefs,
   type RuntimeTerminalRead,
   type RuntimeTerminalRename,
+  type AgentPromptSubmitOutcome,
   type RuntimeTerminalAgentStatus,
   type RuntimeTerminalSend,
   type RuntimeTerminalCreate,
@@ -15946,8 +15948,8 @@ export class OrcaRuntimeService {
       }
       await assertTerminalInputWithinLimitWithYield(payload)
       await this.writeTerminalAgentPrompt(pty.pty.ptyId, payload, options)
-      await this.resubmitAgentPromptIfStillUnsubmitted(handle, pty.pty.ptyId)
-      return { handle, accepted: true, bytesWritten }
+      const submit = await this.resubmitAgentPromptIfStillUnsubmitted(handle, pty.pty.ptyId)
+      return { handle, accepted: true, bytesWritten, submit }
     }
 
     const { leaf } = this.getLiveLeafForHandle(handle)
@@ -15956,8 +15958,8 @@ export class OrcaRuntimeService {
     }
     await assertTerminalInputWithinLimitWithYield(payload)
     await this.writeTerminalAgentPrompt(leaf.ptyId, payload, options)
-    await this.resubmitAgentPromptIfStillUnsubmitted(handle, leaf.ptyId)
-    return { handle, accepted: true, bytesWritten }
+    const submit = await this.resubmitAgentPromptIfStillUnsubmitted(handle, leaf.ptyId)
+    return { handle, accepted: true, bytesWritten, submit }
   }
 
   async getTerminalAgentStatus(handle: string): Promise<RuntimeTerminalAgentStatus> {
@@ -16388,43 +16390,56 @@ export class OrcaRuntimeService {
       suffixFailureError?: string
     } = {}
   ): Promise<void> {
-    let wrotePasteBytes = false
-    let completedPaste = false
+    // Why: arm before the first byte leaves — a multi-chunk paste yields between
+    // chunks, so a watch armed after the last write misses the render it is
+    // waiting for and stalls the submit until the hard cap.
+    const watch = this.watchTerminalOutput(ptyId)
     try {
-      const chunks = iterateTerminalInputChunks(pastePayload)
-      let chunk = chunks.next()
-      while (!chunk.done) {
-        await options.beforeWrite?.(ptyId)
-        const wrote = this.ptyController?.write(ptyId, chunk.value) ?? false
-        if (!wrote) {
-          throw new Error('terminal_not_writable')
+      let wrotePasteBytes = false
+      let completedPaste = false
+      try {
+        const chunks = iterateTerminalInputChunks(pastePayload)
+        let chunk = chunks.next()
+        while (!chunk.done) {
+          await options.beforeWrite?.(ptyId)
+          const wrote = this.ptyController?.write(ptyId, chunk.value) ?? false
+          if (!wrote) {
+            throw new Error('terminal_not_writable')
+          }
+          wrotePasteBytes = true
+          chunk = chunks.next()
+          if (!chunk.done) {
+            await new Promise((resolve) => setTimeout(resolve, 0))
+          }
         }
-        wrotePasteBytes = true
-        chunk = chunks.next()
-        if (!chunk.done) {
-          await new Promise((resolve) => setTimeout(resolve, 0))
+        completedPaste = true
+      } catch (error) {
+        if (wrotePasteBytes && !completedPaste) {
+          this.ptyController?.write(ptyId, AGENT_PROMPT_BRACKETED_PASTE_END)
         }
+        throw error
       }
-      completedPaste = true
-    } catch (error) {
-      if (wrotePasteBytes && !completedPaste) {
-        this.ptyController?.write(ptyId, AGENT_PROMPT_BRACKETED_PASTE_END)
-      }
-      throw error
-    }
 
-    await this.waitForTerminalOutputSettled(ptyId)
-    try {
-      await options.beforeWrite?.(ptyId)
-    } catch (error) {
-      if (options.suffixFailureError) {
-        throw new Error(options.suffixFailureError)
+      // Why: quiet alone is not consumption. A TUI busy at launch has not read
+      // the paste yet and emits nothing, so an Enter sent on quiet joins it in
+      // one read() and is absorbed as pasted content — the reported stall. The
+      // paste is a frame every agent TUI redraws, so its first render is the
+      // evidence to hold for; the hard cap still releases a TUI that never does.
+      await watch.settled(AGENT_PROMPT_SUBMIT_DELAY_MS, { requireOutput: true })
+      try {
+        await options.beforeWrite?.(ptyId)
+      } catch (error) {
+        if (options.suffixFailureError) {
+          throw new Error(options.suffixFailureError)
+        }
+        throw error
       }
-      throw error
-    }
-    const suffixWrote = this.ptyController?.write(ptyId, AGENT_PROMPT_SUBMIT) ?? false
-    if (!suffixWrote) {
-      throw new Error(options.suffixFailureError ?? 'terminal_not_writable')
+      const suffixWrote = this.ptyController?.write(ptyId, AGENT_PROMPT_SUBMIT) ?? false
+      if (!suffixWrote) {
+        throw new Error(options.suffixFailureError ?? 'terminal_not_writable')
+      }
+    } finally {
+      watch.dispose()
     }
   }
 
@@ -16437,49 +16452,86 @@ export class OrcaRuntimeService {
    * silent TUI behaves as before, and the settle timeout caps one that never
    * quiets.
    */
-  private waitForTerminalOutputSettled(
+  private async waitForTerminalOutputSettled(
     ptyId: string,
     floorMs = AGENT_PROMPT_SUBMIT_DELAY_MS
   ): Promise<void> {
-    return new Promise<void>((resolve) => {
-      let settled = false
-      let quietTimer: NodeJS.Timeout | null = null
-      let unsubscribe: (() => void) | null = null
+    const watch = this.watchTerminalOutput(ptyId)
+    try {
+      await watch.settled(floorMs)
+    } finally {
+      watch.dispose()
+    }
+  }
 
-      const finish = (): void => {
-        if (settled) {
-          return
-        }
-        settled = true
-        if (quietTimer) {
-          clearTimeout(quietTimer)
-        }
-        clearTimeout(floorTimer)
-        clearTimeout(hardTimer)
-        unsubscribe?.()
-        resolve()
+  /**
+   * Counts render output from the moment it is armed so a caller can wait for
+   * evidence that the TUI consumed what was just written. `requireOutput` holds
+   * until at least one frame lands after arming; without it, quiet alone
+   * settles the wait — the right rule for a payload the target may not echo.
+   */
+  private watchTerminalOutput(ptyId: string): {
+    settled: (floorMs?: number, options?: { requireOutput?: boolean }) => Promise<void>
+    dispose: () => void
+  } {
+    let outputCount = 0
+    const observers = new Set<() => void>()
+    const unsubscribe = this.subscribeToTerminalData(ptyId, () => {
+      outputCount += 1
+      for (const observe of observers) {
+        observe()
       }
-
-      const armQuietTimer = (): void => {
-        if (settled) {
-          return
-        }
-        if (quietTimer) {
-          clearTimeout(quietTimer)
-        }
-        quietTimer = setTimeout(finish, AGENT_PROMPT_PASTE_QUIET_MS)
-      }
-
-      // Why: only rearm once the floor has armed the quiet window — render
-      // output during the floor is expected and must not extend the wait.
-      unsubscribe = this.subscribeToTerminalData(ptyId, () => {
-        if (quietTimer) {
-          armQuietTimer()
-        }
-      })
-      const floorTimer = setTimeout(armQuietTimer, floorMs)
-      const hardTimer = setTimeout(finish, floorMs + AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS)
     })
+
+    return {
+      settled: (floorMs = AGENT_PROMPT_SUBMIT_DELAY_MS, options = {}) =>
+        new Promise<void>((resolve) => {
+          const outputCountAtArm = outputCount
+          let settled = false
+          let floorElapsed = false
+          let quietTimer: NodeJS.Timeout | null = null
+
+          const finish = (): void => {
+            if (settled) {
+              return
+            }
+            settled = true
+            if (quietTimer) {
+              clearTimeout(quietTimer)
+            }
+            clearTimeout(floorTimer)
+            clearTimeout(hardTimer)
+            observers.delete(observe)
+            resolve()
+          }
+
+          const armQuietTimer = (): void => {
+            if (settled || (options.requireOutput && outputCount === outputCountAtArm)) {
+              return
+            }
+            if (quietTimer) {
+              clearTimeout(quietTimer)
+            }
+            quietTimer = setTimeout(finish, AGENT_PROMPT_PASTE_QUIET_MS)
+          }
+
+          // Why: only rearm once the floor has passed — render output during the
+          // floor is expected and must not extend the wait.
+          const observe = (): void => {
+            if (floorElapsed) {
+              armQuietTimer()
+            }
+          }
+
+          observers.add(observe)
+          const floorTimer = setTimeout(() => {
+            floorElapsed = true
+            armQuietTimer()
+          }, floorMs)
+          const hardTimer = setTimeout(finish, floorMs + AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS)
+        }),
+      dispose: unsubscribe
+    }
   }
 
   /**
@@ -16493,29 +16545,39 @@ export class OrcaRuntimeService {
   private async resubmitAgentPromptIfStillUnsubmitted(
     handle: string,
     ptyId: string
-  ): Promise<void> {
-    let verdict: AgentPromptSubmitVerdict
-    try {
-      await this.waitForTerminalOutputSettled(ptyId, AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS)
-      verdict = classifyAgentPromptSubmitEvidence(await this.getTerminalAgentStatus(handle))
-    } catch {
-      // Why: a terminal that cannot be read is the "cannot tell" case, and
-      // cannot-tell must never fire Enter.
-      verdict = 'indeterminate'
+  ): Promise<AgentPromptSubmitOutcome> {
+    let verdict: AgentPromptSubmitVerdict = 'indeterminate'
+    // Why: a worker dispatched seconds after launch has no status evidence yet,
+    // so the first check reads "cannot tell" on precisely the terminals this
+    // rescue exists for. Keep re-reading until the evidence arrives; a decided
+    // verdict stops the loop immediately.
+    for (let attempt = 0; attempt < AGENT_PROMPT_SUBMIT_VERIFY_ATTEMPTS; attempt += 1) {
+      try {
+        await this.waitForTerminalOutputSettled(ptyId, AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS)
+        verdict = classifyAgentPromptSubmitEvidence(await this.getTerminalAgentStatus(handle))
+      } catch {
+        // Why: a terminal that cannot be read is the "cannot tell" case, and
+        // cannot-tell must never fire Enter.
+        verdict = 'indeterminate'
+      }
+      if (verdict !== 'indeterminate') {
+        break
+      }
     }
     if (verdict === 'submitted') {
-      return
+      return 'verified'
     }
     if (verdict !== 'unsubmitted') {
       // Why: silence here would hide both a swallowed prompt and a blocked
       // agent; the dispatch looks delivered either way.
       console.warn(`[agent-prompt] ${handle}: submit unverified (${verdict}); Enter was NOT resent`)
-      return
+      return 'unverified'
     }
     const resent = this.ptyController?.write(ptyId, AGENT_PROMPT_SUBMIT) ?? false
     console.warn(
       `[agent-prompt] ${handle}: prompt still unsubmitted after Enter; resent once (accepted=${resent})`
     )
+    return 'resent'
   }
 
   async waitForTerminal(

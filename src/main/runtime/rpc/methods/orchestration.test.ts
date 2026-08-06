@@ -2196,6 +2196,60 @@ describe('orchestration RPC methods', () => {
       )
     })
 
+    // Why: the reported failure is silent — the prompt is written, the receipt
+    // says `accepted`, and the worker sits with the text in its composer until a
+    // human notices. An unconfirmed submit has to travel with the receipt so the
+    // coordinator can look instead of assuming the task started.
+    it('carries an unconfirmed prompt submit into the dispatch receipt', async () => {
+      setup()
+      mockCurrentWorkerStart()
+      vi.mocked(runtime.sendTerminalAgentPrompt).mockResolvedValue({
+        handle: 'term_worker',
+        accepted: true,
+        bytesWritten: 1,
+        submit: 'unverified'
+      })
+      const task = db.createTask({ spec: 'implement worker start' })
+
+      const result = (await call('orchestration.workerStart', {
+        task: task.id,
+        from: 'term_coord',
+        agent: 'codex'
+      })) as { effects: { kind: string; state?: string; warning?: string }[] }
+
+      expect(result.effects).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: 'dispatch_input',
+            state: 'accepted',
+            warning: expect.stringContaining('could not be confirmed')
+          })
+        ])
+      )
+    })
+
+    it('leaves the dispatch receipt unqualified when the submit is confirmed', async () => {
+      setup()
+      mockCurrentWorkerStart()
+      vi.mocked(runtime.sendTerminalAgentPrompt).mockResolvedValue({
+        handle: 'term_worker',
+        accepted: true,
+        bytesWritten: 1,
+        submit: 'verified'
+      })
+      const task = db.createTask({ spec: 'implement worker start' })
+
+      const result = (await call('orchestration.workerStart', {
+        task: task.id,
+        from: 'term_coord',
+        agent: 'codex'
+      })) as { effects: { kind: string; warning?: string }[] }
+
+      expect(
+        result.effects.find((effect) => effect.kind === 'dispatch_input')?.warning
+      ).toBeUndefined()
+    })
+
     it('commits the launched worker token with its durable authority', async () => {
       setup()
       mockCurrentWorkerStart()

@@ -92,6 +92,7 @@ import {
   AGENT_PROMPT_PASTE_QUIET_MS,
   AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS,
   AGENT_PROMPT_SUBMIT_DELAY_MS,
+  AGENT_PROMPT_SUBMIT_VERIFY_ATTEMPTS,
   AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS,
   buildAgentPromptPasteBytes
 } from '../../shared/agent-prompt-injection'
@@ -14877,20 +14878,31 @@ describe('OrcaRuntimeService', () => {
     }
   })
 
-  // Why: every agent-prompt send now ends with a post-Enter settle + verdict.
-  // Tests drive it explicitly so a hang here reads as "verification stalled",
-  // not as an unrelated timeout.
+  // Why: every agent-prompt send now ends with a post-Enter settle + verdict,
+  // re-read until it is decided. Tests drive every round explicitly so a hang
+  // here reads as "verification stalled", not as an unrelated timeout.
   const drainAgentPromptSubmitVerification = async (): Promise<void> => {
-    await vi.advanceTimersByTimeAsync(
-      AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS + AGENT_PROMPT_PASTE_QUIET_MS + 10
-    )
+    for (let round = 0; round < AGENT_PROMPT_SUBMIT_VERIFY_ATTEMPTS; round += 1) {
+      await vi.advanceTimersByTimeAsync(
+        AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS + AGENT_PROMPT_PASTE_QUIET_MS + 10
+      )
+    }
+  }
+
+  // Why: the submit now waits for the TUI's first render, so a stub PTY that
+  // emits nothing would hold every prompt to the hard cap. Emit one frame, the
+  // same evidence a real agent produces when it redraws the pasted composer.
+  const renderPastedPrompt = async (runtime: OrcaRuntimeService): Promise<void> => {
+    await vi.advanceTimersByTimeAsync(AGENT_PROMPT_SUBMIT_DELAY_MS + 10)
+    runtime.onPtyData('pty-bg', 'composer redraw', 100)
+    await vi.advanceTimersByTimeAsync(AGENT_PROMPT_PASTE_QUIET_MS + 10)
   }
 
   // Why: the retry exists to rescue a swallowed Enter, but firing it on a
   // permission prompt would silently approve it. These pin the whole verdict
   // table, not just the happy path.
   const runAgentPromptSubmitVerification = async (
-    agentStatus: Partial<RuntimeTerminalAgentStatus> | Error
+    agentStatus: Partial<RuntimeTerminalAgentStatus> | Error | Partial<RuntimeTerminalAgentStatus>[]
   ): Promise<string[]> => {
     const writes: string[] = []
     const runtime = new OrcaRuntimeService(store)
@@ -14904,17 +14916,20 @@ describe('OrcaRuntimeService', () => {
       getForegroundProcess: async () => null
     })
     const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
+    let read = 0
     vi.spyOn(runtime, 'getTerminalAgentStatus').mockImplementation(async () => {
       if (agentStatus instanceof Error) {
         throw agentStatus
       }
-      return { handle, isRunningAgent: true, status: 'idle', ...agentStatus }
+      const step = Array.isArray(agentStatus)
+        ? (agentStatus[read] ?? agentStatus.at(-1) ?? {})
+        : agentStatus
+      read += 1
+      return { handle, isRunningAgent: true, status: 'idle', ...step }
     })
 
     const sendPromise = runtime.sendTerminalAgentPrompt(handle, 'task spec')
-    await vi.advanceTimersByTimeAsync(
-      AGENT_PROMPT_SUBMIT_DELAY_MS + AGENT_PROMPT_PASTE_QUIET_MS + 10
-    )
+    await renderPastedPrompt(runtime)
     await drainAgentPromptSubmitVerification()
     await sendPromise
     return writes
@@ -14932,6 +14947,78 @@ describe('OrcaRuntimeService', () => {
       expect(writes.at(-1)).toBe('\r')
       expect(writes.at(-2)).toBe('\r')
     } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // Why: a worker is dispatched seconds after launch, before its hooks have
+  // fired or its idle title is painted. A single check reads that blind window
+  // as "cannot tell" and refuses to rescue exactly the dispatch that needs it.
+  it('re-reads the submit verdict while the freshly launched worker has no status yet', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const writes = await runAgentPromptSubmitVerification([
+        { isRunningAgent: true, status: null },
+        { isRunningAgent: true, status: null },
+        { isRunningAgent: true, status: 'idle' }
+      ])
+      expect(writes).toHaveLength(3)
+      expect(writes.at(-1)).toBe('\r')
+      expect(warn.mock.calls.map((call) => String(call[0])).join('\n')).toContain('resent once')
+    } finally {
+      warn.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
+  it('stops re-reading the submit verdict as soon as it is decided', async () => {
+    vi.useFakeTimers()
+    try {
+      const writes = await runAgentPromptSubmitVerification([
+        { isRunningAgent: true, status: 'working' },
+        // Why: a second read must never happen — an agent that started working
+        // can go idle again, and acting on that would fire Enter into a finished
+        // turn.
+        { isRunningAgent: true, status: 'idle' }
+      ])
+      expect(writes).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reports how the agent prompt submit ended', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const runtime = new OrcaRuntimeService(store)
+      runtime.setPtyController({
+        spawn: vi.fn().mockResolvedValue({ id: 'pty-bg' }),
+        write: () => true,
+        kill: () => true,
+        getForegroundProcess: async () => null
+      })
+      const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
+      const status = vi
+        .spyOn(runtime, 'getTerminalAgentStatus')
+        .mockResolvedValue({ handle, isRunningAgent: true, status: 'working' })
+
+      const verified = runtime.sendTerminalAgentPrompt(handle, 'task spec')
+      await renderPastedPrompt(runtime)
+      await drainAgentPromptSubmitVerification()
+      expect(await verified).toMatchObject({ accepted: true, submit: 'verified' })
+
+      // Why: `accepted` only says the bytes went out. An unverifiable submit has
+      // to be distinguishable from a delivered one, or the dispatch receipt
+      // reads the same whether the worker started or is still holding the text.
+      status.mockResolvedValue({ handle, isRunningAgent: false, status: null })
+      const unverified = runtime.sendTerminalAgentPrompt(handle, 'task spec')
+      await renderPastedPrompt(runtime)
+      await drainAgentPromptSubmitVerification()
+      expect(await unverified).toMatchObject({ accepted: true, submit: 'unverified' })
+    } finally {
+      warn.mockRestore()
       vi.useRealTimers()
     }
   })
@@ -15045,7 +15132,48 @@ describe('OrcaRuntimeService', () => {
     }
   })
 
-  it('still submits an agent prompt when the TUI renders nothing observable', async () => {
+  // Why: this is the reported stall. A worker still busy at launch has not read
+  // the paste, so it renders nothing — and quiet-as-consumption fired Enter into
+  // the same pty buffer, where the TUI drained both in one read() and folded the
+  // CR into the pasted text. The prompt then sat in the composer until a human
+  // pressed Enter. Silence must hold the submit, not release it.
+  it('holds the agent prompt submit until the TUI has actually rendered something', async () => {
+    vi.useFakeTimers()
+    try {
+      const writes: string[] = []
+      const runtime = new OrcaRuntimeService(store)
+      runtime.setPtyController({
+        spawn: vi.fn().mockResolvedValue({ id: 'pty-bg' }),
+        write: (_ptyId, data) => {
+          writes.push(data)
+          return true
+        },
+        kill: () => true,
+        getForegroundProcess: async () => null
+      })
+      const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
+
+      const sendPromise = runtime.sendTerminalAgentPrompt(handle, 'busy agent')
+      // Floor and quiet window both elapse with the TUI silent: under the old
+      // wall-clock rule the Enter went out here.
+      await vi.advanceTimersByTimeAsync(
+        AGENT_PROMPT_SUBMIT_DELAY_MS + AGENT_PROMPT_PASTE_QUIET_MS + 10
+      )
+      expect(writes).toHaveLength(1)
+
+      // The late first frame is the consumption evidence; quiet after it submits.
+      runtime.onPtyData('pty-bg', 'composer redraw', 100)
+      await vi.advanceTimersByTimeAsync(AGENT_PROMPT_PASTE_QUIET_MS + 10)
+      expect(writes.at(-1)).toBe('\r')
+
+      await drainAgentPromptSubmitVerification()
+      await sendPromise
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('still submits an agent prompt when the TUI never renders at all', async () => {
     vi.useFakeTimers()
     try {
       const writes: string[] = []
@@ -15062,8 +15190,10 @@ describe('OrcaRuntimeService', () => {
       const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
 
       const sendPromise = runtime.sendTerminalAgentPrompt(handle, 'silent agent')
+      // Why: waiting on evidence must not become waiting forever — an agent that
+      // never renders still has to receive its Enter, just later.
       await vi.advanceTimersByTimeAsync(
-        AGENT_PROMPT_SUBMIT_DELAY_MS + AGENT_PROMPT_PASTE_QUIET_MS + 10
+        AGENT_PROMPT_SUBMIT_DELAY_MS + AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS + 10
       )
       expect(writes.at(-1)).toBe('\r')
 

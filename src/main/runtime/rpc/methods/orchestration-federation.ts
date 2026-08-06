@@ -3,6 +3,7 @@ import type { TuiAgent } from '../../../../shared/types'
 import { buildDispatchPreamble } from '../../orchestration/preamble'
 import { OrchestrationError } from '../../orchestration/orchestration-error'
 import { defineMethod, type RpcMethod } from '../core'
+import { buildDispatchInputEffect } from './orchestration-dispatch-input-effect'
 import { assertOrchestrationWorktreeCreationSupported } from './orchestration-folder-worktree-placement'
 import {
   appendFederationSetupEffect,
@@ -251,7 +252,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS: RpcMethod[] = [
           effects
         })
         failedStage = 'dispatch_input'
-        await runtime.sendTerminalAgentPrompt(
+        const dispatched = await runtime.sendTerminalAgentPrompt(
           terminalHandle,
           buildDispatchPreamble({
             taskId: params.taskId,
@@ -264,12 +265,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS: RpcMethod[] = [
             cliCommand: runtime.getTerminalOrchestrationCliCommand(terminalHandle)
           })
         )
-        effects.push({
-          kind: 'dispatch_input',
-          role: 'agent',
-          id: terminalHandle,
-          state: 'accepted'
-        })
+        effects.push(buildDispatchInputEffect(terminalHandle, dispatched.submit))
         const attachment = db.markRemoteAttachmentReady(params.dispatchId, effects)
         monitorFederatedSetup({ ...setupStage, runtime })
         return {

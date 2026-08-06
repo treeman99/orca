@@ -590,11 +590,17 @@ export type RuntimeTerminalRename = {
   title: string | null
 }
 
+// Why: 'verified' means the agent was observed working on the prompt; 'resent'
+// means a swallowed Enter was rescued; 'unverified' means the write went out but
+// nothing proved the agent took it — the caller has to look, not assume.
+export type AgentPromptSubmitOutcome = 'verified' | 'resent' | 'unverified'
+
 export type RuntimeTerminalSend = {
   handle: string
   accepted: boolean
   bytesWritten: number
   refusedReason?: 'no-agent' | 'permission'
+  submit?: AgentPromptSubmitOutcome
 }
 
 export type RuntimeTerminalAgentStatusState = 'working' | 'permission' | 'idle' | null

@@ -4,6 +4,7 @@ import { buildDispatchPreamble } from '../../orchestration/preamble'
 import { OrchestrationError } from '../../orchestration/orchestration-error'
 import { defineMethod, type RpcMethod } from '../core'
 import { startFederatedWorker } from './orchestration-federated-worker-start'
+import { buildDispatchInputEffect } from './orchestration-dispatch-input-effect'
 import { assertOrchestrationWorktreeCreationSupported } from './orchestration-folder-worktree-placement'
 import { WorkerStartParams } from './orchestration-worker-start-schema'
 import {
@@ -257,13 +258,8 @@ export const ORCHESTRATION_WORKER_START_METHODS: RpcMethod[] = [
           devMode: params.devMode,
           cliCommand: runtime.getTerminalOrchestrationCliCommand(terminalHandle)
         })
-        await runtime.sendTerminalAgentPrompt(terminalHandle, preamble)
-        effects.push({
-          kind: 'dispatch_input',
-          role: 'agent',
-          id: terminalHandle,
-          state: 'accepted'
-        })
+        const dispatched = await runtime.sendTerminalAgentPrompt(terminalHandle, preamble)
+        effects.push(buildDispatchInputEffect(terminalHandle, dispatched.submit))
         const worker = db.markWorkerDispatchReady(started.dispatch.id, effects)
         monitorWorkerSetup({
           runtime,

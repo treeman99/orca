@@ -31,6 +31,12 @@ export const AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS = 6_000
 // on a multi-KB frame being laid out.
 export const AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS = 600
 
+// Why: a just-launched worker has no status evidence yet — its hooks have not
+// fired and its idle title is not painted — so a single check lands in that
+// blind window, returns "cannot tell", and the rescue never fires on exactly
+// the dispatch that needs it. Re-check while the verdict stays indeterminate.
+export const AGENT_PROMPT_SUBMIT_VERIFY_ATTEMPTS = 3
+
 const ESCAPE = '\x1b'
 const INERT_ESCAPE = '<ESC>'
 
