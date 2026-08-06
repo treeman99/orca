@@ -39351,78 +39351,108 @@ describe('OrcaRuntimeService', () => {
   })
 
   it('sends follow-up prompts for CLI-created stdin-after-start startup agents', async () => {
-    const metaById: Record<string, WorktreeMeta> = {}
-    const runtimeStore = {
-      ...store,
-      getSettings: () => ({
-        ...store.getSettings(),
-        agentCmdOverrides: {}
-      }),
-      getAllWorktreeMeta: () => metaById,
-      getWorktreeMeta: (worktreeId: string) => metaById[worktreeId],
-      setWorktreeMeta: (worktreeId: string, meta: Partial<WorktreeMeta>) => {
-        metaById[worktreeId] = { ...(metaById[worktreeId] ?? makeWorktreeMeta()), ...meta }
-        return metaById[worktreeId]
+    vi.useFakeTimers()
+    try {
+      const metaById: Record<string, WorktreeMeta> = {}
+      const runtimeStore = {
+        ...store,
+        getSettings: () => ({
+          ...store.getSettings(),
+          agentCmdOverrides: {}
+        }),
+        getAllWorktreeMeta: () => metaById,
+        getWorktreeMeta: (worktreeId: string) => metaById[worktreeId],
+        setWorktreeMeta: (worktreeId: string, meta: Partial<WorktreeMeta>) => {
+          metaById[worktreeId] = { ...(metaById[worktreeId] ?? makeWorktreeMeta()), ...meta }
+          return metaById[worktreeId]
+        }
       }
-    }
-    const runtime = new OrcaRuntimeService(runtimeStore as never)
-    const spawn = vi.fn().mockResolvedValue({ id: 'pty-cli-aider-startup' })
-    const write = vi.fn().mockReturnValue(true)
-    runtime.setPtyController({
-      spawn,
-      write,
-      kill: () => true,
-      getForegroundProcess: async () => 'aider'
-    })
-    runtime.setNotifier({
-      worktreesChanged: vi.fn(),
-      reposChanged: vi.fn(),
-      activateWorktree: vi.fn(),
-      createTerminal: vi.fn(),
-      revealTerminalSession: vi.fn().mockResolvedValue({ tabId: 'tab-cli-aider-startup' }),
-      splitTerminal: vi.fn(),
-      renameTerminal: vi.fn(),
-      focusTerminal: vi.fn(),
-      closeTerminal: vi.fn(),
-      sleepWorktree: vi.fn(),
-      terminalFitOverrideChanged: vi.fn(),
-      terminalDriverChanged: vi.fn()
-    })
-    runtime.attachWindow(1)
-
-    computeWorktreePathMock.mockReturnValue('/tmp/workspaces/runtime-cli-aider-startup')
-    ensurePathWithinWorkspaceMock.mockReturnValue('/tmp/workspaces/runtime-cli-aider-startup')
-    vi.mocked(listWorktrees).mockResolvedValue([
-      {
-        path: '/tmp/workspaces/runtime-cli-aider-startup',
-        head: 'def',
-        branch: 'runtime-cli-aider-startup',
-        isBare: false,
-        isMainWorktree: false
-      }
-    ])
-
-    const result = await runtime.createManagedWorktree({
-      repoSelector: TEST_REPO_ID,
-      name: 'runtime-cli-aider-startup',
-      startupAgent: 'aider',
-      startupPrompt: 'fix it'
-    })
-
-    expect(spawn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        cwd: '/tmp/workspaces/runtime-cli-aider-startup',
-        command: "aider '--yes-always'",
-        worktreeId: result.worktree.id
+      const runtime = new OrcaRuntimeService(runtimeStore as never)
+      const spawn = vi.fn().mockResolvedValue({ id: 'pty-cli-aider-startup' })
+      const write = vi.fn().mockReturnValue(true)
+      runtime.setPtyController({
+        spawn,
+        write,
+        kill: () => true,
+        getForegroundProcess: async () => 'aider'
       })
-    )
-    // Why: prompt and Enter must be separate writes — a TUI that reads both out
-    // of one write folds the CR into the pasted text and never submits.
-    await vi.waitFor(() => {
+      runtime.setNotifier({
+        worktreesChanged: vi.fn(),
+        reposChanged: vi.fn(),
+        activateWorktree: vi.fn(),
+        createTerminal: vi.fn(),
+        revealTerminalSession: vi.fn().mockResolvedValue({ tabId: 'tab-cli-aider-startup' }),
+        splitTerminal: vi.fn(),
+        renameTerminal: vi.fn(),
+        focusTerminal: vi.fn(),
+        closeTerminal: vi.fn(),
+        sleepWorktree: vi.fn(),
+        terminalFitOverrideChanged: vi.fn(),
+        terminalDriverChanged: vi.fn()
+      })
+      runtime.attachWindow(1)
+
+      computeWorktreePathMock.mockReturnValue('/tmp/workspaces/runtime-cli-aider-startup')
+      ensurePathWithinWorkspaceMock.mockReturnValue('/tmp/workspaces/runtime-cli-aider-startup')
+      vi.mocked(listWorktrees).mockResolvedValue([
+        {
+          path: '/tmp/workspaces/runtime-cli-aider-startup',
+          head: 'def',
+          branch: 'runtime-cli-aider-startup',
+          isBare: false,
+          isMainWorktree: false
+        }
+      ])
+
+      const result = await runtime.createManagedWorktree({
+        repoSelector: TEST_REPO_ID,
+        name: 'runtime-cli-aider-startup',
+        startupAgent: 'aider',
+        startupPrompt: 'fix it'
+      })
+
+      expect(spawn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cwd: '/tmp/workspaces/runtime-cli-aider-startup',
+          command: "aider '--yes-always'",
+          worktreeId: result.worktree.id
+        })
+      )
+      // Why: prompt and Enter must be separate writes — a TUI that reads both out
+      // of one write folds the CR into the pasted text and never submits.
+      await vi.advanceTimersByTimeAsync(10)
       expect(write).toHaveBeenCalledWith('pty-cli-aider-startup', 'fix it')
+
+      // Why: this path takes the same rule as an orchestration dispatch — an
+      // agent that has not read the prompt renders nothing, and quiet alone is
+      // not consumption. The submit stays held while the agent is silent.
+      await vi.advanceTimersByTimeAsync(
+        AGENT_PROMPT_SUBMIT_DELAY_MS + AGENT_PROMPT_PASTE_QUIET_MS + 10
+      )
+      expect(write).not.toHaveBeenCalledWith('pty-cli-aider-startup', '\r')
+
+      // The agent echoing the prompt is the evidence the submit waits on.
+      runtime.onPtyData('pty-cli-aider-startup', 'fix it', 1)
+      await vi.advanceTimersByTimeAsync(AGENT_PROMPT_PASTE_QUIET_MS + 10)
       expect(write).toHaveBeenCalledWith('pty-cli-aider-startup', '\r')
-    })
-    expect(write).not.toHaveBeenCalledWith('pty-cli-aider-startup', 'fix it\r')
+      expect(write).not.toHaveBeenCalledWith('pty-cli-aider-startup', 'fix it\r')
+
+      // Why: the follow-up gets the same submit verification, and this stub
+      // gives no readable agent status — "cannot tell" must never fire a second
+      // Enter into whatever the agent is showing by then.
+      for (let round = 0; round < AGENT_PROMPT_SUBMIT_VERIFY_ATTEMPTS; round += 1) {
+        await vi.advanceTimersByTimeAsync(
+          AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS + AGENT_PROMPT_PASTE_QUIET_MS + 10
+        )
+      }
+      expect(
+        write.mock.calls.filter(
+          ([ptyId, data]) => ptyId === 'pty-cli-aider-startup' && data === '\r'
+        )
+      ).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('does not send stdin-after-start prompts into a shell when the agent never starts', async () => {

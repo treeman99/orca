@@ -20658,20 +20658,33 @@ export class OrcaRuntimeService {
 
   private sendStartupFollowupWhenReady(handle: string, followup: WorktreeStartupFollowup): void {
     void this.waitForStartupFollowupReady(handle, followup.expectedProcess)
-      .then((ptyId) => {
+      .then(async (ptyId) => {
         if (!ptyId) {
           console.warn('[worktree-create] agent did not become ready for follow-up prompt')
           return
         }
         // Why: a TUI reading prompt and CR out of one write treats the CR as
         // pasted content, leaving the prompt sitting in the composer. Split the
-        // submit and hold it until the agent has rendered the text and quieted.
-        if (this.ptyController?.write(ptyId, followup.prompt) !== true) {
-          return
-        }
-        return this.waitForTerminalOutputSettled(ptyId).then(() => {
+        // submit, and arm the consumption watch before the prompt goes out so
+        // the render it waits for cannot land before anyone is listening.
+        const watch = this.watchTerminalOutput(ptyId)
+        try {
+          if (this.ptyController?.write(ptyId, followup.prompt) !== true) {
+            return
+          }
+          // Why: same rule as the dispatch paste — quiet is not consumption. An
+          // agent that has not read the prompt yet renders nothing, and a CR
+          // sent into that silence joins it in one read() and is absorbed as
+          // typed text. Hold for the echo; the hard cap releases a mute agent.
+          await watch.settled(AGENT_PROMPT_SUBMIT_DELAY_MS, { requireOutput: true })
           this.ptyController?.write(ptyId, AGENT_PROMPT_SUBMIT)
-        })
+        } finally {
+          watch.dispose()
+        }
+        // Why: this leaves the same residue as a dispatch — an agent that never
+        // quiets can still absorb the Enter — and it fails the same silent way,
+        // with the prompt visible on screen but never submitted.
+        await this.resubmitAgentPromptIfStillUnsubmitted(handle, ptyId)
       })
       .catch((error) => {
         console.warn('[worktree-create] failed to send startup follow-up prompt:', error)
