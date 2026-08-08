@@ -6,6 +6,8 @@ import {
   type DashboardWorkspace
 } from '../../../../shared/dashboard-snapshot'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
+import { filterAgentsByPolicy } from '../../../../shared/corporate-agent-access'
+import { getPolicyAllowedAgents } from '@/enterprise/enterprise-policy-access'
 import {
   filterEnabledTuiAgents,
   TUI_AGENT_AUTO_PICK_ORDER
@@ -113,8 +115,14 @@ export function buildDashboardWorktreeLaunchOptions(
         available.add(card.agentType)
       }
     }
+    // The fourth picker: the dashboard spawn menu offers a detected CLI directly, so
+    // it needs the policy allowlist for the same reason the tab bar `+` menu does.
     const enabled = filterEnabledTuiAgents(
-      TUI_AGENT_AUTO_PICK_ORDER.filter((agent) => available.has(agent)),
+      filterAgentsByPolicy(
+        TUI_AGENT_AUTO_PICK_ORDER.filter((agent) => available.has(agent)),
+        (agent) => agent,
+        getPolicyAllowedAgents()
+      ),
       state.settings?.disabledTuiAgents
     )
     const preferred = state.settings?.defaultTuiAgent
