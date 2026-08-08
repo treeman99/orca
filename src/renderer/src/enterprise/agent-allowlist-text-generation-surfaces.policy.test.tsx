@@ -87,12 +87,14 @@ function renderVaultAgentFilter(): void {
         sort="updated"
         group="project"
         hideEmptySessions={false}
+        sessionLimit="unlimited"
         adjustmentCount={0}
         onAgentEnabledChange={vi.fn()}
         onAllAgentsEnabledChange={vi.fn()}
         onSortChange={vi.fn()}
         onGroupChange={vi.fn()}
         onHideEmptySessionsChange={vi.fn()}
+        onSessionLimitChange={vi.fn()}
         onReset={vi.fn()}
       />
     </TooltipProvider>

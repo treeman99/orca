@@ -1351,8 +1351,11 @@ export class OrcaRuntimeRpcServer {
         }
       },
       // Why: relay attempts are authorized upstream; only direct failures should prompt local re-pairing.
+      // Why the policy check here and not on the toast: this is the one producer of that
+      // prompt, so it also covers `orca serve` and any renderer a rebase adds — and the
+      // prompt tells the user to go re-pair from a Settings pane the policy removed.
       onUnpairedDeviceAuthFailure: (metadata) => {
-        if (metadata.transport === 'direct') {
+        if (metadata.transport === 'direct' && !getEnterprisePolicy().disableMobilePairing) {
           this.unpairedDeviceAuthThrottle?.recordFailure()
         }
       }

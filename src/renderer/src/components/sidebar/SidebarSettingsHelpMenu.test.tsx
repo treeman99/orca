@@ -217,14 +217,12 @@ describe('SidebarSettingsHelpMenu', () => {
     expect(html).not.toContain('Milestones')
   })
 
-  it('renders the Onboarding menu item by default', () => {
+  // Fork guard: onboarding replay and restart are Option/Alt-gated admin options here,
+  // so upstream's "renders by default" pair is inverted on purpose.
+  it('hides the Onboarding and Restart Orca admin entries by default', () => {
     const html = renderToStaticMarkup(<SidebarSettingsHelpMenu />)
-    expect(html).toContain('Onboarding')
-  })
-
-  it('renders Restart Orca by default', () => {
-    const html = renderToStaticMarkup(<SidebarSettingsHelpMenu />)
-    expect(html).toContain('Restart Orca')
+    expect(html).not.toContain('Onboarding')
+    expect(html).not.toContain('Restart Orca')
   })
 
   it('renders Docs link', () => {
