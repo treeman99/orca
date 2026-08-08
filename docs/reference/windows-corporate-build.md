@@ -326,4 +326,5 @@ $env:ORCA_WIN_PUBLISHER_NAME = "<사내 인증서 CN>"
 - 네이티브 재빌드: `config/scripts/rebuild-native-deps.mjs`, `config/scripts/electron-builder-native-rebuild.cjs`
 - 네이티브 로드 점검/보정: `config/scripts/ensure-native-runtime.mjs`
 - 설치 프로그램 없이 화면만 확인하기(맥북 `pnpm dev`): [`macos-dev-ui-check.md`](./macos-dev-ui-check.md)
+- 설치 프로그램을 만들기 전 Windows에서 로컬 검증하기(`pnpm dev` / `build:unpack`): [`local-dev-run.md`](./local-dev-run.md)
 - 사내 정책 파일 스키마와 탐색 순서: `src/shared/enterprise-policy.ts`, `src/main/enterprise/enterprise-policy-file.ts`

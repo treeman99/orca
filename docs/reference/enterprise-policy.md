@@ -514,6 +514,8 @@ Ansible/Puppet/Salt의 file 리소스로 관리하거나, 사내 `.deb`/`.rpm`�
 
 ## 7. 검증과 문제 해결
 
+> 이 절은 **플릿에 배포된 앱**을 진단하는 방법입니다. 정책 파일을 작성하면서 반복 확인하는 단계라면 소스에서 띄운 개발 인스턴스가 훨씬 빠릅니다 — 임의 경로의 파일을 환경변수로 물릴 수 있고(§2), 아래 §7-3의 stderr 원문이 터미널에 그대로 보입니다. 절차는 [로컬 실행 가이드](./local-dev-run.md), 화면만 볼 때는 [macOS dev UI 확인 가이드](./macos-dev-ui-check.md).
+
 ### 7-1. 앱 동작으로 확인하기 (빠른 점검)
 
 패키징된 앱의 stderr는 보기 어렵습니다(§7-3). 아래는 대체로 UI/동작만으로 확인하는 방법입니다 — 스위치가 실제로 어떤 값으로 해석됐는지 확정하는 것은 §7-2의 `enterprise.policy` 스팬이고, 이 표는 그 전의 빠른 점검용입니다.
@@ -603,7 +605,9 @@ Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "enterpr
 
 ### 7-5. `llmEndpoints` 확인
 
-**엔드포인트가 배포됐는지**: 설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"(영문 UI: Accounts → Self-hosted models)에 목록이 뜨면 정책이 읽힌 것입니다. "제공된 자체 호스팅 엔드포인트가 없습니다"(영문 UI: No self-hosted endpoints are provisioned)가 보이면 정책 파일에 항목이 없거나 전부 검증에서 버려진 것이니, §7-2 스팬의 `…warnings`를 확인하세요.
+**엔드포인트가 배포됐는지**: 설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"(영문 UI: Accounts → Self-hosted models)에 항목이 뜨는지 봅니다. 목록이 비어 있으면 정책 파일에 항목이 없거나 전부 검증에서 버려진 것이니, §7-2 스팬의 `…warnings`를 확인하세요.
+
+⚠️ **목록에 있다는 것만으로 관리자가 배포했다는 뜻은 아닙니다** — 이 화면은 정책 엔드포인트와 사용자가 직접 추가한 엔드포인트를 구분 없이 함께 보여줍니다(§3의 사용자 직접 추가 레인). 관리자 배포분만 확정하려면 §7-2 스팬을 보세요.
 
 **세션이 실제로 사내 LLM을 쓰는지**: 그 세션의 터미널에서 선택자를 직접 확인할 수 있습니다. 비밀이 아니라서 일부러 노출해 둔 값입니다.
 
@@ -619,7 +623,7 @@ echo "$ORCA_CORPORATE_LLM_ENDPOINT"     # WSL/bash 패널
 | 상황 | 메시지 (`[corporate-llm]` 접두) |
 | --- | --- |
 | 적용됨 | `using corporate LLM endpoint "<id>" (<baseUrl>)` |
-| 정책에 없는 id | `ignoring unknown corporate LLM endpoint "<id>" — it is not in the policy file's llmEndpoints` |
+| 목록에 없는 id | `ignoring unknown corporate LLM endpoint "<id>" — it is not a policy-provisioned or user-added endpoint` |
 | 토큰 미저장 | `no token saved for corporate LLM endpoint "<id>" — the launch keeps its existing backend` |
 
 > §7-2와 같은 한계가 여기도 적용됩니다 — 시작 메뉴로 띄운 Windows GUI 프로세스는 stderr가 빈 스텁이라 이 줄들이 보이지 않습니다. 실무적으로는 위 `echo`로 확인하세요.
