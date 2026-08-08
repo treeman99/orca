@@ -6,6 +6,8 @@ import {
 export type AppRestartPrepOptions = {
   startedEventName: string
   abortedEventName: string
+  /** Joins the durable write of the state the checkpoint staged; rejects if it failed. */
+  awaitCheckpoint: () => Promise<void>
 }
 
 function requestEditorHotExitBackup(eventTarget: EventTarget): Promise<void> {
@@ -35,7 +37,7 @@ function requestEditorHotExitBackup(eventTarget: EventTarget): Promise<void> {
 
 export async function prepareRendererForAppRestart(
   eventTarget: EventTarget,
-  { startedEventName, abortedEventName }: AppRestartPrepOptions
+  { startedEventName, abortedEventName, awaitCheckpoint }: AppRestartPrepOptions
 ): Promise<void> {
   eventTarget.dispatchEvent(new Event(startedEventName))
 
@@ -47,6 +49,9 @@ export async function prepareRendererForAppRestart(
     if (!accepted) {
       throw new Error('Renderer shutdown checkpoint was not completed.')
     }
+    // Why: the checkpoint only stages synchronously. Navigating before that
+    // write lands loses the session snapshot to a crash or power loss.
+    await awaitCheckpoint()
   } catch (error) {
     eventTarget.dispatchEvent(new Event(abortedEventName))
     throw error

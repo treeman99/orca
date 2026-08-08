@@ -5,6 +5,10 @@ import {
   ORCHESTRATION_COMPATIBILITY_HOST_KIND_ENV
 } from '../../shared/orchestration-compatibility-evidence'
 import { corporateLlmWslenvEntries } from '../enterprise/corporate-llm-wsl-passthrough'
+import {
+  SETUP_AGENT_SEQUENCE_STARTUP_COMMAND_ENV,
+  SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV
+} from '../../shared/setup-agent-sequencing'
 
 const WSLENV_ENTRY_SEPARATOR = ':'
 
@@ -78,6 +82,8 @@ export function addOrcaWslInteropEnv(env: Record<string, string>): void {
     'ORCA_TAB_ID/u',
     'ORCA_WORKTREE_ID/u',
     'ORCA_AGENT_LAUNCH_TOKEN/u',
+    `${SETUP_AGENT_SEQUENCE_STARTUP_COMMAND_ENV}/u`,
+    `${SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV}/u`,
     'ORCA_ORCHESTRATION_COMPATIBILITY_HOST_KIND/u',
     'ORCA_ORCHESTRATION_COMPATIBILITY_HOST_ID/u',
     'ORCA_ORCHESTRATION_COMPATIBILITY_HOST_INCARNATION/u',

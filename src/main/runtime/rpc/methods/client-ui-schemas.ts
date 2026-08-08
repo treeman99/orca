@@ -222,6 +222,7 @@ const UiUpdateFields = z
     showDotfilesByWorktree: z.record(z.string(), z.boolean()).optional(),
     hideCliCreatedWorkspaces: z.boolean().optional(),
     hideDetachedHeadWorkspaces: z.boolean().optional(),
+    alwaysShowDefaultBranchWorkspace: z.boolean().optional(),
     filterRepoIds: StringArray.optional(),
     collapsedGroups: StringArray.optional(),
     uiZoomLevel: z.number().finite().optional(),

@@ -9,7 +9,6 @@ const RESTRICTED_ENV_KEYS = new Set([
   'HOMEPATH',
   'CODEX_HOME',
   'ORCA_CODEX_HOME',
-  'ORCA_CODEX_SYSTEM_DEFAULT_REAL_HOME',
   'ORCA_E2E_USER_DATA_DIR',
   'ORCA_E2E_HOME_DIR',
   'ZDOTDIR',
@@ -45,7 +44,6 @@ type ElectronHomeIsolationOptions = {
   launchEnv: NodeJS.ProcessEnv
   extraEnv: Record<string, string>
   userDataDir: string
-  codexRealHomeEnabled: boolean
   realHome?: string
 }
 
@@ -72,9 +70,7 @@ function assertOverlayDoesNotReplaceIsolation(
     RESTRICTED_ENV_KEYS.has(key.toUpperCase())
   )
   if (restrictedKey) {
-    throw new Error(
-      `${overlayName}.${restrictedKey} cannot override the E2E home boundary; use codexRealHomeEnabled for sandboxed real-home coverage`
-    )
+    throw new Error(`${overlayName}.${restrictedKey} cannot override the E2E home boundary`)
   }
 }
 
@@ -93,7 +89,6 @@ export function createElectronHomeIsolation({
   launchEnv,
   extraEnv,
   userDataDir,
-  codexRealHomeEnabled,
   realHome = os.homedir()
 }: ElectronHomeIsolationOptions): ElectronHomeIsolation {
   assertOverlayDoesNotReplaceIsolation(launchEnv, 'launchEnv')
@@ -122,8 +117,7 @@ export function createElectronHomeIsolation({
       HOME: isolatedHome,
       USERPROFILE: isolatedHome,
       ORCA_E2E_USER_DATA_DIR: userDataDir,
-      ORCA_E2E_HOME_DIR: isolatedHome,
-      ORCA_CODEX_SYSTEM_DEFAULT_REAL_HOME: codexRealHomeEnabled ? '1' : '0'
+      ORCA_E2E_HOME_DIR: isolatedHome
     }
   }
 }

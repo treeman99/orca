@@ -25,8 +25,12 @@ export default defineConfig({
       'tests/tools/**/*.test.mjs',
       'tests/e2e/**/*.unit.test.ts'
     ],
-    // Why: the corporate policy file is ambient process state; see the setup file.
-    setupFiles: [resolve('config/vitest-enterprise-policy-isolation.ts')],
+    setupFiles: [
+      // Why: happy-dom drops MutationObserver callbacks on GC; keep them alive like a browser does.
+      resolve('config/scripts/happy-dom-mutation-observer-retention.ts'),
+      // Why: the corporate policy file is ambient process state; see the setup file.
+      resolve('config/vitest-enterprise-policy-isolation.ts')
+    ],
     // Why: the full suite runs heavy TS transforms plus real git/http fixtures;
     // the Vitest 5s defaults are too tight for the slowest integration cases.
     hookTimeout: 60_000,

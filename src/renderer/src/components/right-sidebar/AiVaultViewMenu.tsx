@@ -39,30 +39,36 @@ import {
 } from '../../../../shared/ai-vault-types'
 import { translate } from '@/i18n/i18n'
 import { AGENT_BULK_ACTION_CLASS, VAULT_HEADER_CONTROL_CLASS } from './ai-vault-control-classes'
+import { AiVaultSessionLimitMenu } from './AiVaultSessionLimitMenu'
+import type { AiVaultSessionLimit } from './ai-vault-session-limit'
 
 export function VaultViewMenu({
   agents,
   sort,
   group,
   hideEmptySessions,
+  sessionLimit,
   adjustmentCount,
   onAgentEnabledChange,
   onAllAgentsEnabledChange,
   onSortChange,
   onGroupChange,
   onHideEmptySessionsChange,
+  onSessionLimitChange,
   onReset
 }: {
   agents: readonly AiVaultAgent[]
   sort: AiVaultSort
   group: AiVaultGroup
   hideEmptySessions: boolean
+  sessionLimit: AiVaultSessionLimit
   adjustmentCount: number
   onAgentEnabledChange: (agent: AiVaultAgent, enabled: boolean) => void
   onAllAgentsEnabledChange: (enabled: boolean) => void
   onSortChange: (sort: AiVaultSort) => void
   onGroupChange: (group: AiVaultGroup) => void
   onHideEmptySessionsChange: (hideEmptySessions: boolean) => void
+  onSessionLimitChange: (limit: AiVaultSessionLimit) => void
   onReset: () => void
 }): React.JSX.Element {
   // Why the policy filter here and not in the persisted options: a blocked agent left in
@@ -209,6 +215,10 @@ export function VaultViewMenu({
             'Hide empty sessions'
           )}
         </DropdownMenuCheckboxItem>
+        <AiVaultSessionLimitMenu
+          sessionLimit={sessionLimit}
+          onSessionLimitChange={onSessionLimitChange}
+        />
         {adjustmentCount > 0 ? (
           <>
             <DropdownMenuSeparator />

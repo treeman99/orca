@@ -100,6 +100,8 @@ docs/**
 !docs/reference/headless-linux-server.md
 !docs/reference/linux-glibc-compatibility.md
 !docs/reference/relay-grace-time-reconfiguration.md
+!docs/reference/remote-wire-compatibility.md
+!docs/reference/windows-setup-shell.md
 !docs/reference/windows-corporate-build.md
 !docs/reference/external-integrations-audit.md
 !docs/reference/enterprise-policy.md
@@ -138,3 +140,6 @@ src/renderer/src/i18n/locales/.es-catalog-cache.json
 
 # Bench result JSONs are working artifacts
 tests/tools/benchmarks/results/terminal-pipeline-*.json
+
+# Old release trees the cross-version wire harness extracts on demand
+tests/e2e/.cross-version-checkouts/

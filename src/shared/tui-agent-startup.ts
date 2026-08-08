@@ -37,9 +37,7 @@ export type AgentStartupPlan = {
   sessionOptions?: Record<string, SessionOptionValue>
 }
 
-function appliedSessionOptionProps(
-  values: Record<string, SessionOptionValue>
-): Pick<AgentStartupPlan, 'sessionOptions'> {
+function appliedSessionOptionProps(values: Record<string, SessionOptionValue>) {
   return Object.keys(values).length > 0 ? { sessionOptions: { ...values } } : {}
 }
 
@@ -53,6 +51,7 @@ export function buildAgentStartupPlan(args: {
   agentArgs?: string | null
   agentEnv?: Record<string, string> | null
   sessionOptions?: Record<string, SessionOptionValue>
+  sessionOptionsOverrideAgentArgs?: boolean
   /** Why: SSH remotes deploy the CLI shim as plain `orca`, so the Linux-only
    * `orca-ide` rename must be skipped for remote launches. */
   isRemote?: boolean
@@ -70,6 +69,7 @@ export function buildAgentStartupPlan(args: {
     agentArgs: usesQuery ? null : args.agentArgs,
     agentEnv: args.agentEnv,
     sessionOptions: args.sessionOptions,
+    sessionOptionsOverrideAgentArgs: args.sessionOptionsOverrideAgentArgs,
     isRemote: args.isRemote
   })
   if (!baseCommand.ok) {
