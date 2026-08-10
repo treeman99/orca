@@ -1,5 +1,6 @@
 import { app } from 'electron'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
+import { ORCA_CLOUD_REMOVED, ORCA_CLOUD_REMOVED_MESSAGE } from '../../shared/orca-cloud-removal'
 
 export type OrcaCloudAuthConfig = {
   apiBaseUrl: string
@@ -17,9 +18,12 @@ export type OrcaCloudAuthConfig = {
 }
 
 const DEFAULT_SCOPE = 'openid profile email offline_access'
-const PRODUCTION_API_BASE_URL = 'https://login.onorca.dev'
-const PRODUCTION_CLIENT_ID = 'orca-desktop'
-const PRODUCTION_RELAY_DIRECTOR_URL = 'https://relay.onorca.dev'
+// The upstream packaged-build fallbacks — the vendor sign-in host, its OAuth client id, and the
+// relay director origin, all named in shared/orca-cloud-removal — are deleted rather than left
+// unused, so those hosts are absent from the shipped bundle and a reviewer grepping it finds
+// nothing to assess. With them gone a packaged build resolves no endpoint at all, which is the
+// same `configured: false` the guard above already returns. The test asserts this file stays free
+// of the literals, so keep the hostnames in the removal module rather than repeating them here.
 
 // Why: packaged main bundles never define NODE_ENV, so packaged-ness is the
 // only reliable production signal for gating dev-only auth escape hatches.
@@ -68,8 +72,13 @@ export function getOrcaCloudAuthConfig(
   env: NodeJS.ProcessEnv = process.env,
   packaged: boolean = isPackagedOrcaBuild()
 ): { configured: true; config: OrcaCloudAuthConfig } | { configured: false; setupMessage: string } {
-  // Why: single chokepoint — an unconfigured cloud also keeps the desktop mobile
-  // relay from starting, so no corporate terminal can be bridged to a phone.
+  // This build removes vendor cloud sign-in outright, ahead of the policy check below so no
+  // administrator setting can restore it. Same chokepoint, same reason it is the right one: an
+  // unconfigured cloud also keeps the desktop mobile relay from starting, so no corporate
+  // terminal can be bridged to a phone and no relay-backed pairing invite is ever minted.
+  if (ORCA_CLOUD_REMOVED) {
+    return { configured: false, setupMessage: ORCA_CLOUD_REMOVED_MESSAGE }
+  }
   if (getEnterprisePolicy().disableCloudRelay) {
     return {
       configured: false,
@@ -82,14 +91,10 @@ export function getOrcaCloudAuthConfig(
   const cleanEndpointUrl = (value: string | undefined): string | null =>
     cleanUrl(value, allowLoopbackHttp)
   const configuredApiBaseUrl = env.ORCA_CLOUD_API_URL?.trim()
-  // Why: packaged releases cannot depend on launch-time environment injection;
-  // these first-party endpoints and the public OAuth client ID are not secrets.
-  const apiBaseUrl = configuredApiBaseUrl
-    ? cleanEndpointUrl(configuredApiBaseUrl)
-    : packaged
-      ? PRODUCTION_API_BASE_URL
-      : null
-  const clientId = env.ORCA_CLOUD_CLIENT_ID?.trim() || (packaged ? PRODUCTION_CLIENT_ID : undefined)
+  // No packaged fallback: with the vendor endpoint deleted there is nothing to fall back to, so a
+  // packaged build reports the cloud unconfigured unless someone points it at their own host.
+  const apiBaseUrl = configuredApiBaseUrl ? cleanEndpointUrl(configuredApiBaseUrl) : null
+  const clientId = env.ORCA_CLOUD_CLIENT_ID?.trim()
   if (!apiBaseUrl || !clientId) {
     return {
       configured: false,
@@ -125,8 +130,9 @@ export function getOrcaCloudAuthConfig(
       relayTokenEndpoint:
         cleanEndpointUrl(env.ORCA_CLOUD_RELAY_TOKEN_URL) ??
         endpoint(apiBaseUrl, '/v1/desktop/auth/relay-token'),
-      relayDirectorUrl:
-        cleanOrigin(env.ORCA_RELAY_URL, allowLoopbackHttp) ?? PRODUCTION_RELAY_DIRECTOR_URL,
+      // Empty when unset, where the vendor director used to be: the relay broker gets no host to
+      // dial rather than silently falling back to one.
+      relayDirectorUrl: cleanOrigin(env.ORCA_RELAY_URL, allowLoopbackHttp) ?? '',
       clientId,
       scope: env.ORCA_CLOUD_AUTH_SCOPE?.trim() || DEFAULT_SCOPE
     }

@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
+import { ORCA_CLOUD_REMOVED_MESSAGE } from '../../shared/orca-cloud-removal'
 import {
   allowsPlaintextOrcaCloudSession,
   getOrcaCloudAuthConfig,
@@ -22,128 +24,57 @@ beforeEach(() => {
 })
 
 describe('Orca cloud auth config', () => {
-  it('reports unconfigured without both API URL and client ID', () => {
-    expect(getOrcaCloudAuthConfig({})).toEqual({
-      configured: false,
-      setupMessage: 'Orca Cloud sign-in is not configured for this build.'
-    })
+  // This build removes vendor cloud sign-in, which is also what keeps the desktop mobile relay
+  // from starting — index.ts only constructs it when this call reports configured.
+  const removed = {
+    configured: false,
+    setupMessage: ORCA_CLOUD_REMOVED_MESSAGE
+  }
+
+  it('reports the cloud removed for a packaged build with no environment', () => {
+    expect(getOrcaCloudAuthConfig({}, true)).toEqual(removed)
+    expect(getOrcaCloudAuthConfig({})).toEqual(removed)
   })
 
-  it('builds default desktop auth endpoints from the API URL', () => {
-    const state = getOrcaCloudAuthConfig({
-      ORCA_CLOUD_API_URL: 'https://orca-cloud.example/',
-      ORCA_CLOUD_CLIENT_ID: 'desktop-client'
-    })
-
-    expect(state).toEqual({
-      configured: true,
-      config: {
-        apiBaseUrl: 'https://orca-cloud.example',
-        authorizeEndpoint: 'https://orca-cloud.example/v1/desktop/auth/authorize',
-        sessionEndpoint: 'https://orca-cloud.example/v1/desktop/auth/session',
-        refreshEndpoint: 'https://orca-cloud.example/v1/desktop/auth/refresh',
-        capabilitiesEndpoint: 'https://orca-cloud.example/v1/desktop/auth/capabilities',
-        profileEndpoint: 'https://orca-cloud.example/v1/desktop/auth/profile',
-        orgEndpoint: 'https://orca-cloud.example/v1/desktop/auth/org',
-        logoutEndpoint: 'https://orca-cloud.example/v1/desktop/auth/logout',
-        relayTokenEndpoint: 'https://orca-cloud.example/v1/desktop/auth/relay-token',
-        relayDirectorUrl: 'https://relay.onorca.dev',
-        clientId: 'desktop-client',
-        scope: 'openid profile email offline_access'
-      }
-    })
-  })
-
-  it('uses first-party production endpoints without runtime env in packaged builds', () => {
-    expect(getOrcaCloudAuthConfig({}, true)).toEqual({
-      configured: true,
-      config: {
-        apiBaseUrl: 'https://login.onorca.dev',
-        authorizeEndpoint: 'https://login.onorca.dev/v1/desktop/auth/authorize',
-        sessionEndpoint: 'https://login.onorca.dev/v1/desktop/auth/session',
-        refreshEndpoint: 'https://login.onorca.dev/v1/desktop/auth/refresh',
-        capabilitiesEndpoint: 'https://login.onorca.dev/v1/desktop/auth/capabilities',
-        profileEndpoint: 'https://login.onorca.dev/v1/desktop/auth/profile',
-        orgEndpoint: 'https://login.onorca.dev/v1/desktop/auth/org',
-        logoutEndpoint: 'https://login.onorca.dev/v1/desktop/auth/logout',
-        relayTokenEndpoint: 'https://login.onorca.dev/v1/desktop/auth/relay-token',
-        relayDirectorUrl: 'https://relay.onorca.dev',
-        clientId: 'orca-desktop',
-        scope: 'openid profile email offline_access'
-      }
-    })
-  })
-
-  it('reports unconfigured for packaged builds when the policy disables the cloud relay', () => {
-    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
-
-    expect(getOrcaCloudAuthConfig({}, true)).toEqual({
-      configured: false,
-      setupMessage: 'Orca Cloud sign-in is disabled by an enterprise policy.'
-    })
-  })
-
-  it('cannot be re-enabled with cloud env vars while the policy disables the relay', () => {
-    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
-
+  it('cannot be restored by cloud or relay environment variables', () => {
+    // The env vars are inherited by every process Orca spawns, so a build that honoured them
+    // would be one `export` away from reaching the vendor again.
     expect(
       getOrcaCloudAuthConfig(
         {
           ORCA_CLOUD_API_URL: 'https://orca-cloud.example',
           ORCA_CLOUD_CLIENT_ID: 'desktop-client',
+          ORCA_CLOUD_AUTH_URL: 'https://orca-cloud.example',
           ORCA_RELAY_URL: 'https://relay.example'
         },
         true
       )
-    ).toMatchObject({ configured: false })
+    ).toEqual(removed)
   })
 
-  it('keeps packaged cloud sign-in when the policy leaves the relay enabled', () => {
-    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy({ disableCloudRelay: false }))
-
-    expect(getOrcaCloudAuthConfig({}, true)).toMatchObject({
-      configured: true,
-      config: { apiBaseUrl: 'https://login.onorca.dev' }
-    })
+  it('stays removed however the enterprise policy is set', () => {
+    // Notably including `disableCloudRelay: false`, the setting a fleet that wants mobile
+    // pairing would choose — under the old gate that alone restored vendor sign-in.
+    for (const policy of [
+      makeEnterprisePolicy(),
+      makeLockdownPolicy(),
+      makeLockdownPolicy({ disableCloudRelay: false })
+    ]) {
+      getEnterprisePolicyMock.mockReturnValue(policy)
+      expect(getOrcaCloudAuthConfig({}, true)).toEqual(removed)
+    }
   })
 
-  it('allows loopback HTTP endpoints for local desktop auth development', () => {
-    const state = getOrcaCloudAuthConfig({
-      ORCA_CLOUD_API_URL: 'http://localhost:4100',
-      ORCA_CLOUD_CLIENT_ID: 'desktop-client'
-    })
-
-    expect(state.configured).toBe(true)
-  })
-
-  it('rejects loopback HTTP endpoints in packaged builds', () => {
-    expect(
-      getOrcaCloudAuthConfig(
-        {
-          ORCA_CLOUD_API_URL: 'http://localhost:4100',
-          ORCA_CLOUD_CLIENT_ID: 'desktop-client'
-        },
-        true
-      )
-    ).toMatchObject({ configured: false })
-
-    const httpsState = getOrcaCloudAuthConfig(
-      {
-        ORCA_CLOUD_API_URL: 'https://orca-cloud.example',
-        ORCA_CLOUD_CLIENT_ID: 'desktop-client'
-      },
-      true
+  it('ships no vendor endpoint for a future rebase to fall back to', () => {
+    // Behavioural coverage stops at the guard, so assert the deletion at the source: if an
+    // upstream merge restores the packaged fallbacks, the guard is one edit from being the only
+    // thing standing between this build and the vendor.
+    const source = readFileSync(
+      new URL('./profile-cloud-auth-config.ts', import.meta.url),
+      'utf8'
     )
-    expect(httpsState.configured).toBe(true)
-  })
 
-  it('rejects non-HTTPS non-loopback API URLs', () => {
-    expect(
-      getOrcaCloudAuthConfig({
-        ORCA_CLOUD_API_URL: 'http://orca-cloud.example',
-        ORCA_CLOUD_CLIENT_ID: 'desktop-client'
-      })
-    ).toMatchObject({ configured: false })
+    expect(source).not.toContain('onorca.dev')
   })
 
   it('allows dev plaintext sessions only outside production', () => {
