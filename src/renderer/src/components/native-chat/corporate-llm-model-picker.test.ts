@@ -58,7 +58,9 @@ describe('choosing the corporate LLM endpoint from the model picker', () => {
     expect(persistSelection).toHaveBeenCalledWith({
       modelId: MODEL_ID,
       optionId: 'model',
-      value: MODEL_ID
+      value: MODEL_ID,
+      // The recorded pick is the only way the endpoint reaches the next launch.
+      adoptModelAsLaunchDefault: true
     })
     expect(surface.getSnapshot()[0]).toMatchObject({
       id: 'model',
