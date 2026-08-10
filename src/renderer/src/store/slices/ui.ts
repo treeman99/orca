@@ -3,6 +3,7 @@ import type { StateCreator } from 'zustand'
 import type { AppState } from '../types'
 import { normalizeRightSidebarRoute } from '../right-sidebar-route'
 import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
+import { ARTIFACT_SHARING_REMOVED } from '../../../../shared/artifact-sharing-removal'
 import {
   findPrevLiveNonTaskStackHistoryIndex,
   findPrevLiveWorktreeHistoryIndex
@@ -506,6 +507,14 @@ export function isMobileViewBlockedByPolicy(): boolean {
   return getEnterprisePolicyView().disableMobilePairing
 }
 
+/** Both removed top-level views, for the writers that take a view id rather than an action. */
+export function isTopLevelViewRemoved(view: TopLevelView): boolean {
+  if (view === 'mobile') {
+    return isMobileViewBlockedByPolicy()
+  }
+  return view === 'artifacts' && ARTIFACT_SHARING_REMOVED
+}
+
 function sanitizeHydratedActiveView(
   value: PersistedUIState['activeView'],
   experimentalActivityEnabled: boolean
@@ -524,6 +533,11 @@ function sanitizeHydratedActiveView(
   // keep mounting after the administrator deploys the policy. This is the difference
   // that made the same installer look conditional from one PC to the next.
   if (value === 'mobile' && isMobileViewBlockedByPolicy()) {
+    return 'terminal'
+  }
+  // Same reasoning for Artifacts, which this build removes outright: a machine last left on the
+  // page has 'artifacts' on disk and would remount it on the next launch.
+  if (value === 'artifacts' && ARTIFACT_SHARING_REMOVED) {
     return 'terminal'
   }
   return value
@@ -1251,9 +1265,9 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
   previousViewBeforeMobile: 'terminal',
   previousViewBeforeArtifacts: 'terminal',
   // The third writer of `activeView`; a rebase that routes a menu or palette through
-  // here instead of openMobilePage must not reopen the removed page.
+  // here instead of openMobilePage/openArtifactsPage must not reopen a removed page.
   setActiveView: (view) =>
-    set(view === 'mobile' && isMobileViewBlockedByPolicy() ? {} : { activeView: view }),
+    set(isTopLevelViewRemoved(view) ? {} : { activeView: view }),
   taskPageData: {},
   taskResumeState: undefined,
   githubTaskDrawerWorkItem: null,
@@ -1499,11 +1513,18 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
       activeView: state.previousViewBeforeSkills
     })),
   openArtifactsPage: () =>
-    set((state) => ({
-      activeView: 'artifacts',
-      previousViewBeforeArtifacts:
-        state.activeView === 'artifacts' ? state.previousViewBeforeArtifacts : state.activeView
-    })),
+    set((state) =>
+      // The door the sidebar button and the Settings pane's "Open Artifacts" both use.
+      ARTIFACT_SHARING_REMOVED
+        ? {}
+        : {
+            activeView: 'artifacts',
+            previousViewBeforeArtifacts:
+              state.activeView === 'artifacts'
+                ? state.previousViewBeforeArtifacts
+                : state.activeView
+          }
+    ),
   closeArtifactsPage: () =>
     set((state) => ({
       activeView: state.previousViewBeforeArtifacts

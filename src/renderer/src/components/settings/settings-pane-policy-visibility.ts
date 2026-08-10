@@ -12,6 +12,7 @@
 
 import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import type { EnterprisePolicyView } from '../../../../shared/enterprise-policy-view'
+import { ARTIFACT_SHARING_REMOVED } from '../../../../shared/artifact-sharing-removal'
 
 const PANE_POLICY_KEYS: Readonly<Record<string, keyof EnterprisePolicyView>> = {
   stats: 'disableUsagePolling',
@@ -22,10 +23,19 @@ const PANE_POLICY_KEYS: Readonly<Record<string, keyof EnterprisePolicyView>> = {
   plugins: 'disablePlugins'
 }
 
+// Removed outright rather than policy-keyed, so it is not in the table above: the Artifacts pane
+// only configures uploads to a vendor host this build never contacts.
+const REMOVED_PANE_IDS: ReadonlySet<string> = new Set(
+  ARTIFACT_SHARING_REMOVED ? ['artifacts'] : []
+)
+
 export function isSettingsPaneHiddenByPolicy(
   sectionId: string,
   policy: EnterprisePolicyView = getEnterprisePolicyView()
 ): boolean {
+  if (REMOVED_PANE_IDS.has(sectionId)) {
+    return true
+  }
   const key = PANE_POLICY_KEYS[sectionId]
   return key !== undefined && policy[key] === true
 }

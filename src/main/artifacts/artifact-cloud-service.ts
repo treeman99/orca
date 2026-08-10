@@ -26,6 +26,10 @@ import {
   removeArtifactShareRecords
 } from './artifact-share-record-store'
 import type { ActiveOrcaProfileState } from '../orca-profiles/profile-index-store'
+import {
+  ARTIFACT_SHARING_REMOVED,
+  ARTIFACT_SHARING_REMOVED_MESSAGE
+} from '../../shared/artifact-sharing-removal'
 import { artifactRequest, artifactWriteBody } from './artifact-cloud-request'
 import { ArtifactPublisher } from './artifact-publisher'
 
@@ -256,6 +260,14 @@ export class ArtifactCloudService {
     options: ArtifactCloudOptions,
     operation: (token: string, apiUrl: string, auth: ArtifactAuthContext) => Promise<T>
   ): Promise<ArtifactCloudOperation<T>> {
+    // The one chokepoint: every method above reaches the network through here, so this covers
+    // the RPC surface, `orca artifacts`, and the relay's forwarded CLI in one place. It sits
+    // ahead of the authToken branch because that dev-build override skips the auth config that
+    // would otherwise stop us. Returning rather than throwing reuses the shape the UI already
+    // renders for an unavailable cloud.
+    if (ARTIFACT_SHARING_REMOVED) {
+      return { status: 'unconfigured', message: ARTIFACT_SHARING_REMOVED_MESSAGE }
+    }
     const apiUrl = resolveArtifactCloudApiUrl(options.apiUrl)
     const active = ensureActiveOrcaProfile(this.userDataPath)
     if (options.authToken?.trim()) {

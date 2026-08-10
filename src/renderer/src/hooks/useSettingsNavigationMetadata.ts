@@ -89,6 +89,7 @@ import {
   getEnterprisePolicyView,
   useEnterprisePolicyView
 } from '@/enterprise/enterprise-policy-access'
+import { ARTIFACT_SHARING_REMOVED } from '../../../shared/artifact-sharing-removal'
 import type { EnterprisePolicyView } from '../../../shared/enterprise-policy-view'
 import { useLinearProviderConnected } from '@/hooks/useLinearProviderConnected'
 import { translate } from '@/i18n/i18n'
@@ -350,18 +351,27 @@ export function buildSettingsNavigationMetadata({
       searchEntries: getAutomationsSettingsSearchEntries(),
       group: 'workflows'
     },
-    {
-      id: 'artifacts',
-      title: translate('auto.hooks.useSettingsNavigationMetadata.artifactsTitle', 'Artifacts'),
-      description: translate(
-        'auto.hooks.useSettingsNavigationMetadata.artifactsDescription',
-        'Share HTML and Markdown files with your team and manage their public links.'
-      ),
-      icon: Files,
-      searchEntries: getArtifactsSettingsSearchEntries(),
-      group: 'workflows',
-      badge: translate('auto.hooks.useSettingsNavigationMetadata.40d80bad8a', 'Beta')
-    },
+    // Dropping the registry entry also drops it from settings search and the Cmd+J palette;
+    // settings-pane-policy-visibility covers the deep-link path the registry cannot.
+    ...(!ARTIFACT_SHARING_REMOVED
+      ? [
+          {
+            id: 'artifacts',
+            title: translate(
+              'auto.hooks.useSettingsNavigationMetadata.artifactsTitle',
+              'Artifacts'
+            ),
+            description: translate(
+              'auto.hooks.useSettingsNavigationMetadata.artifactsDescription',
+              'Share HTML and Markdown files with your team and manage their public links.'
+            ),
+            icon: Files,
+            searchEntries: getArtifactsSettingsSearchEntries(),
+            group: 'workflows' as const,
+            badge: translate('auto.hooks.useSettingsNavigationMetadata.40d80bad8a', 'Beta')
+          }
+        ]
+      : []),
     {
       id: 'git',
       title: translate(

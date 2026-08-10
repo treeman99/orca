@@ -79,7 +79,7 @@ describe('settings navigation metadata', () => {
     expect(sections.find((section) => section.id === 'mobile')?.group).toBe('setup')
   })
 
-  it('places Automations and Artifacts first under Workflows', () => {
+  it('places Automations first under Workflows and omits the removed Artifacts pane', () => {
     const sections = buildSettingsNavigationMetadata({
       isMac: false,
       isWindows: false,
@@ -87,19 +87,15 @@ describe('settings navigation metadata', () => {
       repos: [repo]
     })
     const automations = sections.find((section) => section.id === 'automations')
-    const artifacts = sections.find((section) => section.id === 'artifacts')
     const workflowIds = sections
       .filter((section) => section.group === 'workflows')
       .map((section) => section.id)
 
     expect(automations?.group).toBe('workflows')
     expect(automations?.searchEntries[0]?.title).toBe('Show Automations Button')
-    expect(artifacts?.group).toBe('workflows')
-    expect(artifacts?.badge).toBe('Beta')
-    expect(artifacts?.description).toBe(
-      'Share HTML and Markdown files with your team and manage their public links.'
-    )
-    expect(workflowIds.slice(0, 2)).toEqual(['automations', 'artifacts'])
+    // Dropping it here is what also keeps it out of settings search and the Cmd+J palette.
+    expect(sections.find((section) => section.id === 'artifacts')).toBeUndefined()
+    expect(workflowIds[0]).toBe('automations')
   })
 
   it('places the Orca account in Set Up on desktop only', () => {

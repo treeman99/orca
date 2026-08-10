@@ -194,6 +194,7 @@ import { MarkupDrawButton } from './markup/MarkupDrawButton'
 import { deliverMarkupToClipboard } from './markup/markup-clipboard-delivery'
 import { BrowserLoadFailureOverlay } from './browser-load-failure-overlay'
 import { ArtifactPublishButton } from '@/components/artifacts/ArtifactPublishButton'
+import { ARTIFACT_SHARING_REMOVED } from '../../../../shared/artifact-sharing-removal'
 import {
   browserFileUrlToAbsolutePath,
   getShareableBrowserArtifactFile,
@@ -5033,7 +5034,7 @@ function BrowserPagePane({
             surfaceActive={isActive}
           />
 
-          {shareableArtifactFile ? (
+          {!ARTIFACT_SHARING_REMOVED && shareableArtifactFile ? (
             <ArtifactPublishButton
               sourceKey={shareableArtifactFile.filePath}
               className="h-7 w-7"

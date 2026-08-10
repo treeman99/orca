@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store'
 import { cn } from '@/lib/utils'
 import type { GlobalSettings } from '../../../../shared/types'
+import { ARTIFACT_SHARING_REMOVED } from '../../../../shared/artifact-sharing-removal'
 import { useActivityUnreadCount } from '@/components/activity/useActivityUnreadCount'
 import { useShortcutKeyComboDetails } from '@/hooks/useShortcutLabel'
 import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
@@ -55,7 +56,8 @@ export function shouldShowAutomationsButton(
 export function shouldShowArtifactsButton(
   settings: Pick<GlobalSettings, 'showArtifactsButton'> | null | undefined
 ): boolean {
-  return settings?.showArtifactsButton === true
+  // The setting survives so an existing profile round-trips unchanged; the row does not.
+  return !ARTIFACT_SHARING_REMOVED && settings?.showArtifactsButton === true
 }
 
 const AgentDashboardSidebarEntry = lazyWithRetry(() => import('./AgentDashboardSidebarEntry'))

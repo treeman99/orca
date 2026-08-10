@@ -305,35 +305,23 @@ describe('SidebarNav', () => {
     expect(shouldShowMobileButton({})).toBe(true)
   })
 
-  it('hides the Artifacts entry by default for older settings', () => {
+  // This build removes artifact sharing, so the row is gone even for a profile whose stored
+  // setting asks for it — a returning user must not find the entry still there.
+  it('never shows the Artifacts entry, whatever the stored setting says', () => {
     expect(shouldShowArtifactsButton(null)).toBe(false)
     expect(shouldShowArtifactsButton({})).toBe(false)
-    expect(shouldShowArtifactsButton({ showArtifactsButton: true })).toBe(true)
+    expect(shouldShowArtifactsButton({ showArtifactsButton: true })).toBe(false)
     expect(shouldShowArtifactsButton({ showArtifactsButton: false })).toBe(false)
   })
 
-  it('opens Artifacts from the sidebar', async () => {
+  it('renders no Artifacts row to open', async () => {
     setSidebarState({
       settings: { ...getDefaultSettings('/tmp'), showArtifactsButton: true }
     })
     const container = await renderSidebarNav()
 
-    await clickButton(getButtonByText(container, 'Artifacts'))
-
-    expect(mocks.openArtifactsPage).toHaveBeenCalledOnce()
-  })
-
-  it('hides Artifacts from its context menu', async () => {
-    setSidebarState({
-      settings: { ...getDefaultSettings('/tmp'), showArtifactsButton: true }
-    })
-    const container = await renderSidebarNav()
-    const row = getButtonByText(container, 'Artifacts')
-    const menu = row.closest('[data-testid="context-menu"]')
-
-    await clickButton(getHideButton(menu as Element))
-
-    expect(mocks.updateSettings).toHaveBeenCalledWith({ showArtifactsButton: false })
+    expect(queryButtonByText(container, 'Artifacts')).toBeNull()
+    expect(mocks.openArtifactsPage).not.toHaveBeenCalled()
   })
 
   it('hides the Mobile entry when the sidebar setting is off', () => {

@@ -1,11 +1,7 @@
 /* eslint-disable max-lines */
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  getDefaultSettings,
-  getDefaultUIState,
-  getWorktreeCardModeProperties
-} from '../../../../shared/constants'
+import { getDefaultUIState, getWorktreeCardModeProperties } from '../../../../shared/constants'
 import type {
   GitHubWorkItem,
   JiraIssue,
@@ -3467,29 +3463,32 @@ describe('createUISlice space navigation', () => {
     expect(store.getState().activeView).toBe('tasks')
   })
 
-  it('returns to the originating view after closing Artifacts', () => {
+  // Artifacts is removed in this build, so all three writers of `activeView` must refuse it.
+  it('leaves the current view alone when something asks to open Artifacts', () => {
     const store = createUIStore()
 
     store.getState().openTaskPage()
     store.getState().openArtifactsPage()
 
-    expect(store.getState().activeView).toBe('artifacts')
-    expect(store.getState().previousViewBeforeArtifacts).toBe('tasks')
+    expect(store.getState().activeView).toBe('tasks')
+  })
 
-    store.getState().closeArtifactsPage()
+  it('refuses Artifacts through the generic setActiveView writer', () => {
+    const store = createUIStore()
+
+    store.getState().openTaskPage()
+    store.getState().setActiveView('artifacts')
 
     expect(store.getState().activeView).toBe('tasks')
   })
 
-  it('opens and restores Artifacts when its sidebar shortcut is hidden', () => {
+  it('does not restore a persisted Artifacts view on startup', () => {
+    // A machine last left on the page has 'artifacts' on disk; hydration must not remount it.
     const store = createUIStore()
-    store.setState({ settings: { ...getDefaultSettings('/tmp'), showArtifactsButton: false } })
-
-    store.getState().openArtifactsPage()
-    expect(store.getState().activeView).toBe('artifacts')
 
     store.getState().hydratePersistedUI(makePersistedUI({ activeView: 'artifacts' }), 'startup')
-    expect(store.getState().activeView).toBe('artifacts')
+
+    expect(store.getState().activeView).toBe('terminal')
   })
 })
 
