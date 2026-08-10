@@ -6,6 +6,10 @@
 > **조사 방식**: 10개 카테고리를 병렬로 정적 분석(스윕) → 누락 항목 크리틱 → 항목별 적대적 검증(“실제로 소켓을 여는가 / 언제 발동하는가 / 끌 수 있는가”). 후보 103건 중 44건이 실제 외부 호출로 확정됐습니다.
 >
 > **⚠️ 표시는 미검증이거나 운영상 주의가 필요한 항목**입니다. 이 중 **코드로 확인하지 못한 것은 두 건뿐**입니다(§7 레벨 3의 `net.fetch` 경유 여부, §8의 컴포넌트 업데이터 실측). 나머지 ⚠️는 코드는 확인했으나 배포 시 조작이 필요한 항목입니다. 모든 `파일:라인` 인용은 **v1.4.155 리베이스 이후의 트리에서 해당 파일을 다시 열어** 확인했습니다. 이전 판에 있던 존재하지 않는 환경변수(`ORCA_DISABLE_UPDATES`)와 자기모순 서술은 제거했습니다.
+>
+> **v1.4.178 갱신 (2026-08-10).** 이 판에서 재검증한 것은 **v1.4.176 → v1.4.178 구간의 델타**입니다(추가 라인 52,890줄 전수 grep + 신규 파일 271건 검토). 나머지 44건의 확정 항목은 위 기준 시점의 서술이며 이번에 다시 열어보지 않았습니다.
+>
+> 이 구간에서 **신규 외부 목적지 1건**이 들어왔고(Artifacts 공유 → 벤더 공유 호스트), **그에 대응해 벤더 클라우드 레인 3종을 코드에서 제거**했습니다 — Artifacts 공유, Orca Cloud 로그인, 모바일 페어링 릴레이 디렉터. 셋 다 정책 스위치가 아니라 소스에서 차단했으므로 §3과 같은 성격입니다(§3.1). 그 외 신규 egress는 없었습니다: `net.fetch`/`WebSocket`/`axios`/`sendBeacon`/`openExternal` 신규 사용 0건, 신규 쉘아웃(`curl`/`wget`/`npx`/`gh api`) 0건, 프로덕션 신규 도메인 리터럴 2건은 모두 목적지가 아니라 매처입니다(§6).
 
 ---
 
@@ -18,7 +22,8 @@
 | **텔레메트리 / 진단 / 크래시** | opt-in(기본 꺼짐) + 공식 빌드에서만 전송 | ✅ `disableTelemetry` | 없음 (로컬 NDJSON 로깅은 유지, 망 밖으로 안 나감) |
 | **자동 업데이트 / 넛지 (onorca.dev, github.com)** | 로그인 무관하게 나감 | 🚫 **코드에서 제거됨** | 없음 (정책이 아니라 소스에서 삭제, §3) |
 | **star-nag (github.com SaaS 고정)** | 랜딩·설정 화면 진입, 에이전트 완료, 온보딩 완료, 스폰 임계치에서 발동 | ✅ `disableStarNag` | 없음 (`gh` 호출 함수 자체에서 차단, §1) |
-| **Orca Cloud 로그인 / 모바일 페어링 릴레이** | 로그인 안 하면 안 나감 | ✅ `disableCloudRelay` | **`disableCloudRelay`만으로는 모바일이 열려 있습니다** — 벤더 릴레이는 죽지만 LAN/Tailscale 페어링 QR은 정상 발급됩니다. `disableMobilePairing`으로 닫습니다 |
+| **Orca Cloud 로그인 / 모바일 페어링 릴레이** | 로그인 안 하면 안 나감 | 🚫 **코드에서 제거됨** (v1.4.178~, §3.1) | 없음. LAN/Tailscale 페어링 QR은 **여전히 발급됩니다** — 릴레이가 아니라 모바일 자체를 닫는 건 `disableMobilePairing`입니다 |
+| **Artifacts 공유 (v1.4.178 신규)** — HTML/Markdown 파일 본문을 벤더 호스트로 발행 | 업스트림 기본값은 사용자 설정으로 꺼져 있으나 UI에서 두 번 클릭이면 켜짐 | 🚫 **코드에서 제거됨** (§3.1) | 없음 (정책이 아니라 소스에서 차단) |
 | **AI 벤더 사용량 폴링 (Claude/Codex/Grok/…)** | 🔴 **Orca 계정 연동과 무관 — 로컬 벤더 CLI 자격증명만 있으면 15분마다 폴링** | ✅ `disableUsagePolling` | 없음 (§4) |
 | **Claude OAuth 토큰 회전 (platform.claude.com)** | Orca 관리 Claude 계정을 쓸 때만 | ✅ `disableManagedClaudeAccounts` | egress는 없음. 단 이 스위치는 **Bedrock 플릿에서 선택이 아니라 필수**입니다 — 끄면 WSL 세션이 관리형 계정 없이도 인증 env를 스트립하고, 런치 env에 `AWS_BEARER_TOKEN_BEDROCK` 등이 있으면 스폰이 하드 실패합니다 (§4) |
 | **git 호스팅 (GitHub/GitLab/…)** | 사용자 열람 + 일부 자동 폴링 | ➖ `githubEnterpriseHost`는 **Gitea 폴백 오인만 차단**(호스트 전환도, 트래픽 차단도 아님) | `gh` 목적지는 여전히 `GH_HOST`/origin 리모트가 결정 (§1, §7 레벨 2) |
@@ -94,7 +99,7 @@
 | `disableTelemetry` | boolean | = `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88`) **및** 진단/크래시 번들 업로드 (`src/main/observability/index.ts:103,120-133`). 로컬 NDJSON 로깅은 유지(`localFileEnabled: true`, `:130`) |
 | `disableAutoUpdate` | boolean | = `lockdown` | 🔴 **죽은 스위치.** 인앱 업데이터가 코드에서 제거되어(§3) 이 키를 읽는 게이트가 저장소에 없습니다. 리베이스 안전판 겸 기존 정책 파일 호환을 위해 키만 유지합니다 |
 | `disableStarNag` | boolean | = `lockdown` | `checkOrcaStarred()` (`src/main/github/client.ts:233`) / `starOrca()` (`:419`) |
-| `disableCloudRelay` | boolean | = `lockdown` | `getOrcaCloudAuthConfig()`가 "미구성"을 반환 (`src/main/orca-profiles/profile-cloud-auth-config.ts:73`) → 이 한 함수에 의존하는 클라우드 경로 전부(로그인·프로필 연결·조직 멤버 IPC 5종)가 죽고, 모바일 페어링 릴레이는 `configured`일 때만 생성되므로 아예 기동하지 않습니다 (`src/main/index.ts:2478-2479`). ⚠️ 릴레이가 없어도 LAN 전용 페어링은 계속 동작합니다 — 모바일 자체를 막는 건 `disableMobilePairing`입니다 |
+| `disableCloudRelay` | boolean | = `lockdown` | 🔴 **사실상 죽은 스위치 (v1.4.178~).** 같은 함수 `getOrcaCloudAuthConfig()`에서 **정책 검사보다 앞에** 무조건 차단이 들어갔으므로(§3.1), 이 키가 무엇이든 클라우드는 미구성입니다. `disableAutoUpdate`와 같은 이유로 키만 유지합니다 — 리베이스 안전판 겸 기존 정책 파일 호환. ⚠️ 예전에도 지금도 **LAN 전용 페어링은 계속 동작합니다** — 모바일 자체를 막는 건 `disableMobilePairing`입니다 |
 | `disableUsagePolling` | boolean | = `lockdown` | `src/main/rate-limits/service.ts:760`의 술어를 `start()`(`:310`), `fetchAll`/`fetchCodexOnly`/`fetchClaudeOnly`/`fetchGrokOnly`(`:895,960,1022,1087`), 계정 스위처 프리뷰 2종(`:500,580`), Codex 리셋 크레딧 POST(`:428`)에서 검사 |
 | `disableManagedClaudeAccounts` | boolean | = `lockdown` | Orca 관리형 Claude 계정. 게이트 3곳: `platform.claude.com` 회전 함수 진입부(`src/main/claude-accounts/oauth-refresh.ts:131-133`), 인증 준비에서 활성 계정을 `null`로 고정(`src/main/claude-accounts/runtime-auth-service.ts:613-616`), 환경 스트립 최후 방어선(`src/main/claude-accounts/environment.ts:22`) (§4) |
 | `disableSpellcheck` | boolean | = `lockdown` | `webPreferences.spellcheck`를 끄는 지점 **5곳**: 메인 창(`src/main/window/createMainWindow.ts:299`), `will-attach-webview` 게스트(`:471`), 대시보드 팝아웃 창(`src/main/window/dashboard-popout-window.ts:176`), 오프스크린 브라우저 백엔드(`src/main/browser/offscreen-browser-backend.ts:45`), PDF 내보내기 WebContents(`src/main/lib/html-to-pdf.ts:46`) |
@@ -282,6 +287,47 @@ UI 표면도 함께 사라졌습니다 — 앱/Help 메뉴, 트레이, 사이드
 
 ---
 
+## 3.1 벤더 클라우드 레인 3종 (🚫 코드에서 제거됨, v1.4.178~)
+
+§3과 같은 성격입니다 — 정책이 아니라 소스에서 차단했으므로, 정책 파일이 없거나 파싱에 실패해도 되살아나지 않습니다.
+
+| 기능 | 목적지 | 나가던 것 | 차단 지점 |
+| --- | --- | --- | --- |
+| **Artifacts 공유** (v1.4.178 신규) | `share.onorca.dev` (인증 갱신은 벤더 로그인 호스트) | **파일 본문 전체**(최대 800KB), 파일 basename, 선택적 제목, `Bearer` 토큰(계정 신원). 절대경로·워크트리명·텔레메트리는 아님 | `ArtifactCloudService.withAuth` (`src/main/artifacts/artifact-cloud-service.ts`) |
+| **Orca Cloud 로그인** | 벤더 로그인 호스트 `/v1/desktop/auth/{authorize,session,refresh,capabilities,profile,org,logout,relay-token}` | OAuth 세션·프로필·조직 정보 | `getOrcaCloudAuthConfig()` (`src/main/orca-profiles/profile-cloud-auth-config.ts`) |
+| **모바일 페어링 릴레이 디렉터** | 벤더 릴레이 호스트 | 릴레이 초대 토큰, 릴레이 경유 터미널 브리지 | 동일 — `DesktopRelayService`는 이 호출이 `configured`일 때만 생성됩니다 (`src/main/index.ts`) |
+
+**왜 정책 스위치가 아니라 제거인가.**
+
+- **Artifacts**: API 클라이언트가 목적지를 `onorca.dev` 호스트로 **잠가 둡니다**(`artifact-cloud-config.ts`). 사내 호스트로 돌릴 수 없으므로, 사내 소스를 사내 인프라에 두면서 이 기능을 켜는 설정 조합이 존재하지 않습니다. 업스트림의 off-by-default(`artifactSharingEnabled`)는 **에이전트가 공개 링크를 만들지 못하게 하는 사용자 설정**이지 배포 통제 수단이 아닙니다 — UI에서 두 번 클릭이면 켜집니다.
+- **클라우드/릴레이**: `disableCloudRelay`로 이미 덮여 있었지만, 그건 관리자의 선택입니다. **모바일 페어링을 쓰려고 그 스위치를 끄는 것은 정당한 구성인데, 그러면 벤더 로그인과 릴레이가 같이 되살아납니다.** 이 빌드는 둘 다 쓰지 않으므로 정책 한 줄 뒤에 두지 않습니다.
+
+**초크포인트 선택이 중요했습니다.** Artifacts는 `share`/`publish`/`update`만 업스트림 capability 게이트를 통과하고 `list`/`getPublishedLink`/`unshare`/`delete` 4종은 **의도적으로 무게이트**입니다(옛 링크를 감사·회수할 수 있어야 한다는 이유). 7개 RPC가 전부 지나가는 `withAuth`에 걸어야 다 막힙니다. 특히 dev 빌드의 `authToken` 우회는 인증 설정 검사를 건너뛰므로 **그 분기보다 앞**에 두어야 합니다.
+
+**하드코딩 상수도 삭제했습니다.** 벤더 로그인 호스트, `orca-desktop` OAuth client id, 릴레이 디렉터 origin의 패키지 빌드용 폴백을 지웠습니다. 번들에서 문자열 자체가 사라져 검토자가 grep할 대상이 없고, 가드가 리베이스로 사라지더라도 폴백할 엔드포인트가 없습니다. 환경변수(`ORCA_CLOUD_API_URL`, `ORCA_RELAY_URL`)로도 복구되지 않습니다 — env var는 Orca가 스폰하는 모든 프로세스에 상속되므로(§0.1) 그걸 존중하는 빌드는 `export` 한 번이면 뚫립니다.
+
+**UI 표면도 함께 제거**했습니다(Artifacts): 사이드바 행, 설정 페인(레지스트리 + 딥링크), 에디터·브라우저 패널의 publish 버튼, artifacts 뷰 라우팅. 뷰 라우팅은 **영속 상태 복원 경로까지** 막았습니다 — 페이지를 켜둔 채 종료한 PC는 디스크에 `activeView: 'artifacts'`가 남아 다음 실행에서 다시 마운트되기 때문입니다(모바일 뷰에서 겪은 것과 같은 패턴).
+
+**검증**:
+
+```bash
+# 빈 결과여야 합니다. 두 호스트를 이름으로 부르는 것이 존재 이유인 파일 2개만 제외합니다 —
+# 제거 사실을 문서화하는 모듈과, 그 부재를 검사하는 테스트 자신.
+git grep -n 'login\.onorca\.dev\|relay\.onorca\.dev' -- src/ \
+  | grep -v 'shared/orca-cloud-removal.ts\|orca-cloud-host-absence.test.ts'
+
+# 제거 가드가 제자리에 있는지 (없으면 정책만 남았다는 뜻)
+git grep -n 'ARTIFACT_SHARING_REMOVED\|ORCA_CLOUD_REMOVED' -- src/
+```
+
+회귀 방지 테스트는 `src/main/artifacts/artifact-sharing-removed.test.ts`(7개 메서드 전부 `fetch` 미호출 — 사용자 토글이 켜진 경우와 호출자가 직접 loopback URL+토큰을 넘긴 경우 포함), `src/main/orca-profiles/profile-cloud-auth-config.test.ts`(환경변수·정책 조합 전수 거부, `disableCloudRelay: false` 포함), `src/main/orca-profiles/orca-cloud-host-absence.test.ts`(소스 감사)입니다.
+
+**⚠️ 마지막 것이 소스 감사인 이유**: 가드가 엔드포인트 해석 **전에** 반환하므로, 벤더 호스트 상수가 트리에 되살아나도 **동작 테스트로는 관측할 수 없습니다.** 업스트림 머지가 상수만 복원하고 가드를 건드리지 않으면 나머지 스위트는 전부 초록입니다. §3의 업데이터와 같은 함정입니다.
+
+**업스트림 테스트 6종을 제거했습니다** — 벤더 왕복 자체를 검증하던 것이라 이 빌드를 서술하지 않습니다(`artifact-cloud-service{,-races}.test.ts`, `profile-cloud-{service,service-auth-retry,service-refresh,org-members-service}.test.ts`). 머지마다 "deleted by us" 충돌로 다시 올라오므로 삭제를 유지하십시오.
+
+---
+
 ## 4. AI 벤더 사용량/인증 (Orca 자체 호출)
 
 Orca가 스폰하는 에이전트 CLI(claude/codex/…)의 트래픽이 아니라, **Orca가 직접 거는 호출**입니다.
@@ -403,8 +449,9 @@ egress가 아니라 **환경변수가 에이전트까지 도달하는 경로**�
 | `main/azure-devops/azure-devops-api-request.ts` | Azure DevOps |
 | `main/bitbucket/client.ts` | Bitbucket |
 | `main/gitea/client.ts` | Gitea/Forgejo (§1 폴백 포함) |
-| `main/orca-profiles/profile-cloud-client.ts` | Orca Cloud |
-| `main/orca-profiles/profile-cloud-org-members-client.ts` | Orca Cloud |
+| `main/orca-profiles/profile-cloud-client.ts` | Orca Cloud — 🚫 도달 불가 (§3.1) |
+| `main/orca-profiles/profile-cloud-org-members-client.ts` | Orca Cloud — 🚫 도달 불가 (§3.1) |
+| `main/artifacts/artifact-cloud-request.ts` | Artifacts 공유 (v1.4.178 신규) — 🚫 도달 불가 (§3.1) |
 | `main/rate-limits/codex-fetcher.ts` | Codex 사용량 |
 | `main/runtime/relay/relay-http-client.ts` | SSH 릴레이 HTTP |
 | `main/source-control/hosted-review-api-request.ts` | 호스팅형 리뷰 API |
@@ -462,7 +509,7 @@ NODE_EXTRA_CA_CERTS=C:\path\to\corp-root-ca.pem
 }
 ```
 
-이것으로 §2(텔레메트리·진단), §1(star-nag), Orca Cloud/모바일 릴레이, §4(사용량 폴링 + 관리형 Claude 계정/`platform.claude.com` OAuth 회전), 맞춤법 사전 다운로드, scrcpy jar 직접 다운로드(§0.2 #9), Chromium의 DNS-over-HTTPS 자동 승격(§8)이 한 번에 닫히고, Gitea 폴백 오인이 방지됩니다.
+이것으로 §2(텔레메트리·진단), §1(star-nag), §4(사용량 폴링 + 관리형 Claude 계정/`platform.claude.com` OAuth 회전), 맞춤법 사전 다운로드, scrcpy jar 직접 다운로드(§0.2 #9), Chromium의 DNS-over-HTTPS 자동 승격(§8)이 한 번에 닫히고, Gitea 폴백 오인이 방지됩니다. (Orca Cloud/모바일 릴레이는 이제 이 정책이 아니라 소스에서 제거되어 있습니다 — §3.1. `disableCloudRelay`는 죽은 스위치로 유지됩니다.)
 
 **닫히지 않는 것**(§0.2와 동일): 서브프로세스 트래픽, 렌더러 외부 이미지, SSH 릴레이의 원격 `npm install`, STT 모델 다운로드. 레벨 1만으로 "외부 통신이 끊겼다"고 보고하면 안 됩니다.
 
@@ -551,5 +598,5 @@ Electron의 `configureHostResolver`는 `secureDnsMode`가 기본 `'automatic'`�
 git: GitHub REST/GraphQL·PR 백그라운드 폴링·아바타·star-nag / GitLab / Bitbucket / Azure DevOps / Gitea 폴백 / 일반 git fetch·push·clone / attribution 푸터.
 이슈: Linear GraphQL·에이전트 write·첨부 signed URL / Jira REST / GitHub·GitLab 이슈 소스 / 본문 마크다운의 인라인 이미지·벤더 아바타.
 AI: Claude 사용량(`api.anthropic.com`)·OAuth갱신(`platform.claude.com`) / Codex / Gemini / MiniMax / OpenCode / Grok / Kimi / 받아쓰기(OpenAI).
-클라우드: PostHog / 진단 번들(`onorca.dev`) / Orca Cloud 로그인 / 모바일 페어링 릴레이. (업데이터·넛지·changelog와 피드백/크래시 제출은 코드에서 제거되어 목록에 없습니다.)
+클라우드: PostHog / 진단 번들(`onorca.dev`). (업데이터·넛지·changelog, 피드백/크래시 제출, 그리고 Orca Cloud 로그인·모바일 페어링 릴레이·Artifacts 공유는 코드에서 제거되어 목록에 없습니다 — §3, §3.1.)
 에셋: STT 모델(sherpa-onnx)·scrcpy(에뮬레이터) GitHub Releases 다운로드 / Google favicon·아바타 이미지 / SSH 릴레이의 원격 npm install.

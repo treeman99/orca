@@ -125,7 +125,7 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 | `disableTelemetry` | boolean | `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88-90`) **및** 진단 번들 업로드 — 컨센트 계산은 `src/main/observability/index.ts:103, 120-134`이고 실제 거부는 메인의 IPC 게이트(`src/main/ipc/diagnostics.ts:221`(수집), `:253`·`:263`(업로드))에서 일어납니다. ℹ️ **제품 피드백·크래시 리포트 전송 경로(`onorca.dev/v1/feedback`)는 이 포크에서 코드째 삭제**되었으므로 이 스위치가 덮던 그 레인은 더 이상 존재하지 않습니다(§3-0). **로컬 NDJSON 로깅은 그대로 유지됩니다** (`observability/index.ts:129-133`) |
 | `disableAutoUpdate` | boolean | `lockdown` | 🔴 **죽은 스위치입니다.** 이 포크는 인앱 업데이터를 코드에서 통째로 제거했으므로(§3-0) 이 키를 읽는 게이트가 저장소에 하나도 없습니다. 키 자체는 `LOCKDOWN_INHERITING_KEYS`에 남겨 둡니다 — 업스트림 리베이스로 업데이터가 되살아났을 때 잠금이 자동으로 다시 걸리게 하기 위한 안전판이고, 이미 배포된 정책 파일이 이 키를 담고 있어도 경고 없이 계속 파싱되게 하기 위해서입니다 |
 | `disableStarNag` | boolean | `lockdown` | `checkOrcaStarred()`는 "이미 star함"으로 응답(`src/main/github/client.ts:233-235`), `starOrca()`는 실패로 응답(`:419-421`). 도달 경로 4개를 모두 덮습니다 — `star-nag/service.ts:121`, `star-nag/agent-value-moment.ts:46`, `star-nag/direct-star-attempt.ts:9`, `ipc/github.ts:1174-1175`(랜딩/설정 화면) |
-| `disableCloudRelay` | boolean | `lockdown` | `getOrcaCloudAuthConfig()`가 not-configured를 반환 (`src/main/orca-profiles/profile-cloud-auth-config.ts:73-78`). 결과로 Orca Cloud 로그인, **모바일 페어링 릴레이 미기동**(`src/main/index.ts:2478-2506`), `orcaProfiles:connectCurrent` / `createCloudLinked` / `selectOrg` 3개 IPC가 한 번에 `unconfigured` (`profile-cloud-service.ts:68, 152, 207`). ⚠️ **모바일 페어링을 막지 않습니다** — 벤더 릴레이만 꺼질 뿐 LAN/Tailscale 페어링은 그대로 동작합니다. 모바일을 막으려면 `disableMobilePairing`을 쓰세요 |
+| `disableCloudRelay` | boolean | `lockdown` | 🔴 **사실상 죽은 스위치 (v1.4.178~).** 같은 함수 `getOrcaCloudAuthConfig()`에서 **이 정책 검사보다 앞에** 무조건 차단이 들어갔습니다 — Orca Cloud 로그인과 모바일 페어링 릴레이는 정책이 아니라 소스에서 제거되었습니다([외부 연동 감사 §3.1](./external-integrations-audit.md)). 이 키가 무엇이든 클라우드는 미구성이며, 결과(로그인·릴레이 미기동·`orcaProfiles:*` IPC 3종 `unconfigured`)는 동일합니다. `disableAutoUpdate`와 같은 이유로 키만 유지합니다 — 리베이스 안전판 겸 기존 정책 파일 호환. ⚠️ 예전에도 지금도 **모바일 페어링을 막지 않습니다** — LAN/Tailscale 페어링은 그대로 동작합니다. 모바일을 막으려면 `disableMobilePairing`을 쓰세요 |
 | `disableUsagePolling` | boolean | `lockdown` | AI 벤더 사용량/rate-limit 폴링 **및 그 데이터를 보여주는 UI**. 폴링 게이트 1곳(`src/main/rate-limits/service.ts:760-761`)을 진입점 전부에서 호출 — `start()`(`:310`), `fetchAll()`(`:921`), `fetchCodexOnly()`(`:986`), `fetchClaudeOnly()`(`:1048`), `fetchGrokOnly()`(`:1113`), 계정 스위처 프리뷰 2개(`fetchInactiveClaudeAccountsOnOpen` `:497`, `fetchInactiveCodexAccountsOnOpen` `:606`), Codex 리셋 크레딧 POST(`:428`, 에러 throw), 상태칩은 `unavailable`로 고정(`:1461`). **UI**: 설정 → **통계 및 사용량** 팬이 사이드바·Cmd+J 팔레트·설정 검색에서 함께 사라지고(`useSettingsNavigationMetadata.ts`의 `stats` 항목 + `Settings.tsx`의 섹션 + 딥링크 가드 `settings-pane-policy-visibility.ts`), 상태바 팝오버의 "Usage details & history" 항목도 없어집니다(`UsageRosterPanel.tsx`). ⚠️ 이 팬에는 **Orca 자체 로컬 통계**(에이전트 실행 수·작업 시간·PR 수, 네트워크 없음)도 들어 있어 함께 사라집니다 — 그것만 남기고 싶다면 이 스위치를 `false`로 두고 §7-1의 확인 절차로 폴링만 끄는 조합을 검토하세요. 이 팬 안에만 있던 `x.com/intent/post` 사용량 공유 버튼도 함께 도달 불가가 됩니다 |
 | `disableManagedClaudeAccounts` | boolean | `lockdown` | 관리형 Claude 계정의 **런타임 효과 전체** — `platform.claude.com` 토큰 회전, 활성 계정 선택, 에이전트 환경변수 재작성. 설정 UI에서 계정을 추가·선택하는 것 자체는 막지 않습니다 — 그건 `disableVendorProviderAccounts`의 역할이고, 둘은 중복이 아니라 상보 관계입니다(전자는 런타임, 후자는 등록 표면). §3-1 참고 |
 | `disableSpellcheck` | boolean | `lockdown` | Chromium 맞춤법 검사기. Electron 기본값이 on이라 Windows/Linux에서 Google CDN으로 hunspell 사전을 받습니다. 메인 윈도(`src/main/window/createMainWindow.ts:299`)와 `will-attach-webview` 게스트 하드닝(`:471`) 양쪽 |
@@ -320,7 +320,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
   "disableTelemetry": true,    // PostHog + 진단/크래시 번들 업로드 (로컬 로그는 유지)
   "disableAutoUpdate": true,   // 죽은 스위치 — 업데이터는 코드에서 제거됨 (호환용으로만 유지)
   "disableStarNag": true,      // github.com SaaS로 나가는 star 조회/쓰기
-  "disableCloudRelay": true,   // Orca Cloud 로그인 + 모바일 페어링 릴레이
+  "disableCloudRelay": true,   // 죽은 스위치 — 클라우드 로그인·릴레이도 코드에서 제거됨 (호환용으로만 유지)
   "disableUsagePolling": true, // AI 벤더 사용량/rate-limit 폴링
   "disableManagedClaudeAccounts": true, // platform.claude.com OAuth 회전 + Bedrock 자격증명 스트립 (§3-1)
   "disableSpellcheck": true,   // Chromium 사전 CDN 다운로드
@@ -522,7 +522,7 @@ Ansible/Puppet/Salt의 file 리소스로 관리하거나, 사내 `.deb`/`.rpm`�
 
 | 확인 대상 | 방법 | 기대 결과 |
 | --- | --- | --- |
-| `disableCloudRelay` | 설정에서 Orca Cloud 프로필 연결 시도 | 토스트 `Orca Cloud sign-in is not configured` + 설명 **`Orca Cloud sign-in is disabled by an enterprise policy.`** (`profile-cloud-auth-config.ts:76` → `src/renderer/src/store/slices/orca-profiles-auth-actions.ts:89-98`) |
+| `disableCloudRelay` | 설정에서 Orca Cloud 프로필 연결 시도 | 정책과 무관하게 항상 실패합니다(v1.4.178~). 토스트 `Orca Cloud sign-in is not configured` + 설명 **`Orca Cloud sign-in is removed in this build. …`** — 문구가 "disabled by an enterprise policy"로 나오면 제거 가드가 리베이스에서 사라졌다는 뜻이므로 [감사 §3.1](./external-integrations-audit.md)의 검증 명령을 돌리십시오 |
 | `disableAutoUpdate` | — | 확인할 것이 없습니다. 업데이트 표면은 정책과 무관하게 코드에 존재하지 않습니다 — 앱/Help 메뉴, 트레이, 사이드바 `?` 메뉴, 설정 → 일반 어디에도 "업데이트 확인" 항목이 없습니다 |
 | `disableMobilePairing` | 사이드바·설정 → 모바일, Cmd+J에 `mobile` | 진입점이 전부 사라집니다. 이미 페어링된 폰은 RPC가 `forbidden`으로 거부됩니다 |
 | `disableVendorProviderAccounts` | 설정 → AI 제공업체 계정 | Claude 구독/Codex/Gemini/OpenCode/MiniMax/Grok 섹션이 사라지고 **AWS SSO와 사내 자체 호스팅 모델만** 남습니다. 이미 등록된 계정의 제거는 계속 가능합니다 |
