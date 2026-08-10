@@ -145,6 +145,7 @@ import { createRecentlyClosedTabsSlice } from './recently-closed-tabs'
 import { createOrcaProfilesSlice } from './orca-profiles'
 import { createNewIssueDraftSlice } from './new-issue-draft'
 import { createTaskCreationDraftsSlice } from './task-creation-drafts'
+import { createTerminalQuickCommandHostsSlice } from './terminal-quick-command-hosts'
 
 function createTestStore() {
   return create<AppState>()((...a) => ({
@@ -187,7 +188,8 @@ function createTestStore() {
     ...createRecentlyClosedTabsSlice(...a),
     ...createOrcaProfilesSlice(...a),
     ...createNewIssueDraftSlice(...a),
-    ...createTaskCreationDraftsSlice(...a)
+    ...createTaskCreationDraftsSlice(...a),
+    ...createTerminalQuickCommandHostsSlice(...a)
   }))
 }
 

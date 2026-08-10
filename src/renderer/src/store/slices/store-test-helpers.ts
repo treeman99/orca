@@ -48,6 +48,7 @@ import { createRecentlyClosedTabsSlice } from './recently-closed-tabs'
 import { createOrcaProfilesSlice } from './orca-profiles'
 import { createNewIssueDraftSlice } from './new-issue-draft'
 import { createTaskCreationDraftsSlice } from './task-creation-drafts'
+import { createTerminalQuickCommandHostsSlice } from './terminal-quick-command-hosts'
 import { translate } from '@/i18n/i18n'
 
 export const TEST_REPO = {
@@ -99,7 +100,8 @@ export function createTestStore() {
     ...createRecentlyClosedTabsSlice(...a),
     ...createOrcaProfilesSlice(...a),
     ...createNewIssueDraftSlice(...a),
-    ...createTaskCreationDraftsSlice(...a)
+    ...createTaskCreationDraftsSlice(...a),
+    ...createTerminalQuickCommandHostsSlice(...a)
   }))
 }
 

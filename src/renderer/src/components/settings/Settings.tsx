@@ -53,6 +53,9 @@ import { ExperimentalPane } from './ExperimentalPane'
 import { PluginsSettingsSection } from './PluginsSettingsSection'
 import { AgentsPane } from './AgentsPane'
 import { OrchestrationPane } from './OrchestrationPane'
+import { ArtifactsSettingsPane } from './ArtifactsSettingsPane'
+import { AutomationsSettingsPane } from './AutomationsSettingsPane'
+import { OrcaAccountSettingsPane } from './OrcaAccountSettingsPane'
 import { LinearAgentSkillPane } from './LinearAgentSkillPane'
 import { AccountsPane } from './AccountsPane'
 import { StatsPane } from '../stats/StatsPane'
@@ -1213,6 +1216,8 @@ function Settings(): React.JSX.Element {
         hasRepos={repos.length > 0}
         searchQuery={settingsSearchInputQuery}
         searchInputRef={searchInputRef}
+        // Why: deep-links open panes/modals that own focus; plain entry lands in search.
+        searchAutoFocus={settingsNavigationTarget == null}
         onBack={closeSettingsPageWithPromptGuard}
         onSearchChange={setSettingsSearchQuery}
         onSelectSection={scrollToSection}
@@ -1355,6 +1360,20 @@ function Settings(): React.JSX.Element {
                   </>
                 ) : null}
 
+                {showDesktopOnlySettings ? (
+                  <SettingsSection
+                    id="orca-account"
+                    title={translate('auto.components.settings.orcaAccount.title', 'Orca Account')}
+                    description={translate(
+                      'auto.components.settings.orcaAccount.description',
+                      'Share work instantly and reach your desktop from Orca Mobile wherever you are.'
+                    )}
+                    searchEntries={getSectionSearchEntries('orca-account')}
+                  >
+                    {isSectionMounted('orca-account') ? <OrcaAccountSettingsPane /> : null}
+                  </SettingsSection>
+                ) : null}
+
                 <SettingsSection
                   id="setup-guide"
                   title={translate(
@@ -1421,6 +1440,35 @@ function Settings(): React.JSX.Element {
                     {isSectionMounted('mobile') ? <MobileSettingsPane /> : null}
                   </SettingsSection>
                 ) : null}
+
+                <SettingsSection
+                  id="automations"
+                  title={translate('auto.components.settings.automations.title', 'Automations')}
+                  description={translate(
+                    'auto.components.settings.automations.description',
+                    'Schedule agent work and choose whether Automations appears in the sidebar.'
+                  )}
+                  searchEntries={getSectionSearchEntries('automations')}
+                >
+                  {isSectionMounted('automations') ? (
+                    <AutomationsSettingsPane settings={settings} updateSettings={updateSettings} />
+                  ) : null}
+                </SettingsSection>
+
+                <SettingsSection
+                  id="artifacts"
+                  title={translate('auto.components.settings.artifacts.title', 'Artifacts')}
+                  badge="Beta"
+                  description={translate(
+                    'auto.components.settings.artifacts.description',
+                    'Share HTML and Markdown files with your team and manage their public links.'
+                  )}
+                  searchEntries={getSectionSearchEntries('artifacts')}
+                >
+                  {isSectionMounted('artifacts') ? (
+                    <ArtifactsSettingsPane settings={settings} updateSettings={updateSettings} />
+                  ) : null}
+                </SettingsSection>
 
                 <SettingsSection
                   id="git"
@@ -1499,7 +1547,6 @@ function Settings(): React.JSX.Element {
                   {isSectionMounted('quick-commands') ? (
                     <QuickCommandsPane
                       settings={settings}
-                      updateSettings={updateSettings}
                       addCommandIntentSignal={quickCommandAddIntentSignal}
                     />
                   ) : null}

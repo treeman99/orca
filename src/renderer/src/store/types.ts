@@ -38,6 +38,7 @@ import type { RecentlyClosedTabsSlice } from './slices/recently-closed-tabs'
 import type { OrcaProfilesSlice } from './slices/orca-profiles'
 import type { NewIssueDraftSlice } from './slices/new-issue-draft'
 import type { TaskCreationDraftsSlice } from './slices/task-creation-drafts'
+import type { TerminalQuickCommandHostsSlice } from './slices/terminal-quick-command-hosts'
 
 export type AppState = RepoSlice &
   SparsePresetsSlice &
@@ -78,4 +79,5 @@ export type AppState = RepoSlice &
   RecentlyClosedTabsSlice &
   OrcaProfilesSlice &
   NewIssueDraftSlice &
-  TaskCreationDraftsSlice
+  TaskCreationDraftsSlice &
+  TerminalQuickCommandHostsSlice

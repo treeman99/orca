@@ -23,6 +23,7 @@ import type {
 } from './native-chat-session-option-command-dispatch'
 import {
   flattenNativeChatSessionOptionRecord,
+  resolveEffectiveNativeChatModelId,
   type NativeChatSessionOptionMode
 } from './native-chat-session-option-snapshot'
 
@@ -33,11 +34,9 @@ type SessionOptionApplyContext = {
   getRecord: () => NativeChatSessionOptionRecord
   dispatchCommand: NativeChatSessionOptionDispatchCommand
   onAgentPicker?: () => void
-  persistSelection?: (args: {
-    modelId: string
-    optionId: string
-    value: SessionOptionValue
-  }) => Promise<void> | void
+  /** The one persist entry point, shared with typed commands: it owns both the
+   *  null-model guard and whether the id may be adopted as the launch default. */
+  persist: (modelId: string | null, optionId: string, value: SessionOptionValue) => void
   onDraftValuesChanged?: (values: Record<string, SessionOptionValue>) => void
   publish: () => SessionOptionDescriptor[]
   clearModelTruth: () => void
@@ -67,8 +66,10 @@ function currentApply(
   optionId: string,
   targetValue?: SessionOptionValue
 ): { apply: CatalogOptionApply; modelId: string | null } | null {
-  const record = ctx.getRecord()
-  const modelId = typeof record.model?.value === 'string' ? record.model.value : null
+  const models = ctx.getModels()
+  // Why: the snapshot renders each option under the effective model, so resolving from
+  // the tracked model alone would fail to find the very rows a CLI default just drew.
+  const modelId = resolveEffectiveNativeChatModelId(ctx.catalog, models, ctx.getRecord())
   if (optionId === 'model') {
     // Why: a model may override the catalog-wide apply, so the TARGET decides how
     // this switch is carried out — the current model's rules do not apply to it.
@@ -78,22 +79,16 @@ function currentApply(
         : undefined
     return { apply: target?.apply ?? ctx.catalog.modelApply, modelId }
   }
-  const model = modelId
-    ? findCatalogModel({ ...ctx.catalog, models: ctx.getModels() }, modelId)
-    : undefined
+  const model = modelId ? findCatalogModel({ ...ctx.catalog, models }, modelId) : undefined
   const option = findCatalogOption(model, optionId)
   return option ? { apply: option.apply, modelId } : null
 }
 
-function persist(
-  ctx: SessionOptionApplyContext,
-  modelId: string | null,
-  optionId: string,
-  value: SessionOptionValue
-): void {
-  if (modelId) {
-    void ctx.persistSelection?.({ modelId, optionId, value })
-  }
+/** Why: the mid-dispatch guards watch for *record* changes. Resolving through the model
+ *  list would also trip when discovery lands mid-dispatch and moves which row carries
+ *  `isDefault` — nothing the agent saw changed, but the value would be discarded. */
+function trackedModelId(record: NativeChatSessionOptionRecord): string | null {
+  return typeof record.model?.value === 'string' ? record.model.value : null
 }
 
 function finish(
@@ -106,12 +101,13 @@ function finish(
   }
 ): SessionOptionSetResult {
   if (args && !args.skipPersist) {
-    persist(ctx, args.modelId, args.optionId, args.value)
+    ctx.persist(args.modelId, args.optionId, args.value)
   }
   const snapshot = ctx.publish()
   const record = ctx.getRecord()
-  if (ctx.mode === 'draft' && typeof record.model?.value === 'string') {
-    ctx.onDraftValuesChanged?.(flattenNativeChatSessionOptionRecord(record, record.model.value))
+  const draftModelId = trackedModelId(record)
+  if (ctx.mode === 'draft' && draftModelId !== null) {
+    ctx.onDraftValuesChanged?.(flattenNativeChatSessionOptionRecord(record, draftModelId))
   }
   return { snapshot }
 }
@@ -223,6 +219,7 @@ async function applySetOption(
 
   // Why: baseline for detecting a model switch, typed command, or agent report
   // that lands mid-dispatch, so the commit below never overwrites newer state.
+  const trackedModelBeforeDispatch = trackedModelId(ctx.getRecord())
   const trackedBeforeDispatch =
     ctx.mode === 'live' && id !== 'model'
       ? getTrackedOption(ctx.getRecord(), previousModelId, id)
@@ -262,8 +259,7 @@ async function applySetOption(
   if (liveFlipOnly) {
     // Why: typed flips, reports, or model changes during dispatch supersede the
     // baseline this absolute target was computed from.
-    const modelStill = typeof record.model?.value === 'string' ? record.model.value : null
-    if (modelStill !== previousModelId) {
+    if (trackedModelId(record) !== trackedModelBeforeDispatch) {
       return finish(ctx, { modelId: previousModelId, optionId: id, value, skipPersist: true })
     }
     if (getTrackedOption(record, previousModelId, id) !== trackedToggle) {
@@ -278,9 +274,8 @@ async function applySetOption(
     // Why: a model switch, typed command, or agent report during dispatch supersedes
     // the baseline this commit was computed from — committing now would overwrite
     // newer state and could write/persist a model-scoped value under the new model.
-    const modelStill = typeof record.model?.value === 'string' ? record.model.value : null
     if (
-      modelStill !== previousModelId ||
+      trackedModelId(record) !== trackedModelBeforeDispatch ||
       getTrackedOption(record, previousModelId, id) !== trackedBeforeDispatch
     ) {
       return finish(ctx, { modelId: previousModelId, optionId: id, value, skipPersist: true })

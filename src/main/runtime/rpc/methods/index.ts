@@ -38,6 +38,7 @@ import { HOST_CAPABILITY_METHODS } from './host-capabilities'
 import { EMULATOR_METHODS } from './emulator'
 import { PAIRING_METHODS } from './pairing'
 import { AGENT_SESSION_METHODS } from './agent-session'
+import { ARTIFACT_METHODS } from './artifacts'
 
 // Why: a flat manifest keeps registration order explicit and provides one
 // grep-point for "what methods does the RPC server expose?" — useful when
@@ -45,6 +46,7 @@ import { AGENT_SESSION_METHODS } from './agent-session'
 export const ALL_RPC_METHODS: readonly RpcAnyMethod[] = [
   ...STATUS_METHODS,
   ...AI_VAULT_METHODS,
+  ...ARTIFACT_METHODS,
   ...AUTOMATION_METHODS,
   ...REPO_METHODS,
   ...WORKTREE_METHODS,
