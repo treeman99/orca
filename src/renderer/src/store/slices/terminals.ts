@@ -157,6 +157,7 @@ import {
   type TerminalTabCloseReason,
   type TerminalTabRetirementPlan
 } from './terminal-tab-retirement'
+import { retireClosedTerminalTabOnHost } from './terminal-tab-host-retirement'
 
 function getNextTerminalOrdinal(tabs: TerminalTab[]): number {
   const usedOrdinals = new Set<number>()
@@ -1589,6 +1590,17 @@ export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> 
 
     // Why: a parked tab has no mounted TerminalPane cleanup, so revoke its observer/candidate state before provider exit races.
     retireParkedTerminalTab(tabId)
+    // Why: the local host owns terminal membership and rebases renderer writes onto its
+    // own copy, so removing the tab from this store is not enough — without this the tab
+    // survives in orca-data.json and returns on the next launch. A remote-owned worktree
+    // is excluded because that lane closes the tab on its own host over RPC, and its
+    // next snapshot is what decides the local mirror.
+    if (retiresSession && retirementPlan.worktreeId && !opts?.remoteCloseOwnedByHost) {
+      retireClosedTerminalTabOnHost(get(), {
+        worktreeId: retirementPlan.worktreeId,
+        tabId
+      })
+    }
     if (retiresSession) {
       const fallbackWorktreeRoute = retirementPlan.worktreeId
         ? resolveTerminalWorktreeRoute(get(), retirementPlan.worktreeId)

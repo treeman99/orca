@@ -40,7 +40,8 @@ function layoutContainsLeaf(
 function recordTerminalSurfaceRetirement(
   session: WorkspaceSessionState,
   surface: RetiredTerminalSurface,
-  paneKey: string
+  paneKey: string,
+  retireEveryPaneOfTab = false
 ): WorkspaceSessionState {
   const terminalPtyIncarnationsByPaneKey = {
     ...session.terminalPtyIncarnationsByPaneKey
@@ -50,6 +51,20 @@ function recordTerminalSurfaceRetirement(
     ...session.terminalSurfaceTombstonesByPaneKey
   }
   delete terminalSurfaceTombstonesByPaneKey[paneKey]
+  if (retireEveryPaneOfTab) {
+    // Why: closing the whole tab retires every split inside it, so a sibling pane's
+    // incarnation left behind would re-fence a pane key the tab no longer owns.
+    for (const key of Object.keys(terminalPtyIncarnationsByPaneKey)) {
+      if (key.slice(0, key.lastIndexOf(':')) === surface.parentTabId) {
+        delete terminalPtyIncarnationsByPaneKey[key]
+      }
+    }
+    for (const [key, tombstone] of Object.entries(terminalSurfaceTombstonesByPaneKey)) {
+      if (tombstone.parentTabId === surface.parentTabId) {
+        delete terminalSurfaceTombstonesByPaneKey[key]
+      }
+    }
+  }
   return advanceTerminalTopologyRevision(
     {
       ...session,
@@ -62,11 +77,28 @@ function recordTerminalSurfaceRetirement(
 
 export function retireTerminalSurfaceFromPersistence(
   session: WorkspaceSessionState,
-  surface: RetiredTerminalSurface
+  surface: RetiredTerminalSurface,
+  options: {
+    /**
+     * The user closed the whole tab, so retire it whatever the PTY evidence says.
+     *
+     * Every guard below asks "is this PTY still the one bound here?", which is the
+     * right question for a process that exited on its own. A close click is an
+     * intent, not an observation: the tab may have been restored and never attached,
+     * leaving no runtime binding to match — and without this the deliberate close is
+     * rebased away and the tab returns on the next launch.
+     */
+    closedByUser?: boolean
+  } = {}
 ): WorkspaceSessionState {
   const paneKey = `${surface.parentTabId}:${surface.leafId}`
   const boundIncarnationId = session.terminalPtyIncarnationsByPaneKey?.[paneKey]
-  if (surface.incarnationId && boundIncarnationId && boundIncarnationId !== surface.incarnationId) {
+  if (
+    !options.closedByUser &&
+    surface.incarnationId &&
+    boundIncarnationId &&
+    boundIncarnationId !== surface.incarnationId
+  ) {
     return session
   }
   const persistedTabs = session.tabsByWorktree[surface.worktreeId] ?? []
@@ -74,19 +106,20 @@ export function retireTerminalSurfaceFromPersistence(
   const layout = session.terminalLayoutsByTabId[surface.parentTabId]
   const exactLeafInLayout = Boolean(layout && layoutContainsLeaf(layout.root, surface.leafId))
   const leafPtyId = exactLeafInLayout ? layout?.ptyIdsByLeafId?.[surface.leafId] : undefined
-  if (leafPtyId && leafPtyId !== surface.ptyId) {
+  if (!options.closedByUser && leafPtyId && leafPtyId !== surface.ptyId) {
     return session
   }
 
   const isLegacyFinalSurface = !layout && persistedTab?.ptyId === surface.ptyId
-  if (!exactLeafInLayout && !isLegacyFinalSurface) {
+  if (!options.closedByUser && !exactLeafInLayout && !isLegacyFinalSurface) {
     // Why: tab.ptyId may describe a live sibling. The absent exact leaf still
     // needs a tombstone, but sibling evidence must not remove its parent.
     return recordTerminalSurfaceRetirement(session, surface, paneKey)
   }
 
-  const nextLayout =
-    exactLeafInLayout && layout
+  const nextLayout = options.closedByUser
+    ? null
+    : exactLeafInLayout && layout
       ? retireLeavesFromTerminalLayout(layout, new Set([surface.leafId]))
       : null
   const removeParent = !nextLayout
@@ -217,7 +250,8 @@ export function retireTerminalSurfaceFromPersistence(
       ...(session.remoteSessionIdsByTabId ? { remoteSessionIdsByTabId } : {})
     },
     surface,
-    paneKey
+    paneKey,
+    options.closedByUser === true
   )
 }
 

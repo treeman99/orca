@@ -2974,6 +2974,8 @@ const api = {
     get: (hostId) => ipcRenderer.invoke('session:get', hostId),
     set: (args, hostId) => ipcRenderer.invoke('session:set', args, hostId),
     patch: (args, hostId) => ipcRenderer.invoke('session:patch', args, hostId),
+    retireClosedTerminalTabs: (args, hostId) =>
+      ipcRenderer.invoke('session:retireClosedTerminalTabs', args, hostId),
     flush: () => ipcRenderer.invoke('session:flush'),
     readTerminalScrollback: (args) =>
       ipcRenderer.sendSync('session:read-terminal-scrollback-sync', args),

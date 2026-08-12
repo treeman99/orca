@@ -1,6 +1,22 @@
 import { ipcMain } from 'electron'
 import type { Store } from '../persistence'
 import type { WorkspaceSessionPatch, WorkspaceSessionState } from '../../shared/types'
+import { retireClosedTerminalTabsFromPersistence } from '../runtime/terminal-tab-close-retirement'
+
+function parseTabClosures(value: unknown): { worktreeId: string; tabId: string }[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value.flatMap((entry) => {
+    const closure = entry as { worktreeId?: unknown; tabId?: unknown } | null
+    return typeof closure?.worktreeId === 'string' &&
+      closure.worktreeId.length > 0 &&
+      typeof closure.tabId === 'string' &&
+      closure.tabId.length > 0
+      ? [{ worktreeId: closure.worktreeId, tabId: closure.tabId }]
+      : []
+  })
+}
 
 export function registerSessionHandlers(store: Store): void {
   // Why: hostId is an optional second arg so an older renderer that invokes
@@ -17,6 +33,27 @@ export function registerSessionHandlers(store: Store): void {
   ipcMain.handle('session:patch', (_event, args: WorkspaceSessionPatch, hostId?: string | null) => {
     store.patchWorkspaceSession(args, hostId)
   })
+
+  // Why: terminal membership is host-authoritative — renderer writes get rebased onto
+  // the host's copy — so a close click has to reach the host or it is silently undone
+  // and the tab returns on the next launch. Flushed here rather than left to the 1s
+  // debounce so a quit right after the click cannot lose the deletion either.
+  ipcMain.handle(
+    'session:retireClosedTerminalTabs',
+    (_event, args: { closures?: unknown } | undefined, hostId?: string | null) => {
+      const closures = parseTabClosures(args?.closures)
+      if (closures.length === 0) {
+        return
+      }
+      const session = store.getWorkspaceSession(hostId)
+      const retired = retireClosedTerminalTabsFromPersistence(session, closures)
+      if (retired === session) {
+        return
+      }
+      store.setWorkspaceSession(retired, hostId)
+      store.flushOrThrow()
+    }
+  )
 
   ipcMain.handle('session:flush', () => {
     // Why: durable lifecycle RPCs must propagate disk failures instead of

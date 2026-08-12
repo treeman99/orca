@@ -2709,6 +2709,16 @@ export type PreloadApi = {
     get: (hostId?: ExecutionHostId) => Promise<WorkspaceSessionState>
     set: (args: WorkspaceSessionState, hostId?: ExecutionHostId) => Promise<void>
     patch: (args: WorkspaceSessionPatch, hostId?: ExecutionHostId) => Promise<void>
+    /**
+     * Tell the host the user closed these terminal tabs.
+     *
+     * Terminal membership is host-authoritative, so a plain session patch that merely
+     * omits a tab is rebased away — this is the channel that actually deletes it.
+     */
+    retireClosedTerminalTabs: (
+      args: { closures: { worktreeId: string; tabId: string }[] },
+      hostId?: ExecutionHostId
+    ) => Promise<void>
     flush: () => Promise<void>
     readTerminalScrollback: (args: { ref: string }) => string | null
     setSync: (args: WorkspaceSessionState, hostId?: ExecutionHostId) => void

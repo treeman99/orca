@@ -735,6 +735,11 @@ function createWebPreloadApi(): Partial<PreloadApi> {
           })
         )
       },
+      // Why: nothing to do on web. This channel exists because the desktop host owns
+      // terminal membership and rebases renderer writes onto it; the web client's
+      // session is its own localStorage copy, so the `patch` above is already the
+      // deletion. Answering instead of throwing keeps tab close identical on both.
+      retireClosedTerminalTabs: async () => {},
       // localStorage writes synchronously, so there is no deferred web flush.
       flush: async () => {},
       readTerminalScrollback: () => null,
