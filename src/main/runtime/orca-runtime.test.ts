@@ -9087,6 +9087,103 @@ describe('OrcaRuntimeService', () => {
       expect(runtime.getPtyOutputSequence('pty-1')).toBe(0)
     })
 
+    it('emits live Cursor identity without storing it as liveness evidence', async () => {
+      const { runtime, batches } = createSideEffectRuntime()
+      syncSinglePty(runtime)
+
+      runtime.onPtyData('pty-1', '\x1b]0;Cursor Agent\x07', 100)
+
+      expect(batches.flatMap((batch) => batch.facts)).toEqual([
+        { kind: 'title', normalizedTitle: 'Cursor Agent', rawTitle: 'Cursor Agent' }
+      ])
+      expect((await runtime.listTerminals()).terminals[0].title).not.toBe('Cursor Agent')
+      expect(runtime.getTerminalSideEffectSnapshot('pty-1')).toMatchObject({
+        facts: [{ kind: 'title', normalizedTitle: 'Cursor Agent', rawTitle: 'Cursor Agent' }]
+      })
+    })
+
+    it('keeps live Cursor identity in mobile titles without making it agent liveness', async () => {
+      const runtime = new OrcaRuntimeService(store)
+      runtime.attachWindow(1)
+      runtime.syncWindowGraph(1, {
+        tabs: [
+          {
+            tabId: 'tab-1',
+            worktreeId: TEST_WORKTREE_ID,
+            title: 'Terminal 1',
+            activeLeafId: 'pane:1',
+            layout: null
+          }
+        ],
+        leaves: [
+          {
+            tabId: 'tab-1',
+            worktreeId: TEST_WORKTREE_ID,
+            leafId: 'pane:1',
+            paneRuntimeId: 1,
+            ptyId: 'pty-1'
+          }
+        ],
+        mobileSessionTabs: [
+          {
+            worktree: TEST_WORKTREE_ID,
+            publicationEpoch: 'epoch-cursor',
+            snapshotVersion: 1,
+            activeGroupId: null,
+            activeTabId: 'tab-1::pane:1',
+            activeTabType: 'terminal',
+            tabs: [
+              {
+                type: 'terminal',
+                id: 'tab-1::pane:1',
+                parentTabId: 'tab-1',
+                leafId: 'pane:1',
+                ptyId: 'pty-1',
+                title: 'Terminal 1',
+                isActive: true
+              }
+            ]
+          }
+        ]
+      })
+
+      runtime.onPtyData('pty-1', '\x1b]0;Cursor Agent\x07', 100)
+
+      const terminal = (await runtime.listMobileSessionTabs(`id:${TEST_WORKTREE_ID}`)).tabs[0]
+      expect(terminal).toMatchObject({ type: 'terminal', title: 'Cursor Agent' })
+      expect(terminal).not.toHaveProperty('agentStatus')
+    })
+
+    it('lets an explicit terminal rename override cached Cursor identity and restores it after clearing', async () => {
+      const runtime = new OrcaRuntimeService(store)
+      runtime.setPtyController({
+        spawn: vi.fn().mockResolvedValue({ id: 'pty-1' }),
+        write: () => true,
+        kill: () => true,
+        getForegroundProcess: async () => null
+      })
+      const created = await runtime.createTerminal(`id:${TEST_WORKTREE_ID}`)
+
+      runtime.onPtyData('pty-1', '\x1b]0;Cursor Agent\x07', 100)
+      const mobileTerminal = (
+        await runtime.listMobileSessionTabs(`id:${TEST_WORKTREE_ID}`)
+      ).tabs.find((tab) => tab.type === 'terminal')
+      if (mobileTerminal?.type !== 'terminal' || !mobileTerminal.terminal) {
+        throw new Error('expected mobile terminal handle')
+      }
+      expect(mobileTerminal.terminal).toBe(created.handle)
+
+      await runtime.renameTerminal(mobileTerminal.terminal, 'Pinned Cursor')
+      expect((await runtime.listMobileSessionTabs(`id:${TEST_WORKTREE_ID}`)).tabs[0]).toMatchObject(
+        { type: 'terminal', title: 'Pinned Cursor' }
+      )
+
+      await runtime.renameTerminal(mobileTerminal.terminal, null)
+      expect((await runtime.listMobileSessionTabs(`id:${TEST_WORKTREE_ID}`)).tabs[0]).toMatchObject(
+        { type: 'terminal', title: 'Cursor Agent' }
+      )
+    })
+
     it('confirms title-based agent exits against the foreground process', async () => {
       const { runtime, batches } = createSideEffectRuntime()
       syncSinglePty(runtime)
@@ -9898,12 +9995,12 @@ describe('OrcaRuntimeService', () => {
       expect(runtime.getTerminalSideEffectSnapshot('pty-unknown')).toBeNull()
     })
 
-    it('drops the cursor-agent literal from record-fallback snapshots', () => {
+    it('keeps the cursor-agent literal in record-fallback snapshots only without a tracker title', () => {
       const { runtime } = createSideEffectRuntime()
       syncSinglePty(runtime)
 
       runtime.onPtyData('pty-1', 'plain output\n', 100)
-      // Simulate a record title restored by a path that bypassed the tracker (which itself refuses to store the bare native title).
+      // Simulate a record title restored by a path that bypassed the tracker.
       const records = (
         runtime as unknown as {
           ptysById: Map<string, { lastOscTitle: string | null }>
@@ -9911,7 +10008,17 @@ describe('OrcaRuntimeService', () => {
       ).ptysById
       records.get('pty-1')!.lastOscTitle = 'Cursor Agent'
 
-      expect(runtime.getTerminalSideEffectSnapshot('pty-1')).toBeNull()
+      // Why: a hookless Cursor pane has no other identity to restore (#10258).
+      expect(runtime.getTerminalSideEffectSnapshot('pty-1')).toMatchObject({
+        facts: [{ kind: 'title', normalizedTitle: 'Cursor Agent', rawTitle: 'Cursor Agent' }]
+      })
+
+      // A synthesized Cursor title owns the pane; the bare literal must not replay over it.
+      runtime.ingestSyntheticTitleFrame('pty-1', '\x1b]0;⠋ Cursor Agent\x07')
+
+      expect(runtime.getTerminalSideEffectSnapshot('pty-1')).toMatchObject({
+        facts: [{ kind: 'title', normalizedTitle: '⠋ Cursor Agent', rawTitle: '⠋ Cursor Agent' }]
+      })
     })
 
     it('emits the chunk agentStatus events before its side-effect batch', () => {
@@ -24431,7 +24538,7 @@ describe('OrcaRuntimeService', () => {
     unsubscribe()
   })
 
-  it('keeps same-status Pi-compatible title changes queued behind the foreground owner probe', async () => {
+  it('keeps decorative Pi frames queued behind the foreground owner probe', async () => {
     const foregroundProcess = deferred<string | null>()
     const spawn = vi.fn().mockResolvedValue({ id: 'pty-typed-omp' })
     const getForegroundProcess = vi.fn(() => foregroundProcess.promise)
@@ -24450,9 +24557,9 @@ describe('OrcaRuntimeService', () => {
     const events: RuntimeMobileSessionTabsResult[] = []
     const unsubscribe = runtime.onMobileSessionTabsChanged((snapshot) => events.push(snapshot))
 
-    runtime.onPtyData('pty-typed-omp', '\x1b]0;Pi ready\x07', 123)
+    runtime.onPtyData('pty-typed-omp', '\x1b]0;⠋ Pi\x07', 123)
     await new Promise<void>((resolve) => setImmediate(resolve))
-    runtime.onPtyData('pty-typed-omp', '\x1b]0;Pi idle\x07', 124)
+    runtime.onPtyData('pty-typed-omp', '\x1b]0;⠙ Pi\x07', 124)
     await new Promise<void>((resolve) => setImmediate(resolve))
 
     expect(getForegroundProcess).toHaveBeenCalledTimes(1)
@@ -24467,17 +24574,21 @@ describe('OrcaRuntimeService', () => {
         tabs: [
           expect.objectContaining({
             type: 'terminal',
-            title: 'OMP ready',
+            title: '⠋ OMP',
             agentStatus: expect.objectContaining({
-              state: 'done',
+              state: 'working',
               agentType: 'omp',
               terminalHandle: terminal.handle,
-              terminalTitle: 'OMP ready'
+              terminalTitle: '⠋ OMP'
             })
           })
         ]
       })
     ])
+
+    runtime.onPtyData('pty-typed-omp', '\x1b]0;⠹ Pi\x07', 125)
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    expect(events).toHaveLength(1)
 
     unsubscribe()
   })
