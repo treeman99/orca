@@ -370,7 +370,9 @@ describe('AgentKanbanBoard', () => {
     renderBoard([card({ bucket: 'done' })])
 
     expect(screen.getByText('完了')).toBeInTheDocument()
-    expect(screen.getByLabelText('Agent を検索')).toBeInTheDocument()
+    // Why: ja.json의 dashboardPopout.search.label 은 'エージェントを検索'다. upstream 테스트가
+    // 카탈로그와 어긋난 문자열을 기대해 순정 v1.4.180에서도 실패한다.
+    expect(screen.getByLabelText('エージェントを検索')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^フィルター/ })).toBeInTheDocument()
   })
 
