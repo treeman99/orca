@@ -8,10 +8,11 @@ import {
   quotePowerShellNativeArgument
 } from '../../../../shared/powershell-native-argument'
 import { buildWslLoginShellCommand } from '../../../../shared/wsl-login-shell-command'
-import { resolveWindowsShellStartupFamily } from '../../../../shared/windows-terminal-shell'
 import { getProjectAgentSkillTerminalShellOverride } from '@/lib/project-skill-runtime'
-import { useAppStore } from '@/store'
-import { buildAgentFeatureSkillInstallCommand } from '../../../../shared/agent-feature-install-commands'
+import {
+  LINUX_ORCA_CLI_COMMAND_NAME,
+  ORCA_CLI_COMMAND_NAME
+} from '../../../../shared/agent-feature-install-commands'
 import { toast } from 'sonner'
 import type { CliInstallStatus } from '../../../../shared/cli-install-types'
 import {
@@ -77,23 +78,33 @@ export function getWslCliDistroRequest(
     : undefined
 }
 
+/**
+ * The registered Orca command name for a runtime.
+ *
+ * Linux and WSL register `orca-ide` because `/usr/bin/orca` is GNOME's screen reader,
+ * so a pasted `orca skills install` would run the wrong program there.
+ */
+export function getOrcaCliCommandNameForRuntime(
+  runtime: LocalAgentRuntime,
+  currentPlatform = getSkillCommandPlatform()
+): string {
+  return runtime.runtime === 'wsl' || currentPlatform === 'linux'
+    ? LINUX_ORCA_CLI_COMMAND_NAME
+    : ORCA_CLI_COMMAND_NAME
+}
+
 export function buildSkillCommandForRuntime(
   command: string,
   runtime?: LocalAgentRuntime,
   currentPlatform = getSkillCommandPlatform()
 ): string {
   const resolvedRuntime = runtime ?? LOCAL_HOST_AGENT_RUNTIME
-  const normalizedCommand = normalizeWindowsSkillUpdateCommand(
+  const normalizedCommand = retargetOrcaCliCommandName(
     command,
-    resolvedRuntime,
-    currentPlatform
+    getOrcaCliCommandNameForRuntime(resolvedRuntime, currentPlatform)
   )
   if (resolvedRuntime.runtime !== 'wsl') {
-    return wrapWindowsSkillCommandWithNpxPrerequisite(
-      normalizedCommand,
-      currentPlatform,
-      'copied-command'
-    )
+    return normalizedCommand
   }
 
   const distroArg = resolvedRuntime.wslDistro?.trim()
@@ -110,101 +121,30 @@ export function buildSkillCommandForRuntime(
   return `& { $PSNativeCommandArgumentPassing = 'Legacy'; ${wslCommand} } # Runs: ${visibleCommand}`
 }
 
-function normalizeWindowsSkillUpdateCommand(
-  command: string,
-  runtime: LocalAgentRuntime,
-  currentPlatform: NodeJS.Platform
-): string {
-  if (runtime.runtime === 'wsl' || currentPlatform !== 'win32') {
-    return command
-  }
-
-  const trimmedCommand = command.trim()
-  const updateMatch = /^npx\s+skills\s+update\s+([A-Za-z0-9_-]+)\s+--global$/i.exec(trimmedCommand)
-  if (!updateMatch) {
-    return command
-  }
-
-  // Why: the `skills update` subcommand is currently unreliable on native
-  // Windows, while reinstalling from the same repo source is idempotent and
-  // keeps the setup affordance working.
-  return buildAgentFeatureSkillInstallCommand([updateMatch[1]])
+function retargetOrcaCliCommandName(command: string, commandName: string): string {
+  return command.replace(
+    new RegExp(`^${ORCA_CLI_COMMAND_NAME}(?=\\s+skills\\s)`),
+    () => commandName
+  )
 }
 
 /**
- * Where a built skill command is going: the user's clipboard (their own shell)
- * or the setup terminal Orca spawns itself.
+ * The command Orca's own setup terminal runs.
+ *
+ * Only the Linux name differs from the copied string. Orca-managed PTYs prepend a shim
+ * dir that provides bare `orca` (and only that name), so the terminal must use it — while
+ * the copied string keeps `orca-ide`, the name the user's own shell has. No shell
+ * preflight is needed either way now that the install reads bundled bytes instead of
+ * fetching a package with npx.
+ *
+ * The WSL form is left alone: its payload runs in the user's WSL login shell, where
+ * `orca-ide` is the registered name and Orca's PTY shim does not apply.
  */
-type SkillCommandTarget = 'copied-command' | 'orca-setup-terminal'
-
-/**
- * Re-adds the npx preflight for Orca's own setup terminal, which
- * `getAgentSkillTerminalShellOverride` forces onto powershell.exe. The copied
- * string stays bare for POSIX-family shells; only the executed one is wrapped.
- */
-export function buildSkillSetupTerminalCommand(
-  copiedCommand: string,
-  terminalShellOverride: string | undefined,
-  currentPlatform = getSkillCommandPlatform()
-): string {
-  if (!isSetupTerminalForcedToPowerShell(terminalShellOverride)) {
-    return copiedCommand
-  }
-  return wrapWindowsSkillCommandWithNpxPrerequisite(
-    copiedCommand,
-    currentPlatform,
-    'orca-setup-terminal'
+export function buildSkillSetupTerminalCommand(copiedCommand: string): string {
+  return copiedCommand.replace(
+    new RegExp(`^${LINUX_ORCA_CLI_COMMAND_NAME}(?=\\s+skills\\s)`),
+    () => ORCA_CLI_COMMAND_NAME
   )
-}
-
-function isSetupTerminalForcedToPowerShell(terminalShellOverride: string | undefined): boolean {
-  const trimmedOverride = terminalShellOverride?.trim()
-  return (
-    Boolean(trimmedOverride) && resolveWindowsShellStartupFamily(trimmedOverride) === 'powershell'
-  )
-}
-
-function wrapWindowsSkillCommandWithNpxPrerequisite(
-  command: string,
-  currentPlatform: NodeJS.Platform,
-  target: SkillCommandTarget
-): string {
-  const trimmedCommand = command.trim()
-  if (
-    currentPlatform !== 'win32' ||
-    // Why: skill setup terminals spawn on the focused runtime environment, so a
-    // Windows client must not hand a cmd.exe command to a remote host.
-    isRemoteRuntimeEnvironmentFocused() ||
-    // Why: the copied command lands in the user's configured shell, and MSYS
-    // shells rewrite cmd.exe's leading /d /s /c switches into drive paths,
-    // starting an interactive cmd session instead of running the payload.
-    (target === 'copied-command' && isPosixFamilyWindowsShellConfigured()) ||
-    !/^npx\s+skills\s+(?:add|update)\b/i.test(trimmedCommand)
-  ) {
-    return command
-  }
-
-  const missingNpxGuidance =
-    'echo ERROR: npx was not found. Install Node.js LTS from https://nodejs.org/ to get npx. & echo Then close this terminal and start skill setup again - a new terminal picks up the updated PATH. & exit /b 1'
-  // Why: cmd.exe is one shell-neutral boundary for PowerShell and Command
-  // Prompt, and it resolves the bare name through PATHEXT for both the
-  // preflight and the executed command, so shims such as npx.exe still count.
-  return `cmd.exe /d /s /c "where.exe npx >nul 2>nul & if errorlevel 1 (${missingNpxGuidance}) else (${trimmedCommand})"`
-}
-
-function isPosixFamilyWindowsShellConfigured(): boolean {
-  return (
-    resolveWindowsShellStartupFamily(useAppStore.getState().settings?.terminalWindowsShell) ===
-    'posix'
-  )
-}
-
-function isRemoteRuntimeEnvironmentFocused(): boolean {
-  // Why: the terminal router also weighs how many environments are saved, but
-  // that slice has no subscriber here. Read only the focused id, which every
-  // caller re-renders on: it over-skips rather than ever handing a cmd.exe
-  // command to a remote shell.
-  return Boolean(useAppStore.getState().settings?.activeRuntimeEnvironmentId?.trim())
 }
 
 function getSkillCommandPlatform(): NodeJS.Platform {

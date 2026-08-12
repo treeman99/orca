@@ -7,7 +7,7 @@ import {
   gitBlobSha,
   skillPackageGitTreeSha,
   type SkillGitTreeFileEntry
-} from './skill-git-tree-identity'
+} from '../../shared/skill-git-tree-identity'
 
 type ObservedSkillFile = SkillBundleFileIdentity
 

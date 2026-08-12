@@ -391,7 +391,7 @@ export function AgentSkillSetupPanel({
           <OnboardingInlineCommandTerminal
             key={terminalAttempt}
             worktreeId={terminalWorktreeId}
-            command={buildSkillSetupTerminalCommand(openTerminalCommand, terminalShellOverride)}
+            command={buildSkillSetupTerminalCommand(openTerminalCommand)}
             title={terminalTitle}
             description={translate(
               'auto.components.settings.AgentSkillSetupPanel.runCommandDescription',

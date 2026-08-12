@@ -18,6 +18,7 @@ const {
   verifyPackagedEnterprisePolicy
 } = require('./scripts/verify-packaged-enterprise-policy.cjs')
 const { verifySkillsCliRuntime } = require('./scripts/verify-skills-cli-runtime.cjs')
+const { verifyPackagedSkillPackages } = require('./scripts/verify-packaged-skill-packages.cjs')
 
 // Why: dev-channel builds must carry the *release* identity — same bundle id,
 // Developer ID signature, and notarization ticket — or Squirrel.Mac refuses to
@@ -44,10 +45,18 @@ const featureWallResources = {
   to: 'onboarding/feature-wall'
 }
 // Why: freshness detection needs immutable identity metadata from this exact
-// app build, but never needs the skill package bytes or a runtime network read.
+// app build, but never needs a runtime network read.
 const skillFreshnessResources = {
   from: 'resources/skills',
   to: 'skills'
+}
+// Why: the corporate fork installs Orca's own skills by copying these bytes, so a
+// machine with no npm registry or GitHub reachability gets the same content the
+// freshness manifest above was generated from. Kept beside that manifest, and out of
+// app.asar, so both resolve from one resource root.
+const bundledSkillPackageResources = {
+  from: 'skills',
+  to: 'skills/packages'
 }
 // Why: SSH relay deploy resolves bundles from process.resourcesPath in packaged
 // apps. Keeping relay assets as extraResources makes them real directories
@@ -77,6 +86,7 @@ const commonExtraResources = [
   relayExtraResource,
   bundledPluginResources,
   skillFreshnessResources,
+  bundledSkillPackageResources,
   bundledEnterprisePolicyResource
 ]
 const macSpeechNativeResource = {
@@ -272,6 +282,7 @@ module.exports = {
     // mapping fails packaging before bundled content reaches users.
     verifyPackagedPluginResources(resourcesDir)
     verifyPackagedEnterprisePolicy(resourcesDir)
+    verifyPackagedSkillPackages(resourcesDir)
     chmodUnixCliLaunchers(resourcesDir, context.electronPlatformName)
     chmodMacServeSimHelpers(resourcesDir, context.electronPlatformName)
     for (const filename of readdirSync(resourcesDir)) {

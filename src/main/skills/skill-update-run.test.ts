@@ -17,7 +17,7 @@ class FakeChild extends EventEmitter {
 function makeRunner(
   overrides: {
     rescanOutdatedNames?: (names: string[]) => Promise<string[]>
-    resolveCommand?: (name: string) => string
+    resolveCliInvocation?: () => { command: string; baseArgs: string[]; env: NodeJS.ProcessEnv }
     killTree?: (pid: number, killRoot: () => void) => Promise<void>
     buildSpawnArgs?: (command: string, args: string[]) => { spawnCmd: string; spawnArgs: string[] }
   } = {}
@@ -27,7 +27,9 @@ function makeRunner(
   const states: SkillUpdateRun[] = []
   const runner = new SkillUpdateRunner({
     now: () => 1000,
-    resolveCommand: overrides.resolveCommand ?? (() => '/usr/local/bin/npx'),
+    resolveCliInvocation:
+      overrides.resolveCliInvocation ??
+      (() => ({ command: '/opt/Orca/orca', baseArgs: [], env: { ORCA_TEST: '1' } })),
     rescanOutdatedNames: overrides.rescanOutdatedNames,
     // Default to a no-op sweep so tests never signal a real PID.
     killTree: overrides.killTree ?? (async (_pid, killRoot) => killRoot()),
@@ -46,22 +48,41 @@ async function flush(): Promise<void> {
 }
 
 describe('SkillUpdateRunner', () => {
-  it('passes both non-interactive flags and the sorted skill names', () => {
+  it("drives this build's own CLI with the sorted skill names", () => {
     const { runner, spawnCalls } = makeRunner()
 
     expect(runner.start(['orchestration', 'orca-cli'])).toEqual({ started: true })
-    expect(spawnCalls[0].command).toBe('/usr/local/bin/npx')
-    // `npx --yes` skips the install prompt; `skills -y` takes the CLI's own
-    // non-interactive branch. Dropping either can wedge the run.
+    expect(spawnCalls[0].command).toBe('/opt/Orca/orca')
+    // The engine is the bundled CLI, not npx: an update must complete on a machine
+    // that reaches neither the npm registry nor github.com.
     expect(spawnCalls[0].args).toEqual([
-      '--yes',
       'skills',
       'update',
+      '--skill',
       'orca-cli',
-      'orchestration',
-      '--global',
-      '-y'
+      '--skill',
+      'orchestration'
     ])
+    expect(spawnCalls[0].args.join(' ')).not.toContain('npx')
+  })
+
+  it('runs the CLI entry the invocation supplies', () => {
+    const { runner, spawnCalls } = makeRunner({
+      resolveCliInvocation: () => ({
+        command: '/opt/Orca/electron',
+        baseArgs: ['/opt/Orca/resources/app.asar/out/cli/index.js'],
+        env: { ELECTRON_RUN_AS_NODE: '1' }
+      })
+    })
+
+    runner.start(['orca-cli'])
+
+    expect(spawnCalls[0].args.slice(0, 3)).toEqual([
+      '/opt/Orca/resources/app.asar/out/cli/index.js',
+      'skills',
+      'update'
+    ])
+    expect(spawnCalls[0].options.env).toEqual({ ELECTRON_RUN_AS_NODE: '1' })
   })
 
   it('ignores stdin so the CLI sees a non-TTY', () => {
@@ -208,7 +229,7 @@ describe('SkillUpdateRunner', () => {
     const states: SkillUpdateRun[] = []
     const runner = new SkillUpdateRunner({
       now: () => 1000,
-      resolveCommand: () => '/usr/local/bin/npx',
+      resolveCliInvocation: () => ({ command: '/opt/Orca/orca', baseArgs: [], env: {} }),
       rescanOutdatedNames: async () => [],
       // Never let a test reach the real sweep — it would signal live PIDs.
       killTree: async (_pid, killRoot) => killRoot(),
@@ -282,9 +303,13 @@ describe('SkillUpdateRunner', () => {
 
   it('surfaces an unspawnable command path instead of silently doing nothing', async () => {
     // A Windows profile directory containing `&` makes the cmd.exe rail reject
-    // the resolved npx path; the names are already canonical by this point.
+    // the resolved launcher path; the names are already canonical by this point.
     const { runner, states } = makeRunner({
-      resolveCommand: () => 'C:\\Users\\A&B\\AppData\\Roaming\\npm\\npx.cmd',
+      resolveCliInvocation: () => ({
+        command: 'C:\\Users\\A&B\\AppData\\Local\\Programs\\Orca\\orca.cmd',
+        baseArgs: [],
+        env: {}
+      }),
       buildSpawnArgs: () => {
         throw new Error('unsafe batch arguments')
       }
@@ -301,17 +326,17 @@ describe('SkillUpdateRunner', () => {
     expect(run.state === 'error' && run.message).toContain(WINDOWS_BATCH_UNSAFE_CHARACTERS_LABEL)
   })
 
-  it('spawns npx from a Program Files (x86) install instead of refusing it', () => {
+  it('spawns a launcher from a Program Files (x86) install instead of refusing it', () => {
     const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
     try {
-      const npx = 'C:\\Program Files (x86)\\nodejs\\npx.cmd'
+      const launcher = 'C:\\Program Files (x86)\\Orca\\orca.cmd'
       const { runner, spawnCalls } = makeRunner({
-        resolveCommand: () => npx,
+        resolveCliInvocation: () => ({ command: launcher, baseArgs: [], env: {} }),
         buildSpawnArgs: getSpawnArgsForWindows
       })
 
       expect(runner.start(['orca-cli']).started).toBe(true)
-      expect(spawnCalls[0]?.args.slice(0, 3)).toEqual(['/d', '/c', npx])
+      expect(spawnCalls[0]?.args.slice(0, 3)).toEqual(['/d', '/c', launcher])
     } finally {
       platform.mockRestore()
     }

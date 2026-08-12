@@ -1,37 +1,28 @@
-import { EventEmitter } from 'node:events'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { delimiter } from 'node:path'
-import type * as CodexCliCommandModule from '../shared/node-cli-command-resolution'
-import { WINDOWS_BATCH_UNSAFE_CHARACTERS_LABEL } from '../shared/windows-batch-spawn'
 
-const {
-  detectCommandsMock,
-  guideModuleLoadMock,
-  resolveCliCommandMock,
-  runtimeClientConstructorMock,
-  spawnMock
-} = vi.hoisted(() => ({
-  detectCommandsMock: vi.fn(() => new Set<string>(['claude'])),
-  guideModuleLoadMock: vi.fn(),
-  resolveCliCommandMock: vi.fn(() => 'npx'),
-  runtimeClientConstructorMock: vi.fn(),
-  spawnMock: vi.fn()
+const { detectCommandsMock, guideModuleLoadMock, runOfflineMock, runtimeClientConstructorMock } =
+  vi.hoisted(() => ({
+    detectCommandsMock: vi.fn(() => new Set<string>(['claude'])),
+    guideModuleLoadMock: vi.fn(),
+    runOfflineMock: vi.fn(
+      async (): Promise<{ lines: string[]; failedNames: string[] }> => ({
+        lines: ['alpha: wrote 2 location(s)'],
+        failedNames: []
+      })
+    ),
+    runtimeClientConstructorMock: vi.fn()
+  }))
+
+// Why: the offline installer writes into real agent home directories, so the handler
+// tests assert the plan it is handed rather than letting it touch the test machine.
+vi.mock('./handlers/skills-offline-install', () => ({
+  runOfflineSkillMutation: runOfflineMock
 }))
 
 // Why: agent detection probes the real machine, so pin it or every install
 // assertion depends on what the test runner happens to have installed.
 vi.mock('../shared/local-agent-install-dir-detection', () => ({
   detectCommandsInInstallDirs: detectCommandsMock
-}))
-
-// Why: override only the npx lookup so the real Windows .cmd rail still runs.
-vi.mock('../shared/node-cli-command-resolution', async (importOriginal) => ({
-  ...(await importOriginal<typeof CodexCliCommandModule>()),
-  resolveCliCommand: resolveCliCommandMock
-}))
-
-vi.mock('node:child_process', () => ({
-  spawn: spawnMock
 }))
 
 vi.mock('./bundled-skill-guides.js', () => {
@@ -94,11 +85,10 @@ describe('orca skills CLI', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     runtimeClientConstructorMock.mockClear()
-    resolveCliCommandMock.mockReset()
-    resolveCliCommandMock.mockReturnValue('npx')
     detectCommandsMock.mockReset()
     detectCommandsMock.mockReturnValue(new Set<string>(['claude']))
-    spawnMock.mockReset()
+    runOfflineMock.mockReset()
+    runOfflineMock.mockResolvedValue({ lines: ['alpha: wrote 2 location(s)'], failedNames: [] })
     process.exitCode = undefined
   })
 
@@ -223,7 +213,7 @@ describe('orca skills CLI', () => {
       'install            Install bundled Orca skills'
     )
     expect(String(logSpy.mock.calls[1]?.[0])).toContain(
-      'update             Update already-installed Orca skills'
+      'update             Refresh already-installed Orca skills from this build, with no network access'
     )
     expect(String(logSpy.mock.calls[2]?.[0])).toContain('Skills:\n  skills list')
     expect(String(logSpy.mock.calls[2]?.[0])).toContain('skills update')
@@ -259,7 +249,7 @@ describe('orca skills CLI', () => {
         ''
       ].join('\n')
     )
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(runOfflineMock).not.toHaveBeenCalled()
     expect(runtimeClientConstructorMock).not.toHaveBeenCalled()
   })
 
@@ -280,7 +270,7 @@ describe('orca skills CLI', () => {
 
     expect(process.exitCode).toBe(1)
     expect(errorSpy).toHaveBeenCalledWith('Use either --all or --skill, not both.')
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(runOfflineMock).not.toHaveBeenCalled()
   })
 
   it('rejects an unknown --skill name', async () => {
@@ -292,7 +282,7 @@ describe('orca skills CLI', () => {
     expect(errorSpy).toHaveBeenCalledWith(
       'Unknown skill "missing". Available skills: alpha, gamma, zeta'
     )
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(runOfflineMock).not.toHaveBeenCalled()
   })
 
   it('rejects --skill without a value', async () => {
@@ -302,45 +292,44 @@ describe('orca skills CLI', () => {
 
     expect(process.exitCode).toBe(1)
     expect(errorSpy).toHaveBeenCalledWith('Missing required --skill')
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(runOfflineMock).not.toHaveBeenCalled()
   })
 
-  it('rejects --json for a real (non-dry-run) install', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+  it('emits JSON for a real install now that the output is its own', async () => {
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
     await main(['skills', 'install', '--skill', 'alpha', '--json'], '/tmp/repo')
 
-    expect(process.exitCode).toBe(1)
-    expect(logSpy).toHaveBeenCalledWith(
-      JSON.stringify(
-        {
-          id: 'local',
-          ok: false,
-          error: {
-            code: 'invalid_argument',
-            message:
-              "orca skills install --json only supports --dry-run. Real installs stream npx's " +
-              "own output, which isn't JSON."
-          },
-          _meta: { runtimeId: null }
-        },
-        null,
-        2
-      )
-    )
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(process.exitCode).toBeUndefined()
+    expect(JSON.parse(stdoutText(stdoutSpy))).toEqual({
+      skills: ['alpha'],
+      global: true,
+      agents: ['claude-code', 'universal'],
+      failed: []
+    })
   })
 
-  it('prints the resolved install command without running it for --dry-run', async () => {
+  it('exits nonzero when a skill could not be written', async () => {
+    runOfflineMock.mockResolvedValue({ lines: ['alpha: no files'], failedNames: ['alpha'] })
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+
+    await main(['skills', 'install', '--skill', 'alpha'], '/tmp/repo')
+
+    expect(process.exitCode).toBe(1)
+  })
+
+  it('prints the resolved plan without writing anything for --dry-run', async () => {
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
     await main(['skills', 'install', '--skill', 'alpha', '--dry-run'], '/tmp/repo')
 
-    expect(stdoutText(stdoutSpy)).toBe(
-      'npx --yes skills add https://github.com/stablyai/orca --skill alpha --global --agent claude-code --agent universal -y\n\n' +
-        'Rerun without --dry-run to install now.\n'
-    )
-    expect(spawnMock).not.toHaveBeenCalled()
+    const printed = stdoutText(stdoutSpy)
+    expect(printed).toContain('bundled packages (no network)')
+    expect(printed).toContain('  alpha')
+    expect(printed).toContain('scope: global')
+    expect(printed).toContain('agents: claude-code, universal')
+    expect(printed).toContain('Rerun without --dry-run to install now.')
+    expect(runOfflineMock).not.toHaveBeenCalled()
   })
 
   it('gives dry-run --json a stable schema', async () => {
@@ -351,10 +340,9 @@ describe('orca skills CLI', () => {
     expect(stdoutText(stdoutSpy)).toBe(
       `${JSON.stringify(
         {
-          command:
-            'npx --yes skills add https://github.com/stablyai/orca --skill alpha --global --agent claude-code --agent universal -y',
           skills: ['alpha'],
           global: true,
+          agents: ['claude-code', 'universal'],
           executed: false
         },
         null,
@@ -363,15 +351,11 @@ describe('orca skills CLI', () => {
     )
   })
 
-  it('drops --global for --local in the dry-run command and JSON', async () => {
+  it('reports project scope for --local in the dry-run plan and JSON', async () => {
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
     await main(['skills', 'install', '--skill', 'alpha', '--local', '--dry-run'], '/tmp/repo')
-
-    expect(stdoutText(stdoutSpy)).toBe(
-      'npx --yes skills add https://github.com/stablyai/orca --skill alpha --agent claude-code --agent universal -y\n\n' +
-        'Rerun without --dry-run to install now.\n'
-    )
+    expect(stdoutText(stdoutSpy)).toContain('scope: project')
 
     stdoutSpy.mockClear()
     await main(
@@ -379,183 +363,37 @@ describe('orca skills CLI', () => {
       '/tmp/repo'
     )
 
-    expect(stdoutText(stdoutSpy)).toBe(
-      `${JSON.stringify(
-        {
-          command:
-            'npx --yes skills add https://github.com/stablyai/orca --skill alpha --agent claude-code --agent universal -y',
-          skills: ['alpha'],
-          global: false,
-          executed: false
-        },
-        null,
-        2
-      )}\n`
-    )
+    expect(JSON.parse(stdoutText(stdoutSpy))).toMatchObject({ global: false, executed: false })
   })
 
-  it('runs npx without --global for --local', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  it('installs into the project scope for --local', async () => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
-    const resultPromise = main(['skills', 'install', '--skill', 'alpha', '--local'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 0, null)
-    await resultPromise
+    await main(['skills', 'install', '--skill', 'alpha', '--local'], '/tmp/repo')
 
-    expect(spawnMock).toHaveBeenCalledWith(
-      'npx',
-      [
-        '--yes',
-        'skills',
-        'add',
-        'https://github.com/stablyai/orca',
-        '--skill',
-        'alpha',
-        '--agent',
-        'claude-code',
-        '--agent',
-        'universal',
-        '-y'
-      ],
-      expect.objectContaining({ stdio: 'inherit' })
-    )
-  })
-
-  it('routes a resolved Windows .cmd shim through cmd.exe', async () => {
-    vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
-    vi.stubEnv('ComSpec', 'C:\\Windows\\System32\\cmd.exe')
-    resolveCliCommandMock.mockReturnValue('C:\\Program Files\\nodejs\\npx.cmd')
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    const resultPromise = main(['skills', 'install', '--skill', 'alpha'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 0, null)
-    await resultPromise
-
-    expect(spawnMock).toHaveBeenCalledWith(
-      'C:\\Windows\\System32\\cmd.exe',
-      [
-        '/d',
-        '/c',
-        'C:\\Program Files\\nodejs\\npx.cmd',
-        '--yes',
-        'skills',
-        'add',
-        'https://github.com/stablyai/orca',
-        '--skill',
-        'alpha',
-        '--global',
-        '--agent',
-        'claude-code',
-        '--agent',
-        'universal',
-        '-y'
-      ],
-      expect.objectContaining({ stdio: 'inherit' })
-    )
-  })
-
-  it('spawns a resolved npx path directly when it is not a .cmd shim', async () => {
-    vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
-    resolveCliCommandMock.mockReturnValue('C:\\Program Files\\nodejs\\npx.exe')
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    const resultPromise = main(['skills', 'install', '--skill', 'alpha'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 0, null)
-    await resultPromise
-
-    // Why: an .exe shim must stay a direct spawn so a missing npx still raises
-    // ENOENT on the child instead of hiding inside cmd.exe's own exit code.
-    expect(spawnMock.mock.calls[0]?.[0]).toBe('C:\\Program Files\\nodejs\\npx.exe')
-    expect(spawnMock.mock.calls[0]?.[1]?.[0]).toBe('--yes')
+    expect(runOfflineMock).toHaveBeenCalledWith({
+      verb: 'install',
+      skillNames: ['alpha'],
+      global: false,
+      agentKeys: ['claude-code', 'universal']
+    })
   })
 
   it('resolves a legacy topic alias to the canonical skill name for install', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
-    const resultPromise = main(['skills', 'install', '--skill', 'legacy-alpha'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 0, null)
-    await resultPromise
+    await main(['skills', 'install', '--skill', 'legacy-alpha'], '/tmp/repo')
 
-    expect(spawnMock).toHaveBeenCalledWith(
-      'npx',
-      [
-        '--yes',
-        'skills',
-        'add',
-        'https://github.com/stablyai/orca',
-        '--skill',
-        'alpha',
-        '--global',
-        '--agent',
-        'claude-code',
-        '--agent',
-        'universal',
-        '-y'
-      ],
-      expect.objectContaining({ stdio: 'inherit' })
-    )
+    expect(runOfflineMock).toHaveBeenCalledWith(expect.objectContaining({ skillNames: ['alpha'] }))
   })
 
-  it('runs npx for --all and forwards its exit code', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  it('installs every bundled skill for --all', async () => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
-    const resultPromise = main(['skills', 'install', '--all'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 1, null)
-    await resultPromise
+    await main(['skills', 'install', '--all'], '/tmp/repo')
 
-    expect(spawnMock).toHaveBeenCalledWith(
-      'npx',
-      [
-        '--yes',
-        'skills',
-        'add',
-        'https://github.com/stablyai/orca',
-        '--skill',
-        'alpha',
-        '--skill',
-        'gamma',
-        '--skill',
-        'zeta',
-        '--global',
-        '--agent',
-        'claude-code',
-        '--agent',
-        'universal',
-        '-y'
-      ],
-      expect.objectContaining({ stdio: 'inherit' })
-    )
-    expect(process.exitCode).toBe(1)
-  })
-
-  it('propagates a spawn error as a nonzero exit', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    const resultPromise = main(['skills', 'install', '--skill', 'alpha'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('error', new Error('spawn npx ENOENT'))
-    await resultPromise
-
-    expect(process.exitCode).toBe(1)
-    expect(errorSpy).toHaveBeenCalledWith(
-      'Could not run npx: spawn npx ENOENT. Install Node.js and ensure npx is on PATH.'
+    expect(runOfflineMock).toHaveBeenCalledWith(
+      expect.objectContaining({ verb: 'install', skillNames: ['alpha', 'gamma', 'zeta'] })
     )
   })
 
@@ -576,18 +414,18 @@ describe('orca skills CLI', () => {
         ''
       ].join('\n')
     )
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(runOfflineMock).not.toHaveBeenCalled()
   })
 
-  it('prints the resolved update command without running it for --dry-run', async () => {
+  it('prints the resolved update plan without writing anything for --dry-run', async () => {
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
     await main(['skills', 'update', '--skill', 'legacy-alpha', '--dry-run'], '/tmp/repo')
 
-    expect(stdoutText(stdoutSpy)).toBe(
-      'npx --yes skills update alpha --global -y\n\nRerun without --dry-run to update now.\n'
-    )
-    expect(spawnMock).not.toHaveBeenCalled()
+    const printed = stdoutText(stdoutSpy)
+    expect(printed).toContain('  alpha')
+    expect(printed).toContain('Rerun without --dry-run to update now.')
+    expect(runOfflineMock).not.toHaveBeenCalled()
   })
 
   it('selects project scope for --local on update', async () => {
@@ -598,35 +436,25 @@ describe('orca skills CLI', () => {
       '/tmp/repo'
     )
 
-    expect(stdoutText(stdoutSpy)).toBe(
-      `${JSON.stringify(
-        {
-          command: 'npx --yes skills update alpha --project -y',
-          skills: ['alpha'],
-          global: false,
-          executed: false
-        },
-        null,
-        2
-      )}\n`
-    )
+    expect(JSON.parse(stdoutText(stdoutSpy))).toEqual({
+      skills: ['alpha'],
+      global: false,
+      agents: [],
+      executed: false
+    })
   })
 
   it('runs local updates with explicit project scope', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
-    const resultPromise = main(['skills', 'update', '--skill', 'alpha', '--local'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 0, null)
-    await resultPromise
+    await main(['skills', 'update', '--skill', 'alpha', '--local'], '/tmp/repo')
 
-    expect(spawnMock).toHaveBeenCalledWith(
-      'npx',
-      ['--yes', 'skills', 'update', 'alpha', '--project', '-y'],
-      expect.objectContaining({ stdio: 'inherit' })
-    )
+    expect(runOfflineMock).toHaveBeenCalledWith({
+      verb: 'update',
+      skillNames: ['alpha'],
+      global: false,
+      agentKeys: []
+    })
   })
 
   it('refuses a real run when the shell forwards orca to the Orca host', async () => {
@@ -637,7 +465,7 @@ describe('orca skills CLI', () => {
 
     // Why: the SSH relay and WSL bridge run argv on the Orca host, so a real
     // install there would silently skip the machine the user is sitting on.
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(runOfflineMock).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
     expect(String(errorSpy.mock.calls[0]?.[0])).toContain('writes to the machine that runs it')
   })
@@ -650,85 +478,9 @@ describe('orca skills CLI', () => {
 
     // Why: the targets are resolved from THIS host's agents, so a command printed
     // here would name the wrong machine's agents. Point at the target instead.
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(runOfflineMock).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
     expect(String(errorSpy.mock.calls[0]?.[0])).toContain('writes to the machine that runs it')
-  })
-
-  it('puts the resolved npx directory on the child PATH', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    resolveCliCommandMock.mockReturnValue('/home/alice/.nvm/versions/node/v22/bin/npx')
-    vi.stubEnv('PATH', `/usr/bin${delimiter}/bin`)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    const resultPromise = main(['skills', 'install', '--skill', 'alpha'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 0, null)
-    await resultPromise
-
-    // Why: npx is an `env node` script, so an off-PATH npx exits 127 with no
-    // 'error' event unless node ships alongside it on the child's PATH.
-    const env = spawnMock.mock.calls[0]?.[2]?.env
-    // Why: the child still needs the inherited PATH and the rest of the parent
-    // environment; replacing it outright breaks git, node, HOME and npm config.
-    expect(env?.PATH).toBe(
-      `/home/alice/.nvm/versions/node/v22/bin${delimiter}/usr/bin${delimiter}/bin`
-    )
-    expect(env?.HOME ?? env?.USERPROFILE).toBe(process.env.HOME ?? process.env.USERPROFILE)
-  })
-
-  it('reports a Windows npx path cmd.exe would reinterpret', async () => {
-    vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
-    vi.stubEnv('ComSpec', 'C:\\Windows\\System32\\cmd.exe')
-    resolveCliCommandMock.mockReturnValue('C:\\Users\\A&B\\npx.cmd')
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    await main(['skills', 'install', '--skill', 'alpha'], '/tmp/repo')
-
-    expect(spawnMock).not.toHaveBeenCalled()
-    expect(process.exitCode).toBe(1)
-    expect(String(errorSpy.mock.calls[0]?.[0])).toContain('cmd.exe would reinterpret')
-    // Why: remediation advice that names the wrong characters is unactionable.
-    expect(String(errorSpy.mock.calls[0]?.[0])).toContain(WINDOWS_BATCH_UNSAFE_CHARACTERS_LABEL)
-  })
-
-  it('runs npx from a Program Files (x86) install instead of refusing it', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
-    vi.stubEnv('ComSpec', 'C:\\Windows\\System32\\cmd.exe')
-    const npx = 'C:\\Program Files (x86)\\nodejs\\npx.cmd'
-    resolveCliCommandMock.mockReturnValue(npx)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    const resultPromise = main(['skills', 'install', '--skill', 'alpha'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 0, null)
-    await resultPromise
-
-    expect(spawnMock.mock.calls[0]?.[0]).toBe('C:\\Windows\\System32\\cmd.exe')
-    expect(spawnMock.mock.calls[0]?.[1]?.slice(0, 3)).toEqual(['/d', '/c', npx])
-  })
-
-  it('never puts the current directory on the child PATH when npx is unresolvable', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    // Why: resolveCliCommand returns the bare name when it finds nothing, and
-    // dirname('npx') is '.', which would run ./npx out of the caller's checkout.
-    resolveCliCommandMock.mockReturnValue('npx')
-    vi.stubEnv('PATH', `/usr/bin${delimiter}/bin`)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    const resultPromise = main(['skills', 'install', '--skill', 'alpha'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 0, null)
-    await resultPromise
-
-    // Why: assert the constructed value, not the ambient one — a dev PATH with a
-    // trailing separator carries its own '' entry and would fake a failure here.
-    expect(spawnMock.mock.calls[0]?.[2]?.env?.PATH).toBe(`/usr/bin${delimiter}/bin`)
   })
 
   it('refuses to install when Orca detects no agent, instead of targeting them all', async () => {
@@ -739,30 +491,37 @@ describe('orca skills CLI', () => {
 
     // Why: `skills add -y` with nothing detected installs into every agent it
     // knows (~75), creating config dirs for agents the host does not have.
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(runOfflineMock).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
     expect(String(errorSpy.mock.calls[0]?.[0])).toContain('No coding agent detected')
   })
 
   it('honours an explicit --agent list without probing the host', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
     detectCommandsMock.mockReturnValue(new Set<string>())
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
 
-    const resultPromise = main(
+    await main(
       ['skills', 'install', '--skill', 'alpha', '--agent', 'codex, claude-code ,codex'],
       '/tmp/repo'
     )
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 0, null)
-    await resultPromise
 
-    const argv = spawnMock.mock.calls[0]?.[1] ?? []
-    const agents = argv.filter((_: string, i: number) => argv[i - 1] === '--agent')
     // Why: trimmed and de-duplicated, and detection is not consulted at all.
-    expect(agents).toEqual(['codex', 'claude-code'])
+    expect(runOfflineMock).toHaveBeenCalledWith(
+      expect.objectContaining({ agentKeys: ['codex', 'claude-code'] })
+    )
     expect(detectCommandsMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects an agent Orca has no skills directory for', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await main(['skills', 'install', '--skill', 'alpha', '--agent', 'nonesuch'], '/tmp/repo')
+
+    // Why: the offline installer only writes roots Orca also scans, so an agent it
+    // has no root for would report success while installing nothing.
+    expect(runOfflineMock).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(1)
+    expect(String(errorSpy.mock.calls[0]?.[0])).toContain('no skills directory for agent')
   })
 
   it('maps detected agents onto the skills CLI namespace, not Orca ids', async () => {
@@ -771,28 +530,20 @@ describe('orca skills CLI', () => {
 
     await main(['skills', 'install', '--skill', 'alpha', '--dry-run'], '/tmp/repo')
 
-    // Why: `skills add` exits 1 on an unknown --agent, and the ids differ —
-    // Orca's `claude` is `claude-code` and its `rovo` is `rovodev`.
-    expect(stdoutText(stdoutSpy)).toContain(
-      '--agent claude-code --agent cursor --agent rovodev --agent universal'
-    )
+    // Why: Orca's ids and the skills namespace differ — its `claude` is `claude-code`.
+    // `rovodev` is dropped here because Orca scans no Rovo skills directory.
+    expect(stdoutText(stdoutSpy)).toContain('agents: claude-code, cursor, universal')
   })
 
-  it('never sends --agent for an update, and never refuses on a bare host', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
+  it('chooses no new targets for an update, and never refuses on a bare host', async () => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
     // Why: update refreshes what is already placed, so the no-agent refusal that
     // guards install must not reach it.
     detectCommandsMock.mockReturnValue(new Set<string>())
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
 
-    const resultPromise = main(['skills', 'update', '--skill', 'alpha'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 0, null)
-    await resultPromise
+    await main(['skills', 'update', '--skill', 'alpha'], '/tmp/repo')
 
-    // Why: update refreshes what is already placed; it chooses no new targets.
-    expect(spawnMock.mock.calls[0]?.[1]).not.toContain('--agent')
+    expect(runOfflineMock).toHaveBeenCalledWith(expect.objectContaining({ agentKeys: [] }))
   })
 
   it.each([
@@ -806,7 +557,7 @@ describe('orca skills CLI', () => {
 
     // Why: an --agent that resolves to nothing must not fall back to detection or
     // emit no --agent at all — the latter restores the ~75-agent install.
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(runOfflineMock).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
     expect(String(errorSpy.mock.calls[0]?.[0])).toContain('Missing required --agent')
   })
@@ -822,7 +573,7 @@ describe('orca skills CLI', () => {
 
     // Why: the skills CLI drops such a value, leaving it with no target — the same
     // all-agents install as omitting --agent entirely.
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(runOfflineMock).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
     expect(String(errorSpy.mock.calls[0]?.[0])).toContain('Invalid --agent value')
   })
@@ -850,43 +601,18 @@ describe('orca skills CLI', () => {
   })
 
   it('accumulates a repeated --skill instead of keeping only the last one', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
-    const resultPromise = main(
-      ['skills', 'install', '--skill', 'zeta', '--skill', 'alpha'],
-      '/tmp/repo'
-    )
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 0, null)
-    await resultPromise
+    await main(['skills', 'install', '--skill', 'zeta', '--skill', 'alpha'], '/tmp/repo')
 
     // Why: the documented primary invocation. Dropping 'skill' from the
     // repeatable-flag set silently installs one skill instead of two.
-    expect(spawnMock).toHaveBeenCalledWith(
-      'npx',
-      [
-        '--yes',
-        'skills',
-        'add',
-        'https://github.com/stablyai/orca',
-        '--skill',
-        'alpha',
-        '--skill',
-        'zeta',
-        '--global',
-        '--agent',
-        'claude-code',
-        '--agent',
-        'universal',
-        '-y'
-      ],
-      expect.objectContaining({ stdio: 'inherit' })
+    expect(runOfflineMock).toHaveBeenCalledWith(
+      expect.objectContaining({ skillNames: ['alpha', 'zeta'] })
     )
   })
 
-  it('collapses an alias and its canonical name into one --skill', async () => {
+  it('collapses an alias and its canonical name into one skill', async () => {
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
     await main(
@@ -894,78 +620,35 @@ describe('orca skills CLI', () => {
       '/tmp/repo'
     )
 
-    expect(stdoutText(stdoutSpy)).toBe(
-      'npx --yes skills add https://github.com/stablyai/orca --skill alpha --global --agent claude-code --agent universal -y\n\n' +
-        'Rerun without --dry-run to install now.\n'
-    )
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(stdoutText(stdoutSpy).match(/^ {2}alpha$/gm)).toHaveLength(1)
+    expect(runOfflineMock).not.toHaveBeenCalled()
   })
 
-  it('reports the command it is about to run on stderr', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+  it('updates every bundled skill for --all', async () => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
-    const resultPromise = main(['skills', 'install', '--skill', 'alpha'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 0, null)
-    await resultPromise
+    await main(['skills', 'update', '--all'], '/tmp/repo')
 
-    // Why: stdout belongs to the child, so this record has to go to stderr.
-    expect(stderrSpy).toHaveBeenCalledWith(
-      'Running: npx --yes skills add https://github.com/stablyai/orca --skill alpha --global --agent claude-code --agent universal -y\n'
+    expect(runOfflineMock).toHaveBeenCalledWith(
+      expect.objectContaining({ verb: 'update', skillNames: ['alpha', 'gamma', 'zeta'] })
     )
   })
 
-  it('runs npx skills update for --all and forwards its exit code', async () => {
-    const child = createFakeChild()
-    spawnMock.mockReturnValue(child)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-    const resultPromise = main(['skills', 'update', '--all'], '/tmp/repo')
-    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled())
-    child.emit('exit', 2, null)
-    await resultPromise
-
-    expect(spawnMock).toHaveBeenCalledWith(
-      'npx',
-      ['--yes', 'skills', 'update', 'alpha', 'gamma', 'zeta', '--global', '-y'],
-      expect.objectContaining({ stdio: 'inherit' })
-    )
-    expect(process.exitCode).toBe(2)
-  })
-
-  it('rejects --json for a real (non-dry-run) update', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+  it('emits JSON for a real update too', async () => {
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
     await main(['skills', 'update', '--skill', 'alpha', '--json'], '/tmp/repo')
 
-    expect(process.exitCode).toBe(1)
-    expect(logSpy).toHaveBeenCalledWith(
-      JSON.stringify(
-        {
-          id: 'local',
-          ok: false,
-          error: {
-            code: 'invalid_argument',
-            message:
-              "orca skills update --json only supports --dry-run. Real updates stream npx's " +
-              "own output, which isn't JSON."
-          },
-          _meta: { runtimeId: null }
-        },
-        null,
-        2
-      )
-    )
-    expect(spawnMock).not.toHaveBeenCalled()
+    expect(process.exitCode).toBeUndefined()
+    expect(JSON.parse(stdoutText(stdoutSpy))).toEqual({
+      skills: ['alpha'],
+      global: true,
+      agents: [],
+      failed: []
+    })
   })
 })
 
 function stdoutText(spy: ReturnType<typeof vi.spyOn>): string {
   return spy.mock.calls.map((call) => String(call[0])).join('')
-}
-
-function createFakeChild(): EventEmitter {
-  return new EventEmitter()
 }

@@ -216,12 +216,15 @@ export function canonicalizeSkillUpdateNames(names: readonly string[]): string[]
 
 export function buildTargetedSkillUpdateCommand(names: readonly string[]): string | null {
   const canonicalNames = canonicalizeSkillUpdateNames(names)
-  return canonicalNames ? `npx skills update ${canonicalNames.join(' ')} --global` : null
+  // Why: Orca's own CLI, which rewrites each copy from the packages inside this build.
+  // A command that needs npx or GitHub cannot complete on a locked-down network.
+  return canonicalNames
+    ? `orca skills update ${canonicalNames.map((name) => `--skill ${name}`).join(' ')}`
+    : null
 }
 
-// Why: `skills update` has no --json (that flag only exists on `list`), so the
-// run reports one indeterminate phase. Per-skill outcomes come from re-scanning
-// the inventory after exit, never from parsing stdout.
+// Why: the run reports one indeterminate phase. Per-skill outcomes come from
+// re-scanning the inventory after exit, never from parsing stdout.
 export type SkillUpdateRun =
   | { state: 'idle' }
   // `stopping` covers the window between Stop and the process tree actually

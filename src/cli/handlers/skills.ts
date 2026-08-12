@@ -1,25 +1,15 @@
-import { spawn } from 'node:child_process'
 import type { CommandHandler } from '../dispatch'
 import { RuntimeClientError } from '../runtime-client'
-import { delimiter, dirname } from 'node:path'
 import { getRepeatedStringFlag } from '../flags'
-import { resolveCliCommand } from '../../shared/node-cli-command-resolution'
 import { detectCommandsInInstallDirs } from '../../shared/local-agent-install-dir-detection'
 import {
   getTuiAgentDetectionProbeCommands,
   KNOWN_TUI_AGENT_DETECTION_COMMANDS,
   resolveDetectedTuiAgentIds
 } from '../../shared/tui-agent-detection-commands'
-import {
-  getSpawnArgsForWindows,
-  UnsafeWindowsBatchArgumentsError,
-  WINDOWS_BATCH_UNSAFE_CHARACTERS_LABEL
-} from '../../shared/windows-batch-spawn'
 import { isSkillsCliAgentKeyShaped, toSkillsCliAgentKeys } from '../../shared/skills-cli-agent-keys'
-import {
-  buildAgentFeatureSkillInstallArgs,
-  buildAgentFeatureSkillUpdateArgs
-} from '../../shared/agent-feature-install-commands'
+import { knownAgentSkillInstallAgentKeys } from '../../shared/agent-skill-install-roots'
+import { runOfflineSkillMutation, type OfflineSkillMutation } from './skills-offline-install'
 
 type BundledSkillGuide = {
   name: string
@@ -102,69 +92,7 @@ function resolveSelectedSkillNames(
   return [...canonicalNames].sort()
 }
 
-/** PATH with the resolved npx's own directory first, so its `env node` shebang resolves. */
-function buildNpxPath(resolvedNpx: string): string {
-  // Why: resolveCliCommand falls back to the bare name when it finds nothing, and
-  // dirname('npx') is '.', so prepending it blindly would run ./npx out of the
-  // caller's checkout instead of reporting that npx is missing.
-  const own = dirname(resolvedNpx)
-  const existing = process.env.PATH ?? process.env.Path ?? ''
-  // Why: every version manager ships node beside npx in the same bin directory,
-  // so the resolved sibling is all the child needs to run npx's shebang.
-  return [own === '.' ? '' : own, existing].filter(Boolean).join(delimiter)
-}
-
-function runNpxSkills(args: string[]): Promise<number> {
-  return new Promise((resolve, reject) => {
-    // Why: a bare PATH lookup misses nvm/fnm/volta installs, and hardcoding
-    // `npx.cmd` both misses `npx.exe` shims and hides a missing npx behind
-    // cmd.exe's own exit code, so the friendly error below never fires.
-    const resolved = resolveCliCommand('npx')
-    let spawnCmd: string
-    let spawnArgs: string[]
-    try {
-      ;({ spawnCmd, spawnArgs } = getSpawnArgsForWindows(resolved, args))
-    } catch (error) {
-      // Why: the guard rejects cmd metacharacters, and only the resolved npx
-      // path can carry them here — a username like `A&B` puts them in it.
-      if (!(error instanceof UnsafeWindowsBatchArgumentsError)) {
-        reject(error)
-        return
-      }
-      reject(
-        new RuntimeClientError(
-          'invalid_environment',
-          `Cannot run npx from "${resolved}": the path contains characters cmd.exe would ` +
-            `reinterpret. Install Node.js somewhere without ${WINDOWS_BATCH_UNSAFE_CHARACTERS_LABEL} in the path.`
-        )
-      )
-      return
-    }
-    // Why: npx is an `#!/usr/bin/env node` script, so resolving it off PATH is
-    // not enough — without node alongside it the child exits 127 with no
-    // 'error' event and the message below never fires.
-    const child = spawn(spawnCmd, spawnArgs, {
-      stdio: 'inherit',
-      env: { ...process.env, PATH: buildNpxPath(resolved) }
-    })
-    // Why: a missing npx/Node on a headless host surfaces as a raw spawn ENOENT;
-    // wrap it so the CLI reports an actionable message like every other failure here.
-    child.once('error', (error) => {
-      const detail = error instanceof Error ? error.message : String(error)
-      reject(
-        new RuntimeClientError(
-          'invalid_environment',
-          `Could not run npx: ${detail}. Install Node.js and ensure npx is on PATH.`
-        )
-      )
-    })
-    child.once('exit', (code, signal) => {
-      resolve(typeof code === 'number' ? code : signal ? 1 : 0)
-    })
-  })
-}
-
-type SkillMutationVerb = 'install' | 'update'
+type SkillMutationVerb = OfflineSkillMutation['verb']
 
 /** Agents Orca can see on this host, as `skills --agent` keys. */
 function detectSkillsCliAgentKeys(): string[] {
@@ -202,49 +130,35 @@ function resolveInstallAgentKeys(flags: Map<string, string | boolean>): string[]
     }
     const unusable = keys.find((key) => !isSkillsCliAgentKeyShaped(key))
     if (unusable !== undefined) {
-      // Why: the skills CLI drops a value starting with `-`, which leaves it with
-      // no target and installs into every agent it knows.
       throw new RuntimeClientError(
         'invalid_argument',
         `Invalid --agent value "${unusable}". Pass agent names such as claude-code, ` +
           'codex, or universal.'
       )
     }
+    const unknown = keys.find((key) => !knownAgentSkillInstallAgentKeys().includes(key))
+    if (unknown !== undefined) {
+      // Why: the offline installer writes only directories Orca also scans, so an
+      // agent it has no root for would silently install nothing.
+      throw new RuntimeClientError(
+        'invalid_argument',
+        `Orca has no skills directory for agent "${unknown}". Valid targets: ` +
+          `${knownAgentSkillInstallAgentKeys().join(', ')}.`
+      )
+    }
     return keys
   }
   const detected = detectSkillsCliAgentKeys()
-  if (detected.length > 0) {
-    return detected
+  const installable = detected.filter((key) => knownAgentSkillInstallAgentKeys().includes(key))
+  if (installable.length > 0) {
+    return installable
   }
-  // Why: without --agent, `skills add -y` falls into its own zero-detected branch
-  // and installs into every agent it knows (~75), creating config directories for
-  // agents this host does not have. Say so instead.
   throw new RuntimeClientError(
     'invalid_environment',
     'No coding agent detected on this host, so there is no install target. Pass ' +
       '--agent <name>[,<name>...] to choose targets explicitly — --agent universal ' +
       'writes only the shared .agents/skills directory that Orca reads.'
   )
-}
-
-function buildNpxSkillsArgs(
-  verb: SkillMutationVerb,
-  skillNames: string[],
-  global: boolean,
-  agents: string[]
-): string[] {
-  const skillArgs =
-    verb === 'install'
-      ? buildAgentFeatureSkillInstallArgs(skillNames, { global, yes: true, agents })
-      : buildAgentFeatureSkillUpdateArgs(skillNames, { global, yes: true })
-  // Why: a cold package cache makes bare `npx` prompt before it will fetch
-  // `skills`, which strands an unattended host just like the picker does.
-  return ['--yes', ...skillArgs]
-}
-
-/** Render the exact argv a real run spawns, so --dry-run can never drift from it. */
-function formatNpxCommand(args: string[]): string {
-  return `npx ${args.join(' ')}`
 }
 
 function formatSkillSelectionHelp(verb: SkillMutationVerb, skillNames: string[]): string {
@@ -288,34 +202,40 @@ function createSkillMutationHandler(verb: SkillMutationVerb): CommandHandler {
 
     const global = flags.get('local') !== true
     // Why: install scopes its targets; update only refreshes what is already placed.
-    const agents = verb === 'install' ? resolveInstallAgentKeys(flags) : []
-    const npxArgs = buildNpxSkillsArgs(verb, skillNames, global, agents)
-    const command = formatNpxCommand(npxArgs)
-    const dryRun = flags.get('dry-run') === true
+    const agentKeys = verb === 'install' ? resolveInstallAgentKeys(flags) : []
 
-    if (dryRun) {
+    if (flags.get('dry-run') === true) {
+      const plan = { skills: skillNames, global, agents: agentKeys, executed: false }
       writeStdout(
         json
-          ? JSON.stringify({ command, skills: skillNames, global, executed: false }, null, 2)
-          : `${command}\n\nRerun without --dry-run to ${verb} now.`
+          ? JSON.stringify(plan, null, 2)
+          : [
+              `Would ${verb} from this build's bundled packages (no network):`,
+              ...skillNames.map((name) => `  ${name}`),
+              global ? '  scope: global' : '  scope: project',
+              agentKeys.length > 0 ? `  agents: ${agentKeys.join(', ')}` : '',
+              '',
+              `Rerun without --dry-run to ${verb} now.`
+            ]
+              .filter(Boolean)
+              .join('\n')
       )
       return
     }
 
-    if (json) {
-      // Why: a real run inherits npx's own stdout so progress stays visible live;
-      // that stream is not JSON, so --json can't be honored here.
-      throw new RuntimeClientError(
-        'invalid_argument',
-        `orca skills ${verb} --json only supports --dry-run. Real ${verb}s stream ` +
-          "npx's own output, which isn't JSON."
-      )
+    const report = await runOfflineSkillMutation({ verb, skillNames, global, agentKeys })
+    writeStdout(
+      json
+        ? JSON.stringify(
+            { skills: skillNames, global, agents: agentKeys, failed: report.failedNames },
+            null,
+            2
+          )
+        : report.lines.join('\n')
+    )
+    if (report.failedNames.length > 0) {
+      process.exitCode = 1
     }
-
-    // Why: stdio is inherited for the child below, so this status line must go to
-    // stderr — stdout is npx's own output, not this command's JSON channel.
-    process.stderr.write(`Running: ${command}\n`)
-    process.exitCode = await runNpxSkills(npxArgs)
   }
 }
 

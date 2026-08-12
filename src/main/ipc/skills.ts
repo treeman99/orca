@@ -1,5 +1,9 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import type { Store } from '../persistence'
+import { getBundledLauncherPath } from '../cli/cli-installer'
+import type { SkillUpdateCliInvocation } from '../skills/skill-update-run'
 import {
   SkillDiscoveryTargetSchema,
   type SkillDiscoveryResult,
@@ -19,6 +23,29 @@ import {
   resolveSkillDiscoveryTarget
 } from '../skills/skill-discovery-target'
 
+/**
+ * How to run this build's own CLI, which owns the offline skill-install engine.
+ *
+ * A packaged build ships `resources/bin/orca*`, and that launcher is the supported way in:
+ * `out/cli/**` is deliberately asarUnpacked because the CLI is compiled, not bundled, and
+ * resolves its imports through Node's normal lookup — so naming the in-asar entry directly
+ * would run it from the one place that layout is meant to avoid.
+ */
+export function resolveSkillUpdateCliInvocation(): SkillUpdateCliInvocation {
+  const bundledLauncher = app.isPackaged
+    ? getBundledLauncherPath(process.platform, process.resourcesPath)
+    : null
+  if (bundledLauncher && existsSync(bundledLauncher)) {
+    return { command: bundledLauncher, baseArgs: [], env: process.env }
+  }
+  // Dev, and any packaged layout missing its launcher: run the CLI entry as node.
+  return {
+    command: process.execPath,
+    baseArgs: [join(app.getAppPath(), 'out', 'cli', 'index.js')],
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+  }
+}
+
 export function registerSkillsHandlers(store: Store): void {
   const scanInventory = (): Promise<SkillFreshnessInventory> =>
     // Why: the update command targets this machine's global homes. WSL and SSH
@@ -29,6 +56,7 @@ export function registerSkillsHandlers(store: Store): void {
     })
 
   const runner = new SkillUpdateRunner({
+    resolveCliInvocation: resolveSkillUpdateCliInvocation,
     // Why: per-skill outcomes come from re-hashing what is actually on disk, not
     // from scraping stdout.
     rescanOutdatedNames: async (names) => {

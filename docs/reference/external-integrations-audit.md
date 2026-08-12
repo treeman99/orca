@@ -24,6 +24,7 @@
 | **star-nag (github.com SaaS 고정)** | 랜딩·설정 화면 진입, 에이전트 완료, 온보딩 완료, 스폰 임계치에서 발동 | ✅ `disableStarNag` | 없음 (`gh` 호출 함수 자체에서 차단, §1) |
 | **Orca Cloud 로그인 / 모바일 페어링 릴레이** | 로그인 안 하면 안 나감 | 🚫 **코드에서 제거됨** (v1.4.178~, §3.1) | 없음. LAN/Tailscale 페어링 QR은 **여전히 발급됩니다** — 릴레이가 아니라 모바일 자체를 닫는 건 `disableMobilePairing`입니다 |
 | **Artifacts 공유 (v1.4.178 신규)** — HTML/Markdown 파일 본문을 벤더 호스트로 발행 | 업스트림 기본값은 사용자 설정으로 꺼져 있으나 UI에서 두 번 클릭이면 켜짐 | 🚫 **코드에서 제거됨** (§3.1) | 없음 (정책이 아니라 소스에서 차단) |
+| **에이전트 스킬 설치·업데이트 (npmjs + github.com)** | 설정/온보딩이 `npx skills add <업스트림 저장소>`를 인쇄·실행 | 🚫 **코드에서 제거됨** (§3.2) — 스킬 바이트가 패키지에 동봉되고 설치는 로컬 복사 | 없음 (사용자가 커뮤니티 CLI를 직접 쓰는 것은 #1과 같은 사각지대) |
 | **AI 벤더 사용량 폴링 (Claude/Codex/Grok/…)** | 🔴 **Orca 계정 연동과 무관 — 로컬 벤더 CLI 자격증명만 있으면 15분마다 폴링** | ✅ `disableUsagePolling` | 없음 (§4) |
 | **Claude OAuth 토큰 회전 (platform.claude.com)** | Orca 관리 Claude 계정을 쓸 때만 | ✅ `disableManagedClaudeAccounts` | egress는 없음. 단 이 스위치는 **Bedrock 플릿에서 선택이 아니라 필수**입니다 — 끄면 WSL 세션이 관리형 계정 없이도 인증 env를 스트립하고, 런치 env에 `AWS_BEARER_TOKEN_BEDROCK` 등이 있으면 스폰이 하드 실패합니다 (§4) |
 | **git 호스팅 (GitHub/GitLab/…)** | 사용자 열람 + 일부 자동 폴링 | ➖ `githubEnterpriseHost`는 **Gitea 폴백 오인만 차단**(호스트 전환도, 트래픽 차단도 아님) | `gh` 목적지는 여전히 `GH_HOST`/origin 리모트가 결정 (§1, §7 레벨 2) |
@@ -164,7 +165,7 @@
 
 | 15 | **외부 자동화 CLI를 스케줄로 실행** (`hermes`, `openclaw`) | 해당 벤더가 정한 목적지 (Orca는 목적지를 모릅니다) | 자동화 페이지에서 외부 잡을 만들거나, 이미 등록된 잡의 크론 시각이 되었을 때 | ✅ `disableExternalAutomations`(또는 `allowedAgents`)가 **Orca 쪽 진입점**(발견·생성·수정·실행)을 전부 거부합니다 (`src/main/automations/external-manager.ts`). 🔴 **잔여**: Orca는 스케줄러가 아니라 조작 UI일 뿐이므로, 이미 `~/.hermes/cron`에 등록된 잡은 **Hermes 자신의 스케줄러로 계속 실행됩니다** — Orca를 잠근 뒤에도 남아 있는 잡은 `hermes cron rm`으로 직접 제거해야 하고, 잠근 뒤에는 앱 안에서 그 목록을 볼 수 없습니다. 로컬 읽기(`~/.hermes/cron/jobs.json`, `state.db`, 출력 마크다운)와 SSH 호스트별 릴레이 레인도 같은 게이트로 함께 닫힙니다 | 게이트 `external-manager.ts`의 `isExternalAutomationProviderAllowed`, 릴레이 레인 `src/relay/external-automations-handler.ts` |
 | 16 | **사용량 통계를 X(구 Twitter)로 공유** | `x.com/intent/post` (사용자의 **기본 브라우저**로 열림) | 설정 → 통계 및 사용량에서 공유 버튼을 눌렀을 때 | ✅ **이중 차단**: `disableUsagePolling`이 그 팬을 없애 도달 불가로 만들고, `disableVendorLinks`가 버튼 자체를 숨기는 동시에 메인 프로세스 초크포인트에서 URL을 거부합니다 — 둘 중 하나만 켠 플릿에서도 닫힙니다. 기본 브라우저로 나가므로 `enforceNetworkAllowlist`가 **원리적으로 볼 수 없다는 점은 그대로**이고, 그래서 판정이 링크를 여는 시점(`shell:openUrl`)에 있어야 했습니다 | `ShareUsageButton.tsx`, 초크포인트 `src/main/ipc/shell-open-url.ts`, 규칙표 `src/main/enterprise/enterprise-vendor-link-guard.ts` |
-| 17 | **에이전트 벤더 홈페이지 링크** | 각 에이전트 CLI의 홈페이지 | 설정 → 에이전트 / 온보딩에서 링크 클릭 | ✅ `disableAgentInstallSuggestions`가 "설치 가능" 목록과 온보딩 설치 안내를 없애 링크 수를 크게 줄입니다. 🔴 **잔여**: Orca가 에이전트 CLI를 직접 내려받는 코드는 없고 링크만 열지만, **감지된** 에이전트 행의 링크는 `Docs`로 남아 그대로 클릭 가능합니다. ⚠️ `disableVendorLinks`는 **이것을 막지 않습니다 — 의도적입니다**: 그 규칙표는 Orca가 스스로 광고하는 벤더 목적지(Discord/X/`github.com/stablyai`/`onorca.dev`)만 판정하고, 플릿이 실제로 실행하는 제3자 도구의 홈페이지(`cli.github.com` 등)는 정당한 도움말로 남깁니다. `npx skills add`(`src/shared/agent-feature-install-commands.ts`)는 별개 레인이고 어느 스위치도 덮지 않습니다 | `AgentsPane.tsx`(행의 `<a href>`), `src/main/window/privileged-window-navigation.ts` |
+| 17 | **에이전트 벤더 홈페이지 링크** | 각 에이전트 CLI의 홈페이지 | 설정 → 에이전트 / 온보딩에서 링크 클릭 | ✅ `disableAgentInstallSuggestions`가 "설치 가능" 목록과 온보딩 설치 안내를 없애 링크 수를 크게 줄입니다. 🔴 **잔여**: Orca가 에이전트 CLI를 직접 내려받는 코드는 없고 링크만 열지만, **감지된** 에이전트 행의 링크는 `Docs`로 남아 그대로 클릭 가능합니다. ⚠️ `disableVendorLinks`는 **이것을 막지 않습니다 — 의도적입니다**: 그 규칙표는 Orca가 스스로 광고하는 벤더 목적지(Discord/X/`github.com/stablyai`/`onorca.dev`)만 판정하고, 플릿이 실제로 실행하는 제3자 도구의 홈페이지(`cli.github.com` 등)는 정당한 도움말로 남깁니다. ~~`npx skills add`는 별개 레인이고 어느 스위치도 덮지 않습니다~~ → **해소됨**: 스킬 설치·업데이트가 `npx`/GitHub를 전혀 타지 않는 오프라인 복사로 바뀌었습니다 (§3.2) | `AgentsPane.tsx`(행의 `<a href>`), `src/main/window/privileged-window-navigation.ts` |
 | 18 | **렌더러 게이트가 보이지 않는 클라이언트** | — (도달 범위 문제) | `pnpm dev:web`, `orca serve`의 브라우저 클라이언트 | 웹 preload에는 `enterprisePolicy` API가 **없어서** 정책 뷰가 항상 "제한 없음"으로 떨어집니다. `disableVoice`·`disableMobilePairing`·`disableRemoteOrcaServer`·`disableUsagePolling` 등 **표시 게이트 전부**가 그 클라이언트에서는 무효입니다 — 그래서 메인 쪽 거부(에이전트 탐지 필터, 에뮬레이터 RPC 거부, 외부 자동화 거부)가 belt-and-braces가 아니라 **유일한 방어선**입니다 | `src/renderer/src/web/web-preload-api.ts`(해당 키 없음), `src/renderer/src/enterprise/enterprise-policy-access.ts` |
 | 19 | **플러그인 시스템** — 벤더 마켓플레이스 인덱스 `git clone` / 벤더 kill-list `fetch` / 플러그인 워커의 자체 트래픽 | `github.com/stablyai/orca-plugins.git`, `onorca.dev/plugins/kill-list.json`, 사용자가 등록한 임의 Git URL, 워커 코드가 여는 임의 목적지 | 사용자가 설정 → 플러그인을 켠 순간(첫 활성화 시 clone + fetch, 이후 패키지 빌드 매 시작마다 kill-list 갱신). 주기 폴링은 없음 | ✅ **해소됨**: `disablePlugins`가 네 겹으로 덮습니다 — 기능 플래그 대체(`isPluginSystemAllowed`), egress 초크포인트 `runPluginGit()`, `fetchPluginKillList()`, IPC/RPC 미등록. **egress 게이트가 별도로 필요한 이유**: `plugins:install`과 `plugins:refreshMarketplaces`는 기능 플래그를 보지 않고 Git에 도달하고, 그 clone은 자식 프로세스라 #1과 같은 사각지대에 있습니다. 🔴 **잔여**: `disablePlugins: false`로 되돌린 플릿에서는 플러그인 워커(평범한 자식 프로세스)의 트래픽을 어떤 Orca 측 스위치로도 못 막습니다 — 동의 다이얼로그가 이 사실을 사용자에게 명시합니다. 반면 **플러그인 패널은 CSP로 봉인**돼 있습니다(`default-src 'none'; connect-src 'none'; img-src data:`, `src/shared/plugins/plugin-panel-shell.ts:21-22`) 그리고 워커 환경변수는 화이트리스트 17개로 토큰을 상속하지 않습니다(`plugin-worker-env.ts`) | 게이트 `src/main/plugins/plugin-system-policy.ts`, `plugin-git-repository.ts:18`, `plugin-kill-list-service.ts:104`, `src/main/ipc/register-core-handlers.ts:203`, `src/main/index.ts:2447` |
 
@@ -284,6 +285,43 @@ UI 표면도 함께 사라졌습니다 — 앱/Help 메뉴, 트레이, 사이드
 **⚠️ 업데이터 표면은 리베이스마다 새로 들어옵니다.** 삭제는 일회성 작업이 아니라 **머지마다 반복해야 하는 작업**입니다. v1.4.167 → v1.4.176 한 구간에서만 업스트림이 Linux 패키지 설치/복구 업데이터 표면 파일 8종을 새로 들여왔고(`linux-package-install-diagnostic.ts`, `linux-package-update-recovery.ts`, `linux-update-package-type.ts`, `linux-package-install-command.ts`, `updater-linux-package-recovery-actions.test.ts`, `window/updater-package-recovery-ipc.test.ts`, `components/LinuxPackageInstallRecoveryCard.tsx`, `components/UpdateErrorCardContent.tsx`), 그 안에 `github.com/stablyai/orca/releases/tag/…`를 여는 코드가 포함돼 있었습니다. 이 포크는 머지 커밋 `e25a3f0f93`에서 전부 삭제했습니다. **머지 후에는 위 검증 명령에 더해 `git diff --diff-filter=A --name-only <이전태그> <새태그> -- src/ | grep -iE 'updater|update-recovery|release-channel'`도 돌리십시오** — 충돌 없이 조용히 들어오므로 테스트도 타입체크도 잡지 못합니다.
 
 빌드 단계의 phone-home(electron-builder가 github에 업로드 시도)은 [윈도우 빌드 가이드 §5](./windows-corporate-build.md)에서 `--publish never`로 이미 다룹니다.
+
+---
+
+## 3.2 스킬 설치·업데이트 (🚫 코드에서 제거됨)
+
+Orca 자신의 에이전트 스킬(`orca-cli`, `computer-use`, `orchestration`, …)을 설치·갱신하는 레인입니다. §3·§3.1과 같은 성격 — 정책이 아니라 소스에서 바꿨습니다.
+
+| | 이전 | 지금 |
+| --- | --- | --- |
+| 설정/온보딩이 인쇄하던 명령 | `npx skills add https://github.com/stablyai/orca --skill <name> --global` | `orca skills install --skill <name>` |
+| 업데이트 실행기(메인 프로세스) | `npx --yes skills update <names> --global -y` | 번들 CLI를 스폰: `orca skills update --skill <name>` |
+| 목적지 | `registry.npmjs.org`(커뮤니티 `skills` 패키지) + `github.com/stablyai/orca`(스킬 원본) | **없음** |
+
+**나가던 것**: 패키지 이름과 저장소 URL뿐입니다. 사내 소스나 자격증명이 나간 적은 없습니다. 문제는 유출이 아니라 **폐쇄망에서 설치가 완주 불가능**하다는 것이었고, 부수적으로 사내 포크가 아니라 **업스트림 저장소**의 스킬을 받아 왔다는 점입니다.
+
+**차단 지점**: 명령 문자열을 만드는 유일한 초크포인트 `src/shared/agent-feature-install-commands.ts` — 설치/업데이트를 인쇄하는 7개 UI 표면(설정 CLI/Browser Use/Linear/에뮬레이터, 피처월, 피처팁 터미널, 온보딩)이 전부 이 한 곳을 지납니다. 업데이트 실행기는 `src/main/skills/skill-update-run.ts`에서 `npx` 대신 이 빌드의 CLI를 스폰합니다.
+
+**스킬 본문은 패키지에 함께 실립니다.** `skills/` 트리(SKILL.md 8개, 44KB)가 `extraResources`로 `Resources/skills/packages`에 복사됩니다 — 프레시니스 매니페스트(`Resources/skills/current-manifest.json`)와 같은 리소스 루트입니다. 설치는 그 바이트를 에이전트 홈(`~/.agents/skills`, `~/.claude/skills`, `~/.codex/skills`, …)으로 복사하고, `~/.agents/.skill-lock.json`에 설치 기록을 남깁니다(업데이트 자격 판정이 이 락을 읽습니다).
+
+**왜 정책 스위치가 아닌가.** 스위치를 켜면 스킬 설치가 *불가능해질* 뿐입니다. 필요한 것은 차단이 아니라 **같은 일을 망 없이 하는 것**이었고, 오프라인 경로는 사내·비사내 어느 플릿에서도 손해가 없습니다(같은 바이트를, 더 빠르게, 버전이 어긋날 여지 없이).
+
+**Windows npx 프리플라이트도 함께 제거**했습니다 — `where.exe npx` 래퍼와 "Install Node.js LTS" 안내는 npx를 쓸 때만 의미가 있었습니다.
+
+**검증**:
+
+```bash
+# 빈 결과여야 합니다. 스킬 본문 자체를 담고 있는 생성 파일은 제외합니다.
+git grep -nE "npx (--yes )?skills|skills add https" -- src/ \
+  | grep -v '\.test\.\|bundled-skill-guides\.ts'
+
+# 패키지에 스킬 바이트가 실리는지 (설치 시점에 받아올 것이 없어야 하므로)
+git grep -n "from: 'skills'" -- config/electron-builder.config.cjs
+```
+
+회귀 방지 테스트: `src/shared/agent-feature-install-commands.test.ts`(인쇄되는 모든 명령에 `npx`/`github.com`/`http` 부재), `src/shared/bundled-skill-install.test.ts`(설치된 바이트의 git tree sha가 동봉 매니페스트와 일치 — 어긋나면 설치 직후부터 "알 수 없는 내용"으로 표시됩니다), `src/main/skills/bundled-skill-install-root-parity.test.ts`(설치 대상 디렉터리가 프레시니스 스캐너가 보는 홈 루트와 정확히 일치).
+
+**⚠️ 잔여**: 사용자가 커뮤니티 `skills` CLI를 **직접** 설치해 쓰는 것은 Orca가 막지 않습니다(그건 #1과 같은 사각지대 — 사용자가 터미널에서 실행하는 임의의 도구입니다). 이 항목이 보장하는 것은 **Orca가 스스로 그 명령을 인쇄하거나 실행하지 않는다**는 것입니다.
 
 ---
 

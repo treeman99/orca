@@ -665,6 +665,11 @@ describe('electron-builder config', () => {
           join(process.cwd(), 'resources', 'enterprise-policy.json'),
           join(resourcesDir, 'enterprise-policy.json')
         )
+        // Why: same for the skill manifest and the package bytes beside it — afterPack
+        // asserts them because a build without the packages has no offline install path.
+        const cpDir = { recursive: true }
+        await cp(join(process.cwd(), 'resources', 'skills'), join(resourcesDir, 'skills'), cpDir)
+        await cp(join(process.cwd(), 'skills'), join(resourcesDir, 'skills', 'packages'), cpDir)
         // Why: afterPack now fails hard when the unpacked daemon entry is
         // missing, so the fixture must carry one like a real package layout.
         const unpackedMainDir = join(resourcesDir, 'app.asar.unpacked', 'out', 'main')

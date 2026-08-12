@@ -1,6 +1,13 @@
 import { isSkillsCliAgentKeyShaped } from './skills-cli-agent-keys'
 
-export const ORCA_SKILLS_REPOSITORY_URL = 'https://github.com/stablyai/orca'
+/**
+ * Default name of the registered Orca command. Hosts that register a different one —
+ * `orca-ide` on Linux and WSL, where `orca` is GNOME's screen reader — pass their own.
+ */
+export const ORCA_CLI_COMMAND_NAME = 'orca'
+
+/** Linux and WSL registration name — `/usr/bin/orca` there is GNOME's screen reader. */
+export const LINUX_ORCA_CLI_COMMAND_NAME = 'orca-ide'
 
 export const ORCA_CLI_SKILL_NAME = 'orca-cli'
 export const COMPUTER_USE_SKILL_NAME = 'computer-use'
@@ -10,13 +17,23 @@ export const ORCA_LINEAR_SKILL_NAME = 'orca-linear'
 export const LINEAR_TICKETS_SKILL_NAME = 'linear-tickets'
 export const LINEAR_AGENT_SKILL_NAMES = [ORCA_LINEAR_SKILL_NAME, LINEAR_TICKETS_SKILL_NAME] as const
 
-// Why: `yes` and `agents` default off so every Settings/onboarding string a human
-// pastes keeps its interactive prompts and the CLI's own agent detection. Only an
-// unattended spawn, which nothing can answer, opts in.
+// Why: `global` defaults on because every Settings/onboarding string installs for all
+// projects. `agents` defaults empty so the CLI runs its own detection on the machine
+// that will actually hold the skill.
 export type AgentFeatureSkillCommandOptions = {
   global?: boolean
-  yes?: boolean
   agents?: readonly string[]
+  /** Registered Orca command for the host that will run this. Defaults to `orca`. */
+  commandName?: string
+}
+
+function assertUsableAgents(agents: readonly string[]): void {
+  // Why: an agent key Orca has no skills directory for would install nothing, and the
+  // CLI rejects it loudly — catching the shape here keeps the printed command honest.
+  const unusable = agents.find((agent) => !isSkillsCliAgentKeyShaped(agent))
+  if (unusable !== undefined) {
+    throw new Error(`"${unusable}" is not a usable install target.`)
+  }
 }
 
 export function buildAgentFeatureSkillInstallArgs(
@@ -26,42 +43,32 @@ export function buildAgentFeatureSkillInstallArgs(
   if (skillNames.length === 0) {
     throw new Error('At least one skill name is required.')
   }
-  const global = options.global ?? true
-  // Why: -y with no --agent is the one combination that makes `skills add` install
-  // into every agent it knows. Refuse it here so no caller can express it.
   const agents = options.agents ?? []
-  if (options.yes && agents.length === 0) {
-    throw new Error('An install target is required when skipping prompts.')
-  }
-  // Why: a value the skills CLI would drop leaves it with no target at all, which
-  // is the same all-agents install as passing no --agent.
-  const unusable = agents.find((agent) => !isSkillsCliAgentKeyShaped(agent))
-  if (unusable !== undefined) {
-    throw new Error(`"${unusable}" is not a usable install target.`)
-  }
-  // Why: one flag per name remains compatible with both single-value and variadic parsers.
-  const skillArgs = skillNames.flatMap((name) => ['--skill', name])
+  assertUsableAgents(agents)
   return [
     'skills',
-    'add',
-    ORCA_SKILLS_REPOSITORY_URL,
-    ...skillArgs,
-    ...(global ? ['--global'] : []),
-    // Why: an explicit --agent stops `skills add` calling its own detection, whose
-    // zero-detected branch installs into all ~75 known agents and litters a bare
-    // host with agent config directories it has no agent for.
-    ...agents.flatMap((agent) => ['--agent', agent]),
-    // Why: without -y `skills add` opens an interactive agent picker and blocks
-    // forever on any TTY, which is every ssh session.
-    ...(options.yes ? ['-y'] : [])
+    'install',
+    // Why: one flag per name remains compatible with both single-value and variadic parsers.
+    ...skillNames.flatMap((name) => ['--skill', name]),
+    // Global is the CLI's default, so only the project scope needs a flag.
+    ...(options.global === false ? ['--local'] : []),
+    ...agents.flatMap((agent) => ['--agent', agent])
   ]
 }
 
+/**
+ * The command Orca prints for installing its own skills.
+ *
+ * It runs Orca's own CLI, which copies the skill packages shipped inside the build —
+ * no npm registry, no GitHub, no npx. That is what lets it complete on a locked-down
+ * corporate network, where the community `skills` CLI cannot be fetched at all.
+ */
 export function buildAgentFeatureSkillInstallCommand(
   skillNames: readonly string[],
   options: AgentFeatureSkillCommandOptions = {}
 ): string {
-  return `npx ${buildAgentFeatureSkillInstallArgs(skillNames, options).join(' ')}`
+  const command = options.commandName ?? ORCA_CLI_COMMAND_NAME
+  return `${command} ${buildAgentFeatureSkillInstallArgs(skillNames, options).join(' ')}`
 }
 
 export function buildAgentFeatureSkillUpdateArgs(
@@ -73,13 +80,11 @@ export function buildAgentFeatureSkillUpdateArgs(
   if (names.length === 0) {
     throw new Error('A skill name is required.')
   }
-  const global = options.global ?? true
   return [
     'skills',
     'update',
-    ...names,
-    global ? '--global' : '--project',
-    ...(options.yes ? ['-y'] : [])
+    ...names.flatMap((name) => ['--skill', name]),
+    ...(options.global === false ? ['--local'] : [])
   ]
 }
 
@@ -87,7 +92,8 @@ export function buildAgentFeatureSkillUpdateCommand(
   skillNames: string | readonly string[],
   options: AgentFeatureSkillCommandOptions = {}
 ): string {
-  return `npx ${buildAgentFeatureSkillUpdateArgs(skillNames, options).join(' ')}`
+  const command = options.commandName ?? ORCA_CLI_COMMAND_NAME
+  return `${command} ${buildAgentFeatureSkillUpdateArgs(skillNames, options).join(' ')}`
 }
 
 export const ORCA_CLI_SKILL_INSTALL_COMMAND = buildAgentFeatureSkillInstallCommand([

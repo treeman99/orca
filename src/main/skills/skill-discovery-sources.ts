@@ -105,7 +105,7 @@ export function buildSkillDiscoverySources(
       ['codex', 'agent-skills'],
       'codex'
     ),
-    // Why: `npx skills add --global` writes into each agent's own home skills
+    // Why: a global skill install writes into each agent's own home skills
     // directory, so coverage misses them unless we scan every provider root.
     source(
       'home-grok',

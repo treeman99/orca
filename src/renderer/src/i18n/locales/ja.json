@@ -3875,7 +3875,7 @@
         "SkillFreshnessRow": {
           "statusUpdateAvailable": "更新あり",
           "statusCantUpdate": "更新できません",
-          "cantUpdateReason": "このスキルは Orca が安全に更新できない場所にインストールされているため、npx skills update コマンドは変更しません。",
+          "cantUpdateReason": "Orca はこのスキルを更新コマンドの対象から外しました。",
           "chipCurrent": "最新",
           "chipUnrecognized": "未認識",
           "chipInaccessible": "アクセス不可",
@@ -3888,7 +3888,7 @@
           "tipCurrent": "ここのスキルはすでに最新です。更新しても変更されません。",
           "tipUnrecognized": "ここのスキルの内容が公式バージョンのいずれとも一致しないため、Orca は安全に更新できません。更新を許可するには、ここにあるものを削除または置き換えてください。",
           "tipInaccessible": "Orca はここのスキルを読み取れなかったため（権限またはファイルのエラー）、確認も更新もできません。",
-          "tipDuplicate": "このスキルはメインとは別に、ここにもインストールされています。そのため npx skills update コマンドは到達できません。更新を許可するには削除してください。",
+          "tipDuplicate": "メインとは別に置かれた、このスキルの別コピーです。",
           "tipExternalLink": "これは Orca のスキルフォルダーの外を指すショートカットです。更新では追跡されません。",
           "tipBrokenLink": "これは存在しないものを指すショートカットです。削除しても問題ありません。",
           "tipReadOnly": "ここのスキルは読み取り専用の場所にあるため、権限を変更するまで更新できません。",

@@ -1,16 +1,28 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { join } from 'node:path'
 import {
   canonicalizeSkillUpdateNames,
   type SkillUpdateRun,
   type SkillUpdateStartResult
 } from '../../shared/skill-freshness'
-import { resolveCliCommand } from '../codex-cli/command'
 import { killWithDescendantSweep } from '../pty-descendant-termination'
 import { getSpawnArgsForWindows, WINDOWS_BATCH_UNSAFE_CHARACTERS_LABEL } from '../win32-utils'
 
-// Why: `skills update` prints ANSI colour and \r + erase-line progress. We show
-// this log verbatim to the user but never parse it — `update` has no --json
-// (that flag exists only on `list`), so stdout is not a contract.
+/**
+ * How to invoke this build's own CLI, which owns the offline update engine.
+ *
+ * Supplied by the caller so this module stays free of `electron` and the app paths
+ * only the main entry knows.
+ */
+export type SkillUpdateCliInvocation = {
+  command: string
+  /** Argv that precedes `skills update …` — the CLI entry when running Electron as node. */
+  baseArgs: string[]
+  env: NodeJS.ProcessEnv
+}
+
+// Why: the update log is shown verbatim to the user but never parsed. Stripping
+// ANSI keeps a colourised child readable in the run panel.
 const ANSI_RE = /\x1b\[[0-9;?]*[A-Za-z]/g // eslint-disable-line no-control-regex
 
 // Keep the tail: failures land at the end, and an unbounded buffer would pin
@@ -28,7 +40,7 @@ export const CANCEL_RELEASE_TIMEOUT_MS = 12_000
 
 export type SkillUpdateRunnerDeps = {
   spawnProcess?: typeof spawn
-  resolveCommand?: (commandName: string) => string
+  resolveCliInvocation?: () => SkillUpdateCliInvocation
   /** Returns the subset of `names` that did not land, re-read from disk. */
   rescanOutdatedNames?: (names: string[]) => Promise<string[]>
   killTree?: (pid: number, killRoot: () => void) => Promise<void>
@@ -46,14 +58,24 @@ function clampOutput(value: string): string {
   return value.length <= MAX_OUTPUT_CHARS ? value : value.slice(value.length - MAX_OUTPUT_CHARS)
 }
 
+function defaultCliInvocation(): SkillUpdateCliInvocation {
+  return {
+    // Why: the app's own binary, not a PATH lookup — an update must not depend on the
+    // user having completed CLI registration, and `orca` on Linux is a screen reader.
+    // The IPC layer overrides this with the packaged launcher; `__dirname` is out/main
+    // after bundling, so its sibling is the CLI entry a dev run executes.
+    command: process.execPath,
+    baseArgs: [join(__dirname, '..', 'cli', 'index.js')],
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+  }
+}
+
 /**
- * Runs `npx --yes skills update <names> --global -y` headlessly.
+ * Runs `orca skills update --skill <name> …` headlessly (global is that command's default).
  *
- * Both `--yes` flags are load-bearing and distinct: `npx --yes` skips the
- * install-this-package prompt, and `skills … -y` takes the CLI's own
- * non-interactive branch. `skills` gates its prompts on
- * `options.yes || !process.stdin.isTTY`, and stdin is ignored below, so the run
- * cannot block on input that no one can answer.
+ * The engine is this build's own CLI, which rewrites each placed copy from the skill
+ * packages shipped inside the binary. Nothing is downloaded, so the run completes on a
+ * machine that reaches neither the npm registry nor GitHub.
  */
 export class SkillUpdateRunner {
   private run: SkillUpdateRun = { state: 'idle' }
@@ -89,20 +111,24 @@ export class SkillUpdateRunner {
       return { started: false, reason: 'invalid-names' }
     }
 
-    const resolveCommand = this.deps.resolveCommand ?? ((name: string) => resolveCliCommand(name))
     const spawnProcess = this.deps.spawnProcess ?? spawn
-    const npxCommand = resolveCommand('npx')
-    const npxArgs = ['--yes', 'skills', 'update', ...canonicalNames, '--global', '-y']
+    const invocation = (this.deps.resolveCliInvocation ?? defaultCliInvocation)()
+    const cliArgs = [
+      ...invocation.baseArgs,
+      'skills',
+      'update',
+      ...canonicalNames.flatMap((name) => ['--skill', name])
+    ]
 
     let spawnCmd: string
     let spawnArgs: string[]
     try {
       const buildSpawnArgs = this.deps.buildSpawnArgs ?? getSpawnArgsForWindows
-      ;({ spawnCmd, spawnArgs } = buildSpawnArgs(npxCommand, npxArgs))
+      ;({ spawnCmd, spawnArgs } = buildSpawnArgs(invocation.command, cliArgs))
     } catch {
       // Why: the names are already canonical here, so this is the cmd.exe rail
-      // rejecting the resolved npx *path*. Publishing the failure keeps the dialog
-      // honest; a bare `started: false` would leave the button dead and silent.
+      // rejecting the resolved launcher *path*. Publishing the failure keeps the
+      // dialog honest; a bare `started: false` would leave the button dead and silent.
       this.runToken += 1
       this.settling = false
       this.publish({
@@ -112,7 +138,7 @@ export class SkillUpdateRunner {
         output: '',
         failedNames: canonicalNames,
         message:
-          `Could not run ${npxCommand} safely from this location: its path contains one of ` +
+          `Could not run ${invocation.command} safely from this location: its path contains one of ` +
           `${WINDOWS_BATCH_UNSAFE_CHARACTERS_LABEL}, which cmd.exe would reinterpret.`
       })
       return { started: false, reason: 'unsafe-command-path' }
@@ -124,17 +150,16 @@ export class SkillUpdateRunner {
     this.publish({ state: 'running', names: canonicalNames, startedAt, output: '' })
 
     const child = spawnProcess(spawnCmd, spawnArgs, {
-      // Why: stdin ignored keeps `process.stdin.isTTY` falsy in the child, which
-      // is the second half of the CLI's non-interactive gate.
+      // Why: stdin ignored keeps `process.stdin.isTTY` falsy in the child, so
+      // nothing it runs can block on input no one can answer.
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
-      env: process.env
+      env: invocation.env
     })
     this.child = child
 
-    // Why: `stripAnsi` turns each \r progress frame into its own line, so an npm
-    // install emits many chunks a second — and every publish structured-clones
-    // the whole buffer to every window. Coalesce into one push per tick.
+    // Why: every publish structured-clones the whole buffer to every window, so
+    // coalesce a burst of chunks into one push per tick.
     let flushTimer: ReturnType<typeof setTimeout> | null = null
     let pendingOutput = ''
     const flush = (): void => {
@@ -245,10 +270,9 @@ export class SkillUpdateRunner {
       return
     }
 
-    // Why: `npx` is a wrapper — on POSIX the `skills` process it execs is a
-    // child, and on Windows the shim runs under cmd.exe. Killing only the direct
-    // child leaves the process that is actually writing to the global skill
-    // homes alive.
+    // Why: on Windows the launcher can run under cmd.exe, so killing only the
+    // direct child leaves the process that is actually writing to the global
+    // skill homes alive.
     this.killing = true
     let hasReleased = false
     let releaseTimer: ReturnType<typeof setTimeout> | null = null
@@ -263,7 +287,7 @@ export class SkillUpdateRunner {
       this.killing = false
       // Why: stay `running` until the tree is actually dead. The sweep waits for
       // a descendant snapshot before it signals anything, so releasing on the
-      // synchronous path would let an immediate re-Update spawn a second npx
+      // synchronous path would let an immediate re-Update spawn a second writer
       // writing the same bundles — the corruption the post-run verdict exists to
       // catch. `start()` already refuses while running, so holding the state is
       // the whole guard.
