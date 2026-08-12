@@ -14995,5 +14995,11 @@
     "submoduleNewCommits": "新提交",
     "submoduleModifiedContent": "已修改的内容",
     "submoduleUntrackedContent": "未跟踪的内容"
+  },
+  "github": {
+    "stackMerge": {
+      "confirmationRequiredSingle": "拉取请求 #{{pr}} 属于某个 GitHub 栈，在此处合并会走 GitHub 栈合并，将合并 {{prCount}} 个拉取请求。请改在 Orca 桌面端的评审侧边栏中合并，它会在你确认前准确显示包含哪些拉取请求。",
+      "confirmationRequiredMultiple": "拉取请求 #{{pr}} 属于某个 GitHub 栈，在此处合并会将 {{prCount}} 个拉取请求原子地一并合并。请改在 Orca 桌面端的评审侧边栏中合并，它会在你确认前准确显示包含哪些拉取请求。"
+    }
   }
 }

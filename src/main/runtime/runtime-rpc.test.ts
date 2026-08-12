@@ -3413,7 +3413,9 @@ describe('OrcaRuntimeRpcServer', () => {
       prRepo: null
     })
     expect(requestRepoPRReviewers).toHaveBeenCalledWith('id:repo-1', 456, ['alex'], null)
-    expect(mergeRepoPR).toHaveBeenCalledWith('id:repo-1', 456, 'squash', null)
+    // Trailing undefined is the point: a mobile client carries no stack-merge opt-in, so the host
+    // refuses to promote a stacked PR to GitHub's atomic multi-PR merge on its behalf.
+    expect(mergeRepoPR).toHaveBeenCalledWith('id:repo-1', 456, 'squash', null, undefined)
     expect(addGitLabRepoIssueComment).toHaveBeenCalledWith('id:repo-1', 123, 'done', undefined)
     expect(addGitLabRepoMRComment).toHaveBeenCalledWith('id:repo-1', 456, 'ship it', undefined)
     expect(resolveGitLabRepoMRDiscussion).toHaveBeenCalledWith(

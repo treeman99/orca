@@ -18,6 +18,9 @@ export async function mergeGitHubHostedReview(args: {
   prNumber: number
   method: GitHubPRMergeMethod
   prRepo?: GitHubPRRepo | null
+  // Why: the host promotes a stacked PR to GitHub's atomic multi-PR merge only on this
+  // opt-in. Pass 'confirmed-stack-scope' only after the stack confirmation dialog resolved.
+  stackMergeIntent?: 'single-pr-only' | 'confirmed-stack-scope'
 }): Promise<Awaited<ReturnType<typeof window.api.gh.mergePR>>> {
   const target = getGitHubActionTarget(args.repo)
   if (target.kind === 'environment') {
@@ -28,7 +31,8 @@ export async function mergeGitHubHostedReview(args: {
         repo: args.repo.id,
         prNumber: args.prNumber,
         method: args.method,
-        prRepo: args.prRepo ?? null
+        prRepo: args.prRepo ?? null,
+        stackMergeIntent: args.stackMergeIntent
       },
       // Why: GitHub stack merges can run asynchronously for several minutes.
       { timeoutMs: 4 * 60_000 }
@@ -39,7 +43,8 @@ export async function mergeGitHubHostedReview(args: {
     repoId: args.repo.id,
     prNumber: args.prNumber,
     method: args.method,
-    prRepo: args.prRepo ?? null
+    prRepo: args.prRepo ?? null,
+    stackMergeIntent: args.stackMergeIntent
   })
 }
 

@@ -131,7 +131,10 @@ const UpdatePr = RepoSelector.extend({
 const MergePr = RepoSelector.extend({
   prNumber: z.number().int().positive(),
   method: z.enum(['merge', 'squash', 'rebase']).optional(),
-  prRepo: SlugRepo.nullable().optional()
+  prRepo: SlugRepo.nullable().optional(),
+  // Optional on purpose (see github-pr-stack-merge-gate): mobile and pre-gate clients omit it
+  // and the host fails their stack merges closed rather than promoting them silently.
+  stackMergeIntent: z.enum(['single-pr-only', 'confirmed-stack-scope']).optional()
 })
 
 const SetPrAutoMerge = RepoSelector.extend({
@@ -516,7 +519,13 @@ export const GITHUB_METHODS: RpcMethod[] = [
     name: 'github.mergePR',
     params: MergePr,
     handler: async (params, { runtime }) =>
-      runtime.mergeRepoPR(params.repo, params.prNumber, params.method, params.prRepo ?? null)
+      runtime.mergeRepoPR(
+        params.repo,
+        params.prNumber,
+        params.method,
+        params.prRepo ?? null,
+        params.stackMergeIntent
+      )
   }),
   defineMethod({
     name: 'github.setPRAutoMerge',

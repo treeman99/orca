@@ -14975,5 +14975,11 @@
     "submoduleNewCommits": "新しいコミット",
     "submoduleModifiedContent": "変更されたコンテンツ",
     "submoduleUntrackedContent": "追跡されていないコンテンツ"
+  },
+  "github": {
+    "stackMerge": {
+      "confirmationRequiredSingle": "プルリクエスト #{{pr}} は GitHub スタックに含まれるため、ここでマージすると GitHub スタックマージとして処理され、プルリクエスト {{prCount}} 件がマージされます。Orca デスクトップのレビューサイドバーからマージしてください。確認する前に、どのプルリクエストが含まれるかが正確に表示されます。",
+      "confirmationRequiredMultiple": "プルリクエスト #{{pr}} は GitHub スタックに含まれるため、ここでマージするとプルリクエスト {{prCount}} 件がまとめてアトミックにマージされます。Orca デスクトップのレビューサイドバーからマージしてください。確認する前に、どのプルリクエストが含まれるかが正確に表示されます。"
+    }
   }
 }

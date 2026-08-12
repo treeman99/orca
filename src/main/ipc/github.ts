@@ -53,6 +53,7 @@ import {
   checkOrcaStarred,
   starOrca
 } from '../github/client'
+import type { GitHubPRStackMergeIntent } from '../github/github-pr-stack-merge-gate'
 import type { GitHubPRBranchLookupOptions } from '../github/client'
 import {
   clearVisiblePRRefreshWindow,
@@ -900,6 +901,8 @@ export function registerGitHubHandlers(store: Store, stats: StatsCollector): voi
         prNumber: number
         method?: 'merge' | 'squash' | 'rebase'
         prRepo?: GitHubOwnerRepo | null
+        // Only a renderer that showed the stack's scope may set this; see github-pr-stack-merge-gate.
+        stackMergeIntent?: GitHubPRStackMergeIntent
       }
     ) => {
       const repo = assertRegisteredRepo(args, store)
@@ -909,7 +912,8 @@ export function registerGitHubHandlers(store: Store, stats: StatsCollector): voi
         args.method,
         repoConnectionId(repo),
         args.prRepo ?? null,
-        ...localGitOptionArgs(store, repo)
+        localGitOptionArgs(store, repo)[0] ?? {},
+        args.stackMergeIntent
       )
       if (result.ok) {
         broadcastWorkItemMutated(

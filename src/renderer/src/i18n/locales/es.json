@@ -14975,5 +14975,11 @@
     "submoduleNewCommits": "nuevos commits",
     "submoduleModifiedContent": "contenido modificado",
     "submoduleUntrackedContent": "contenido sin seguimiento"
+  },
+  "github": {
+    "stackMerge": {
+      "confirmationRequiredSingle": "La pull request #{{pr}} pertenece a un stack de GitHub, así que fusionarla aquí pasa por el merge de stack de GitHub y abarca {{prCount}} pull request. Fusiónala desde la barra lateral de revisión en Orca para escritorio, que muestra exactamente qué pull requests se incluyen antes de que confirmes.",
+      "confirmationRequiredMultiple": "La pull request #{{pr}} pertenece a un stack de GitHub, así que fusionarla aquí fusionaría {{prCount}} pull requests de forma atómica. Fusiónala desde la barra lateral de revisión en Orca para escritorio, que muestra exactamente qué pull requests se incluyen antes de que confirmes."
+    }
   }
 }

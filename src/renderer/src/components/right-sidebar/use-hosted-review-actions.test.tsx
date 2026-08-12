@@ -35,6 +35,47 @@ const githubPR = { prRepo } as unknown as PRInfo
 let root: Root | null = null
 let latest: ReturnType<typeof useHostedReviewActions> | null = null
 
+function stackedPullRequest(): PRInfo {
+  return {
+    ...githubPR,
+    stack: {
+      number: 51,
+      position: 2,
+      size: 3,
+      baseRefName: 'main',
+      entries: [
+        {
+          position: 1,
+          number: 1014,
+          title: 'Models',
+          url: 'https://github.com/stablyai/orca/pull/1014',
+          state: 'open',
+          checksStatus: 'success',
+          mergeable: 'MERGEABLE'
+        },
+        {
+          position: 2,
+          number: 1015,
+          title: 'API',
+          url: 'https://github.com/stablyai/orca/pull/1015',
+          state: 'open',
+          checksStatus: 'success',
+          mergeable: 'MERGEABLE'
+        },
+        {
+          position: 3,
+          number: 1016,
+          title: 'UI',
+          url: 'https://github.com/stablyai/orca/pull/1016',
+          state: 'open',
+          checksStatus: 'success',
+          mergeable: 'MERGEABLE'
+        }
+      ]
+    }
+  } as PRInfo
+}
+
 function makeRepo(overrides: Partial<Repo> = {}): Repo {
   return {
     id: 'repo-1',
@@ -121,7 +162,9 @@ describe('useHostedReviewActions', () => {
         repo: 'repo-1',
         prNumber: 1015,
         method: 'squash',
-        prRepo
+        prRepo,
+        // Why: no stack, so nothing was confirmed — the host must not promote this to a stack merge.
+        stackMergeIntent: 'single-pr-only'
       },
       { timeoutMs: 4 * 60_000 }
     )
@@ -143,52 +186,15 @@ describe('useHostedReviewActions', () => {
       repoId: 'repo-1',
       prNumber: 1015,
       method: 'merge',
-      prRepo
+      prRepo,
+      stackMergeIntent: 'single-pr-only'
     })
     expect(runtimeRpcMocks.callRuntimeRpc).not.toHaveBeenCalled()
     expect(onRefreshReview).toHaveBeenCalledTimes(1)
   })
 
   it('confirms the downstack merge scope before merging a registered stack', async () => {
-    const stackedPR = {
-      ...githubPR,
-      stack: {
-        number: 51,
-        position: 2,
-        size: 3,
-        baseRefName: 'main',
-        entries: [
-          {
-            position: 1,
-            number: 1014,
-            title: 'Models',
-            url: 'https://github.com/stablyai/orca/pull/1014',
-            state: 'open',
-            checksStatus: 'success',
-            mergeable: 'MERGEABLE'
-          },
-          {
-            position: 2,
-            number: 1015,
-            title: 'API',
-            url: 'https://github.com/stablyai/orca/pull/1015',
-            state: 'open',
-            checksStatus: 'success',
-            mergeable: 'MERGEABLE'
-          },
-          {
-            position: 3,
-            number: 1016,
-            title: 'UI',
-            url: 'https://github.com/stablyai/orca/pull/1016',
-            state: 'open',
-            checksStatus: 'success',
-            mergeable: 'MERGEABLE'
-          }
-        ]
-      }
-    } as PRInfo
-    await renderHook(makeRepo(), undefined, stackedPR)
+    await renderHook(makeRepo(), undefined, stackedPullRequest())
 
     await act(async () => {
       await latest?.handleMerge('squash')
@@ -201,6 +207,22 @@ describe('useHostedReviewActions', () => {
       confirmLabel: 'Merge 2 PRs'
     })
     expect(window.api.gh.mergePR).toHaveBeenCalledTimes(1)
+    // This dialog is the only thing that earns the opt-in; the host refuses the stack merge without it.
+    expect(window.api.gh.mergePR).toHaveBeenCalledWith(
+      expect.objectContaining({ stackMergeIntent: 'confirmed-stack-scope' })
+    )
+  })
+
+  it('sends no stack-merge opt-in when the user declines the scope', async () => {
+    confirmationMocks.confirm.mockResolvedValue(false)
+    await renderHook(makeRepo(), undefined, stackedPullRequest())
+
+    await act(async () => {
+      await latest?.handleMerge('squash')
+    })
+
+    expect(window.api.gh.mergePR).not.toHaveBeenCalled()
+    expect(runtimeRpcMocks.callRuntimeRpc).not.toHaveBeenCalled()
   })
 
   it('describes merge-queue stack behavior without promising atomicity or a method', async () => {

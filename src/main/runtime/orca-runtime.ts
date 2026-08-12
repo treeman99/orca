@@ -617,6 +617,7 @@ import {
   type MainWorkItem,
   type GitHubPRBranchLookupOptions
 } from '../github/client'
+import type { GitHubPRStackMergeIntent } from '../github/github-pr-stack-merge-gate'
 import { resolveGitHubPrStartPoint } from '../github/pr-start-point'
 import {
   fetchGitHubPullRequestHeadRef,
@@ -20538,7 +20539,10 @@ export class OrcaRuntimeService {
     repoSelector: string,
     prNumber: number,
     method?: 'merge' | 'squash' | 'rebase',
-    prRepo?: GitHubOwnerRepo | null
+    prRepo?: GitHubOwnerRepo | null,
+    // Absent for any client that did not show the user the stack's scope — mobile, and
+    // every client older than the gate. mergePR fails those closed.
+    stackMergeIntent?: GitHubPRStackMergeIntent
   ): Promise<Awaited<ReturnType<typeof mergePR>>> {
     const repo = await this.resolveRepoSelector(repoSelector)
     return mergePR(
@@ -20547,7 +20551,8 @@ export class OrcaRuntimeService {
       method,
       repo.connectionId ?? null,
       prRepo ?? null,
-      ...this.getLocalGitExecutionOptionArgs(repo)
+      this.getLocalGitExecutionOptionArgs(repo)[0] ?? {},
+      stackMergeIntent
     )
   }
 

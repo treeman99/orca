@@ -6828,7 +6828,10 @@ describe('OrcaRuntimeService', () => {
       'squash',
       null,
       prRepo,
-      localGitOptions
+      localGitOptions,
+      // No stack-merge opt-in: this caller never showed the user a stack scope, so mergePR
+      // must fail a stacked PR closed rather than promote it.
+      undefined
     )
     expect(setGitHubPRAutoMergeMock).toHaveBeenCalledWith(
       TEST_REPO_PATH,

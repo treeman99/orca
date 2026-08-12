@@ -63,6 +63,9 @@ export function useHostedReviewActions({
 
   const handleMerge = useCallback(
     async (method: GitHubPRMergeMethod = defaultMergeMethod) => {
+      // Why: the host refuses to promote a stacked PR to GitHub's atomic multi-PR merge
+      // unless this opt-in rides along, and only this dialog earns it.
+      let stackMergeIntent: 'single-pr-only' | 'confirmed-stack-scope' = 'single-pr-only'
       if (!isGitLab && githubPR?.stack) {
         const usesMergeQueue =
           review.mergeQueueRequired === true || githubPR.mergeQueueRequired === true
@@ -77,6 +80,7 @@ export function useHostedReviewActions({
         if (!confirmed) {
           return
         }
+        stackMergeIntent = 'confirmed-stack-scope'
       }
       setMerging(true)
       setActionError(null)
@@ -92,7 +96,8 @@ export function useHostedReviewActions({
               repo,
               prNumber: review.number,
               method,
-              prRepo: githubPR?.prRepo ?? null
+              prRepo: githubPR?.prRepo ?? null,
+              stackMergeIntent
             })
         if (!result.ok) {
           setActionError(result.error)

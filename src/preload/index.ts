@@ -1486,6 +1486,8 @@ const api = {
       prNumber: number
       method?: 'merge' | 'squash' | 'rebase'
       prRepo?: GitHubOwnerRepo | null
+      // Set only after the caller showed the user which PRs a stack merge would take.
+      stackMergeIntent?: 'single-pr-only' | 'confirmed-stack-scope'
     }): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('gh:mergePR', args),
 

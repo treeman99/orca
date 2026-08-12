@@ -121,6 +121,10 @@ import {
   type RateLimitBucketKind
 } from './rate-limit'
 import { hydrateGitHubPRStack, mergeGitHubPRStack } from './github-pr-stack'
+import {
+  buildUnconfirmedGitHubPRStackMergeError,
+  type GitHubPRStackMergeIntent
+} from './github-pr-stack-merge-gate'
 
 type GhExecOptions = GitHubRepoExecOptions
 type HostedReviewLocalGitOptions = ReturnType<typeof getHostedReviewLocalGitOptions>
@@ -4846,6 +4850,9 @@ export async function addPRReviewComment(
 /**
  * Merge a PR by number using gh CLI.
  * method: 'merge' | 'squash' | 'rebase' (default: 'squash')
+ *
+ * `stackMergeIntent` defaults to fail-closed: a stacked PR is never promoted to
+ * GitHub's atomic multi-PR merge unless the caller says it showed the scope.
  */
 export async function mergePR(
   repoPath: string,
@@ -4853,7 +4860,8 @@ export async function mergePR(
   method: 'merge' | 'squash' | 'rebase' = 'squash',
   connectionId?: string | null,
   prRepo?: GitHubApiRepository | null,
-  localGitOptions: LocalGitExecOptions = {}
+  localGitOptions: LocalGitExecOptions = {},
+  stackMergeIntent: GitHubPRStackMergeIntent = 'single-pr-only'
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const { ownerRepo, ghOptions } = await resolveGitHubRepoExecution(
     repoPath,
@@ -4877,6 +4885,11 @@ export async function mergePR(
       // GitHub remains authoritative when stack metadata cannot be read.
     }
     if (stackSummary) {
+      if (stackMergeIntent !== 'confirmed-stack-scope') {
+        // Do NOT quietly fall back to a single-PR merge: the caller has to learn that the
+        // request it made is not the write GitHub would have performed.
+        return { ok: false, error: buildUnconfirmedGitHubPRStackMergeError(stackSummary, prNumber) }
+      }
       const mergeMetadata = await detectRepositoryMergeMetadata(
         ownerRepo,
         stackSummary.baseRefName,

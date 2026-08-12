@@ -14986,5 +14986,11 @@
     "submoduleNewCommits": "새 커밋",
     "submoduleModifiedContent": "수정된 내용",
     "submoduleUntrackedContent": "추적되지 않은 내용"
+  },
+  "github": {
+    "stackMerge": {
+      "confirmationRequiredSingle": "풀 리퀘스트 #{{pr}}은(는) GitHub 스택에 속해 있어, 여기서 병합하면 GitHub 스택 병합으로 처리되어 풀 리퀘스트 {{prCount}}건이 병합됩니다. Orca 데스크톱의 리뷰 사이드바에서 병합하세요. 확인하기 전에 어떤 풀 리퀘스트가 포함되는지 정확히 보여 줍니다.",
+      "confirmationRequiredMultiple": "풀 리퀘스트 #{{pr}}은(는) GitHub 스택에 속해 있어, 여기서 병합하면 풀 리퀘스트 {{prCount}}건이 원자적으로 함께 병합됩니다. Orca 데스크톱의 리뷰 사이드바에서 병합하세요. 확인하기 전에 어떤 풀 리퀘스트가 포함되는지 정확히 보여 줍니다."
+    }
   }
 }

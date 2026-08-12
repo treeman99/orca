@@ -15633,5 +15633,11 @@
       "settingsInstruction": "Change the model, dictation mode, or shortcut anytime in",
       "settingsLink": "Settings → Voice"
     }
+  },
+  "github": {
+    "stackMerge": {
+      "confirmationRequiredSingle": "Pull request #{{pr}} belongs to a GitHub stack, so merging it here goes through GitHub stack merge and takes {{prCount}} pull request. Merge it from the review sidebar in Orca desktop, which shows exactly which pull requests are included before you confirm.",
+      "confirmationRequiredMultiple": "Pull request #{{pr}} belongs to a GitHub stack, so merging it here would merge {{prCount}} pull requests atomically. Merge it from the review sidebar in Orca desktop, which shows exactly which pull requests are included before you confirm."
+    }
   }
 }

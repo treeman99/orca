@@ -1170,7 +1170,8 @@ describe('registerGitHubHandlers', () => {
       'squash',
       null,
       prRepo,
-      localGitOptions
+      localGitOptions,
+      undefined
     )
     expect(setPRAutoMergeMock).toHaveBeenCalledWith(
       '/workspace/repo',
@@ -1253,10 +1254,64 @@ describe('registerGitHubHandlers', () => {
       }
     )
 
-    expect(mergePRMock).toHaveBeenCalledWith('/workspace/repo', 42, 'squash', 'openclaw-2', {
-      owner: 'acme',
-      repo: 'orca'
-    })
+    expect(mergePRMock).toHaveBeenCalledWith(
+      '/workspace/repo',
+      42,
+      'squash',
+      'openclaw-2',
+      { owner: 'acme', repo: 'orca' },
+      {},
+      undefined
+    )
+  })
+
+  // The renderer surfaces that cannot show a stack's scope send no opt-in; the handler must not
+  // supply one on their behalf, or main is back to promoting stack merges silently.
+  it('sends no stack-merge opt-in when the renderer did not confirm the scope', async () => {
+    mergePRMock.mockResolvedValue({ ok: false, error: 'blocked' })
+
+    registerGitHubHandlers(store as never, stats as never)
+
+    await handlers['gh:mergePR'](
+      { sender: { id: 1 } },
+      { repoPath: '/workspace/repo', prNumber: 42, method: 'squash' }
+    )
+
+    expect(mergePRMock).toHaveBeenCalledWith(
+      '/workspace/repo',
+      42,
+      'squash',
+      null,
+      null,
+      {},
+      undefined
+    )
+  })
+
+  it('forwards the stack-merge opt-in from the review sidebar', async () => {
+    mergePRMock.mockResolvedValue({ ok: true })
+
+    registerGitHubHandlers(store as never, stats as never)
+
+    await handlers['gh:mergePR'](
+      { sender: { id: 1 } },
+      {
+        repoPath: '/workspace/repo',
+        prNumber: 42,
+        method: 'squash',
+        stackMergeIntent: 'confirmed-stack-scope'
+      }
+    )
+
+    expect(mergePRMock).toHaveBeenCalledWith(
+      '/workspace/repo',
+      42,
+      'squash',
+      null,
+      null,
+      {},
+      'confirmed-stack-scope'
+    )
   })
 
   it('threads SSH connectionId through pull request auto-merge', async () => {

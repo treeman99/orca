@@ -4490,11 +4490,16 @@ describe('GitHub GraphQL rate-limit guard', () => {
       })
 
     await expect(
-      mergePR('/repo-root', 202, 'squash', undefined, {
-        owner: 'stablyai',
-        repo: 'orca',
-        host: 'github.com'
-      })
+      mergePR(
+        '/repo-root',
+        202,
+        'squash',
+        undefined,
+        { owner: 'stablyai', repo: 'orca', host: 'github.com' },
+        {},
+        // Only a caller that showed the stack's scope may promote; see github-pr-stack-merge-gate.
+        'confirmed-stack-scope'
+      )
     ).resolves.toEqual({ ok: true })
 
     const mergeCall = ghExecFileAsyncMock.mock.calls.find(([args]) =>
@@ -4538,11 +4543,15 @@ describe('GitHub GraphQL rate-limit guard', () => {
       .mockRejectedValueOnce(new Error('socket closed after request submission'))
 
     await expect(
-      mergePR('/repo-root', 202, 'squash', undefined, {
-        owner: 'stablyai',
-        repo: 'orca',
-        host: 'github.com'
-      })
+      mergePR(
+        '/repo-root',
+        202,
+        'squash',
+        undefined,
+        { owner: 'stablyai', repo: 'orca', host: 'github.com' },
+        {},
+        'confirmed-stack-scope'
+      )
     ).resolves.toEqual({ ok: false, error: 'socket closed after request submission' })
     expect(
       ghExecFileAsyncMock.mock.calls.some(([args]) => args[0] === 'pr' && args[1] === 'merge')
