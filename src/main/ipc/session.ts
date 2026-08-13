@@ -1,7 +1,17 @@
 import { ipcMain } from 'electron'
 import type { Store } from '../persistence'
 import type { WorkspaceSessionPatch, WorkspaceSessionState } from '../../shared/types'
-import { retireClosedTerminalTabsFromPersistence } from '../runtime/terminal-tab-close-retirement'
+import {
+  collectPersistedTerminalTabPtyIds,
+  retireClosedTerminalTabsFromPersistence
+} from '../runtime/terminal-tab-close-retirement'
+
+/** The slice of OrcaRuntimeService a tab close needs, so tests need no runtime. */
+export type ClosedTerminalTabSessionTerminator = {
+  terminateSessionsForClosedTerminalTabs(
+    closures: readonly { worktreeId: string; tabId: string; ptyIds: readonly string[] }[]
+  ): void
+}
 
 function parseTabClosures(value: unknown): { worktreeId: string; tabId: string }[] {
   if (!Array.isArray(value)) {
@@ -18,7 +28,10 @@ function parseTabClosures(value: unknown): { worktreeId: string; tabId: string }
   })
 }
 
-export function registerSessionHandlers(store: Store): void {
+export function registerSessionHandlers(
+  store: Store,
+  runtime?: ClosedTerminalTabSessionTerminator | null
+): void {
   // Why: hostId is an optional second arg so an older renderer that invokes
   // these channels without it keeps reading/writing the 'local' partition
   // exactly as before. Channel names stay stable.
@@ -46,8 +59,18 @@ export function registerSessionHandlers(store: Store): void {
         return
       }
       const session = store.getWorkspaceSession(hostId)
-      const retired = retireClosedTerminalTabsFromPersistence(session, closures)
-      if (retired === session) {
+      // Why: sessions are ended before the tab is de-persisted, because the durable layout
+      // is the only place a never-attached pane's PTY is named. Doing it after would read
+      // an emptied session and leave those processes for startup recovery to adopt.
+      runtime?.terminateSessionsForClosedTerminalTabs(
+        closures.map((closure) => ({
+          ...closure,
+          ptyIds: collectPersistedTerminalTabPtyIds(session, closure.worktreeId, closure.tabId)
+        }))
+      )
+      const current = store.getWorkspaceSession(hostId)
+      const retired = retireClosedTerminalTabsFromPersistence(current, closures)
+      if (retired === current) {
         return
       }
       store.setWorkspaceSession(retired, hostId)

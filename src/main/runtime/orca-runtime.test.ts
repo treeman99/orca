@@ -19701,6 +19701,114 @@ describe('OrcaRuntimeService', () => {
     expect(serializeProviderBuffer).not.toHaveBeenCalled()
   })
 
+  // The regression this guards: de-persisting a closed worker tab is what makes startup
+  // recovery see a live PTY with no published surface, so the close itself is what hands
+  // the tab back. Ending the sessions is what makes the close terminal.
+  it('ends a closed worker tab so startup recovery cannot adopt it back', async () => {
+    const workerLeafId = HEADLESS_LEAF_ID
+    const workerPaneKey = `legacy-worker:${workerLeafId}`
+    const incarnationId = '22222222-2222-4222-8222-222222222222'
+    const session: WorkspaceSessionState = {
+      ...getDefaultWorkspaceSession(),
+      activeWorktreeId: TEST_WORKTREE_ID,
+      tabsByWorktree: {
+        [TEST_WORKTREE_ID]: [
+          {
+            id: 'legacy-worker',
+            ptyId: 'pty-legacy',
+            worktreeId: TEST_WORKTREE_ID,
+            title: 'Legacy worker',
+            customTitle: null,
+            color: null,
+            sortOrder: 0,
+            createdAt: 1
+          }
+        ]
+      },
+      terminalLayoutsByTabId: {
+        'legacy-worker': makeHeadlessTerminalLayout({ [workerLeafId]: 'pty-legacy' })
+      },
+      sleepingAgentSessionsByPaneKey: {
+        [workerPaneKey]: {
+          paneKey: workerPaneKey,
+          tabId: 'legacy-worker',
+          worktreeId: TEST_WORKTREE_ID,
+          agent: 'codex',
+          providerSession: { key: 'session_id', id: 'legacy-codex-session' },
+          prompt: 'continue',
+          state: 'working',
+          capturedAt: 1,
+          updatedAt: 1,
+          origin: 'live'
+        }
+      }
+    }
+    const { runtimeStore, getSession } = makeRuntimeStoreWithWorkspaceSession(session)
+    const runtime = new OrcaRuntimeService({ ...runtimeStore, flushOrThrow: vi.fn() } as never)
+    // Why: the recovery query only returns unsettled rows, so settling one is what has to
+    // remove it from the next launch's candidate list.
+    let recoveryRows = [
+      {
+        dispatch_id: 'dispatch-legacy',
+        task_id: 'task-legacy',
+        dispatch_status: 'dispatched',
+        contract_version: 0,
+        assignee_handle: 'term_legacy',
+        assignee_pane_key: workerPaneKey,
+        process_incarnation: `pty-legacy:${incarnationId}`,
+        worker_state: 'ready',
+        worktree_id: TEST_WORKTREE_ID,
+        agent_terminal_handle: 'term_legacy'
+      }
+    ]
+    const reconcileMissingWorkerTerminal = vi.fn((dispatchId: string) => {
+      recoveryRows = recoveryRows.filter((row) => row.dispatch_id !== dispatchId)
+    })
+    runtime.setOrchestrationDb({
+      getActiveDispatchForTerminal: () => undefined,
+      listLegacyWorkerTerminalRecoveryRows: () => recoveryRows,
+      reconcileMissingWorkerTerminal
+    } as unknown as OrchestrationDb)
+    const livePtyIds = new Set(['pty-legacy'])
+    const kill = vi.fn((ptyId: string) => livePtyIds.delete(ptyId))
+    runtime.setPtyController({
+      write: vi.fn(() => true),
+      kill,
+      getForegroundProcess: async () => null,
+      hasRendererSerializer: () => false,
+      hasPty: (ptyId: string) => livePtyIds.has(ptyId),
+      listProcesses: async () =>
+        [...livePtyIds].map((id) => ({
+          id,
+          incarnationId,
+          terminalHandle: 'term_legacy',
+          title: 'Legacy worker',
+          cwd: TEST_WORKTREE_PATH,
+          worktreeId: TEST_WORKTREE_ID,
+          wslDistro: null
+        }))
+    } as never)
+    const revealTerminalSession = vi.fn()
+    runtime.setNotifier({ revealTerminalSession } as never)
+
+    runtime.terminateSessionsForClosedTerminalTabs([
+      { worktreeId: TEST_WORKTREE_ID, tabId: 'legacy-worker', ptyIds: ['pty-legacy'] }
+    ])
+
+    expect(kill).toHaveBeenCalledWith('pty-legacy')
+    expect(reconcileMissingWorkerTerminal).toHaveBeenCalledWith(
+      'dispatch-legacy',
+      expect.any(String)
+    )
+    expect(getSession().sleepingAgentSessionsByPaneKey?.[workerPaneKey]).toBeUndefined()
+
+    const recovered = await runtime.reconcileLegacyWorkerTerminals({ materializeRenderer: true })
+
+    expect(recovered).toMatchObject({ adoptedDispatchIds: [] })
+    expect(revealTerminalSession).not.toHaveBeenCalled()
+    expect(getSession().tabsByWorktree[TEST_WORKTREE_ID] ?? []).toEqual([])
+  })
+
   it('retries renderer reveal before clearing an adopted legacy worker resume fence', async () => {
     const workerPaneKey = `legacy-worker:${HEADLESS_LEAF_ID}`
     const incarnationId = '44444444-4444-4444-8444-444444444444'

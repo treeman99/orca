@@ -209,7 +209,7 @@ export function registerCoreHandlers(
   registerBrowserHandlers()
   registerShellHandlers(store)
   registerPetHandlers()
-  registerSessionHandlers(store)
+  registerSessionHandlers(store, runtime)
   registerUIHandlers(store)
   // Why not registered rather than refused per call: these two bypass the RPC dispatcher
   // entirely, and frameStreamStart opens a long-lived socket to a caller-supplied URL.

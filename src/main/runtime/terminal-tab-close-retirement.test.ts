@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { getDefaultWorkspaceSession } from '../../shared/constants'
 import type { Tab, WorkspaceSessionState } from '../../shared/types'
 import { sanitizeWorkspaceSessionTerminalRetirements } from './mobile-session-terminal-persistence-retirement'
-import { retireClosedTerminalTabsFromPersistence } from './terminal-tab-close-retirement'
+import {
+  collectPersistedTerminalTabPtyIds,
+  retireClosedTerminalTabsFromPersistence
+} from './terminal-tab-close-retirement'
 
 const WORKTREE_ID = 'repo::/worktree'
 const REPO_ID = 'repo'
@@ -66,6 +69,32 @@ function restoredSession(): WorkspaceSessionState {
       [WORKTREE_ID]: [unifiedTerminalTab('terminal-a', 0), unifiedTerminalTab('terminal-b', 1)]
     },
     terminalTopologyRevisionByRepoId: { [REPO_ID]: 7 }
+  }
+}
+
+function sleepingAgent(paneKey: string, tabId: string) {
+  return {
+    paneKey,
+    tabId,
+    worktreeId: WORKTREE_ID,
+    agent: 'codex' as const,
+    providerSession: { key: 'session_id' as const, id: `session-${tabId}` },
+    prompt: 'continue',
+    state: 'working' as const,
+    capturedAt: 1,
+    updatedAt: 1,
+    origin: 'live' as const
+  }
+}
+
+function sessionWithSleepingAgents(): WorkspaceSessionState {
+  return {
+    ...restoredSession(),
+    sleepingAgentSessionsByPaneKey: {
+      'terminal-a:left': sleepingAgent('terminal-a:left', 'terminal-a'),
+      'terminal-a:right': sleepingAgent('terminal-a:right', 'terminal-a'),
+      'terminal-b:left': sleepingAgent('terminal-b:left', 'terminal-b')
+    }
   }
 }
 
@@ -182,5 +211,66 @@ describe('closing a terminal tab from the desktop', () => {
 
     expect(twice.tabsByWorktree[WORKTREE_ID].map((tab) => tab.id)).toEqual(['terminal-b'])
     expect(twice.terminalLayoutsByTabId['terminal-b']).toBeDefined()
+  })
+
+  // A sleeping record is a standing order to rebuild the tab and resume the agent into
+  // it on the next worktree activation, so leaving one behind turns a close into a restart.
+  it('unparks the agent sessions of the closed tab and only those', () => {
+    const next = retireClosedTerminalTabsFromPersistence(sessionWithSleepingAgents(), [
+      { worktreeId: WORKTREE_ID, tabId: 'terminal-a' }
+    ])
+
+    expect(Object.keys(next.sleepingAgentSessionsByPaneKey ?? {})).toEqual(['terminal-b:left'])
+  })
+
+  it('unparks agent sessions even when the tab is already gone from the host copy', () => {
+    const session = sessionWithSleepingAgents()
+    const retired = retireClosedTerminalTabsFromPersistence(session, [
+      { worktreeId: WORKTREE_ID, tabId: 'terminal-a' }
+    ])
+    // Why: the record survives its tab, and a second close is the only thing that would
+    // reach it — the membership guard used to return before ever looking.
+    const orphaned: WorkspaceSessionState = {
+      ...retired,
+      sleepingAgentSessionsByPaneKey: session.sleepingAgentSessionsByPaneKey
+    }
+
+    const next = retireClosedTerminalTabsFromPersistence(orphaned, [
+      { worktreeId: WORKTREE_ID, tabId: 'terminal-a' }
+    ])
+
+    expect(Object.keys(next.sleepingAgentSessionsByPaneKey ?? {})).toEqual(['terminal-b:left'])
+  })
+
+  it('names every pane PTY of a split tab so the close can end all of them', () => {
+    const session = restoredSession()
+    session.terminalLayoutsByTabId['terminal-a'] = {
+      root: {
+        type: 'split',
+        direction: 'vertical',
+        ratio: 0.5,
+        first: { type: 'leaf', leafId: 'left' },
+        second: { type: 'leaf', leafId: 'right' }
+      },
+      activeLeafId: 'left',
+      expandedLeafId: null,
+      ptyIdsByLeafId: { left: 'pty-a', right: 'pty-a2' }
+    }
+
+    expect(collectPersistedTerminalTabPtyIds(session, WORKTREE_ID, 'terminal-a').sort()).toEqual([
+      'pty-a',
+      'pty-a2'
+    ])
+  })
+
+  it('names the PTY of a pre-layout tab that only records it on the tab row', () => {
+    const session = restoredSession()
+    delete session.terminalLayoutsByTabId['terminal-b']
+
+    expect(collectPersistedTerminalTabPtyIds(session, WORKTREE_ID, 'terminal-b')).toEqual(['pty-b'])
+  })
+
+  it('names nothing for a tab that is not there', () => {
+    expect(collectPersistedTerminalTabPtyIds(restoredSession(), WORKTREE_ID, 'gone')).toEqual([])
   })
 })

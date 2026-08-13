@@ -121,4 +121,33 @@ describe('session:retireClosedTerminalTabs', () => {
     expect(store.setWorkspaceSession).not.toHaveBeenCalled()
     expect(store.flushOrThrow).not.toHaveBeenCalled()
   })
+
+  // The tab is only the surface. Its PTYs outlive the app on purpose, so a close that
+  // stops at de-persisting leaves live processes for startup recovery to adopt back.
+  it('ends the tab sessions before de-persisting, naming its PTYs from the durable layout', () => {
+    const store = createStore(seededSession())
+    const terminate = vi.fn(() => {
+      expect(store.setWorkspaceSession).not.toHaveBeenCalled()
+    })
+    registerSessionHandlers(store as never, { terminateSessionsForClosedTerminalTabs: terminate })
+
+    invokeRetire({ closures: [{ worktreeId: WORKTREE_ID, tabId: 'tab-a' }] })
+
+    expect(terminate).toHaveBeenCalledWith([
+      { worktreeId: WORKTREE_ID, tabId: 'tab-a', ptyIds: ['pty-tab-a'] }
+    ])
+    expect(store.flushOrThrow).toHaveBeenCalledOnce()
+  })
+
+  it('still ends the sessions of a tab the host copy no longer lists', () => {
+    const store = createStore(seededSession())
+    const terminate = vi.fn()
+    registerSessionHandlers(store as never, { terminateSessionsForClosedTerminalTabs: terminate })
+
+    invokeRetire({ closures: [{ worktreeId: WORKTREE_ID, tabId: 'never-existed' }] })
+
+    expect(terminate).toHaveBeenCalledWith([
+      { worktreeId: WORKTREE_ID, tabId: 'never-existed', ptyIds: [] }
+    ])
+  })
 })

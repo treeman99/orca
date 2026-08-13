@@ -525,7 +525,10 @@ describe('registerCoreHandlers', () => {
     expect(registerLocalhostWorktreeLabelHandlersMock).toHaveBeenCalledWith(store)
     expect(registerTelemetryHandlersMock).toHaveBeenCalledWith(store)
     expect(registerOrcaProfileHandlersMock).toHaveBeenCalledWith(store, { onBeforeRelaunch })
-    expect(registerSessionHandlersMock).toHaveBeenCalledWith(store)
+    // Why: a tab close has to end that tab's PTYs and worker dispatches, which only the
+    // runtime can reach — without it the close de-persists a surface whose sessions are
+    // still live, and startup recovery adopts them back.
+    expect(registerSessionHandlersMock).toHaveBeenCalledWith(store, runtime)
     expect(registerUIHandlersMock).toHaveBeenCalledWith(store)
     expect(registerEmulatorFrameStreamHandlersMock).toHaveBeenCalled()
     expect(registerEmulatorVideoStreamHandlersMock).toHaveBeenCalled()
