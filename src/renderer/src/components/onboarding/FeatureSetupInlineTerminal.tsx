@@ -32,11 +32,8 @@ export function FeatureSetupInlineTerminal({
   const terminalInteractedTrackedRef = useRef(false)
   const activeSkillRuntime = useActiveProjectSkillRuntime()
   const setupRuntime = runtimeContext ?? activeSkillRuntime
-  const runtimeCommand = buildSkillCommandForRuntime(
-    command,
-    getOnboardingFeatureSetupAgentRuntime(setupRuntime)
-  )
-
+  const agentRuntime = getOnboardingFeatureSetupAgentRuntime(setupRuntime)
+  const copiedCommand = buildSkillCommandForRuntime(command, agentRuntime)
   const selectionTelemetry = useMemo(
     () => onboardingFeatureSetupTelemetrySelection(selection),
     [selection]
@@ -73,7 +70,7 @@ export function FeatureSetupInlineTerminal({
 
   return (
     <OnboardingInlineCommandTerminal
-      command={runtimeCommand}
+      command={copiedCommand}
       prepareCommandForShell={buildSkillSetupTerminalCommand}
       shellOverride={setupRuntime.terminalShellOverride}
       forceHostRuntime={Boolean(setupRuntime.installDisabledReason)}

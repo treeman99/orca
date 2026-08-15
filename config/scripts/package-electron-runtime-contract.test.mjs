@@ -547,7 +547,9 @@ describe('Electron runtime package contract', () => {
     }
     const linuxGoldenRunStep = steps.find((step) => step.name === 'Run golden E2E tests on Linux')
     const macGoldenRunStep = steps.find((step) => step.name === 'Run golden E2E tests on macOS')
-    const windowsGoldenRunStep = steps.find((step) => step.name === 'Run golden E2E tests on Windows')
+    const windowsGoldenRunStep = steps.find(
+      (step) => step.name === 'Run golden E2E tests on Windows'
+    )
     expect(linuxGoldenRunStep?.run).toContain(
       'pnpm run --if-present test:e2e:posix-profile-index-golden'
     )

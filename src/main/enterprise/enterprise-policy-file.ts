@@ -154,7 +154,7 @@ function isPolicyObject(value: unknown): value is Record<string, unknown> {
 }
 
 /** One candidate's parsed document, or null when it is missing, unreadable, or unusable. */
-function readOnePolicyDocument(candidate: string): unknown | null {
+function readOnePolicyDocument(candidate: string): unknown {
   {
     let contents: string
     try {
