@@ -97,7 +97,11 @@ import {
 import { resolveWslSessionContext } from '../daemon/wsl-session-context'
 import { addNodePtyRecoveryHint } from '../daemon/node-pty-error-hints'
 import { recordDaemonStreamBacklogEvent } from '../daemon/daemon-stream-backlog-probe'
-import { TerminalSessionOwnerUnverifiedError } from '../daemon/daemon-errors'
+import {
+  isDaemonEndpointGoneError,
+  TerminalHostGoneError,
+  TerminalSessionOwnerUnverifiedError
+} from '../daemon/daemon-errors'
 import type { ClaudeRuntimeAuthPreparation } from '../claude-accounts/runtime-auth-service'
 import type { ClaudeAccountSelectionTarget } from '../claude-accounts/runtime-selection'
 import { CLAUDE_AUTH_ENV_VARS, hasClaudeAuthEnvConflict } from '../claude-accounts/environment'
@@ -128,7 +132,7 @@ import {
 import { isRemoteAgentHooksEnabled } from '../../shared/agent-hook-relay'
 import { createTerminalSessionStateSaveFailureMessage } from '../../shared/terminal-session-state-save-failure'
 import { RendererTerminalSerializerReadiness } from './renderer-terminal-serializer-readiness'
-import { readShellStartupEnvVar } from '../pty/shell-startup-env'
+import { readSessionShellStartupEnvVar } from '../pty/shell-startup-env'
 import {
   isTerminalLeafId,
   makePaneKey,
@@ -850,6 +854,10 @@ async function attachStablePaneOwner(
     if (error instanceof TerminalSessionOwnerUnverifiedError) {
       throw new Error('terminal_pane_owner_unverified')
     }
+    // Why: translate before paired-runtime RPC strips the socket error's code and syscall.
+    if (isDaemonEndpointGoneError(error)) {
+      throw new TerminalHostGoneError()
+    }
     if (!isPtyAlreadyGoneError(error)) {
       throw error
     }
@@ -1500,11 +1508,7 @@ function resolvePiAgentSourceDir(
   if (kind === 'prime-agent') {
     return (
       readEnvWithProcessFallback(baseEnv, primaryKey) ??
-      readShellStartupEnvVar(
-        primaryKey,
-        baseEnv.HOME ?? process.env.HOME,
-        baseEnv.SHELL ?? process.env.SHELL
-      )
+      readSessionShellStartupEnvVar(primaryKey, baseEnv)
     )
   }
 
@@ -1519,11 +1523,7 @@ function resolvePiAgentSourceDir(
     return publicDir
   }
 
-  return readShellStartupEnvVar(
-    primaryKey,
-    baseEnv.HOME ?? process.env.HOME,
-    baseEnv.SHELL ?? process.env.SHELL
-  )
+  return readSessionShellStartupEnvVar(primaryKey, baseEnv)
 }
 
 function resolveScopedPiAgentSourceDir(
@@ -1672,14 +1672,7 @@ function resolveOpenCodeSourceConfigDir(baseEnv: Record<string, string>): string
     return undefined
   }
 
-  return (
-    configDir ??
-    readShellStartupEnvVar(
-      'OPENCODE_CONFIG_DIR',
-      baseEnv.HOME ?? process.env.HOME,
-      baseEnv.SHELL ?? process.env.SHELL
-    )
-  )
+  return configDir ?? readSessionShellStartupEnvVar('OPENCODE_CONFIG_DIR', baseEnv)
 }
 
 /**

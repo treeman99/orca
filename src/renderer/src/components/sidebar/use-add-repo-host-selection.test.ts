@@ -17,7 +17,8 @@ const mocks = vi.hoisted(() => ({
     runtimeEnvironments: [] as { id: string; name: string; source?: 'manual' | 'ephemeral-vm' }[]
   },
   sshConnect: vi.fn(),
-  sshGetState: vi.fn()
+  sshGetState: vi.fn(),
+  isWebClient: false
 }))
 
 vi.mock('react', async (importOriginal) => {
@@ -64,6 +65,10 @@ vi.mock('./use-sidebar-host-scope-options', () => ({
   useSidebarHostScopeOptions: () => ({ hostOptions: mocks.hostOptions })
 }))
 
+vi.mock('@/lib/web-client-location', () => ({
+  isWebClientLocation: () => mocks.isWebClient
+}))
+
 describe('useAddRepoHostSelection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -103,6 +108,7 @@ describe('useAddRepoHostSelection', () => {
     mocks.storeState.runtimeEnvironments = []
     mocks.sshConnect.mockReset()
     mocks.sshGetState.mockReset()
+    mocks.isWebClient = false
     vi.stubGlobal('window', {
       api: {
         ssh: {
