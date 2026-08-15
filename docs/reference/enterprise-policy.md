@@ -96,6 +96,24 @@ ORCA_GITHUB_ENTERPRISE_HOST
 
 `llmEndpoints`·`allowedNetworkHosts`·`githubEnterpriseHost`는 **바닥선에서 제외**입니다. 조이는 값이 아니라 넓히는 값이고, 관리자 파일이 그 키들의 주인입니다.
 
+#### 그 아래 한 겹 더 — 빌드에 박힌 에이전트 바닥값
+
+위 바닥선은 **채택된 파일이 있을 때** 그 빈칸을 채웁니다. 채택할 파일이 아예 없으면 채울 대상이 없고, `allowedAgents`가 없다는 것은 곧 **제한 없음**이므로 모든 벤더 CLI가 피커에 돌아옵니다. per-user NSIS 설치에서는 설치 폴더가 그 사용자 소유라(§7-5) `resources\enterprise-policy.json`을 **지우기만 해도** 그 상태가 됩니다.
+
+그래서 파일이 아니라 **코드에 박힌 목록**이 마지막 바닥값으로 깔려 있습니다 (`BUILT_IN_AGENT_ALLOWLIST`, `src/shared/enterprise-policy-baseline.ts`). 현재 값은 `["claude", "opencode"]`이고, 바꾸려면 **저장소를 수정해 다시 빌드해야 합니다.**
+
+규칙은 위 바닥선과 같습니다.
+
+- **패키징 빌드에서만 적용됩니다.** `app.isPackaged`는 표준 사용자가 설정할 수 없는 유일한 신호입니다. `pnpm dev`와 vitest는 영향을 받지 않습니다 — 조용한 에이전트 제한이 걸리면 업스트림 케이스 수십 개가 이유 없이 깨집니다.
+- **관리자가 항상 이깁니다.** 머신 전역 파일에 `allowedAgents`를 **명시**하면 그 값이 그대로 쓰입니다. 넓히려면 명시하세요 — 예: `"allowedAgents": ["claude", "opencode", "codex"]`.
+- **`allowedAgents` 하나만 건드립니다.** 정책 파일이 없다는 사실을 `lockdown`으로 읽지 않습니다.
+
+적용되면 트레이스의 `…baseline_applied_keys`에 `allowedAgents`가 남고 경고가 나옵니다.
+
+```
+[enterprise-policy] no policy file set allowedAgents; kept the build's own claude, opencode.
+```
+
 바닥선이 실제로 무엇을 채웠는지는 §7-2 트레이스의 `enterprise.policy.baseline_path`와 `…baseline_applied_keys`에 남고, 같은 내용이 경고로도 나옵니다:
 
 ```

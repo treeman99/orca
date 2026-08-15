@@ -20,7 +20,11 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
 import { parse as parseJsonc, type ParseError } from 'jsonc-parser'
-import { applyEnterprisePolicyBaseline } from '../../shared/enterprise-policy-baseline'
+import {
+  applyBuiltInAgentAllowlist,
+  applyEnterprisePolicyBaseline,
+  BUILT_IN_AGENT_ALLOWLIST
+} from '../../shared/enterprise-policy-baseline'
 import { registerCorporateLlmEndpoints } from '../../shared/corporate-llm-session-catalog'
 import { readGhConfiguredHost } from '../github/gh-config-host'
 import {
@@ -296,6 +300,21 @@ function applyBundledBaseline(loaded: LoadedDocument | null, bundled: string | n
   return document
 }
 
+// The last floor, under every file including the bundled one. `applyBundledBaseline` covers
+// "the administrator's file forgot the key"; this covers "the file that was supposed to say it
+// is gone", which on a per-user install is one delete away — see BUILT_IN_AGENT_ALLOWLIST.
+function applyBuiltInAgentFloor(document: unknown): unknown {
+  const { document: floored, appliedKeys } = applyBuiltInAgentAllowlist(document)
+  if (appliedKeys.length === 0) {
+    return document
+  }
+  baselineAppliedKeys = [...baselineAppliedKeys, ...appliedKeys]
+  warn(
+    `no policy file set allowedAgents; kept the build's own ${BUILT_IN_AGENT_ALLOWLIST.join(', ')}.`
+  )
+  return floored
+}
+
 let cached: EnterprisePolicy | null = null
 
 /**
@@ -320,10 +339,17 @@ export function getEnterprisePolicy(): EnterprisePolicy {
   searchedPaths = candidates
   const loaded = readPolicyDocument(candidates)
   const baselined = applyBundledBaseline(loaded, bundledPath)
+  // Why a build constant instead of `allowEnvOverride`/`app.isPackaged`: 19 test files mock
+  // `isPackaged: true` for unrelated reasons, and the floor would then block `codex` in the
+  // upstream PTY cases. `ORCA_BUNDLED_MAIN_BUILD` only exists in an electron-vite bundle, so
+  // it is true for packaged builds and `pnpm dev` and absent under vitest — and unlike an
+  // env var, a shell export cannot spoof it.
+  const bundledMainBuild = typeof ORCA_BUNDLED_MAIN_BUILD !== 'undefined' && ORCA_BUNDLED_MAIN_BUILD
+  const effectiveDocument = bundledMainBuild ? applyBuiltInAgentFloor(baselined) : baselined
   // Why read gh's config at all: a GUI-launched app never inherits a shell rc, so `GH_HOST`
   // is routinely absent on exactly the machines that DID run `gh auth login --hostname`.
   const policy = resolveEnterprisePolicy(
-    baselined,
+    effectiveDocument,
     env,
     loaded?.sourcePath ?? null,
     policyDiscoveryDisabled(env, allowEnvOverride)

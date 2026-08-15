@@ -45,6 +45,20 @@ function isUsableAgentAllowlist(value: unknown): boolean {
   )
 }
 
+/**
+ * The agent allowlist compiled into the build, used as the last floor under every file.
+ *
+ * Why a constant and not just `resources/enterprise-policy.json`: that file ships inside the
+ * install directory, which on a per-user NSIS install the standard user owns. Deleting it —
+ * or deleting the `allowedAgents` line from it — leaves the resolver with no list at all, and
+ * an absent list means NO restriction, so the pickers quietly offer every vendor CLI again.
+ * A constant cannot be edited without rebuilding the app.
+ *
+ * Widening still belongs to the administrator: an explicit `allowedAgents` in the machine-wide
+ * file wins, because this floor only fills a document that does not mention the key.
+ */
+export const BUILT_IN_AGENT_ALLOWLIST: readonly string[] = ['claude', 'opencode']
+
 export type PolicyBaselineResult = {
   /** The adopted document with the baseline's restrictions filled in. */
   readonly document: unknown
@@ -81,4 +95,23 @@ export function applyEnterprisePolicyBaseline(
     appliedKeys.push('allowedAgents')
   }
   return { document: merged, appliedKeys }
+}
+
+/**
+ * Fill `allowedAgents` from the compiled-in list when no file mentioned it.
+ *
+ * Unlike the file baseline this also applies when discovery found nothing at all — that is the
+ * case it exists for. It never touches any other key: a missing policy file must not be read as
+ * a lockdown, only as "these are the agents this build ships with".
+ */
+export function applyBuiltInAgentAllowlist(adopted: unknown): PolicyBaselineResult {
+  if (adopted !== null && adopted !== undefined && !isPlainObject(adopted)) {
+    return { document: adopted, appliedKeys: [] }
+  }
+  const document: EnterprisePolicyDocument = isPlainObject(adopted) ? { ...adopted } : {}
+  if (isPlainObject(adopted) && 'allowedAgents' in adopted) {
+    return { document: adopted, appliedKeys: [] }
+  }
+  document.allowedAgents = [...BUILT_IN_AGENT_ALLOWLIST]
+  return { document, appliedKeys: ['allowedAgents'] }
 }

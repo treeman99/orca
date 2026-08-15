@@ -47,6 +47,9 @@
   // 나머지 벤더를 탐지·UI·폴링에서 제거.
   // ⚠️ "claude-agent-teams"는 "claude"와 별개 id입니다 — Agent Teams를 쓸 거면 함께 적으세요.
   // ⚠️ 이 키는 lockdown을 상속하지 않습니다. 적지 않으면 에이전트 제한이 전혀 걸리지 않습니다.
+  // ⚠️ 이 줄을 지워도 패키징 빌드에서는 코드에 박힌 BUILT_IN_AGENT_ALLOWLIST가 같은 값으로
+  //    바닥을 받칩니다 (src/shared/enterprise-policy-baseline.ts). 넓히려면 머신 전역
+  //    %ProgramData%\Orca\enterprise-policy.json 에 명시하세요 — 문서 §2.
   "allowedAgents": ["claude", "opencode"],
 
   // 하드 허용목록은 옵트인입니다. 켜기 전에 반드시 docs/reference/enterprise-policy.md §5를 읽으세요.

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { applyEnterprisePolicyBaseline } from './enterprise-policy-baseline'
+import {
+  applyBuiltInAgentAllowlist,
+  applyEnterprisePolicyBaseline,
+  BUILT_IN_AGENT_ALLOWLIST
+} from './enterprise-policy-baseline'
 
 const BUNDLED = {
   lockdown: true,
@@ -88,5 +92,54 @@ describe('applyEnterprisePolicyBaseline', () => {
     applyEnterprisePolicyBaseline(adopted, BUNDLED)
 
     expect(adopted).toEqual({ lockdown: true })
+  })
+})
+
+describe('applyBuiltInAgentAllowlist', () => {
+  // The gap the file baseline cannot cover: discovery found nothing, so there is no adopted
+  // document to fill. An absent list means NO restriction, so this is the case where deleting
+  // the shipped policy file would put every vendor CLI back in the pickers.
+  it('restricts agents when discovery resolved no document at all', () => {
+    const { document, appliedKeys } = applyBuiltInAgentAllowlist(null)
+
+    expect(appliedKeys).toEqual(['allowedAgents'])
+    expect(document).toEqual({ allowedAgents: [...BUILT_IN_AGENT_ALLOWLIST] })
+  })
+
+  it('fills a document that never mentions the key', () => {
+    const { document, appliedKeys } = applyBuiltInAgentAllowlist({ lockdown: true })
+
+    expect(appliedKeys).toEqual(['allowedAgents'])
+    expect(document).toMatchObject({
+      lockdown: true,
+      allowedAgents: [...BUILT_IN_AGENT_ALLOWLIST]
+    })
+  })
+
+  // Widening stays the administrator's call: an explicit list in the machine-wide file is the
+  // supported way to add an agent, and this floor must not fight it.
+  it('leaves an explicit administrator list untouched, including a wider one', () => {
+    const adopted = { allowedAgents: ['claude', 'opencode', 'codex'] }
+    const { document, appliedKeys } = applyBuiltInAgentAllowlist(adopted)
+
+    expect(appliedKeys).toEqual([])
+    expect(document).toBe(adopted)
+  })
+
+  // A list the resolver would discard is still an explicit statement; re-filling it here would
+  // make the trace claim a restriction that readAgentAllowlist then throws away.
+  it('does not second-guess an explicit list the resolver will reject', () => {
+    const adopted = { allowedAgents: [] }
+    const { document, appliedKeys } = applyBuiltInAgentAllowlist(adopted)
+
+    expect(appliedKeys).toEqual([])
+    expect(document).toBe(adopted)
+  })
+
+  it('returns a malformed document untouched so the resolver still warns about it', () => {
+    const { document, appliedKeys } = applyBuiltInAgentAllowlist('nonsense')
+
+    expect(appliedKeys).toEqual([])
+    expect(document).toBe('nonsense')
   })
 })

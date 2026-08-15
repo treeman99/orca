@@ -374,6 +374,68 @@ describe('getEnterprisePolicy', () => {
     expect(getEnterprisePolicy().lockdown).toBe(true)
   })
 
+  // The compiled-in agent floor. `resources/enterprise-policy.json` lives in the install
+  // directory, which a per-user NSIS install lets the standard user own, so these pin the
+  // case the file baseline cannot reach: the file that was supposed to name the agents is gone.
+  // The floor keys off ORCA_BUNDLED_MAIN_BUILD (see src/types/build-constants.d.ts), which
+  // only an electron-vite bundle defines — vitest must opt in explicitly.
+  describe('built-in agent allowlist floor', () => {
+    beforeEach(() => {
+      vi.stubGlobal('ORCA_BUNDLED_MAIN_BUILD', true)
+      electronApp.isPackaged = true
+      stubResourcesPath(RESOURCES_DIR)
+    })
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('restricts agents in a bundled build even when no policy file is found', () => {
+      readFileSyncMock.mockImplementation(enoent)
+
+      const policy = getEnterprisePolicy()
+
+      expect(policy.allowedAgents).toEqual(['claude', 'opencode'])
+      expect(getEnterprisePolicyResolutionTrace().baselineAppliedKeys).toContain('allowedAgents')
+    })
+
+    it('restricts agents when the bundled file exists but no longer names them', () => {
+      readFileSyncMock.mockImplementation((target: string) =>
+        target === BUNDLED ? '{ "lockdown": true }' : enoent()
+      )
+
+      expect(getEnterprisePolicy().allowedAgents).toEqual(['claude', 'opencode'])
+    })
+
+    // Widening is the administrator's call, and the machine-wide file is the channel for it.
+    it('yields to an explicit machine-wide list', () => {
+      readFileSyncMock.mockImplementation((target: string) =>
+        target === machineWidePath()
+          ? '{ "lockdown": true, "allowedAgents": ["claude", "opencode", "codex"] }'
+          : enoent()
+      )
+
+      expect(getEnterprisePolicy().allowedAgents).toEqual(['claude', 'opencode', 'codex'])
+    })
+
+    // A missing policy file must not be read as a lockdown — the floor names agents, nothing else.
+    it('leaves every other switch alone', () => {
+      readFileSyncMock.mockImplementation(enoent)
+
+      expect(getEnterprisePolicy().lockdown).toBe(false)
+    })
+  })
+
+  // Under vitest the constant is absent, which is what keeps the floor out of the ~47 upstream
+  // PTY cases whose electron mock sets `isPackaged: true` for unrelated reasons.
+  it('stays out of a run that is not an electron-vite bundle', () => {
+    electronApp.isPackaged = true
+    stubResourcesPath(RESOURCES_DIR)
+    readFileSyncMock.mockImplementation(enoent)
+
+    expect(getEnterprisePolicy().allowedAgents).toBeNull()
+  })
+
   // The installer ships a default policy so lockdown does not depend on a separate
   // fleet-deployment step. These cases pin the two bypasses that would undo that.
   describe('with a bundled default policy (packaged build)', () => {
