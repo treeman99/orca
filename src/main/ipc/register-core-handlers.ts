@@ -14,7 +14,6 @@ import { registerGitLabHandlers } from './gitlab'
 import { registerHostedReviewHandlers } from './hosted-review'
 import { registerLinearHandlers } from './linear'
 import { registerJiraHandlers } from './jira'
-import { registerBitbucketHandlers } from './bitbucket'
 import { registerCrashReportingHandlers } from './crash-reporting'
 import { registerExportHandlers } from './export'
 import { registerStatsHandlers } from './stats'
@@ -163,8 +162,8 @@ export function registerCoreHandlers(
   registerHostedReviewHandlers(store, stats)
   registerLinearHandlers()
   registerJiraHandlers()
-  // 포크: registerFeedbackHandlers는 벤더 피드백 제출 표면이라 제외한다 (모듈 자체가 없음)
-  registerBitbucketHandlers()
+  // 포크: 벤더 피드백 제출(registerFeedbackHandlers)과 Bitbucket 연결(registerBitbucketHandlers)은
+  // 자격증명을 저장하고 외부로 나가는 표면이라 제외한다. 모듈 자체를 제거했다.
   if (crashReports) {
     registerCrashReportingHandlers(crashReports)
   }

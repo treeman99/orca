@@ -239,9 +239,11 @@ gitlab.internal
       ahead: 0,
       behind: 0
     }
+    // 포크: Gitea 제공자를 제거했으므로 glab이 이 호스트를 거절하는 동안에는
+    // 어떤 제공자도 리모트를 주장하지 않는다. 검증 대상은 아래의 복구다.
     await expect(getHostedReviewCreationEligibility(eligibilityInput)).resolves.toMatchObject({
-      provider: 'gitea',
-      blockedReason: 'auth_required'
+      provider: 'unsupported',
+      blockedReason: 'unsupported_provider'
     })
 
     selfHostedAuthenticated = true

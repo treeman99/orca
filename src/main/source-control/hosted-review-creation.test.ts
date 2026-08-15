@@ -189,34 +189,6 @@ function mockGitLabProvider(): void {
   getGiteaRepoSlugMock.mockResolvedValue(null)
 }
 
-function mockAzureDevOpsProvider(): void {
-  getProjectSlugMock.mockResolvedValue(null)
-  getRepoSlugMock.mockResolvedValue(null)
-  getBitbucketRepoSlugMock.mockResolvedValue(null)
-  getAzureDevOpsRepoSlugMock.mockResolvedValue({
-    host: 'dev.azure.com',
-    project: 'Project',
-    repository: 'orca',
-    apiBaseUrl: 'https://dev.azure.com/acme/Project',
-    webBaseUrl: 'https://dev.azure.com/acme/Project/_git/orca'
-  })
-  getGiteaRepoSlugMock.mockResolvedValue(null)
-}
-
-function mockGiteaProvider(): void {
-  getProjectSlugMock.mockResolvedValue(null)
-  getRepoSlugMock.mockResolvedValue(null)
-  getBitbucketRepoSlugMock.mockResolvedValue(null)
-  getAzureDevOpsRepoSlugMock.mockResolvedValue(null)
-  getGiteaRepoSlugMock.mockResolvedValue({
-    host: 'git.example.com',
-    owner: 'acme',
-    repo: 'orca',
-    apiBaseUrl: 'https://git.example.com/api/v1',
-    webBaseUrl: 'https://git.example.com'
-  })
-}
-
 describe('createHostedReview', () => {
   beforeEach(() => {
     resetMocks()
@@ -475,66 +447,6 @@ describe('createHostedReview', () => {
       undefined
     )
     expect(createGitHubPullRequestMock).not.toHaveBeenCalled()
-  })
-
-  it('creates an Azure DevOps pull request after fresh main-process validation passes', async () => {
-    mockAzureDevOpsProvider()
-
-    await expect(
-      createHostedReview('/repo', {
-        provider: 'azure-devops',
-        base: 'main',
-        head: 'feature',
-        title: 'Feature'
-      })
-    ).resolves.toEqual({
-      ok: true,
-      number: 88,
-      url: 'https://dev.azure.com/acme/Project/_git/orca/pullrequest/88'
-    })
-
-    expect(createAzureDevOpsPullRequestMock).toHaveBeenCalledWith(
-      '/repo',
-      {
-        provider: 'azure-devops',
-        base: 'main',
-        head: 'feature',
-        title: 'Feature'
-      },
-      undefined
-    )
-    expect(createGitHubPullRequestMock).not.toHaveBeenCalled()
-    expect(createGitLabMergeRequestMock).not.toHaveBeenCalled()
-  })
-
-  it('creates a Gitea pull request after fresh main-process validation passes', async () => {
-    mockGiteaProvider()
-
-    await expect(
-      createHostedReview('/repo', {
-        provider: 'gitea',
-        base: 'main',
-        head: 'feature',
-        title: 'Feature'
-      })
-    ).resolves.toEqual({
-      ok: true,
-      number: 19,
-      url: 'https://git.example.com/acme/orca/pulls/19'
-    })
-
-    expect(createGiteaPullRequestMock).toHaveBeenCalledWith(
-      '/repo',
-      {
-        provider: 'gitea',
-        base: 'main',
-        head: 'feature',
-        title: 'Feature'
-      },
-      undefined
-    )
-    expect(createGitHubPullRequestMock).not.toHaveBeenCalled()
-    expect(createGitLabMergeRequestMock).not.toHaveBeenCalled()
   })
 
   it('uses the SSH git provider for remote hosted-review preflight', async () => {

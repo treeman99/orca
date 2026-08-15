@@ -8786,9 +8786,7 @@
             "7166b9090c": "GitHub authentication via the gh CLI.",
             "f16e41cc72": "GitHub Integration",
             "githubEnterpriseTitle": "Company GitHub (Enterprise)",
-            "githubEnterpriseDesc": "Set your internal GitHub Enterprise host and sign gh in through the browser.",
-            "760e2446e0": "Bitbucket Cloud authentication with a saved API token or environment variables.",
-            "af5ae87847": "access token"
+            "githubEnterpriseDesc": "Set your internal GitHub Enterprise host and sign gh in through the browser."
           }
         },
         "jira": {
@@ -10772,7 +10770,6 @@
               "apiToken": "API token",
               "apiTokenPlaceholder": "Atlassian API token",
               "baseUrl": "API base URL (optional)",
-              "baseUrlPlaceholder": "https://api.bitbucket.org/2.0",
               "tokenHint": "Repository, project, and workspace access tokens are created from the matching Bitbucket settings page and need read access to pull requests.",
               "basicHint": "Create an Atlassian API token for your account, then pair it with the email address that owns it.",
               "docsLink": "Bitbucket API token docs",

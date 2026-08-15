@@ -189,34 +189,6 @@ function mockGitLabProvider(): void {
   getGiteaRepoSlugMock.mockResolvedValue(null)
 }
 
-function mockAzureDevOpsProvider(): void {
-  getProjectSlugMock.mockResolvedValue(null)
-  getRepoSlugMock.mockResolvedValue(null)
-  getBitbucketRepoSlugMock.mockResolvedValue(null)
-  getAzureDevOpsRepoSlugMock.mockResolvedValue({
-    host: 'dev.azure.com',
-    project: 'Project',
-    repository: 'orca',
-    apiBaseUrl: 'https://dev.azure.com/acme/Project',
-    webBaseUrl: 'https://dev.azure.com/acme/Project/_git/orca'
-  })
-  getGiteaRepoSlugMock.mockResolvedValue(null)
-}
-
-function mockGiteaProvider(): void {
-  getProjectSlugMock.mockResolvedValue(null)
-  getRepoSlugMock.mockResolvedValue(null)
-  getBitbucketRepoSlugMock.mockResolvedValue(null)
-  getAzureDevOpsRepoSlugMock.mockResolvedValue(null)
-  getGiteaRepoSlugMock.mockResolvedValue({
-    host: 'git.example.com',
-    owner: 'acme',
-    repo: 'orca',
-    apiBaseUrl: 'https://git.example.com/api/v1',
-    webBaseUrl: 'https://git.example.com'
-  })
-}
-
 describe('getHostedReviewCreationEligibility', () => {
   beforeEach(() => {
     resetMocks()
@@ -582,55 +554,5 @@ describe('getHostedReviewCreationEligibility', () => {
       ['auth', 'status', '--hostname', 'gitlab.com'],
       { cwd: '/repo' }
     )
-  })
-
-  it('enables creation for clean, in-sync, token-configured Azure DevOps feature branches', async () => {
-    mockAzureDevOpsProvider()
-
-    await expect(
-      getHostedReviewCreationEligibility({
-        repoPath: '/repo',
-        branch: 'feature/azure',
-        base: 'main',
-        hasUncommittedChanges: false,
-        hasUpstream: true,
-        ahead: 0,
-        behind: 0
-      })
-    ).resolves.toMatchObject({
-      provider: 'azure-devops',
-      canCreate: true,
-      blockedReason: null,
-      nextAction: null,
-      head: 'feature/azure'
-    })
-    expect(isAzureDevOpsReviewCreationAuthenticatedMock).toHaveBeenCalledOnce()
-    expect(ghExecFileAsyncMock).not.toHaveBeenCalled()
-    expect(glabExecFileAsyncMock).not.toHaveBeenCalled()
-  })
-
-  it('enables creation for clean, in-sync, token-configured Gitea feature branches', async () => {
-    mockGiteaProvider()
-
-    await expect(
-      getHostedReviewCreationEligibility({
-        repoPath: '/repo',
-        branch: 'feature/gitea',
-        base: 'main',
-        hasUncommittedChanges: false,
-        hasUpstream: true,
-        ahead: 0,
-        behind: 0
-      })
-    ).resolves.toMatchObject({
-      provider: 'gitea',
-      canCreate: true,
-      blockedReason: null,
-      nextAction: null,
-      head: 'feature/gitea'
-    })
-    expect(isGiteaReviewCreationAuthenticatedMock).toHaveBeenCalledOnce()
-    expect(ghExecFileAsyncMock).not.toHaveBeenCalled()
-    expect(glabExecFileAsyncMock).not.toHaveBeenCalled()
   })
 })

@@ -139,7 +139,7 @@ describe('ConnectIntegrationsList', () => {
 
     const { markup } = await renderConnectIntegrationsList()
 
-    for (const provider of ['GitHub', 'GitLab', 'Bitbucket', 'Azure DevOps', 'Gitea']) {
+    for (const provider of ['GitHub', 'GitLab']) {
       expect(markup).toContain(provider)
     }
     expect(markup).toContain('gh auth login')

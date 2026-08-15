@@ -16,9 +16,6 @@ import {
   supportsHostedReviewCreation,
   type HostedReviewCreationProvider
 } from '../../shared/hosted-review-creation-providers'
-import { isAzureDevOpsReviewCreationAuthenticated } from '../azure-devops/pull-request-creation'
-import { isGiteaReviewCreationAuthenticated } from '../gitea/pull-request-creation'
-import { isBitbucketReviewCreationAuthenticated } from '../bitbucket/pull-request-creation'
 import { getEnterpriseGitHubRepoSlug } from '../github/github-enterprise-repository'
 import { getRepoSlug } from '../github/client'
 import { isDefaultGitHubHost } from '../../shared/github-repository-identity-key'
@@ -278,30 +275,6 @@ function reviewCopy(provider: HostedReviewProvider): {
       authInstruction: 'Run glab auth login'
     }
   }
-  if (provider === 'azure-devops') {
-    return {
-      shortLabel: 'PR',
-      reviewLabel: 'pull request',
-      providerName: 'Azure DevOps',
-      authInstruction: 'Set ORCA_AZURE_DEVOPS_TOKEN'
-    }
-  }
-  if (provider === 'gitea') {
-    return {
-      shortLabel: 'PR',
-      reviewLabel: 'pull request',
-      providerName: 'Gitea',
-      authInstruction: 'Set ORCA_GITEA_TOKEN'
-    }
-  }
-  if (provider === 'bitbucket') {
-    return {
-      shortLabel: 'PR',
-      reviewLabel: 'pull request',
-      providerName: 'Bitbucket',
-      authInstruction: 'Connect Bitbucket in Settings > Integrations'
-    }
-  }
   return {
     shortLabel: 'PR',
     reviewLabel: 'pull request',
@@ -318,17 +291,6 @@ async function isProviderAuthenticated(
 ): Promise<boolean> {
   if (provider === 'gitlab') {
     return isGitLabAuthenticated(repoPath, connectionId, options)
-  }
-  if (provider === 'azure-devops') {
-    return isAzureDevOpsReviewCreationAuthenticated()
-  }
-  if (provider === 'gitea') {
-    return isGiteaReviewCreationAuthenticated()
-  }
-  if (provider === 'bitbucket') {
-    // Why: falling through to the GitHub check made Create PR unusable for
-    // anyone with Bitbucket connected but no `gh auth login`.
-    return isBitbucketReviewCreationAuthenticated()
   }
   return isGitHubAuthenticated(repoPath, connectionId, options)
 }
