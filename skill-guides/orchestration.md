@@ -399,8 +399,22 @@ orca orchestration dispatch --task <task_id> --to <handle> --inject --json
 orca orchestration check --wait --types worker_done,escalation,question --timeout-ms 900000 --json
 ```
 
+## Project Rule Ledger
+
+A coordinator forgets everything when its session ends, and a worker started in a fresh worktree never inherits the coordinator's session memory — that memory is keyed by working directory. `.claude/harness/` is the only channel that survives both boundaries, and the dispatch spec is the only place a rule reliably reaches a worker.
+
+This protocol is inert where that directory is absent: skip it and coordinate normally. Never create it unprompted.
+
+Read `.claude/harness/rules.md` once, before the first `task-create`.
+
+- **Inject per Task, not per Run.** Select the rule blocks whose `scope` matches that task's request or the files it will touch, cap the selection at 5 by hit count, and append them to `--spec` under a `[PROJECT RULES]` heading. Never inject the whole file: an unmatched rule is noise the worker must reason past, and it displaces the task itself.
+- **Record divergence as an instruction.** When the user corrects an accepted `worker_done`, append one entry to `.claude/harness/candidates.md` carrying its scope, the date, and the originating task id. Write what the next worker must do, not a summary of what happened. Tell the user you recorded it.
+- **Promote only on a user decision.** `candidates.md` enters no context, so recording into it is free and needs no approval. `rules.md` reaches every later worker, so a wrong block there propagates to all of them. Never promote silently, and never write a learning into `CLAUDE.md` or `AGENTS.md` instead — this protocol writes no file outside `.claude/harness/`.
+- **Screen before proposing.** Propose a candidate once it has been observed twice, or immediately when the user asks for it by name. Drop it when the repo's own lint/typecheck already catches that mistake, when an existing block covers the same scope (offer a merge instead), or when it is true only of this machine rather than of the repository. Keep `rules.md` within 12 blocks and 200 lines; over budget, propose a retirement alongside the addition and move the retired block to `.claude/harness/retired.md`.
+- **Count hits.** Increment a block's hit count when you inject it. A block that never gets injected is the first retirement candidate.
+
 ## Next Action
 
-Coordinator: confirm `orca status --json`, create or bind a Run, inspect `task-list`/`dispatch-show` if inheriting state, then use the explicit supervised loop (`task-create` -> `worker-start` -> `check --wait`). Use low-level terminal creation plus `dispatch --inject` only when the composed start does not express the needed topology. After every accepted `worker_done`, either transfer the exact terminal to an immediate follow-up Dispatch or run `worker-release` before the next wait.
+Coordinator: confirm `orca status --json`, create or bind a Run, read `.claude/harness/rules.md` when that directory exists, inspect `task-list`/`dispatch-show` if inheriting state, then use the explicit supervised loop (`task-create` -> `worker-start` -> `check --wait`). Use low-level terminal creation plus `dispatch --inject` only when the composed start does not express the needed topology. After every accepted `worker_done`, either transfer the exact terminal to an immediate follow-up Dispatch or run `worker-release` before the next wait.
 
 Worker: if the current prompt contains a live dispatch preamble, do the task, use `ask` for blocking questions, and send `worker_done` once with the required payload. If the preamble is stale or absent, do not send lifecycle messages; inspect state or treat the prompt as an ordinary handoff.

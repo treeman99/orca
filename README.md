@@ -498,11 +498,50 @@ git diff --name-status v1.4.163..HEAD   # A=신규, M=upstream 파일 수정, D=
 
 | 성격 | 파일 | 리베이스 충돌 |
 | --- | --- | --- |
-| **신규(포크 전용)** | `src/shared/enterprise-policy.ts`(+`.test.ts`), `src/main/enterprise/**` 10개(정책 파일 탐색·트레이스·네트워크 가드·직접 다운로드 가드·secure DNS·픽스처·테스트), `src/main/ipc/feedback-submission-policy.ts`, `src/main/rate-limits/usage-polling-disabled-providers.ts`(+`.test.ts`), `src/main/observability/observability-consent.test.ts`, `src/main/claude-accounts/environment.test.ts`, `src/main/emulator/android/scrcpy-server-download.test.ts`, `config/vitest-enterprise-policy-isolation.ts`, `docs/reference/*.md` 3개 | 거의 없음 |
-| **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `gitea/repository-ref.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄) | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다 |
+| **신규(포크 전용)** | `src/shared/enterprise-policy.ts`(+`.test.ts`), `src/main/enterprise/**` 10개(정책 파일 탐색·트레이스·네트워크 가드·직접 다운로드 가드·secure DNS·픽스처·테스트), `src/main/ipc/feedback-submission-policy.ts`, `src/main/rate-limits/usage-polling-disabled-providers.ts`(+`.test.ts`), `src/main/observability/observability-consent.test.ts`, `src/main/claude-accounts/environment.test.ts`, `src/main/emulator/android/scrcpy-server-download.test.ts`, `config/vitest-enterprise-policy-isolation.ts`, `docs/reference/*.md` 3개, `.claude/harness/*.md` 3개(규칙 원장 — [7절](#7-오케스트레이션-규칙-원장)) | 거의 없음 |
+| **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `gitea/repository-ref.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄). 문서: `skill-guides/orchestration.md`의 `## Project Rule Ledger` 절 + `## Next Action`의 원장 로드 한 구절 | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다. 오케스트레이션 가이드 절은 `config/scripts/orchestration-skill-guidance.test.mjs`가 지키므로 유실 시 테스트가 먼저 붉어집니다 |
 | **포크가 재작성해 소유한 문서** | `README.md`(upstream 원문 268줄을 사내 문서로 전면 교체 — 남은 공통 문장이 거의 없어 자동 병합이 되지 않습니다), `CLAUDE.md`(upstream은 `@AGENTS.md` 한 줄짜리 11바이트 스텁 → 126줄로 확장) | **둘 다 upstream에도 존재하므로 upstream이 손댈 때마다 반드시 충돌합니다.** 리베이스에서 사내 버전을 남기려면 `git checkout --theirs README.md CLAUDE.md` — **리베이스에서는 `--ours`가 재배치 대상(upstream), `--theirs`가 재생 중인 사내 커밋**이라 머지와 의미가 뒤집혀 있습니다. 그다음 upstream 변경분 중 필요한 것만 수동으로 반영하세요 |
 
 > 위 목록에는 정책 작업과 무관한 upstream 접근성/드리프트 수정도 섞여 있습니다(예: `src/renderer/src/components/DetachedHeadBadge.tsx`, `src/renderer/src/components/skills/skill-freshness-group.tsx`). 이런 커밋은 upstream에 PR로 올려 없애는 편이 장기적으로 리베이스 충돌 면적을 줄입니다.
+
+---
+
+## 7. 오케스트레이션 규칙 원장
+
+`/orchestration`으로 워커를 띄우면 코디네이터가 **태스크마다** 프로젝트 규칙을 골라 워커의
+`--spec`에 주입합니다. 워커는 매번 새 세션이고 새 worktree일 때가 많아 **코디네이터의 세션
+메모리를 구조적으로 볼 수 없기 때문**입니다(세션 메모리는 작업 디렉터리 키). dispatch spec이
+규칙을 워커에게 전달하는 유일한 경로입니다.
+
+| 무엇 | 어디 | 성격 |
+| --- | --- | --- |
+| 프로토콜(동작 규정) | `skill-guides/orchestration.md`의 `## Project Rule Ledger` | 바이너리에 임베드 |
+| 규칙 데이터 | `.claude/harness/rules.md` | 커밋. 블록 12개 / 200줄 상한 |
+| 승격 후보 | `.claude/harness/candidates.md` | 커밋. 어떤 컨텍스트에도 안 들어감 |
+| 폐기 이력 | `.claude/harness/retired.md` | 커밋. 부활 방지용 |
+
+**패키징 경로 — URL로 설치해도 동작합니다.** 프로토콜은 스킬 파일이 아니라 바이너리가 서빙합니다.
+
+```
+skill-guides/orchestration.md          ← 유일한 편집 대상
+  └─ pnpm generate:bundled-skill-guides
+       ├─ src/cli/bundled-skill-guides.ts   → build:cli → 설치 프로그램에 포함
+       └─ skills/orchestration/SKILL.md     → 얇은 디스커버리 스텁(내용 안 바뀜)
+```
+
+마켓플레이스 URL로 설치하면 사용자는 스텁만 받고, 스텁은 `orca skills get orchestration`을
+실행하라고 지시합니다. 그 명령이 **설치된 사내 바이너리**에서 위 절을 그대로 꺼내므로 원장
+프로토콜이 그대로 적용됩니다. 반대로 스텁에 프로토콜을 넣으면 바이너리와 드리프트하므로 넣지
+않습니다(`orchestration-skill-guidance.test.mjs`가 이를 강제합니다).
+
+**편집 절차:** `skill-guides/orchestration.md`를 고친 뒤 `pnpm generate:bundled-skill-guides`를
+반드시 실행하세요. 빼먹으면 `pnpm lint`의 `verify:bundled-skill-guides`가 stale로 실패합니다.
+
+**규칙이 늘어나는 방식:** 워커 완료 후 사용자가 지적하면 코디네이터가 `candidates.md`에 자동으로
+한 건 적습니다(승인 불필요 — 어떤 컨텍스트에도 안 들어가므로 비용 0). `rules.md` 승격은 **관측
+2회 이상 또는 사용자의 명시적 요청**일 때만 제안되고, 최종 반영은 항상 사람이 승인합니다.
+`pnpm lint`/`pnpm typecheck`가 이미 잡는 것, 기존 블록과 scope가 겹치는 것, 이 머신에서만 참인
+것은 승격하지 않습니다.
 
 ---
 

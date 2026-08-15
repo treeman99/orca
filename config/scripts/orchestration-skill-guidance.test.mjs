@@ -355,6 +355,41 @@ describe('orchestration skill guidance', () => {
 })
 
 describe('orchestration install stub', () => {
+  // Why: the ledger is fork-owned and lives mid-file, exactly where an upstream rebase
+  // resolved the wrong way drops it without a conflict marker or a type error. Assert the
+  // load point, the injection contract, and the human gate separately — a rebase that keeps
+  // the section but loses `rules.md` from Next Action leaves a protocol nothing ever enters.
+  it('carries the project rule ledger into the binary-served guide', () => {
+    const skill = readSkill()
+    const ledger = getSection(skill, 'Project Rule Ledger')
+
+    expect(ledger).toContain('Read `.claude/harness/rules.md` once, before the first `task-create`')
+    expect(ledger).toContain('inert where that directory is absent')
+    expect(ledger).toContain('`scope` matches')
+    expect(ledger).toContain('cap the selection at 5')
+    expect(ledger).toContain('[PROJECT RULES]')
+    expect(ledger).toContain('Never inject the whole file')
+    expect(ledger).toContain('.claude/harness/candidates.md')
+    expect(ledger).toContain('.claude/harness/retired.md')
+    expect(ledger).toContain('Never promote silently')
+    expect(ledger).toContain('never write a learning into `CLAUDE.md` or `AGENTS.md`')
+    expect(ledger).toContain('observed twice')
+    expect(ledger).toContain('12 blocks and 200 lines')
+  })
+
+  it('makes the coordinator load the ledger as part of its opening sequence', () => {
+    const nextAction = getSection(readSkill(), 'Next Action')
+
+    expect(nextAction).toContain('read `.claude/harness/rules.md` when that directory exists')
+  })
+
+  it('keeps the ledger out of the installable stub so it cannot drift from the binary', () => {
+    const stub = readFileSync(stubPath, 'utf8')
+
+    expect(stub).not.toContain('.claude/harness')
+    expect(stub).not.toContain('PROJECT RULES')
+  })
+
   it('points at the version-matched guide and preserves the safe resolver', () => {
     const stub = readFileSync(stubPath, 'utf8')
 
