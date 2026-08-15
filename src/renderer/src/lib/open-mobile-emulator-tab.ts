@@ -17,6 +17,7 @@ import {
   shutdownManagedSimulatorIfNoPane
 } from './simulator-pane-shutdown-scheduler'
 import { isMobileEmulatorAvailable } from './mobile-emulator-availability'
+import { assertClientCreationActionAvailable } from './client-creation-action-policy'
 
 type OpenMobileEmulatorTabOptions = {
   targetGroupId?: string
@@ -56,9 +57,12 @@ export async function openMobileEmulatorTab(
   options: OpenMobileEmulatorTabOptions = {}
 ): Promise<string | null> {
   const store = useAppStore.getState()
+  // 정책 차단은 upstream assert보다 앞 — 관리자 정책으로 꺼진 기능은 throw가 아니라 조용한 no-op이어야 한다.
+  // isMobileEmulatorAvailable가 사용자 설정(mobileEmulatorEnabled)까지 포함하므로 upstream의 raw 검사를 대체한다.
   if (!isMobileEmulatorAvailable(store.settings)) {
     return null
   }
+  assertClientCreationActionAvailable(store, worktreeId, 'mobile-emulator')
   const existingTab = getSimulatorTabForWorktree(worktreeId)
   if (existingTab) {
     return existingTab.id

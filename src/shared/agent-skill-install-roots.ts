@@ -29,9 +29,10 @@ export const AGENT_SKILL_INSTALL_ROOTS: readonly AgentSkillInstallRoot[] = [
   { rootId: 'home-grok', segments: ['.grok', 'skills'], agentKey: 'grok' },
   { rootId: 'home-opencode', segments: ['.config', 'opencode', 'skills'], agentKey: 'opencode' },
   { rootId: 'home-pi', segments: ['.pi', 'agent', 'skills'], agentKey: 'pi' },
-  // Why: Orca detects OMP but the skills CLI has no key for it, so it is reachable
-  // only as an already-present install, never as an explicit --agent target.
+  // Why: Orca detects OMP and Prime Agent but the skills CLI has no key for either, so they are
+  // reachable only as an already-present install, never as an explicit --agent target.
   { rootId: 'home-omp', segments: ['.omp', 'agent', 'skills'], agentKey: null },
+  { rootId: 'home-prime-agent', segments: ['.prime', 'agent', 'skills'], agentKey: null },
   { rootId: 'home-gemini', segments: ['.gemini', 'skills'], agentKey: 'gemini-cli' },
   {
     rootId: 'home-antigravity',

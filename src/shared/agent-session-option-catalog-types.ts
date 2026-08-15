@@ -6,6 +6,7 @@ import type {
 } from './native-chat-session-options'
 
 export type CatalogAgentInteractionDetection = 'claude-model-switch-confirmation'
+export type CatalogCommandDelivery = 'type'
 
 export type CatalogMidSessionApply =
   | {
@@ -15,7 +16,7 @@ export type CatalogMidSessionApply =
       detectAgentInteraction?: CatalogAgentInteractionDetection
     }
   | { kind: 'toggle-command'; command: string }
-  | { kind: 'agent-picker'; command: string }
+  | { kind: 'agent-picker'; command: string; delivery?: CatalogCommandDelivery }
   /** Why: no command can change this mid-session, but recording the pick is not a
    * no-op either — it is what the next launch of this agent will use. */
   | { kind: 'next-launch' }

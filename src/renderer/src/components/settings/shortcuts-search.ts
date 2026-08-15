@@ -66,9 +66,21 @@ const getShortcutSearchEntriesByAction = createLocalizedCatalog(
  * The policy read stays outside the locale memo: createLocalizedCatalog caches on first
  * call, and a policy frozen there is a gate that passes its tests and hides nothing.
  */
-export function getShortcutsPaneSearchEntries(): SettingsSearchEntry[] {
+export function getShortcutsPaneSearchEntries(options?: {
+  includeManagedBrowser?: boolean
+  includeMobileEmulator?: boolean
+}): SettingsSearchEntry[] {
+  // Why both filters: the options are the caller's runtime availability, the policy set is the
+  // administrator's. Either alone leaves a searchable row for a chord the pane does not render.
+  const includeManagedBrowser = options?.includeManagedBrowser !== false
+  const includeMobileEmulator = options?.includeMobileEmulator !== false
   const hidden = policyHiddenShortcutActionIds()
   return getShortcutSearchEntriesByAction()
     .filter(({ id }) => id === null || !hidden.has(id))
+    .filter(
+      ({ id }) =>
+        (includeManagedBrowser || id !== 'tab.newBrowser') &&
+        (includeMobileEmulator || id !== 'tab.newSimulator')
+    )
     .map(({ entry }) => entry)
 }

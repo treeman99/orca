@@ -82,7 +82,7 @@ import { prepareLocalCommitMessageAgentEnv } from '../text-generation/commit-mes
 import { isAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 import { getPullRequestDraftContext } from '../text-generation/pull-request-context'
 import { normalizeRuntimeRelativePath } from './runtime-relative-paths'
-import { gitExecFileAsync } from '../git/runner'
+import { awaitWindowsHostGitEnvironmentReady, gitExecFileAsync } from '../git/runner'
 import type { GitRuntimeOptions } from '../git/git-runtime-options'
 import { resolveHostedReviewBodyForGeneration } from '../source-control/pull-request-template'
 import {
@@ -553,6 +553,7 @@ export class RuntimeGitCommands {
       }
       const results = await provider.getBranchDiff(target.worktree.path, compare.mergeBase, {
         includePatch: true,
+        headOid: compare.headOid,
         filePath: relativePath,
         oldPath: oldRelativePath
       })
@@ -1072,6 +1073,7 @@ export class RuntimeGitCommands {
       }
       return provider.getRemoteFileUrl(target.worktree.path, normalizedRelativePath, line)
     }
+    await awaitWindowsHostGitEnvironmentReady({ cwd: target.worktree.path })
     return getRemoteFileUrl(target.worktree.path, normalizedRelativePath, line)
   }
 
@@ -1087,6 +1089,7 @@ export class RuntimeGitCommands {
       }
       return provider.getRemoteCommitUrl(target.worktree.path, sha)
     }
+    await awaitWindowsHostGitEnvironmentReady({ cwd: target.worktree.path })
     return getRemoteCommitUrl(target.worktree.path, sha)
   }
 }

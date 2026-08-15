@@ -44,15 +44,22 @@ import { mergePR } from './client'
 
 const PR_REPO = { owner: 'stablyai', repo: 'orca', host: 'github.com' }
 
+// Why real object ids: mergePR reads the stack with `requireUsableStackMetadata`, which rejects a
+// non-SHA head or stack base outright. Placeholder strings would fail that check first and the
+// opt-in refusal below would never be the thing under test.
+const API_HEAD_SHA = 'a'.repeat(40)
+const MODELS_BASE_SHA = 'b'.repeat(40)
+const MAIN_BASE_SHA = 'c'.repeat(40)
+
 function stackedPullRequestResponse(): { stdout: string } {
   return {
     stdout: JSON.stringify({
       number: 202,
       title: 'Stack API',
       state: 'open',
-      head: { ref: 'stack/api', sha: 'api-sha' },
-      base: { ref: 'stack/models', sha: 'models-sha' },
-      stack: { number: 51, position: 2, size: 2, base: { ref: 'main', sha: 'main-sha' } }
+      head: { ref: 'stack/api', sha: API_HEAD_SHA },
+      base: { ref: 'stack/models', sha: MODELS_BASE_SHA },
+      stack: { number: 51, position: 2, size: 2, base: { ref: 'main', sha: MAIN_BASE_SHA } }
     })
   }
 }

@@ -97,7 +97,27 @@ export async function getStatusOp(
   )
   // Why: reject NaN/negative limits — NaN would silently disable capping, negatives would over-truncate.
   const limit = resolveGitStatusLimit(params.limit)
-  const conflictOperation = await detectConflictOperation(worktreePath)
+  const conflictPromise = detectConflictOperation(worktreePath)
+  // Why the shared builder: main and relay must not drift, and it carries
+  // `--ignore-submodules=none` — inlining the argv here drops the gitlink row over SSH.
+  const statusArgs = buildGitStatusCommandArgs({ includeIgnored })
+  // Why: attach rejection ownership before awaiting marker I/O, so a fast Git failure cannot become unhandled.
+  const statusSettlementPromise = Promise.allSettled([
+    (async () => {
+      const parser = new StatusPorcelainParser()
+      const result = await streamGit(statusArgs, worktreePath, {
+        // Why: status polling is read-like; avoid racing terminal Git on .git/worktrees/*/index.lock.
+        disableOptionalLocks: true,
+        signal: options.signal,
+        onStdout: (chunk) => parser.update(chunk, limit)
+      })
+      if (!result.stoppedEarly) {
+        parser.finish()
+      }
+      return { parser, stoppedEarly: result.stoppedEarly }
+    })()
+  ])
+  const conflictOperation = await conflictPromise
   const entries: Record<string, unknown>[] = []
   let head: string | undefined
   let branch: string | undefined
@@ -109,17 +129,11 @@ export async function getStatusOp(
   let branchLineTotal: GitBranchLineTotal | undefined
 
   try {
-    const statusArgs = buildGitStatusCommandArgs({ includeIgnored })
-    const parser = new StatusPorcelainParser()
-    const { stoppedEarly } = await streamGit(statusArgs, worktreePath, {
-      // Why: status polling is read-like; avoid racing terminal Git on .git/worktrees/*/index.lock.
-      disableOptionalLocks: true,
-      signal: options.signal,
-      onStdout: (chunk) => parser.update(chunk, limit)
-    })
-    if (!stoppedEarly) {
-      parser.finish()
+    const [statusResult] = await statusSettlementPromise
+    if (statusResult.status === 'rejected') {
+      throw statusResult.reason
     }
+    const { parser, stoppedEarly } = statusResult.value
     head = parser.branch.head
     branch = parser.branch.branch
     ignoredPaths = parser.ignoredPaths

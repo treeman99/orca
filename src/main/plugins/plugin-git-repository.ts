@@ -1,12 +1,10 @@
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import {
   isAllowedPluginGitUrl,
   PLUGIN_COMMIT_PATTERN
 } from '../../shared/plugins/plugin-install-lockfile'
 import { assertPluginSystemAllowed } from './plugin-system-policy'
+import { gitExecFileAsync } from '../git/runner'
 
-const execFileAsync = promisify(execFile)
 const PLUGIN_GIT_TIMEOUT_MS = 120_000
 
 /** Runs system Git with argv-only invocation so credential helpers and SSH
@@ -16,16 +14,9 @@ export async function runPluginGit(args: string[], cwd: string): Promise<string>
   // Git without consulting `pluginSystemEnabled`, and this subprocess is invisible to
   // `enforceNetworkAllowlist` (it wraps the Electron session and global fetch only).
   assertPluginSystemAllowed()
-  const { stdout } = await execFileAsync('git', args, {
+  const { stdout } = await gitExecFileAsync(args, {
     cwd,
-    timeout: PLUGIN_GIT_TIMEOUT_MS,
-    windowsHide: true,
-    env: {
-      ...process.env,
-      // Existing non-interactive helpers and SSH agents still work, but a
-      // background marketplace refresh can never hang on a terminal prompt.
-      GIT_TERMINAL_PROMPT: '0'
-    }
+    timeout: PLUGIN_GIT_TIMEOUT_MS
   })
   return stdout.trim()
 }

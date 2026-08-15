@@ -70,6 +70,7 @@ import {
   resolveCodexRestartPromptAccountLabel
 } from '@/lib/codex-session-restart'
 import { SkillUpdateStatusSegment } from './SkillUpdateStatusSegment'
+import { CaffeinateStatusSegment } from './CaffeinateStatusSegment'
 import { isStatusBarItemAvailable } from './status-bar-agent-gating'
 import { getVisibleUsageProvider, isUsageEmptyState } from './status-bar-provider-visibility'
 import { StatusBarUsageEmptyCta } from './StatusBarUsageEmptyCta'
@@ -83,6 +84,7 @@ import { useShortcutLabel } from '@/hooks/useShortcutLabel'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { FloatingTerminalIconContextMenu } from '@/components/floating-terminal/FloatingTerminalIconContextMenu'
 import { summarizeCodexRestartStatus } from './codex-restart-status-summary'
+import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
 import {
   getWindowsTerminalCapabilityOwnerKey,
   useWindowsTerminalCapabilities
@@ -2353,6 +2355,7 @@ function StatusBarInner({ floatingTerminalOpen }: StatusBarProps): React.JSX.Ele
       <div className="flex-1" />
 
       <div className="flex items-center gap-3">
+        {!isPairedWebClientWindow() ? <CaffeinateStatusSegment iconOnly={iconOnly} /> : null}
         <SkillUpdateStatusSegment iconOnly={iconOnly} />
         <React.Suspense fallback={null}>
           {petEnabled ? <PetStatusSegment /> : null}

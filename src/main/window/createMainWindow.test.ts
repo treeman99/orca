@@ -166,6 +166,9 @@ describe('createMainWindow', () => {
       on: vi.fn((event, handler) => {
         windowHandlers[event] = handler
       }),
+      once: vi.fn((event, handler) => {
+        windowHandlers[event] = handler
+      }),
       setZoomLevel: vi.fn(),
       setBackgroundThrottling: vi.fn(),
       invalidate: vi.fn(),
@@ -774,6 +777,9 @@ describe('createMainWindow', () => {
     const windowHandlers: Record<string, (...args: any[]) => void> = {}
     const webContents = {
       on: vi.fn((event, handler) => {
+        windowHandlers[event] = handler
+      }),
+      once: vi.fn((event, handler) => {
         windowHandlers[event] = handler
       }),
       setZoomLevel: vi.fn(),
@@ -3508,6 +3514,9 @@ describe('createMainWindow', () => {
       on: vi.fn((event, handler) => {
         windowHandlers[event] = handler
       }),
+      once: vi.fn((event, handler) => {
+        windowHandlers[event] = handler
+      }),
       setZoomLevel: vi.fn(),
       setBackgroundThrottling: vi.fn(),
       invalidate: vi.fn(),
@@ -3564,6 +3573,21 @@ describe('createMainWindow', () => {
     windowHandlers['ready-to-show']()
 
     expect(browserWindowInstance.maximize).toHaveBeenCalledTimes(1)
+    expect(browserWindowInstance.show).toHaveBeenCalledTimes(1)
+  })
+
+  it('can reveal the startup window after renderer load before ready-to-show', () => {
+    const { browserWindowInstance, windowHandlers } = createStartupRevealWindowFixture()
+
+    createMainWindow(null, { revealOnDidFinishLoad: true })
+    const revealAfterLoad = browserWindowInstance.webContents.on.mock.calls.find(
+      ([event]) => event === 'did-finish-load'
+    )?.[1]
+    expect(revealAfterLoad).toBeTypeOf('function')
+    revealAfterLoad?.()
+
+    expect(browserWindowInstance.show).toHaveBeenCalledTimes(1)
+    windowHandlers['ready-to-show']()
     expect(browserWindowInstance.show).toHaveBeenCalledTimes(1)
   })
 

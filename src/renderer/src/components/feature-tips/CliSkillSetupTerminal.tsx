@@ -19,8 +19,6 @@ export function CliSkillSetupTerminal(): React.JSX.Element {
     ORCA_CLI_ORCHESTRATION_SKILL_INSTALL_COMMAND,
     activeSkillRuntime.installDisabledReason ? undefined : activeSkillRuntime.agentRuntime
   )
-  const setupTerminalCommand = buildSkillSetupTerminalCommand(skillCommand)
-
   const handleCopySkillCommand = async (): Promise<void> => {
     try {
       await window.api.ui.writeClipboardText(skillCommand)
@@ -72,7 +70,8 @@ export function CliSkillSetupTerminal(): React.JSX.Element {
         </Tooltip>
       </div>
       <OnboardingInlineCommandTerminal
-        command={setupTerminalCommand}
+        command={skillCommand}
+        prepareCommandForShell={buildSkillSetupTerminalCommand}
         title={translate(
           'auto.components.feature.tips.CliSkillSetupTerminal.84e9576dac',
           'Skill setup'
@@ -91,6 +90,7 @@ export function CliSkillSetupTerminal(): React.JSX.Element {
         autoScrollIntoView={false}
         worktreeId="feature-tip-cli-skills-terminal"
         shellOverride={activeSkillRuntime.terminalShellOverride}
+        forceHostRuntime={Boolean(activeSkillRuntime.installDisabledReason)}
       />
     </div>
   )

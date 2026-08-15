@@ -12,6 +12,7 @@ import type {
   PRCheckDetail,
   PRCheckRunDetails,
   GitHubCommentResult,
+  GitHubReactionContent,
   GitHubPRReviewCommentInput,
   PRComment,
   GitHubViewer,
@@ -112,7 +113,11 @@ import {
   mapPRState,
   deriveCheckStatus
 } from './mappers'
-import { mapGraphQLReactionGroups, type GitHubGraphQLReactionGroup } from './comment-reactions'
+import {
+  mapGraphQLReactionGroups,
+  toGraphQLReactionContent,
+  type GitHubGraphQLReactionGroup
+} from './comment-reactions'
 import {
   getRateLimit,
   noteRepositoryRateLimitSpend,
@@ -120,13 +125,17 @@ import {
   spendsSharedGitHubComQuota,
   type RateLimitBucketKind
 } from './rate-limit'
+import {
+  GITHUB_CHECK_DETAILS_HOST_TIMEOUT_MS,
+  GITHUB_CHECK_DETAILS_TIMEOUT_MESSAGE
+} from '../../shared/github-check-details-deadline'
 import { hydrateGitHubPRStack, mergeGitHubPRStack } from './github-pr-stack'
 import {
   buildUnconfirmedGitHubPRStackMergeError,
   type GitHubPRStackMergeIntent
 } from './github-pr-stack-merge-gate'
 
-type GhExecOptions = GitHubRepoExecOptions
+type GhExecOptions = GitHubRepoExecOptions & { signal?: AbortSignal }
 type HostedReviewLocalGitOptions = ReturnType<typeof getHostedReviewLocalGitOptions>
 
 const ORCA_REPO = 'stablyai/orca'
@@ -151,6 +160,30 @@ function setPrCheckLogTailCache(cacheKey: string, logTail: string | null): void 
     prCheckLogTailCache.delete(oldestKey)
   }
 }
+
+function rethrowCheckDetailsAbort(signal: AbortSignal | undefined, error: unknown): void {
+  if (signal?.aborted) {
+    throw error
+  }
+}
+
+function waitForCheckDetailsResolution<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) {
+    return Promise.reject(signal.reason)
+  }
+  return new Promise((resolve, reject) => {
+    const finish = (settle: () => void): void => {
+      signal.removeEventListener('abort', onAbort)
+      settle()
+    }
+    const onAbort = (): void => finish(() => reject(signal.reason))
+    signal.addEventListener('abort', onAbort, { once: true })
+    void operation.then(
+      (value) => finish(() => resolve(value)),
+      (error) => finish(() => reject(error))
+    )
+  })
+}
 const MERGE_QUEUE_CACHE_TTL_MS = 10 * 60 * 1000
 const MERGE_QUEUE_UNKNOWN_CACHE_TTL_MS = 60 * 1000
 const MERGE_QUEUE_CACHE_MAX_ENTRIES = 256
@@ -165,6 +198,8 @@ const repositoryMergeMetadataCache = new Map<
 >()
 const PR_STACK_SUMMARY_CACHE_TTL_MS = 60_000
 const PR_STACK_SUMMARY_CACHE_MAX_ENTRIES = 512
+const STACK_METADATA_UNAVAILABLE_ERROR =
+  'Could not verify GitHub pull request stack metadata. Refresh and try again.'
 const prStackSummaryCache = new Map<
   string,
   { value: GitHubPRStack | undefined; expiresAt: number }
@@ -1701,7 +1736,8 @@ export async function getRepoSlug(
 
 /**
  * Resolve a fork's upstream/parent owner/repo, or null when not a fork.
- * Why: a fork's `origin` is the personal copy, so repo identity (avatar) should prefer upstream.
+ * Why: drives the fork indicator, and a same-name fork's avatar prefers the
+ * upstream owner (a renamed fork keeps its own owner).
  * Best-effort: any failure (offline, unauthed, non-GitHub) resolves to null.
  */
 export async function getRepoUpstream(
@@ -2929,16 +2965,69 @@ async function lookupPRByBranchName(args: {
   }
 }
 
+function isPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+}
+
+function isGitObjectId(value: unknown): value is string {
+  return typeof value === 'string' && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(value)
+}
+
+function isUsableRestStackMetadata(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+  const stack = value as {
+    number?: unknown
+    position?: unknown
+    size?: unknown
+    base?: unknown
+  }
+  if (!stack.base || typeof stack.base !== 'object' || Array.isArray(stack.base)) {
+    return false
+  }
+  const base = stack.base as { ref?: unknown; sha?: unknown }
+  return (
+    isPositiveSafeInteger(stack.number) &&
+    isPositiveSafeInteger(stack.position) &&
+    isPositiveSafeInteger(stack.size) &&
+    stack.position <= stack.size &&
+    typeof base.ref === 'string' &&
+    base.ref.trim().length > 0 &&
+    (base.sha === undefined || isGitObjectId(base.sha))
+  )
+}
+
 async function getRestPRByNumber(
   ownerRepo: GitHubApiRepository,
   number: number,
-  ghOptions: ReturnType<typeof ghRepoExecOptions>
-): Promise<PullRequestLookupData | null> {
+  ghOptions: ReturnType<typeof ghRepoExecOptions>,
+  options: { requireUsableStackMetadata?: boolean } = {}
+): Promise<PullRequestLookupData> {
   const { stdout } = await ghExecFileAsync(
     ['api', `repos/${ownerRepo.owner}/${ownerRepo.repo}/pulls/${number}`],
     { ...ghOptions, ...githubHostExecOptions(ownerRepo) }
   )
-  return mapRestPullRequest(JSON.parse(stdout) as RestPullRequest)
+  const parsed = JSON.parse(stdout) as unknown
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('invalid response shape')
+  }
+  const restData = parsed as RestPullRequest
+  const mapped = mapRestPullRequest(restData)
+  if (
+    options.requireUsableStackMetadata &&
+    restData.stack !== undefined &&
+    restData.stack !== null
+  ) {
+    // Why: GitHub omits stack for ordinary PRs; only unusable non-null metadata is unsafe.
+    if (!isUsableRestStackMetadata(restData.stack) || !mapped.stack) {
+      throw new Error('malformed stack')
+    }
+    if (!isGitObjectId(restData.head?.sha)) {
+      throw new Error('missing head SHA')
+    }
+  }
+  return mapped
 }
 
 function prunePRStackSummaryCache(now = Date.now()): void {
@@ -2973,7 +3062,7 @@ async function getCachedGitHubPRStackSummary(
   if (existing) {
     return existing
   }
-  const request = getRestPRByNumber(ownerRepo, number, ghOptions).then((pr) => pr?.stack)
+  const request = getRestPRByNumber(ownerRepo, number, ghOptions).then((pr) => pr.stack)
   prStackSummaryInFlight.set(key, request)
   try {
     const value = await request
@@ -4104,6 +4193,7 @@ async function attachFailedJobLogTails(
       )
       job.logTail = sliceCheckLogTail(stdout)
     } catch (err) {
+      rethrowCheckDetailsAbort(ghOptions.signal, err)
       console.warn('getPRCheckDetails workflow job log fetch failed:', err)
       job.logTail = null
     }
@@ -4136,20 +4226,34 @@ export async function getPRCheckDetails(
     prRepo?: GitHubApiRepository | null
   },
   connectionId?: string | null,
-  localGitOptions: LocalGitExecOptions = {}
+  localGitOptions: LocalGitExecOptions = {},
+  callerSignal?: AbortSignal
 ): Promise<PRCheckRunDetails | null> {
-  const { ownerRepo, ghOptions } = await resolveGitHubRepoExecution(
-    repoPath,
-    args.prRepo,
-    connectionId,
-    localGitOptions
-  )
-  if (!ownerRepo) {
-    return null
+  const controller = new AbortController()
+  let hostDeadlineExpired = false
+  const forwardCallerAbort = (): void => controller.abort(callerSignal?.reason)
+  if (callerSignal?.aborted) {
+    forwardCallerAbort()
+  } else {
+    callerSignal?.addEventListener('abort', forwardCallerAbort, { once: true })
   }
-
-  await acquire()
+  const hostDeadline = setTimeout(() => {
+    hostDeadlineExpired = true
+    controller.abort(new Error(GITHUB_CHECK_DETAILS_TIMEOUT_MESSAGE))
+  }, GITHUB_CHECK_DETAILS_HOST_TIMEOUT_MS)
+  let acquired = false
   try {
+    const resolved = await waitForCheckDetailsResolution(
+      resolveGitHubRepoExecution(repoPath, args.prRepo, connectionId, localGitOptions),
+      controller.signal
+    )
+    if (!resolved.ownerRepo) {
+      return null
+    }
+    const ownerRepo = resolved.ownerRepo
+    const ghOptions: GhExecOptions = { ...resolved.ghOptions, signal: controller.signal }
+    await acquire(controller.signal)
+    acquired = true
     let checkRun: Record<string, unknown> | null = null
     let annotations: PRCheckRunDetails['annotations'] = []
     if (args.checkRunId) {
@@ -4168,6 +4272,7 @@ export async function getPRCheckDetails(
         )
         annotations = mapCheckAnnotations(JSON.parse(annotationsResult.stdout))
       } catch (err) {
+        rethrowCheckDetailsAbort(controller.signal, err)
         console.warn('getPRCheckDetails annotations fetch failed:', err)
       }
     }
@@ -4186,6 +4291,7 @@ export async function getPRCheckDetails(
         jobs = mapWorkflowJobs(JSON.parse(stdout), args.checkName)
         await attachFailedJobLogTails(jobs, ownerRepo, ghOptions)
       } catch (err) {
+        rethrowCheckDetailsAbort(controller.signal, err)
         console.warn('getPRCheckDetails workflow jobs fetch failed:', err)
       }
     }
@@ -4210,9 +4316,16 @@ export async function getPRCheckDetails(
     }
   } catch (err) {
     console.warn('getPRCheckDetails failed:', err)
-    return null
+    if (hostDeadlineExpired && !callerSignal?.aborted) {
+      throw new Error(GITHUB_CHECK_DETAILS_TIMEOUT_MESSAGE)
+    }
+    throw err
   } finally {
-    release()
+    clearTimeout(hostDeadline)
+    callerSignal?.removeEventListener('abort', forwardCallerAbort)
+    if (acquired) {
+      release()
+    }
   }
 }
 
@@ -4334,6 +4447,7 @@ query($owner: String!, $repo: String!, $pr: Int!) {
           originalStartLine
           comments(first: 100) {
             nodes {
+              id
               databaseId
               author { __typename login avatarUrl(size: 48) }
               body
@@ -4342,6 +4456,7 @@ query($owner: String!, $repo: String!, $pr: Int!) {
               path
               reactionGroups {
                 content
+                viewerHasReacted
                 reactors {
                   totalCount
                 }
@@ -4352,6 +4467,7 @@ query($owner: String!, $repo: String!, $pr: Int!) {
       }
       comments(first: 100) {
         nodes {
+          id
           databaseId
           author { __typename login avatarUrl(size: 48) }
           body
@@ -4359,6 +4475,24 @@ query($owner: String!, $repo: String!, $pr: Int!) {
           url
           reactionGroups {
             content
+            viewerHasReacted
+            reactors {
+              totalCount
+            }
+          }
+        }
+      }
+      reviews(first: 100) {
+        nodes {
+          id
+          databaseId
+          author { __typename login avatarUrl(size: 48) }
+          body
+          createdAt
+          url
+          reactionGroups {
+            content
+            viewerHasReacted
             reactors {
               totalCount
             }
@@ -4472,6 +4606,7 @@ export async function getPRComments(
         originalStartLine: number | null
         comments: {
           nodes: {
+            id: string
             databaseId: number
             author: { __typename?: string; login: string; avatarUrl: string } | null
             body: string
@@ -4483,6 +4618,7 @@ export async function getPRComments(
         }
       }
       type GQLIssueComment = {
+        id: string
         databaseId: number
         author: { __typename?: string; login: string; avatarUrl: string } | null
         body: string
@@ -4490,6 +4626,7 @@ export async function getPRComments(
         url: string
         reactionGroups?: GitHubGraphQLReactionGroup[] | null
       }
+      let graphQLReviewSummaries: PRComment[] | undefined
       const reviewComments: PRComment[] = []
       if (threadsResult.status === 'fulfilled' && threadsResult.value) {
         const threadsData = JSON.parse(threadsResult.value.stdout) as {
@@ -4498,6 +4635,7 @@ export async function getPRComments(
               pullRequest: {
                 reviewThreads: { nodes: GQLThread[] }
                 comments?: { nodes: GQLIssueComment[] }
+                reviews?: { nodes: GQLIssueComment[] }
               }
             }
           }
@@ -4512,12 +4650,28 @@ export async function getPRComments(
             createdAt: c.createdAt,
             url: c.url,
             isBot: c.author?.__typename === 'Bot',
+            reactionSubjectId: c.id,
             reactions: mapGraphQLReactionGroups(c.reactionGroups)
           })
         )
         if (graphQLIssueComments.length > 0) {
           issueComments = graphQLIssueComments
         }
+        graphQLReviewSummaries = (pullRequest.reviews?.nodes ?? [])
+          .filter((review) => review.body?.trim())
+          .map(
+            (review): PRComment => ({
+              id: review.databaseId,
+              author: review.author?.login ?? 'ghost',
+              authorAvatarUrl: review.author?.avatarUrl ?? '',
+              body: review.body,
+              createdAt: review.createdAt,
+              url: review.url,
+              isBot: review.author?.__typename === 'Bot',
+              reactionSubjectId: review.id,
+              reactions: mapGraphQLReactionGroups(review.reactionGroups)
+            })
+          )
 
         const threads = pullRequest.reviewThreads.nodes
         for (const thread of threads) {
@@ -4530,6 +4684,7 @@ export async function getPRComments(
               createdAt: c.createdAt,
               url: c.url,
               isBot: c.author?.__typename === 'Bot',
+              reactionSubjectId: c.id,
               reactions: mapGraphQLReactionGroups(c.reactionGroups),
               path: c.path,
               threadId: thread.id,
@@ -4557,7 +4712,9 @@ export async function getPRComments(
         html_url: string
       }
       let reviewSummaries: PRComment[] = []
-      if (reviewsResult.status === 'fulfilled') {
+      if (graphQLReviewSummaries) {
+        reviewSummaries = graphQLReviewSummaries
+      } else if (reviewsResult.status === 'fulfilled') {
         reviewSummaries = (JSON.parse(reviewsResult.value.stdout) as RESTReview[])
           .filter((r) => r.body?.trim())
           .map(
@@ -4605,6 +4762,62 @@ export async function getPRComments(
   } catch (err) {
     console.warn('getPRComments failed:', err)
     return []
+  } finally {
+    release()
+  }
+}
+
+export async function setPRCommentReaction(
+  repoPath: string,
+  reactionSubjectId: string,
+  content: GitHubReactionContent,
+  reacted: boolean,
+  connectionId?: string | null,
+  prRepo?: GitHubApiRepository | null,
+  localGitOptions: LocalGitExecOptions = {}
+): Promise<boolean> {
+  const mutation = reacted ? 'addReaction' : 'removeReaction'
+  const query = `mutation($subjectId: ID!, $content: ReactionContent!) {
+    ${mutation}(input: { subjectId: $subjectId, content: $content }) {
+      subject { id }
+    }
+  }`
+  const { ownerRepo, ghOptions } = await resolveGitHubRepoExecution(
+    repoPath,
+    prRepo,
+    connectionId,
+    localGitOptions
+  )
+  if (!ownerRepo) {
+    return false
+  }
+  const guard = repositoryRateLimitGuard(ownerRepo, 'graphql', ghOptions)
+  if (guard.blocked) {
+    console.warn(
+      `${mutation} skipped: GitHub GraphQL rate limit nearly exhausted (${guard.remaining}/${guard.limit})`
+    )
+    return false
+  }
+  await acquire()
+  try {
+    noteRepositoryRateLimitSpend(ownerRepo, 'graphql', 1, ghOptions)
+    await ghExecFileAsync(
+      [
+        'api',
+        'graphql',
+        '-f',
+        `query=${query}`,
+        '-f',
+        `subjectId=${reactionSubjectId}`,
+        '-f',
+        `content=${toGraphQLReactionContent(content)}`
+      ],
+      ghOptions
+    )
+    return true
+  } catch (err) {
+    console.warn(`${mutation} failed:`, err)
+    return false
   } finally {
     release()
   }
@@ -4709,6 +4922,7 @@ export async function resolveReviewThread(
 function mapReviewCommentResponse(
   data: {
     id?: number
+    node_id?: string | null
     user: { login: string; avatar_url: string; type?: string } | null
     body?: string
     created_at?: string
@@ -4724,6 +4938,7 @@ function mapReviewCommentResponse(
 ): PRComment {
   return {
     id: data.id ?? Date.now(),
+    reactionSubjectId: data.node_id?.trim() || undefined,
     author: data.user?.login ?? 'You',
     authorAvatarUrl: data.user?.avatar_url ?? '',
     body: data.body ?? body,
@@ -4875,24 +5090,33 @@ export async function mergePR(
   await acquire()
   let concurrencySlotHeld = true
   try {
-    let stackSummary: GitHubPRStack | undefined
-    let stackHeadSha: string | undefined
+    let restData: PullRequestLookupData
     try {
-      const restData = await getRestPRByNumber(ownerRepo, prNumber, ghOptions)
-      stackSummary = restData?.stack
-      stackHeadSha = restData?.headRefOid
-    } catch {
-      // GitHub remains authoritative when stack metadata cannot be read.
+      restData = await getRestPRByNumber(ownerRepo, prNumber, ghOptions, {
+        requireUsableStackMetadata: true
+      })
+    } catch (err) {
+      const diagnostic =
+        err instanceof SyntaxError
+          ? 'invalid JSON response'
+          : err instanceof Error
+            ? err.message
+            : String(err)
+      console.warn(
+        `mergePR stack metadata probe failed for ${ownerRepo.owner}/${ownerRepo.repo}#${String(prNumber)}:`,
+        diagnostic
+      )
+      return { ok: false, error: STACK_METADATA_UNAVAILABLE_ERROR }
     }
-    if (stackSummary) {
+    if (restData.stack) {
       if (stackMergeIntent !== 'confirmed-stack-scope') {
         // Do NOT quietly fall back to a single-PR merge: the caller has to learn that the
         // request it made is not the write GitHub would have performed.
-        return { ok: false, error: buildUnconfirmedGitHubPRStackMergeError(stackSummary, prNumber) }
+        return { ok: false, error: buildUnconfirmedGitHubPRStackMergeError(restData.stack, prNumber) }
       }
       const mergeMetadata = await detectRepositoryMergeMetadata(
         ownerRepo,
-        stackSummary.baseRefName,
+        restData.stack.baseRefName,
         ghOptions,
         githubPRStackExecutionScope(connectionId, localGitOptions)
       )
@@ -4903,7 +5127,7 @@ export async function mergePR(
         prNumber,
         method,
         mergeAction: mergeMetadata.mergeQueueRequired === true ? 'merge_queue' : 'direct_merge',
-        headSha: stackHeadSha,
+        headSha: restData.headRefOid,
         ghOptions
       })
     }
@@ -5050,7 +5274,7 @@ async function enablePRAutoMerge(
   if (ownerRepo) {
     try {
       const restData = await getRestPRByNumber(ownerRepo, prNumber, ghOptions)
-      if (restData?.stack) {
+      if (restData.stack) {
         return {
           ok: false,
           error: 'GitHub does not support auto-merge for stacked pull requests.'

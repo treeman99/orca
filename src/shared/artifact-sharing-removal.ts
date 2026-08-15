@@ -15,3 +15,17 @@ export const ARTIFACT_SHARING_REMOVED: boolean = true
 
 export const ARTIFACT_SHARING_REMOVED_MESSAGE =
   'Artifact sharing is removed in this build. Files are never uploaded to an external share host.'
+
+/**
+ * The refusal the artifact-cloud chokepoint returns, or `null` in a build that still shares.
+ * Bundled so that chokepoint needs one import — it lives in a file upstream keeps growing,
+ * and every line the fork spends there is one line closer to a max-lines bypass.
+ */
+export function removedArtifactSharingOperation(): {
+  status: 'unconfigured'
+  message: string
+} | null {
+  return ARTIFACT_SHARING_REMOVED
+    ? { status: 'unconfigured', message: ARTIFACT_SHARING_REMOVED_MESSAGE }
+    : null
+}

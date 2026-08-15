@@ -7,6 +7,7 @@ import {
 } from '../../shared/keybindings'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { translateMain } from '../i18n/main-i18n'
+import { createAppMenuSelectionItem } from './app-menu-selection-item'
 
 export type AppearanceMenuState = {
   showTasksButton: boolean
@@ -117,14 +118,22 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     ]
   }
 
+  // Why: keep native menu hints while letting non-macOS Ctrl+Z/Ctrl+Y reach the focused terminal or DOM control.
+  const undoRedoOptions: Electron.MenuItemConstructorOptions = isMac
+    ? {}
+    : { registerAccelerator: false }
   const editMenu: Electron.MenuItemConstructorOptions = {
     label: translateMain('menu.edit', 'Edit'),
     submenu: [
-      { role: 'undo' },
-      { role: 'redo' },
+      { role: 'undo', ...undoRedoOptions },
+      { role: 'redo', ...undoRedoOptions },
       { type: 'separator' },
       { role: 'cut' },
-      { role: 'copy' },
+      createAppMenuSelectionItem({
+        action: 'copy',
+        label: translateMain('menu.copy', 'Copy'),
+        isMac
+      }),
       {
         label: translateMain('menu.paste', 'Paste'),
         accelerator: 'CmdOrCtrl+V',
@@ -144,7 +153,11 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
           }
         }
       },
-      { role: 'selectAll' }
+      createAppMenuSelectionItem({
+        action: 'select-all',
+        label: translateMain('menu.selectAll', 'Select All'),
+        isMac
+      })
     ]
   }
 

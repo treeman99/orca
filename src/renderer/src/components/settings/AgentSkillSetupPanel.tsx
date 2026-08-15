@@ -387,7 +387,6 @@ export function AgentSkillSetupPanel({
               </TooltipContent>
             </Tooltip>
           </div>
-          {/* The copied string above stays as built; only what we run is adapted. */}
           <OnboardingInlineCommandTerminal
             key={terminalAttempt}
             worktreeId={terminalWorktreeId}

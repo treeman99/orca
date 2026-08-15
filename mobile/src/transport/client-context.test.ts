@@ -69,18 +69,6 @@ type Harness = {
   readonly unmount: () => void
 }
 
-function suppressReactTestRendererDeprecationWarning(): () => void {
-  const originalConsoleError = console.error
-  const spy = vi.spyOn(console, 'error').mockImplementation((...args) => {
-    const firstArg = args[0]
-    if (typeof firstArg === 'string' && firstArg.includes('react-test-renderer is deprecated')) {
-      return
-    }
-    originalConsoleError(...args)
-  })
-  return () => spy.mockRestore()
-}
-
 async function renderHarness(hostId: string): Promise<Harness> {
   let hook: ReturnType<typeof useHostClient> | null = null
   let closeHost: ((hostId: string) => void) | null = null
@@ -92,14 +80,9 @@ async function renderHarness(hostId: string): Promise<Harness> {
     return null
   }
 
-  const restore = suppressReactTestRendererDeprecationWarning()
-  try {
-    await act(async () => {
-      renderer = create(createElement(RpcClientProvider, null, createElement(Probe)))
-    })
-  } finally {
-    restore()
-  }
+  await act(async () => {
+    renderer = create(createElement(RpcClientProvider, null, createElement(Probe)))
+  })
   if (!hook || !closeHost || !renderer) {
     throw new Error('harness did not render')
   }
@@ -122,7 +105,6 @@ async function renderHarness(hostId: string): Promise<Harness> {
 }
 
 beforeEach(() => {
-  globalThis.IS_REACT_ACT_ENVIRONMENT = true
   connectMock.mockReset()
   loadHostsMock.mockReset()
 })
@@ -147,7 +129,6 @@ describe('useHostClient', () => {
       return null
     }
 
-    const restore = suppressReactTestRendererDeprecationWarning()
     try {
       await act(async () => {
         renderer = create(createElement(RpcClientProvider, null, createElement(Probe)))
@@ -167,7 +148,6 @@ describe('useHostClient', () => {
       expect(selectedState).toBe('disconnected')
       expect(connectMock).toHaveBeenCalledTimes(2)
     } finally {
-      restore()
       act(() => renderer?.unmount())
     }
   })
@@ -186,7 +166,6 @@ describe('useHostClient', () => {
       return null
     }
 
-    const restore = suppressReactTestRendererDeprecationWarning()
     try {
       await act(async () => {
         renderer = create(createElement(RpcClientProvider, null, createElement(Probe)))
@@ -209,7 +188,6 @@ describe('useHostClient', () => {
       })
       expect(stateByRenderTick.get(2)).toBe('connecting')
     } finally {
-      restore()
       act(() => renderer?.unmount())
     }
   })
@@ -261,7 +239,6 @@ describe('useHostClient', () => {
       states.push(useHostClient(HOST.id).state)
       return null
     }
-    const restore = suppressReactTestRendererDeprecationWarning()
     try {
       act(() => {
         renderer = create(createElement(RpcClientProvider, null, createElement(Probe)))
@@ -275,7 +252,6 @@ describe('useHostClient', () => {
       expect(states.at(-1)).toBe('connecting')
       expect(states).not.toContain('disconnected')
     } finally {
-      restore()
       act(() => renderer?.unmount())
     }
   })
@@ -294,7 +270,6 @@ describe('useHostClient', () => {
       states.push(useHostClient(HOST.id).state)
       return null
     }
-    const restore = suppressReactTestRendererDeprecationWarning()
     try {
       await act(async () => {
         renderer = create(createElement(RpcClientProvider, null, createElement(Probe)))
@@ -309,7 +284,6 @@ describe('useHostClient', () => {
       expect(states.at(-1)).toBe('connecting')
       expect(states).not.toContain('disconnected')
     } finally {
-      restore()
       act(() => renderer?.unmount())
     }
   })
@@ -331,14 +305,9 @@ describe('useHostClient', () => {
       return null
     }
 
-    const restore = suppressReactTestRendererDeprecationWarning()
-    try {
-      act(() => {
-        renderer = create(createElement(RpcClientProvider, null, createElement(Probe)))
-      })
-    } finally {
-      restore()
-    }
+    act(() => {
+      renderer = create(createElement(RpcClientProvider, null, createElement(Probe)))
+    })
     expect(loadHostsMock).toHaveBeenCalledOnce()
     if (!closeHost || !resolveHosts || !renderer) {
       throw new Error('pending-open harness did not initialize')
@@ -368,14 +337,9 @@ describe('useHostClient', () => {
       useHostClient(HOST.id)
       return null
     }
-    const restore = suppressReactTestRendererDeprecationWarning()
-    try {
-      act(() => {
-        renderer = create(createElement(RpcClientProvider, null, createElement(Probe)))
-      })
-    } finally {
-      restore()
-    }
+    act(() => {
+      renderer = create(createElement(RpcClientProvider, null, createElement(Probe)))
+    })
     expect(loadHostsMock).toHaveBeenCalledOnce()
     act(() => renderer?.unmount())
     await act(async () => {
