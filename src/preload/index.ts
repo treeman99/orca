@@ -20,7 +20,11 @@ import type {
   CorporateLlmEndpointStatus,
   CorporateLlmTokenSaveResult
 } from '../shared/corporate-llm-endpoint-status'
-import type { AwsSsoLoginProgress, AwsSsoLoginResult, AwsSsoStatus } from '../shared/aws-sso-auth'
+import type {
+  GatewayLoginProgress,
+  GatewayLoginResult,
+  GatewayStatus
+} from '../shared/gateway-auth'
 import type { EnterprisePolicyView } from '../shared/enterprise-policy-view'
 import type {
   GithubEnterpriseAuthStatus,
@@ -4444,21 +4448,17 @@ const api = {
       ipcRenderer.sendSync('enterprisePolicy:get-sync') as EnterprisePolicyView | null
   } satisfies PreloadApi['enterprisePolicy'],
 
-  awsSso: {
-    getStatus: (): Promise<AwsSsoStatus> => ipcRenderer.invoke('awsSso:getStatus'),
-    setProfile: (args: { profile: string }): Promise<AwsSsoStatus> =>
-      ipcRenderer.invoke('awsSso:setProfile', args),
-    login: (args: { profile: string; useDeviceCode: boolean }): Promise<AwsSsoLoginResult> =>
-      ipcRenderer.invoke('awsSso:login', args),
-    cancelLogin: (): Promise<void> => ipcRenderer.invoke('awsSso:cancelLogin'),
-    logout: (args: { profile: string }): Promise<void> => ipcRenderer.invoke('awsSso:logout', args),
-    onLoginProgress: (callback: (progress: AwsSsoLoginProgress) => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, progress: AwsSsoLoginProgress) =>
+  gateway: {
+    getStatus: (): Promise<GatewayStatus> => ipcRenderer.invoke('gateway:getStatus'),
+    login: (): Promise<GatewayLoginResult> => ipcRenderer.invoke('gateway:login'),
+    cancelLogin: (): Promise<void> => ipcRenderer.invoke('gateway:cancelLogin'),
+    onLoginProgress: (callback: (progress: GatewayLoginProgress) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, progress: GatewayLoginProgress) =>
         callback(progress)
-      ipcRenderer.on('awsSso:loginProgress', listener)
-      return () => ipcRenderer.removeListener('awsSso:loginProgress', listener)
+      ipcRenderer.on('gateway:loginProgress', listener)
+      return () => ipcRenderer.removeListener('gateway:loginProgress', listener)
     }
-  } satisfies PreloadApi['awsSso'],
+  } satisfies PreloadApi['gateway'],
 
   githubEnterprise: {
     getStatus: (): Promise<GithubEnterpriseAuthStatus> =>

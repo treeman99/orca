@@ -811,7 +811,7 @@
         "pluginsTitle": "插件",
         "pluginsDescription": "安装和管理实验性 Orca 插件。",
         "tasksDescription": "连接提供商、安装 Linear 技能并选择要在任务中显示的内容。",
-        "accountsCorporate": "AWS SSO sign-in and your organization’s self-hosted model endpoints."
+        "accountsCorporate": "企业网关登录，以及贵组织自托管的模型端点。"
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "粘贴内容过大。"
@@ -10216,42 +10216,36 @@
           "tokenInputLabel": "GitHub personal access token",
           "connectWithToken": "Connect with token"
         },
-        "AwsSsoSection": {
-          "heading": "AWS SSO sign-in",
-          "intro": "Claude on Bedrock authenticates through the AWS credential chain, which needs a live SSO session. This runs `aws sso login` for the profile you pick and lets the AWS CLI open your browser. The token stays in the CLI’s own cache — Orca reads only when it expires.",
-          "awsMissing": "The AWS CLI (aws) is not installed or not on your PATH. Install AWS CLI v2 first, then sign in here.",
-          "noProfiles": "No SSO profiles in your AWS config. Run `aws configure sso` once to create one, then reopen this pane.",
-          "profileLabel": "AWS profile",
-          "signedIn": "Signed in",
-          "signedInUntil": "Signed in — valid until {{value0}}",
-          "expired": "Session expired",
-          "notSignedIn": "Not signed in",
-          "signIn": "Sign in with browser",
-          "signInAgain": "Sign in again",
-          "signOut": "Sign out",
-          "cancel": "Cancel",
-          "deviceCodeLabel": "Use the device-code flow. Pick this when the default sign-in cannot come back to this machine — a browser on another device, or a desktop that blocks the CLI’s local callback.",
-          "enterCodePrompt": "A browser should have opened. Enter this code to authorize:",
-          "browserPrompt": "A browser should have opened. Finish the authorization there — this waits for it.",
-          "openAuthPage": "Open authorization page",
-          "errorNoProfile": "Pick an AWS profile first.",
-          "errorAwsUnavailable": "The AWS CLI (aws) was not found on your PATH. Install it, then try again.",
-          "errorTimeout": "Sign-in timed out before it completed in the browser. Try again.",
-          "errorCancelled": "Sign-in was cancelled.",
-          "errorFailed": "Sign-in failed. Check the profile and your network, then try again.",
-          "profileSaveFailed": "Could not save the profile.",
-          "logoutFailed": "Could not sign out.",
-          "errorPtyUnavailable": "Orca could not start a terminal to run the AWS CLI. Restart Orca, then try again."
+        "GatewaySection": {
+          "heading": "企业网关登录",
+          "intro": "登录会在浏览器中完成一次 OIDC 往返，网关随后自行签发 virtual key —— 这里没有需要管理的 AWS 配置文件或凭证。凭证由 `gateway-cli` 保管，Orca 既不存储也不转发。",
+          "gatewayMissing": "Orca 无法运行 `gateway-cli`。如果终端里 `gateway-cli --version` 可用，请重启 Orca 以重新读取当前 PATH。",
+          "signedIn": "已登录",
+          "signedInUntil": "已登录 — 有效期至 {{value0}}",
+          "expired": "会话已过期",
+          "notSignedIn": "未登录",
+          "signIn": "使用浏览器登录",
+          "signInAgain": "重新登录",
+          "cancel": "取消",
+          "enterCodePrompt": "浏览器应该已经打开。请输入此代码以完成授权:",
+          "browserPrompt": "浏览器应该已经打开。请在那里完成授权 —— 此处会一直等待。",
+          "openAuthPage": "打开授权页面",
+          "errorGatewayUnavailable": "Orca 无法运行 `gateway-cli`。请先确认终端里 `gateway-cli --version` 可用，然后重试。",
+          "errorPtyUnavailable": "Orca 无法启动运行 `gateway-cli` 的终端。请重启 Orca 后重试。",
+          "errorTimeout": "登录在浏览器中完成之前已超时。请重试。",
+          "errorCancelled": "登录已取消。",
+          "errorFailed": "登录失败。请检查网络后重试。"
         },
-        "awsSso": {
+        "gateway": {
           "search": {
-            "title": "AWS SSO sign-in",
-            "description": "Run `aws sso login` for a profile so Claude on Bedrock has a live AWS session.",
-            "aws": "aws",
-            "sso": "sso",
+            "title": "企业网关登录",
+            "description": "运行 `gateway-cli login`，让网关签发 Claude on Bedrock 所用的 virtual key。",
+            "gateway": "网关",
+            "oidc": "oidc",
+            "login": "登录",
             "bedrock": "bedrock",
-            "profile": "profile",
-            "login": "login"
+            "virtualKey": "虚拟密钥",
+            "gatewayKo": "게이트웨이"
           }
         },
         "GitHubEnterpriseHostReadout": {

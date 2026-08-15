@@ -1,5 +1,5 @@
 import type { SettingsSearchEntry } from './settings-search'
-import { getAwsSsoSearchEntries } from './aws-sso-search'
+import { getGatewaySearchEntries } from './gateway-search'
 import { getCorporateLlmEndpointsSearchEntries } from './corporate-llm-endpoints-search'
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
@@ -232,5 +232,5 @@ export const getAccountsPaneSearchEntries = (): SettingsSearchEntry[] => [
     ? []
     : getVendorAccountSearchEntries()),
   ...getCorporateLlmEndpointsSearchEntries(),
-  ...getAwsSsoSearchEntries()
+  ...getGatewaySearchEntries()
 ]

@@ -811,7 +811,7 @@
         "pluginsTitle": "Plugins",
         "pluginsDescription": "Instala y administra plugins experimentales de Orca.",
         "tasksDescription": "Conecta proveedores, instala la habilidad de Linear y elige qué aparece en Tareas.",
-        "accountsCorporate": "AWS SSO sign-in and your organization’s self-hosted model endpoints."
+        "accountsCorporate": "Inicio de sesión en la pasarela corporativa y los endpoints de modelos autoalojados de tu organización."
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "El contenido pegado es demasiado grande."
@@ -10196,42 +10196,36 @@
           "tokenInputLabel": "GitHub personal access token",
           "connectWithToken": "Connect with token"
         },
-        "AwsSsoSection": {
-          "heading": "AWS SSO sign-in",
-          "intro": "Claude on Bedrock authenticates through the AWS credential chain, which needs a live SSO session. This runs `aws sso login` for the profile you pick and lets the AWS CLI open your browser. The token stays in the CLI’s own cache — Orca reads only when it expires.",
-          "awsMissing": "The AWS CLI (aws) is not installed or not on your PATH. Install AWS CLI v2 first, then sign in here.",
-          "noProfiles": "No SSO profiles in your AWS config. Run `aws configure sso` once to create one, then reopen this pane.",
-          "profileLabel": "AWS profile",
-          "signedIn": "Signed in",
-          "signedInUntil": "Signed in — valid until {{value0}}",
-          "expired": "Session expired",
-          "notSignedIn": "Not signed in",
-          "signIn": "Sign in with browser",
-          "signInAgain": "Sign in again",
-          "signOut": "Sign out",
-          "cancel": "Cancel",
-          "deviceCodeLabel": "Use the device-code flow. Pick this when the default sign-in cannot come back to this machine — a browser on another device, or a desktop that blocks the CLI’s local callback.",
-          "enterCodePrompt": "A browser should have opened. Enter this code to authorize:",
-          "browserPrompt": "A browser should have opened. Finish the authorization there — this waits for it.",
-          "openAuthPage": "Open authorization page",
-          "errorNoProfile": "Pick an AWS profile first.",
-          "errorAwsUnavailable": "The AWS CLI (aws) was not found on your PATH. Install it, then try again.",
-          "errorTimeout": "Sign-in timed out before it completed in the browser. Try again.",
-          "errorCancelled": "Sign-in was cancelled.",
-          "errorFailed": "Sign-in failed. Check the profile and your network, then try again.",
-          "profileSaveFailed": "Could not save the profile.",
-          "logoutFailed": "Could not sign out.",
-          "errorPtyUnavailable": "Orca could not start a terminal to run the AWS CLI. Restart Orca, then try again."
+        "GatewaySection": {
+          "heading": "Inicio de sesión en la pasarela corporativa",
+          "intro": "Al iniciar sesión se abre una ronda OIDC en tu navegador y la pasarela emite una clave virtual por su cuenta: aquí no hay ningún perfil ni credencial de AWS que gestionar. `gateway-cli` conserva esa credencial; Orca ni la guarda ni la transmite.",
+          "gatewayMissing": "Orca no pudo ejecutar `gateway-cli`. Si `gateway-cli --version` funciona en una terminal, reinicia Orca para que tome el PATH actual.",
+          "signedIn": "Sesión iniciada",
+          "signedInUntil": "Sesión iniciada — válida hasta {{value0}}",
+          "expired": "Sesión caducada",
+          "notSignedIn": "Sin sesión iniciada",
+          "signIn": "Iniciar sesión con el navegador",
+          "signInAgain": "Volver a iniciar sesión",
+          "cancel": "Cancelar",
+          "enterCodePrompt": "Debería haberse abierto un navegador. Introduce este código para autorizar:",
+          "browserPrompt": "Debería haberse abierto un navegador. Termina la autorización allí: aquí se espera.",
+          "openAuthPage": "Abrir la página de autorización",
+          "errorGatewayUnavailable": "Orca no pudo ejecutar `gateway-cli`. Comprueba que `gateway-cli --version` funciona en una terminal y vuelve a intentarlo.",
+          "errorPtyUnavailable": "Orca no pudo abrir una terminal para ejecutar `gateway-cli`. Reinicia Orca y vuelve a intentarlo.",
+          "errorTimeout": "El inicio de sesión caducó antes de completarse en el navegador. Inténtalo de nuevo.",
+          "errorCancelled": "Se canceló el inicio de sesión.",
+          "errorFailed": "Falló el inicio de sesión. Revisa tu red y vuelve a intentarlo."
         },
-        "awsSso": {
+        "gateway": {
           "search": {
-            "title": "AWS SSO sign-in",
-            "description": "Run `aws sso login` for a profile so Claude on Bedrock has a live AWS session.",
-            "aws": "aws",
-            "sso": "sso",
+            "title": "Inicio de sesión en la pasarela corporativa",
+            "description": "Ejecuta `gateway-cli login` para que la pasarela emita la clave virtual que usa Claude en Bedrock.",
+            "gateway": "pasarela",
+            "oidc": "oidc",
+            "login": "inicio de sesión",
             "bedrock": "bedrock",
-            "profile": "profile",
-            "login": "login"
+            "virtualKey": "clave virtual",
+            "gatewayKo": "게이트웨이"
           }
         },
         "GitHubEnterpriseHostReadout": {

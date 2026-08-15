@@ -44,7 +44,7 @@ Orca는 여러 CLI 코딩 에이전트(Claude Code, Codex 등)를 **각자의 gi
 | **C. Claude Code 설정** | `%USERPROFILE%\.claude\settings.json` | Bedrock 관련 키(`env`, `awsAuthRefresh`)는 **Claude Code CLI만.** 단 같은 파일의 `hooks`/`statusLine` 키는 **Orca도 읽고 씁니다** — 아래 C | 사용자 |
 | **D. 빌드 셸 전용** | 빌드하는 PowerShell 세션 안에서만 | `electron-builder`와 빌드 스크립트 (패키징 시점) | 빌드 담당자 |
 
-이 네 버킷은 **설정 값**만 다룹니다. **자격증명과 신뢰 저장소는 여기 없습니다** — `gh auth status` 인벤토리(§2), `git config`의 `http.sslBackend`/`http.sslCAInfo`(§2), `%USERPROFILE%\.aws\config`와 SSO 토큰 캐시(§3.1), 그리고 사내 LLM 토큰(§3.5)은 각각 별도의 위치이며 해당 절에서 다룹니다. 사내 LLM 토큰이 특히 헷갈리기 쉬운데, **엔드포인트 정의는 버킷 B(정책 파일)이지만 토큰은 어느 버킷에도 없습니다** — 사용자가 앱 안에서 입력하고 Orca가 사용자 프로필에 암호화해 보관합니다.
+이 네 버킷은 **설정 값**만 다룹니다. **자격증명과 신뢰 저장소는 여기 없습니다** — `gh auth status` 인벤토리(§2), `git config`의 `http.sslBackend`/`http.sslCAInfo`(§2), `gateway-cli`가 자기 안에 들고 있는 게이트웨이 세션(§3.1), 그리고 사내 LLM 토큰(§3.5)은 각각 별도의 위치이며 해당 절에서 다룹니다. 사내 LLM 토큰이 특히 헷갈리기 쉬운데, **엔드포인트 정의는 버킷 B(정책 파일)이지만 토큰은 어느 버킷에도 없습니다** — 사용자가 앱 안에서 입력하고 Orca가 사용자 프로필에 암호화해 보관합니다.
 
 핵심 원칙: **Orca의 동작을 바꾸는 값은 환경 변수가 아니라 정책 파일(B)에 넣습니다.** 이유는 Orca가 `env`에서 읽는 값이 Orca가 띄우는 **모든 자식 프로세스**(에이전트 CLI, `gh`, `git`, 릴레이)에 그대로 상속되고, `setx`로 심은 값은 같은 머신의 무관한 도구까지 오염시키기 때문입니다 — 근거: `src/shared/enterprise-policy.ts:4-8`, `src/main/enterprise/enterprise-policy-file.ts:4-11`.
 
@@ -52,8 +52,8 @@ Orca는 여러 CLI 코딩 에이전트(Claude Code, Codex 등)를 **각자의 gi
 
 | 변수 | 읽는 주체 | 필수? | 비고 |
 | --- | --- | --- | --- |
-| `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` | OS 표준. Orca의 Node 계층(대소문자 6종 + `NO_PROXY` 2종을 직접 읽습니다 — `src/shared/network-proxy.ts:13-21`), `git`, `gh`, Claude Code CLI, AWS CLI가 각자 읽음 | 사내 프록시 환경이면 **필수** | 앱 안의 프록시 설정(설정 → Advanced → Network)은 **비워 두는 편이 안전**합니다 — 아래 참고 |
-| `NODE_EXTRA_CA_CERTS` | **Node만.** Orca 메인 프로세스와 Node 기반 CLI | TLS 검사 프록시 환경이면 필요 | **`git`/`gh` 바이너리에는 아무 효과가 없습니다**(§2). AWS CLI는 `AWS_CA_BUNDLE`을 별도로 봅니다 *(이 행 전체가 Node/git/AWS CLI 쪽 계약입니다 — 저장소에는 `NODE_EXTRA_CA_CERTS` 참조가 한 건도 없으므로 코드로 검증한 사실이 아닙니다)* |
+| `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` | OS 표준. Orca의 Node 계층(대소문자 6종 + `NO_PROXY` 2종을 직접 읽습니다 — `src/shared/network-proxy.ts:13-21`), `git`, `gh`, Claude Code CLI, `gateway-cli`가 각자 읽음 | 사내 프록시 환경이면 **필수** | 앱 안의 프록시 설정(설정 → Advanced → Network)은 **비워 두는 편이 안전**합니다 — 아래 참고 |
+| `NODE_EXTRA_CA_CERTS` | **Node만.** Orca 메인 프로세스와 Node 기반 CLI | TLS 검사 프록시 환경이면 필요 | **`git`/`gh` 바이너리에는 아무 효과가 없습니다**(§2). `gateway-cli`가 사내 CA를 어떻게 신뢰하는지는 그 CLI의 계약이며 **미확인**입니다 *(이 행 전체가 Node/git 쪽 계약입니다 — 저장소에는 `NODE_EXTRA_CA_CERTS` 참조가 한 건도 없으므로 코드로 검증한 사실이 아닙니다)* |
 | `GH_HOST` | `gh` CLI 고유 변수 | **선택** | Orca는 정책의 `githubEnterpriseHost`가 비었을 때만 폴백으로 읽습니다(`src/shared/enterprise-policy.ts:203`). 정책에 호스트를 넣었다면 불필요 |
 | `ORCA_ENTERPRISE_POLICY` | Orca만 | **불필요** — 아래 참고 | 정책 **파일 경로**만 지정하는 변수. 이 포크가 추가한 유일한 런타임 환경 변수 |
 
@@ -70,7 +70,7 @@ Orca는 여러 CLI 코딩 에이전트(Claude Code, Codex 등)를 **각자의 gi
 
 **여기에 두면 안 되는 변수**
 
-- `AWS_PROFILE` — **설정하지 않는 것이 정상입니다.** SSO의 default 프로필이 쓰이며, Orca 프로덕션 코드에는 참조가 0건입니다(§3.1). named 프로필이 꼭 필요한 개별 사용자만 `설정 → Agents`의 에이전트별 env로 넣으세요.
+- `AWS_PROFILE` — **설정하지 마세요. 새 인증 방식에는 프로필 개념이 없습니다.** 자격증명은 `gateway-cli`가 소유하며(§3.1), Orca 프로덕션 코드에는 이 변수 참조가 0건입니다.
 - `CLAUDE_CONFIG_DIR` — **설정하지 마세요.** 값이 있으면 Orca가 그 값을 자식 환경에 재기입하고(`src/main/claude-accounts/runtime-paths.ts:23`), SSH 프로젝트에서는 **로컬 Windows 경로가 원격 셸로 들어갑니다**(§3.3).
 
 > [!WARNING]
@@ -207,30 +207,35 @@ PR/이슈 표시는 `gh` API를 타지만, **클론·페치·푸시, 그리고 �
 
 ## 3. AWS Bedrock으로 Claude 사용
 
-Bedrock 인증은 **Claude Code CLI 자체**가 AWS 기본 자격증명 체인으로 처리합니다. Orca는 이 흐름에 관여하지 않습니다.
+Bedrock 인증은 **Claude Code CLI 자체**가 자격증명 체인으로 처리하고, 그 자격증명은 **`gateway-cli`가 소유**합니다. Orca는 이 흐름에 관여하지 않습니다.
 
-### 3.1 결론부터 — `AWS_PROFILE`은 설정하지 않는 것이 정상입니다
+### 3.1 결론부터 — 자격증명은 `gateway-cli`가 소유하고 Orca는 손대지 않습니다
 
-사내는 SSO(`aws sso login`)를 쓰고 `AWS_PROFILE`을 지정하지 않으므로 **default 프로필/SSO 세션이 쓰입니다.** 이것을 Orca가 방해할 지점이 없음을 코드로 확인했습니다.
+사내 인증은 **`gateway-cli login`**(인자 없음)으로 통일됐습니다. OIDC 브라우저 로그인을 마치면 게이트웨이가 **virtual key를 자동 발급**하고, 그 키를 에이전트까지 전달하는 것도 `gateway-cli`의 몫입니다. **프로필이라는 개념 자체가 이 레인에서 사라졌으므로** 사용자가 `~/.aws/config`를 관리하거나 `AWS_PROFILE`을 지정할 일이 없습니다. 상태 확인은 `gateway-cli verify`입니다.
+
+Orca의 책임 경계는 AWS SSO 시절과 **동일합니다** — 로그인 명령을 실행하고 상태를 보여줄 뿐, 토큰·키를 읽지도 저장하지도 않고 **환경변수도 주입하지 않습니다.** 그 경계가 실제로 지켜지는지 코드로 확인한 항목입니다.
 
 | 확인 항목 | 결과 | 근거 |
 | --- | --- | --- |
-| Orca가 `AWS_PROFILE`을 읽거나 쓰거나 기본값을 주는가 | **아니오.** 프로덕션 코드 참조 0건 (테스트 픽스처 2곳뿐) | `src/main/claude-accounts/environment.test.ts:13`, `:72` — 후자는 `AWS_PROFILE`/`AWS_REGION`을 "인증 변수"로 분류하지 **않는다**는 회귀 테스트 |
-| PTY 환경에 화이트리스트가 있는가 | **아니오.** `process.env` 전체를 상속한 뒤 소수의 명시적 `delete`만 적용 | `src/main/providers/local-pty-provider.ts:644`, `src/main/daemon/pty-subprocess.ts:562-563` |
-| Orca가 지우는 `AWS_*` 변수 | **`AWS_BEARER_TOKEN_BEDROCK` 단 하나.** SSO 플릿은 쓰지 않으므로 무해 | `src/main/claude-accounts/environment.ts:3-8` |
-| `HOME`/`USERPROFILE`을 바꾸는가 | **아니오.** 프로덕션 코드의 모든 참조가 읽기입니다 → `%USERPROFILE%\.aws\config`와 `%USERPROFILE%\.aws\sso\cache`를 CLI가 정상적으로 찾습니다 | 읽기 지점: `src/main/providers/pty-default-cwd.ts:19`, `src/relay/pty-shell-utils.ts:113`, `src/relay/relay-command-env.ts:110-121`. 재검증: `grep -rn USERPROFILE src/main src/shared src/relay` |
-| `CLAUDE_CONFIG_DIR`을 리다이렉트하는가 | 상속값이 이미 있을 때만. 사내는 설정하지 않으므로 `%USERPROFILE%\.claude`가 그대로 쓰입니다 | `src/main/claude-accounts/runtime-paths.ts:15-24` |
+| Orca가 virtual key/토큰을 읽거나 저장하는가 | **아니오.** 이 레인이 다루는 것은 CLI 실행과 그 출력뿐입니다 | `src/shared/gateway-auth.ts` 헤더 주석이 계약을 명시. `src/main/gateway/`에 자격증명 저장소가 없습니다 |
+| Orca가 자격증명 환경변수를 주입하는가 | **아니오.** virtual key 전달은 `gateway-cli`가 알아서 합니다 | `buildGatewayCommandEnv()`가 만드는 것은 **CLI 자신을 스폰할 때 쓰는 env**(= `process.env` + Windows에서 레지스트리 PATH 재병합)이고, 에이전트 PTY 환경이 아닙니다 |
+| PTY 환경에 화이트리스트가 있는가 | **아니오.** `process.env` 전체를 상속한 뒤 소수의 명시적 `delete`만 적용 | `providers/local-pty-provider.ts`·`daemon/pty-subprocess.ts`의 `stripInheritedBuildModeEnv(process.env)` 스프레드 |
+| Orca가 지우는 `AWS_*` 변수 | **`AWS_BEARER_TOKEN_BEDROCK` 단 하나** (`CLAUDE_AUTH_ENV_VARS`) | `src/main/claude-accounts/environment.ts`. ⚠️ **virtual key 방식이 이 변수를 쓰는지는 미확인** — 쓴다면 §3.3의 `disableManagedClaudeAccounts`가 "권장"이 아니라 **동작 조건**이 됩니다 |
+| `HOME`/`USERPROFILE`을 바꾸는가 | **아니오.** 프로덕션 코드의 모든 참조가 읽기입니다 → `gateway-cli`가 자기 설정·캐시를 정상적으로 찾습니다 | 읽기 지점: `providers/pty-default-cwd.ts`, `relay/pty-shell-utils.ts`, `relay/relay-command-env.ts`. 재검증: `grep -rn USERPROFILE src/main src/shared src/relay` |
+| `CLAUDE_CONFIG_DIR`을 리다이렉트하는가 | 상속값이 이미 있을 때만. 사내는 설정하지 않으므로 `%USERPROFILE%\.claude`가 그대로 쓰입니다 | `claude-accounts/runtime-paths.ts`의 `getRuntimePaths()` |
+| `gateway-cli`를 어디서 찾는가 | **PATH만** 해석합니다 | `src/main/gateway/gateway-cli-command.ts`의 `resolveGatewayCommand()`. 설치 경로가 미확인이라 경로 추측을 넣지 않았습니다 |
 
-SSO는 환경 변수가 아니라 **파일**(토큰 캐시) 기반이므로 마지막 두 항목이 핵심입니다. 사전에 `aws sso login`을 한 번 끝내 두면 됩니다. named 프로필이 꼭 필요할 때만 `AWS_PROFILE`을 추가하세요 — `설정 → Agents`의 에이전트별 env로 넣는 것도 정상 동작합니다.
+`HOME`/`USERPROFILE`을 건드리지 않는다는 마지막 두 항목이 여전히 핵심입니다 — `gateway-cli`가 로그인 상태를 어디에 두든, Orca가 그 위치를 옮기지 않기 때문에 앱 안에서 로그인하든 터미널에서 로그인하든 같은 세션이 됩니다.
 
-**앱 안에서 로그인하기 (이 포크가 추가)** — 터미널을 열지 않아도 **설정 → AI 제공업체 계정 → "AWS SSO 로그인"**(영문 UI: Accounts → AWS SSO sign-in)에서 처리할 수 있습니다.
+**앱 안에서 로그인하기 (이 포크가 추가)** — 터미널을 열지 않아도 **설정 → AI 제공업체 계정 → "사내 게이트웨이 로그인"**에서 처리할 수 있습니다.
 
-- `~/.aws/config`의 **SSO 프로필 목록**을 읽어 고르게 하고(`sso-session` 방식과 레거시 `sso_start_url` 방식 모두), 선택한 프로필로 `aws sso login`을 실행합니다. 브라우저는 **AWS CLI가 직접** 띄웁니다 — 회사에서 쓰던 그 창 그대로입니다.
-- **로그인 여부와 만료 시각**을 배지로 보여줍니다. 판정 근거는 AWS CLI 자신의 토큰 캐시(`~/.aws/sso/cache`)의 `expiresAt`이며, **네트워크 호출 없이** 읽습니다. Orca는 토큰을 읽지도, 저장하지도 않습니다.
-- 브라우저가 이 PC로 돌아올 수 없는 환경(다른 기기에서 인증, 로컬 콜백 차단)에서는 **기기 코드 방식**(`--use-device-code`)을 체크하면 코드와 인증 URL을 화면에 띄워 줍니다. AWS CLI v2.22+의 기본 흐름은 로컬 콜백을 쓰는 authorization code + PKCE라서, 사내 정책에 막히면 이 옵션이 유일한 우회로입니다.
-- 프로필 이름은 **`~/.aws/config`에 실제로 존재하는 것만** CLI로 넘깁니다(`src/main/ipc/aws-sso.ts`). 화면이 하는 일은 CLI 실행과 결과 표시뿐이고, 자격증명 처리는 전부 AWS CLI 몫입니다.
+- 버튼은 `gateway-cli login`을 **인자 없이** 실행합니다(`runGatewayLogin()`). 브라우저는 `gateway-cli`가 직접 띄웁니다. 고를 프로필이 없으므로 화면에도 선택 UI가 없습니다. 로그인 중 CLI가 사용자 코드나 인증 URL을 인쇄하면 그대로 화면에 올려 줍니다(`GatewayLoginProgress`) — 브라우저가 안 뜨는 환경을 위한 것이고, 그 값을 만들어 내는 것은 Orca가 아니라 CLI입니다.
+- **로그인 여부·만료·신원은 `gateway-cli verify`의 실행 결과로 판정합니다**(`runGatewayVerify()`). AWS SSO 시절과 달라진 **실질적인 변화**입니다: 예전에는 AWS CLI 토큰 캐시의 `expiresAt`을 네트워크 없이 파일에서 읽었지만, 이제는 **상태를 새로 고칠 때마다 CLI가 최대 두 번 실행됩니다** — 설치 감지용 `gateway-cli --version`과 `gateway-cli verify`. 그 실행이 네트워크를 타는지는 `gateway-cli` 구현에 달려 있어 **미확인**입니다.
+- **`verify`의 출력 형식은 확정되지 않았습니다.** 그래서 파서(`src/shared/gateway-cli-output.ts`)가 JSON → 텍스트 → 종료 코드 순으로 방어적으로 읽고, 알아보지 못한 항목은 `null`로 남깁니다. 배지에 만료가 안 보이면 **"만료를 알 수 없음"이지 "만료됨"이 아닙니다.** 화면에 올라가는 `detail` 문자열은 파서가 비밀 후보(키·토큰 형태의 대입문, 숫자를 포함한 20자 이상 불투명 문자열)를 `***`로 가린 뒤 넘깁니다.
+- `gateway-cli`가 PATH에 없으면 로그인 버튼 대신 **미설치 경고**가 뜹니다(`detectGatewayCli()`).
+- **로그아웃 버튼은 없습니다.** `gateway-cli logout`이 존재하는지 확인되지 않아, 없는 하위 명령을 발명하지 않았습니다.
 
-> **로컬 전용입니다.** 이 버튼은 이 PC의 AWS CLI를 로그인시킵니다. WSL 게스트와 SSH 원격 호스트는 각자의 토큰 캐시를 쓰므로 **그 안에서 따로** `aws sso login`을 실행해야 합니다(§3.4). `disableManagedClaudeAccounts`·`enforceNetworkAllowlist` 같은 정책 스위치는 이 경로에 관여하지 않습니다 — 자식 프로세스의 egress는 허용목록 밖입니다.
+> **로컬 전용입니다.** 이 버튼은 이 PC의 `gateway-cli`를 로그인시킵니다. WSL 게스트와 SSH 원격 호스트는 각자 자기 세션을 쓰므로 **그 안에서 따로** `gateway-cli login`을 실행해야 합니다(§3.4). `disableManagedClaudeAccounts`·`enforceNetworkAllowlist` 같은 정책 스위치는 이 경로에 관여하지 않습니다 — 자식 프로세스의 egress는 허용목록 밖입니다([감사 문서](docs/reference/external-integrations-audit.md) §0.2 #25).
 
 ### 3.2 모델·리전·플래그는 Claude Code 설정 파일에 (버킷 C)
 
@@ -242,15 +247,16 @@ SSO는 환경 변수가 아니라 **파일**(토큰 캐시) 기반이므로 마�
     "CLAUDE_CODE_USE_BEDROCK": "1",
     "AWS_REGION": "us-east-1",
     "ANTHROPIC_MODEL": "<Bedrock inference profile ARN 또는 모델 ID>"
-  },
-  "awsAuthRefresh": "aws sso login"
+  }
 }
 ```
+
+**`awsAuthRefresh`는 예시에서 뺐습니다.** 예전 값이던 `"aws sso login"`은 더 이상 맞지 않고, 새 방식에서 이 키를 어떻게 채워야 하는지는 확인되지 않았습니다 — 아래 NOTE를 보세요.
 
 > [!NOTE]
 > **위 키 이름과 의미는 Claude Code CLI의 계약이며 이 저장소 코드로 검증할 수 없습니다.** 정확한 스펙은 Claude Code 문서를 따르세요. 이 저장소에서 검증한 것은 "Orca가 **이 키들**(`env`, `awsAuthRefresh`)에 관여하지 않고 경로 리다이렉트도 하지 않는다"는 사실뿐입니다. **파일 자체는 Orca도 씁니다** — `hooks`/`statusLine` 키에 한정되며 나머지 키는 보존되지만, 그래서 이 파일에 **주석이나 후행 쉼표를 넣으면 안 됩니다**(§0.C).
 >
-> **SSO + 사내 프록시/VPN 주의**: 브라우저 SSO 흐름이 막히는 환경이면 `awsAuthRefresh`가 인증 루프를 유발할 수 있습니다. 그럴 땐 `awsAuthRefresh`를 빼고 세션 시작 전 수동으로 `aws sso login`을 끝내 두세요.
+> **`awsAuthRefresh`를 새 방식에서 어떻게 채워야 하는지는 미확인입니다.** 이 키는 Claude Code CLI가 자격증명 만료 시 실행하는 명령이므로, 값으로 `gateway-cli login`을 **넣을 수는 있지만** 게이트웨이 방식에서 그 훅이 필요한지, 브라우저를 띄우는 명령을 여기 두는 것이 맞는지는 이 저장소로 판정할 수 없습니다. **사내 인증 담당의 안내를 따르고, 확인 전에는 키를 비워 두는 편이 안전합니다** — 세션 시작 전에 `gateway-cli verify`로 상태를 한 번 보는 것으로 대체할 수 있습니다.
 
 ### 3.3 반드시 켜야 하는 정책 키 두 개
 
@@ -258,7 +264,7 @@ SSO는 환경 변수가 아니라 **파일**(토큰 캐시) 기반이므로 마�
   이 기능은 자식 환경에서 `ANTHROPIC_API_KEY`·`ANTHROPIC_AUTH_TOKEN`·`CLAUDE_CODE_OAUTH_TOKEN`·**`AWS_BEARER_TOKEN_BEDROCK`**을, 그리고 인증 정보가 담긴 것으로 판정되면 `ANTHROPIC_CUSTOM_HEADERS`까지 제거합니다(`claude-accounts/environment.ts:3-8`, `:22-29`).
   Windows 호스트에서는 관리형 계정을 **선택한 동안에만** 제거되지만(`claude-accounts/runtime-auth-service.ts:667`), **WSL 런타임을 고르면 관리형 계정이 하나도 없어도 제거가 켜지고**(`:647`, `:657` — upstream v1.4.155는 이 두 곳이 `stripAuthEnv: true` 하드코딩이었고 포크가 `!managedAccountsDisabled`로 바꿨습니다), 런치 환경에 해당 변수가 있으면 PTY 스폰이 `This Claude launch defines explicit Anthropic auth environment variables.`로 **하드 실패**합니다(`src/main/ipc/pty.ts:3189-3163`, `:4250-4233`).
   스위치를 켜면 활성 계정이 `null`로 고정되고(`runtime-auth-service.ts:613-616`) 하드코딩 호출자까지 최후 방어선에서 막혀(`environment.ts:22`) 이 실패 조건이 사라지며, `platform.claude.com`으로 나가는 OAuth 토큰 회전도 함수 진입부에서 차단됩니다(`claude-accounts/oauth-refresh.ts:131-133`).
-  SSO 플릿은 bearer token을 쓰지 않으므로 오늘 당장 깨지지는 않습니다. 하지만 **누군가 bearer token으로 우회하거나 `ANTHROPIC_API_KEY`를 병기하는 순간 WSL 런치가 즉시 실패합니다.** SSH 경로도 같은 스위치로 함께 정리됩니다 — 스트립이 켜져 있으면 `envToDelete`가 릴레이까지 전송되어 **원격 spawn env에서** 해당 변수가 삭제되고(`src/main/providers/ssh-pty-spawn-request.ts:21`), `claudeAuth.envPatch`가 `connectionId` 유무와 무관하게 SSH env에 병합됩니다(`pty.ts:3248-3250`, `:4286-4288`). 후자는 사내에서 `CLAUDE_CONFIG_DIR`을 설정하지 않아 지금은 빈 객체이므로 실제 피해가 없지만, 누군가 이 변수를 심으면 **로컬 Windows 경로가 원격 셸에 들어갑니다.**
+  ⚠️ **게이트웨이가 발급하는 virtual key가 `AWS_BEARER_TOKEN_BEDROCK`으로 전달되는지는 확인 필요입니다.** 전달되지 않는다면 오늘 당장 깨지지 않고, 전달된다면 이 스위치는 권장이 아니라 **WSL 런치의 동작 조건**입니다. 어느 쪽이든 **누군가 bearer token으로 우회하거나 `ANTHROPIC_API_KEY`를 병기하는 순간 WSL 런치가 즉시 실패합니다.** SSH 경로도 같은 스위치로 함께 정리됩니다 — 스트립이 켜져 있으면 `envToDelete`가 릴레이까지 전송되어 **원격 spawn env에서** 해당 변수가 삭제되고(`src/main/providers/ssh-pty-spawn-request.ts:21`), `claudeAuth.envPatch`가 `connectionId` 유무와 무관하게 SSH env에 병합됩니다(`pty.ts:3248-3250`, `:4286-4288`). 후자는 사내에서 `CLAUDE_CONFIG_DIR`을 설정하지 않아 지금은 빈 객체이므로 실제 피해가 없지만, 누군가 이 변수를 심으면 **로컬 Windows 경로가 원격 셸에 들어갑니다.**
 
 - **`disableUsagePolling` — Bedrock 전용 머신에서도 `api.anthropic.com`으로 나갑니다.**
   Orca는 창이 보이고 포커스된 동안(`src/main/rate-limits/service.ts:756-805` `shouldBackgroundPoll`) 15분 주기로(`:75` `DEFAULT_POLL_MS`) `https://api.anthropic.com/api/oauth/usage`(`src/main/rate-limits/claude-fetcher.ts:46`)를 호출합니다. 이 호출은 Orca의 관리형 계정 등록 여부와 무관하고, 과거 OAuth 로그인 흔적(`~/.claude/.credentials.json` 등, `claude-fetcher.ts:190-194`)만 있으면 켜집니다. 게다가 이 경로에는 `claude` CLI를 숨겨서 스폰하는 PTY도 있어(`src/main/rate-limits/claude-pty.ts:244-245`, spawn env = `{...process.env}`) **Bedrock 환경에서는 예상치 못한 Bedrock 호출·과금**이 발생할 수 있습니다.
@@ -268,12 +274,12 @@ SSO는 환경 변수가 아니라 **파일**(토큰 캐시) 기반이므로 마�
 ### 3.4 함정 — 실제로 사람들이 밟는 것들
 
 - **`설정 → Agents`의 에이전트별 env는 OS 값을 덮어씁니다(shadow).** 빈 값을 넣으면 변수가 삭제되는 게 아니라 **빈 문자열로 덮어써지고 그 빈 문자열이 이깁니다.** `AWS_REGION=` 한 줄이 `{AWS_REGION: ''}`로 파싱되고(`src/renderer/src/components/settings/agent-default-env-draft.ts:24-32`), 정규화가 빈 문자열을 보존하며(`src/shared/tui-agent-launch-defaults.ts:62-67`), 병합에서 override가 최종 승자입니다(`src/shared/git-credential-prompt-env.ts:11`). 지우려면 **항목 자체를 삭제**하세요.
-- **WSL 프로젝트에는 어떤 `AWS_*` 변수도 넘어가지 않습니다.** `wsl.exe`는 `WSLENV`에 등재된 변수만 가져오는데, Orca가 등재하는 것은 `ORCA_*` 계열(`src/main/pty/wsl-orca-env.ts:58-84`)과 `CODEX_HOME`/`ORCA_CODEX_HOME`/`CLAUDE_CONFIG_DIR`/Hermes·p10k 변수(`src/main/providers/local-pty-provider.ts:707`, `:724`, `:728`, `:732`, `:746` — 데몬 경로는 `src/main/daemon/pty-subprocess.ts:677`, `:700-708`, `:769`), 그리고 git credential 가드 키(`src/shared/git-credential-prompt-env.ts:112`)뿐이고 AWS는 어디에도 없습니다. 따라서 WSL 프로젝트는 **게스트 안에서 따로** 구성해야 합니다:
-  1. 게스트에 AWS CLI v2를 설치하고 **게스트 안에서 `aws sso login`을 별도로 실행** — 토큰 캐시는 게스트의 `~/.aws/sso/cache`이고 Windows의 것과 다른 파일입니다. 표준 환경 변수로 캐시 위치를 옮길 수 없으므로 Windows 캐시 재사용은 사실상 불가합니다.
+- **WSL 게스트는 호스트와 별개로 로그인해야 합니다.** 게스트의 게이트웨이 로그인 상태는 Windows 호스트의 것과 **별개**입니다 — virtual key가 어디에 보관되는지는 미확인이지만, 게스트는 자기 홈 디렉터리를 쓰고 Orca는 `HOME`/`USERPROFILE`을 다리로 놓지 않으므로(§3.1) 호스트 로그인이 게스트에 보일 길이 없습니다. AWS SSO 시절 토큰 캐시가 호스트와 게스트에서 다른 파일이었던 것과 같은 구조이고, 로그인 주체만 `gateway-cli`로 바뀌었습니다. 그리고 `wsl.exe`는 `WSLENV`에 등재된 변수만 가져오는데 Orca가 등재하는 것은 `ORCA_*` 계열(`src/main/pty/wsl-orca-env.ts:58-84`), `CODEX_HOME`/`ORCA_CODEX_HOME`/`CLAUDE_CONFIG_DIR`/Hermes·p10k 변수, git credential 가드 키(`src/shared/git-credential-prompt-env.ts:112`)뿐이라 **자격증명 성격의 변수는 어느 등재 지점에도 없습니다.** 따라서 WSL 프로젝트는 **게스트 안에서 따로** 구성해야 합니다:
+  1. 게스트에 `gateway-cli`를 설치하고 **게스트 안에서 `gateway-cli login`을 별도로 실행** — Windows 쪽 로그인은 게스트에 보이지 않습니다. *(`gateway-cli`가 WSL 게스트에서 어떻게 동작하는지, 게스트에 설치본이 제공되는지는 **미확인**입니다. 사내 배포 담당에게 확인하세요.)*
   2. 게스트에 Claude Code CLI를 설치하고 **게스트의** `~/.claude/settings.json`에 Bedrock 블록을 둡니다. Windows 쪽 파일은 읽히지 않습니다.
-  3. 리전/플래그만 Windows에서 넘기고 싶다면 `setx WSLENV "AWS_REGION/u:CLAUDE_CODE_USE_BEDROCK/u"`처럼 `WSLENV`를 직접 채우세요 — Orca는 기존 `WSLENV`를 **보존하고 append만** 하므로 이 값이 살아남습니다(`src/shared/wsl-env.ts:5-16`). **자격증명 자체는 이 방법으로 넘길 수 없습니다.**
-- **SSH 원격 호스트에는 Windows 쪽 AWS 변수가 넘어가지 않습니다.** 호스트 env를 조립하는 `buildPtyHostEnv`는 SSH 경로에서 아예 호출되지 않고(계약은 `src/main/ipc/pty.ts:996-1001` 주석, 게이트는 `:4257-4260`의 `!args.connectionId`), 릴레이는 **자기 자신의 `process.env`**(SSH exec 채널이 준 환경)에 렌더러가 보낸 env만 얹어 PTY를 만듭니다(`src/relay/pty-handler.ts:435-446`). 따라서 원격에서 별도로 `aws sso login`을 수행하고, 원격의 `~/.claude/settings.json`과 로그인 셸 프로필에 설정을 두어야 합니다.
-- **`enforceNetworkAllowlist`는 Bedrock 호출과 무관합니다.** Electron session과 메인 프로세스 `fetch`만 감싸므로(`src/main/enterprise/enterprise-network-guard.ts:128-136`) 자식 프로세스(Claude Code CLI, `git`, `gh`)의 egress에는 적용되지 않습니다. `bedrock-runtime.<region>.amazonaws.com`을 `allowedNetworkHosts`에 넣을 필요가 없고, 넣어도 CLI에는 아무 효과가 없습니다.
+  3. 리전/플래그처럼 **자격증명이 아닌** 값만 Windows에서 넘기고 싶다면 `setx WSLENV "AWS_REGION/u:CLAUDE_CODE_USE_BEDROCK/u"`처럼 `WSLENV`를 직접 채우세요 — Orca는 기존 `WSLENV`를 **보존하고 append만** 하므로 이 값이 살아남습니다(`src/shared/wsl-env.ts:5-16`). **자격증명 자체는 이 방법으로 넘길 수 없습니다.**
+- **SSH 원격 호스트도 각자 로그인해야 합니다.** 호스트 env를 조립하는 `buildPtyHostEnv`는 SSH 경로에서 아예 호출되지 않고(계약은 `src/main/ipc/pty.ts:996-1001` 주석, 게이트는 `:4257-4260`의 `!args.connectionId`), 릴레이는 **자기 자신의 `process.env`**(SSH exec 채널이 준 환경)에 렌더러가 보낸 env만 얹어 PTY를 만듭니다(`src/relay/pty-handler.ts:435-446`). 따라서 원격에서 별도로 `gateway-cli login`을 수행하고, 원격의 `~/.claude/settings.json`과 로그인 셸 프로필에 설정을 두어야 합니다. *(원격 호스트에서의 `gateway-cli` 동작 — 특히 브라우저를 띄울 수 없는 헤드리스 호스트에서 OIDC 흐름이 어떻게 끝나는지 — 도 **미확인**입니다.)*
+- **`enforceNetworkAllowlist`는 Bedrock 호출과도, 게이트웨이 로그인과도 무관합니다.** Electron session과 메인 프로세스 `fetch`만 감싸므로(`src/main/enterprise/enterprise-network-guard.ts:128-136`) 자식 프로세스(Claude Code CLI, `gateway-cli`, `git`, `gh`)의 egress에는 적용되지 않습니다. `bedrock-runtime.<region>.amazonaws.com`이나 사내 IdP·게이트웨이 호스트를 `allowedNetworkHosts`에 넣을 필요가 없고, 넣어도 CLI에는 아무 효과가 없습니다.
 - `setx` 후 데몬 staleness — §0의 경고 박스를 참고하세요. Bedrock 설정을 OS 환경 변수로 넣었을 때 "설정했는데 안 먹는다"의 1순위 원인입니다.
 
 ### 3.5 대안 — 사내에서 직접 서비스하는 모델
@@ -513,6 +519,7 @@ git diff --name-status v1.4.163..HEAD   # A=신규, M=upstream 파일 수정, D=
   - `src/main/enterprise/enterprise-direct-download-guard.ts` — `node:https` 직접 다운로드 거부
   - `src/main/enterprise/enterprise-policy-fixture.ts` — 테스트 전용 픽스처
   - `config/vitest-enterprise-policy-isolation.ts` — 이 포크를 빌드하는 머신에는 머신 전역 정책 파일이 깔려 있으므로, 테스트 스위트가 lockdown 상태로 돌지 않도록 무력화
+  - `src/shared/gateway-auth.ts` + `src/main/gateway/` — 사내 게이트웨이 로그인 레인(§3.1). 자격증명은 다루지 않고 `gateway-cli`의 실행과 상태 표시만 합니다. 이전의 AWS SSO 레인(`src/main/aws/`, `awsSso:*` IPC)을 **완전히 대체**했습니다
   - upstream 파일에 삽입된 게이트 목록은 §6 표 참고
 - 원본 프로젝트의 일반 기여/개발 안내: [원본 CONTRIBUTING.md](https://github.com/stablyai/orca/blob/main/.github/CONTRIBUTING.md)
 

@@ -132,7 +132,7 @@ vi.mock('electron', () => ({
   app: {
     getPath: getPathMock
   },
-  // Why: the fork's registrars (enterprise policy, GHES login, AWS SSO) reach ipcMain
+  // Why: the fork's registrars (enterprise policy, GHES login, gateway sign-in) reach ipcMain
   // during registerCoreHandlers, which upstream's partial electron mock does not provide.
   ipcMain: {
     handle: vi.fn(),

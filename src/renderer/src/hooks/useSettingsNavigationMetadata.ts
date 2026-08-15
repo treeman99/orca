@@ -186,7 +186,7 @@ export function buildSettingsNavigationMetadata({
       description: policy.disableVendorProviderAccounts
         ? translate(
             'auto.hooks.useSettingsNavigationMetadata.accountsCorporate',
-            'AWS SSO sign-in and your organization’s self-hosted model endpoints.'
+            'Corporate gateway sign-in and your organization’s self-hosted model endpoints.'
           )
         : translate(
             'auto.hooks.useSettingsNavigationMetadata.b1c2f8b0ac',

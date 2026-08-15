@@ -2,7 +2,7 @@
 //
 // Only registration. Listing, selecting, and removing already-stored accounts stay open:
 // taking away the one way to clear a credential the policy has just rejected would leave
-// a machine stuck with it. AWS SSO and the corporate self-hosted endpoints are separate
+// a machine stuck with it. The corporate gateway sign-in and the self-hosted endpoints are separate
 // surfaces and are never gated here — they are the fleet's supported path.
 //
 // Gated in main rather than only in Settings because the renderer is outside the trust

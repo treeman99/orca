@@ -811,7 +811,7 @@
         "pluginsTitle": "플러그인",
         "pluginsDescription": "실험적인 Orca 플러그인을 설치하고 관리합니다.",
         "tasksDescription": "제공업체를 연결하고 Linear 스킬을 설치한 다음 작업에 표시할 항목을 선택하세요.",
-        "accountsCorporate": "AWS SSO 로그인과 사내 자체 호스팅 모델 엔드포인트."
+        "accountsCorporate": "사내 게이트웨이 로그인과 사내 자체 호스팅 모델 엔드포인트."
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "붙여넣기 내용이 너무 큽니다."
@@ -10196,42 +10196,36 @@
           "tokenInputLabel": "GitHub 개인용 액세스 토큰",
           "connectWithToken": "토큰으로 연결"
         },
-        "AwsSsoSection": {
-          "heading": "AWS SSO 로그인",
-          "intro": "Bedrock 기반 Claude는 AWS 자격 증명 체인으로 인증하므로 유효한 SSO 세션이 필요합니다. 여기서 고른 프로필로 `aws sso login`을 실행하면 AWS CLI가 브라우저를 띄웁니다. 토큰은 AWS CLI 자체 캐시에 남고, Orca는 만료 시각만 읽습니다.",
-          "awsMissing": "AWS CLI를 실행하지 못했습니다. 터미널에서 `aws --version`이 동작한다면 Orca를 재시작해 현재 PATH를 다시 읽게 하고, 그렇지 않으면 AWS CLI v2를 먼저 설치하세요.",
-          "noProfiles": "AWS 설정 파일에 SSO 프로필이 없습니다. `aws configure sso`로 프로필을 한 번 만든 뒤 이 화면을 다시 열어 주세요.",
-          "profileLabel": "AWS 프로필",
+        "GatewaySection": {
+          "heading": "사내 게이트웨이 로그인",
+          "intro": "로그인하면 브라우저에서 OIDC 인증이 진행되고, 게이트웨이가 virtual key를 알아서 발급합니다. 따로 관리할 AWS 프로필이나 자격 증명은 없습니다. 자격 증명은 `gateway-cli`가 보관하며 Orca 는 저장하지도, 전달하지도 않습니다.",
+          "gatewayMissing": "`gateway-cli`를 실행하지 못했습니다. 터미널에서 `gateway-cli --version`이 동작한다면 Orca 를 재시작해 현재 PATH를 다시 읽게 하세요.",
           "signedIn": "로그인됨",
           "signedInUntil": "로그인됨 — {{value0}}까지 유효",
           "expired": "세션이 만료되었습니다",
           "notSignedIn": "로그인되지 않음",
           "signIn": "브라우저로 로그인",
           "signInAgain": "다시 로그인",
-          "signOut": "로그아웃",
           "cancel": "취소",
-          "deviceCodeLabel": "기기 코드 방식을 사용합니다. 기본 로그인이 이 PC로 돌아올 수 없을 때 — 다른 기기의 브라우저로 인증하거나, 사내 정책이 CLI의 로컬 콜백을 막는 경우 — 선택하세요.",
           "enterCodePrompt": "브라우저가 열렸을 것입니다. 승인하려면 이 코드를 입력하세요:",
           "browserPrompt": "브라우저가 열렸을 것입니다. 그쪽에서 승인을 끝내면 됩니다 — 여기서 기다립니다.",
           "openAuthPage": "인증 페이지 열기",
-          "errorNoProfile": "AWS 프로필을 먼저 선택하세요.",
-          "errorAwsUnavailable": "AWS CLI를 실행하지 못했습니다. 터미널에서 `aws --version`이 동작하는지 확인한 뒤 다시 시도하세요.",
+          "errorGatewayUnavailable": "`gateway-cli`를 실행하지 못했습니다. 터미널에서 `gateway-cli --version`이 동작하는지 확인한 뒤 다시 시도하세요.",
+          "errorPtyUnavailable": "`gateway-cli`를 실행할 터미널을 시작하지 못했습니다. Orca 를 재시작한 뒤 다시 시도하세요.",
           "errorTimeout": "브라우저에서 로그인이 끝나기 전에 시간이 초과되었습니다. 다시 시도하세요.",
           "errorCancelled": "로그인이 취소되었습니다.",
-          "errorFailed": "로그인에 실패했습니다. 프로필과 네트워크를 확인한 뒤 다시 시도하세요.",
-          "profileSaveFailed": "프로필을 저장할 수 없습니다.",
-          "logoutFailed": "로그아웃할 수 없습니다.",
-          "errorPtyUnavailable": "AWS CLI를 실행할 터미널을 시작하지 못했습니다. Orca를 재시작한 뒤 다시 시도하세요."
+          "errorFailed": "로그인에 실패했습니다. 네트워크를 확인한 뒤 다시 시도하세요."
         },
-        "awsSso": {
+        "gateway": {
           "search": {
-            "title": "AWS SSO 로그인",
-            "description": "Bedrock 기반 Claude가 쓸 AWS 세션을 위해 프로필별로 `aws sso login`을 실행합니다.",
-            "aws": "aws",
-            "sso": "sso",
+            "title": "사내 게이트웨이 로그인",
+            "description": "`gateway-cli login`을 실행해 Bedrock 기반 Claude 가 쓸 virtual key를 게이트웨이에서 발급받습니다.",
+            "gateway": "게이트웨이",
+            "oidc": "oidc",
+            "login": "로그인",
             "bedrock": "bedrock",
-            "profile": "프로필",
-            "login": "로그인"
+            "virtualKey": "가상 키",
+            "gatewayKo": "게이트웨이"
           }
         },
         "GitHubEnterpriseHostReadout": {

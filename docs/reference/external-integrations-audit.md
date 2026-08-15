@@ -5,7 +5,7 @@
 
 > **조사 방식**: 10개 카테고리를 병렬로 정적 분석(스윕) → 누락 항목 크리틱 → 항목별 적대적 검증(“실제로 소켓을 여는가 / 언제 발동하는가 / 끌 수 있는가”). 후보 103건 중 44건이 실제 외부 호출로 확정됐습니다.
 >
-> **⚠️ 표시는 미검증이거나 운영상 주의가 필요한 항목**입니다. 이 중 **코드로 확인하지 못한 것은 두 건뿐**입니다(§7 레벨 3의 `net.fetch` 경유 여부, §8의 컴포넌트 업데이터 실측). 나머지 ⚠️는 코드는 확인했으나 배포 시 조작이 필요한 항목입니다. 모든 `파일:라인` 인용은 **v1.4.155 리베이스 이후의 트리에서 해당 파일을 다시 열어** 확인했습니다. 이전 판에 있던 존재하지 않는 환경변수(`ORCA_DISABLE_UPDATES`)와 자기모순 서술은 제거했습니다.
+> **⚠️ 표시는 미검증이거나 운영상 주의가 필요한 항목**입니다. 이 중 **코드로 확인하지 못한 것은 세 건**입니다(§7 레벨 3의 `net.fetch` 경유 여부, §8의 컴포넌트 업데이터 실측, 그리고 2026-08-15에 추가된 §8의 `gateway-cli` 동작 — 이 저장소 밖의 CLI 계약이라 원리적으로 확인할 수 없습니다). 나머지 ⚠️는 코드는 확인했으나 배포 시 조작이 필요한 항목입니다. 모든 `파일:라인` 인용은 **v1.4.155 리베이스 이후의 트리에서 해당 파일을 다시 열어** 확인했습니다. 이전 판에 있던 존재하지 않는 환경변수(`ORCA_DISABLE_UPDATES`)와 자기모순 서술은 제거했습니다.
 >
 > **v1.4.178 갱신 (2026-08-10).** 이 판에서 재검증한 것은 **v1.4.176 → v1.4.178 구간의 델타**입니다(추가 라인 52,890줄 전수 grep + 신규 파일 271건 검토). 나머지 44건의 확정 항목은 위 기준 시점의 서술이며 이번에 다시 열어보지 않았습니다.
 >
@@ -16,6 +16,10 @@
 > 이 구간에 **신규 외부 목적지는 0건**입니다. 추가 라인에서 호스트명 형태의 토큰을 전수 추출한 결과 `example.com` 계열(테스트 픽스처)과 `github.com`(테스트 픽스처 + `config/reliability-gates.jsonc`의 이슈 링크 메타데이터)만 나왔고, 신규 `fetch`/`axios`/`https.request`/`net.connect`/`WebSocket`/`EventSource` 0건, 신규 쉘아웃 0건, 신규 의존성 0건, 신규 에이전트 CLI 0건입니다. 들어온 것은 **기존 GitHub 레인의 확장 4건**뿐이고(§1) 목적지는 전부 origin 리모트에서 유도되므로 GHES 플릿에서는 사내 호스트입니다. 그중 하나는 egress가 아니라 **쓰기 범위의 확장**이었고 — 스택 PR 병합의 자동 승격 — **이 포크가 `d02dd048a1`에서 닫았습니다**(§0.2 #24).
 >
 > ⚠️ **이 구간의 판정은 정적 분석입니다.** 앱을 실행하거나 네트워크를 캡처해 실측한 것이 아니라 코드 경로로 판정했습니다. 특히 **사내 GHES가 `pullRequest{stack}` GraphQL 필드와 `merge-async` REST 엔드포인트를 지원하는지는 확인하지 못했습니다** — 미지원이면 응답이 오류로 떨어져 기능만 조용히 죽고 요청 자체는 나갑니다(§1). 테스트 파일 약 20건은 URL 스윕 대상에는 넣었으나 로직을 감사하지 않았고(빌드 산출물이 아니므로), `mobile/` 워크스페이스는 이 델타에서 변경되지 않아 #24의 도달 경로 확인 외에는 재감사하지 않았습니다.
+>
+> **사내 인증 방식 전환 갱신 (2026-08-15).** 사내 인증이 `aws sso login --profile <name>`(AWS CLI 토큰 캐시 → Bedrock 자격 체인)에서 **`gateway-cli login`(인자 없음) → OIDC 브라우저 로그인 → virtual key 자동 발급**으로 바뀌었고, Orca의 AWS SSO 레인은 **삭제되고 게이트웨이 레인으로 완전히 교체**됐습니다. 이 판에서 갱신한 것은 **그 레인에 대한 서술뿐**이며(§0 요약표 1행, §0.2 #25 신규, §4의 Bedrock 절), 다른 항목은 각자의 기준 시점 서술 그대로입니다. **Orca의 책임 경계는 바뀌지 않았습니다** — 자격증명을 읽지도, 저장하지도, 주입하지도 않습니다. **바뀐 것은 두 가지**입니다: 상태 확인이 파일 읽기에서 **CLI 실행**으로 바뀌었고(§4), 자식 프로세스의 목적지가 AWS 하나에서 **IdP + 게이트웨이 둘**로 늘었습니다(#25).
+>
+> ⚠️ **이 전환에서 확인하지 못한 것**: `gateway-cli verify`의 출력 형식(그래서 파서가 방어적입니다), virtual key의 저장 위치와 수명, `gateway-cli logout`의 존재 여부(그래서 로그아웃을 구현하지 않았습니다), WSL 게스트·SSH 원격에서의 동작, `gateway-cli`의 설치 경로·프록시·사설 CA 처리. **이 문서는 확인된 것만 단정하고 나머지는 미확인으로 표시합니다.**
 >
 > **⚠️ 델타 판정의 기준은 `git log`가 아니라 트리 diff입니다.** 업스트림은 릴리스 브랜치에 태그를 달고 그 태그들은 서로의 자손이 아닙니다. 같은 변경이 main과 릴리스 브랜치에 다른 SHA로 존재하면 `git log <old>..<new>`에는 나타나되 트리에는 차이가 없으므로, **로그는 델타를 과대 계상합니다.** 실례: `git log v1.4.178..v1.4.180`에는 Artifacts 관련 커밋 3건(`24c68087bd` 수동 공유 #13369, `05160cd08e` 능력 게이팅 #13368, `2f221bdbfe` 관리 UI #13356)이 보이지만 `git diff --name-only v1.4.178 v1.4.180 -- '*artifact*' '*Artifact*'`는 **비어 있습니다** — 두 태그의 artifact 트리는 동일하며 그 기능들은 이미 v1.4.178 트리에 있었습니다(§3.1). 그러므로 델타 감사는 `git diff --name-status <old> <new>` 기준으로 하고 로그는 맥락 파악에만 쓰십시오. **함정은 양방향입니다** — 로그만 보고 "이번에 새로 들어왔다"고 오판하는 것과, 트리가 같은 것을 보고 "업스트림이 이 레인을 접었다"고 안심하는 것 둘 다 틀립니다(후자의 경우 업스트림은 계속 개발 중이며, 다만 그 작업이 더 이른 태그에 이미 들어와 있었을 뿐입니다).
 
@@ -40,6 +44,7 @@
 | **DNS-over-HTTPS 자동 승격 (Chromium)** | 머신 리졸버가 알려진 DoH 제공자면 자동 | ✅ `lockdown` (OS 리졸버로 고정) | 없음 (§8). 개별 스위치 없이 `lockdown`에만 달려 있습니다 |
 | **렌더러 외부 이미지 (Google favicon / 아바타 / 마크다운 인라인)** | 아이콘·본문 표시 시 자동 | ➖ `enforceNetworkAllowlist` opt-in 시에만 | 기본값은 차단 안 됨 (§6) |
 | **서브프로세스 (gh/glab/git/에이전트 CLI)** | 사용자 조작 | ❌ Orca 측 통제 수단 없음 | 🔴 프록시·방화벽으로만 통제 (§0.2) |
+| **사내 게이트웨이 로그인 (`gateway-cli`)** — AWS SSO 레인을 대체 | 사용자가 로그인 버튼을 누를 때 + **상태 배지를 새로 고칠 때마다**(`verify`) | ❌ Orca 측 통제 수단 없음 (자식 프로세스) | 🔴 사내 IdP·게이트웨이 두 곳으로 나가며 망 계층에서만 통제 (§0.2 #25, §4). Orca는 자격증명을 읽지도 저장하지도 주입하지도 않습니다 |
 | **플러그인 시스템 (v1.4.162 신규)** — 벤더 마켓플레이스 `git clone` + kill-list `fetch` | 사용자가 설정 → 플러그인을 켠 순간 (기본 꺼짐) | ✅ `disablePlugins` | **이 스위치가 없으면 통제 불가**였습니다 — clone은 `git` 자식 프로세스라 `enforceNetworkAllowlist`가 못 봅니다 (§0.2 #19) |
 | **벤더 커뮤니티·문서 링크 (Discord, X, 공개 이슈 트래커, onorca.dev 문서)** | `?` 메뉴·피드백·에러 토스트 등에서 클릭 시 **기본 브라우저**로 나감 | ✅ `disableVendorLinks` | 표시 게이트를 못 단 설정 화면 링크 2곳이 **무반응 상태로 남습니다** (초크포인트가 막으므로 열리지는 않음, §0.2 #20) |
 | **에셋 다운로드 — scrcpy 서버 jar** | 사용자가 Android 스트리밍을 켤 때만 | ✅ `lockdown` (직접 다운로드 거부 가드) | 없음 (§0.2 #9) |
@@ -188,7 +193,9 @@
 
 | ~~24~~ | ~~**GitHub 스택 PR 병합의 쓰기 증폭**~~ (egress가 아니라 **의도보다 넓은 파괴적 쓰기** 항목입니다) | ~~사내 GHES — origin에서 유도~~ | ~~`github.mergePR`(IPC/RPC 공용) 호출 시 대상 PR이 스택에 속하면 자동 승격~~ | **v1.4.180에서 발견 → 이 포크가 `d02dd048a1`에서 닫았습니다.** **무엇이었나**: 메인 프로세스의 `mergePR()`이 대상 PR의 스택 메타데이터를 읽어 스택이면 **묻지도 알리지도 않고** 단일 PR 병합 요청을 스택 전체 병합(`PUT …/pulls/N/merge-async` — GitHub이 그 PR과 **그 아래 모든 PR을 원자적으로** 병합하는 엔드포인트)으로 교체했습니다. 확인 다이얼로그는 **렌더러 전용**이었고 `github.mergePR`은 `MOBILE_RPC_METHOD_ALLOWLIST`에 등재돼 모바일 앱이 실제로 호출하므로, 이 델타에서 갱신되지 않은 모바일 UI는 **단일 PR 병합처럼 보이면서 스택 전체를 병합**할 수 있었습니다. **모바일만의 문제가 아니었습니다** — 데스크톱 표면 셋(`PullRequestPage`·`GitHubItemDialog`·`TaskPage`)도 `"This will update the pull request on GitHub."`이라는 일반 확인만 띄운 채 같은 승격을 겪었고, 그 셋이 다루는 work item 타입에는 `stack` 필드 자체가 없어 **무엇이 병합되는지 보여줄 방법이 없었습니다.** 어떤 관리자 스위치도 이 경로를 보지 않았습니다(`LOCKDOWN_INHERITING_KEYS` 17개 중 없음). **어떻게 닫았나**: 정책 스위치가 아니라 코드로 닫았습니다 — 승격을 명시적 옵트인(`stackMergeIntent`)으로 바꾸고, 게이트를 `mergeGitHubPRStack`의 **유일한 호출부**인 `client.ts`의 `mergePR()`에 두었습니다. 옵트인은 스택 범위를 실제로 고지하는 리뷰 사이드바 확인 직후에만 전달되고, 나머지 경로(모바일·구버전 클라이언트·고지할 수 없는 데스크톱 표면 셋)는 **fail-closed**로 거부되며 몇 건짜리 스택인지와 어디서 범위를 볼 수 있는지를 오류로 안내합니다. 조용한 단일 PR 강등은 **의도적으로 하지 않습니다** — 호출자가 자기 요청과 실제 쓰기의 차이를 알아야 하기 때문입니다. **왜 스위치가 아닌가**: "허용"이 기본인 스위치를 만들면 구멍이 기본으로 열린 채 남습니다. 이것은 정책 선택이 아니라 안전성 수정입니다. **#18과 같은 구조의 문제였습니다**(렌더러 게이트가 보이지 않는 클라이언트) — 그래서 방어선을 렌더러가 아니라 메인으로 옮긴 것이 수정의 핵심입니다. **`disableMobilePairing`으로는 닫히지 않았습니다** — #22가 기록한 대로 runtime-scope 페어링 토큰은 잠금에서도 계속 발급되고 그 스코프는 모바일 허용목록이 아니라 전체 RPC 표면을 엽니다 | 게이트 `src/main/github/client.ts`의 `mergePR()`(스택 분기), 의도 타입·오류 문구 `src/main/github/github-pr-stack-merge-gate.ts`, 엔드포인트 `github-pr-stack-async-merge.ts`, 옵트인 전달 `src/renderer/src/components/right-sidebar/use-hosted-review-actions.ts`. 회귀 방지 `src/main/github/github-pr-stack-merge-optin.test.ts` — **옵트인 없이는 `mergeGitHubPRStack`에도 `merge-async` 엔드포인트에도 도달하지 않는다**를 네거티브로 고정하므로, 업스트림 동기화가 자동 승격을 되살리면 red가 됩니다(§3·§3.1의 소스 감사 테스트와 같은 목적) |
 
-**#2~#6b는 `enforceNetworkAllowlist: true`로 닫을 수 있습니다** — 메인 창은 파티션을 지정하지 않아 `session.defaultSession`을 쓰므로 렌더러 `<img>` 요청이 가드의 `onBeforeRequest`를 지나갑니다 (`createMainWindow.ts:295-301`에 `partition` 없음). **#6c는 예외입니다** — 로드하는 주체가 데스크톱 렌더러가 아니라 페어링된 모바일 앱이고 그 앱은 이 Electron 세션 밖에 있으므로, 허용목록으로 닫히지 않습니다(데스크톱은 애초에 URL을 로드하지 않습니다). #1, #7, #23은 어떤 Orca 측 스위치로도 닫히지 않으며 망 계층에서만 통제됩니다 — #23은 `gh` 자식 프로세스라 #1과 같은 사각지대이고, 유일한 코드 통제는 `fetchRateLimitSnapshot()` 한 곳에 게이트를 다는 것입니다. #22는 나가는 트래픽이 아니라 **들어오는 접속**을 여는 항목이라 허용목록의 대상이 아니며, 이 레인을 소유하는 스위치가 없으므로 통제는 망 계층(`6768`/dev `6769` 및 폴백 포트의 인바운드 차단)뿐입니다. #21은 네트워크 항목이 아니라 잠금 자체의 무결성 항목이며, 코드가 아니라 배포 형태(ACL 또는 perMachine 설치)로만 닫힙니다. #10은 Electron `net.request`를 쓰므로 허용목록이 덮는지 여부가 §7 레벨 3의 미검증 항목과 같습니다.
+| 25 | **사내 게이트웨이 CLI의 egress** (`gateway-cli login` / `gateway-cli verify` — AWS SSO 레인을 대체) | **사내 OIDC IdP**와 **사내 게이트웨이** 두 곳. 실제 호스트명은 `gateway-cli` 자신의 설정이 정하며 **Orca는 목적지를 알지 못합니다** | ① 설정 → AI 제공업체 계정에서 "사내 게이트웨이 로그인"을 눌렀을 때(`gateway-cli login`, 인자 없음), ② **상태 배지를 새로 고칠 때마다**(`gateway-cli verify`) — ②는 사용자가 로그인을 누르지 않아도 발생하는 자동 경로입니다 | 🔴 **#1과 같은 사각지대입니다.** Orca가 **자식 프로세스로 스폰**하므로 `enforceNetworkAllowlist`(`session.defaultSession` + 메인 프로세스 global `fetch`)가 그 소켓을 **구조적으로 볼 수 없습니다.** AWS CLI 시절과 성격이 같은 잔여 위험이지만 **목적지가 하나에서 둘로 늘었습니다**(IdP + 게이트웨이). ⚠️ **미확인 항목이 많습니다**: `verify`가 매번 실제로 네트워크를 타는지(로컬 캐시만 읽을 수도 있습니다), 호출 빈도, virtual key의 저장 위치와 수명, `gateway-cli`의 프록시·사설 CA 처리, WSL 게스트·SSH 원격에서의 동작. **권고**: 사내 IdP·게이트웨이 호스트를 이 표에 **실명으로 적어 두고**, 통제는 망 계층(프록시 강제·방화벽·TLS 검사)에서 하십시오 — `allowedNetworkHosts`에 넣어도 자식 프로세스에는 아무 효과가 없습니다(#1). **Orca 쪽 경계는 확인됐습니다**: 토큰·virtual key를 읽지도 저장하지도 않고, 에이전트 환경에 자격증명 변수를 주입하지도 않으며, CLI는 PATH에서만 해석합니다. 로그아웃 레인은 존재하지 않습니다 | 계약 `src/shared/gateway-auth.ts`, 실행 `src/main/gateway/gateway-cli-command.ts`(`resolveGatewayCommand`)·`gateway-login.ts`(`runGatewayLogin`)·`gateway-verify.ts`(`runGatewayVerify`)·`gateway-cli-availability.ts`(`detectGatewayCli`), 출력 파서 `src/shared/gateway-cli-output.ts`, IPC `src/main/ipc/gateway.ts`(`gateway:getStatus`·`gateway:login`·`gateway:cancelLogin` + 이벤트 `gateway:loginProgress`), 화면 `settings/GatewaySection.tsx` |
+
+**#2~#6b는 `enforceNetworkAllowlist: true`로 닫을 수 있습니다** — 메인 창은 파티션을 지정하지 않아 `session.defaultSession`을 쓰므로 렌더러 `<img>` 요청이 가드의 `onBeforeRequest`를 지나갑니다 (`createMainWindow.ts:295-301`에 `partition` 없음). **#6c는 예외입니다** — 로드하는 주체가 데스크톱 렌더러가 아니라 페어링된 모바일 앱이고 그 앱은 이 Electron 세션 밖에 있으므로, 허용목록으로 닫히지 않습니다(데스크톱은 애초에 URL을 로드하지 않습니다). #1, #7, #23, #25는 어떤 Orca 측 스위치로도 닫히지 않으며 망 계층에서만 통제됩니다 — #23은 `gh` 자식 프로세스라 #1과 같은 사각지대이고, 유일한 코드 통제는 `fetchRateLimitSnapshot()` 한 곳에 게이트를 다는 것입니다. #22는 나가는 트래픽이 아니라 **들어오는 접속**을 여는 항목이라 허용목록의 대상이 아니며, 이 레인을 소유하는 스위치가 없으므로 통제는 망 계층(`6768`/dev `6769` 및 폴백 포트의 인바운드 차단)뿐입니다. #21은 네트워크 항목이 아니라 잠금 자체의 무결성 항목이며, 코드가 아니라 배포 형태(ACL 또는 perMachine 설치)로만 닫힙니다. #10은 Electron `net.request`를 쓰므로 허용목록이 덮는지 여부가 §7 레벨 3의 미검증 항목과 같습니다.
 
 **v1.4.176에서 #22의 기본 노출면이 좁아졌습니다(레인이 사라진 것은 아닙니다).** 예전에는 리스너를 무조건 `0.0.0.0`으로 띄웠지만, 이제 `resolveInitialWebSocketBindHost()`가 `orca serve`/E2E가 아니고 **네트워크로 붙은 적 있는 기기가 하나도 없으면 `127.0.0.1`로 바인드**합니다("이 컴퓨터만" 스코프 grant는 계산에서 제외 — STA-2370). LAN/QR 오퍼가 실제로 발급될 때에만 `ensureNetworkExposure()`가 `0.0.0.0`으로 재바인드합니다. 즉 **한 번도 폰을 페어링한 적 없는 PC는 LAN에 리스너를 노출하지 않습니다.** 다만 `window.api.mobile.getRuntimePairingUrl()` IPC는 여전히 정책과 무관하게 등록되고, 그것이 호출되면 리스너가 넓어지므로 **🔴 판정과 망 계층 통제 권고는 그대로입니다.**
 
@@ -477,7 +484,7 @@ Orca가 스폰하는 에이전트 CLI(claude/codex/…)의 트래픽이 아니�
 
 ### AWS Bedrock으로 Claude를 쓰는 경우
 
-사내가 Bedrock을 쓴다면 인증은 Orca가 스폰하는 **Claude Code CLI 자체**가 AWS로 처리합니다(`bedrock-runtime.<region>.amazonaws.com`). Orca는 셸/워크스페이스 환경변수를 PTY에 전달하므로, 아래를 사용자 셸 또는 per-workspace 환경에 넣으면 됩니다.
+사내가 Bedrock을 쓴다면 인증은 Orca가 스폰하는 **Claude Code CLI 자체**가 처리합니다(`bedrock-runtime.<region>.amazonaws.com`). Orca는 셸/워크스페이스 환경변수를 PTY에 전달하므로, 아래를 사용자 셸 또는 per-workspace 환경에 넣으면 됩니다.
 
 ```
 CLAUDE_CODE_USE_BEDROCK=1
@@ -485,7 +492,18 @@ AWS_REGION
 ANTHROPIC_MODEL=<Bedrock inference profile ARN 또는 모델 ID>
 ```
 
-> 사내 플릿은 SSO를 쓰고 `AWS_PROFILE`을 설정하지 않습니다. 그래도 문제는 없습니다 — **Orca 프로덕션 코드는 `AWS_PROFILE`을 어디서도 읽지 않습니다**(저장소 전체에서 이 이름이 나오는 곳은 테스트 픽스처 `src/main/claude-accounts/environment.test.ts:13,72`뿐). PTY 스폰 경로에는 env 허용목록이 없어 셸 환경이 그대로 상속되고, Orca가 삭제하는 유일한 AWS 변수는 `AWS_BEARER_TOKEN_BEDROCK`입니다 (`src/main/claude-accounts/environment.ts:3-8`).
+> **자격증명 자체는 사내 게이트웨이가 소유합니다** — 사용자가 `gateway-cli login`(인자 없음)으로 OIDC 로그인을 마치면 게이트웨이가 virtual key를 발급하고, 그 키를 CLI까지 전달하는 것도 `gateway-cli`의 몫입니다. 개별 AWS 프로필을 관리하지 않으므로 `AWS_PROFILE`도 설정하지 않습니다. 그래도 문제는 없습니다 — **Orca 프로덕션 코드는 `AWS_PROFILE`을 어디서도 읽지 않습니다**(저장소 전체에서 이 이름이 나오는 곳은 테스트 픽스처 `src/main/claude-accounts/environment.test.ts:13,72`뿐). PTY 스폰 경로에는 env 허용목록이 없어 셸 환경이 그대로 상속되고, Orca가 삭제하는 유일한 AWS 변수는 `AWS_BEARER_TOKEN_BEDROCK`입니다 (`src/main/claude-accounts/environment.ts:3-8`). ⚠️ **virtual key가 그 변수로 전달되는지는 미확인**입니다 — 전달된다면 `disableManagedClaudeAccounts`를 켜지 않은 플릿에서 WSL 세션이 스폰 실패합니다(아래 운영 결함 #3).
+
+#### 사내 게이트웨이 로그인 레인 (AWS SSO 레인을 대체)
+
+Orca의 책임 경계는 **AWS SSO 시절과 동일합니다** — 로그인 명령을 실행하고 상태를 표시할 뿐, **토큰·virtual key를 읽지도 저장하지도 않고 환경변수도 주입하지 않습니다**(계약은 `src/shared/gateway-auth.ts` 헤더 주석). `gateway-cli`는 PATH에서만 해석하고(`resolveGatewayCommand()`) 설치 경로를 추측하지 않습니다. **로그아웃 레인은 없습니다** — `gateway-cli logout`의 존재가 확인되지 않아 구현하지 않았습니다.
+
+감사 관점에서 **AWS SSO 시절과 달라진 것은 두 가지**입니다.
+
+1. **상태 확인이 파일 읽기에서 프로세스 실행으로 바뀌었습니다.** 예전 배지는 AWS CLI 토큰 캐시의 `expiresAt`을 네트워크 없이 파일에서 읽었지만, 지금은 `gateway:getStatus`가 불릴 때마다 CLI를 **최대 두 번 스폰**합니다 — 설치 감지용 `gateway-cli --version`(`detectGatewayCli()`)과 `gateway-cli verify`(`runGatewayVerify()`). 그 실행이 네트워크를 타는지, 탄다면 어느 호스트로 가는지는 `gateway-cli` 구현에 달려 있어 **미확인**이고, 호출 빈도(화면 진입·수동 새로고침·폴링 여부)도 이 문서의 판정 대상이 아닙니다.
+2. **목적지가 하나에서 둘로 늘었습니다** — OIDC IdP와 게이트웨이. 둘 다 자식 프로세스의 egress이므로 §0.2 #25로 등록했습니다.
+
+`verify`의 출력 형식이 확정되지 않아 파서(`src/shared/gateway-cli-output.ts`)는 JSON → 텍스트 → 종료 코드 순으로 방어적으로 읽고, 알아보지 못한 항목은 `null`로 둡니다. **`expiresAt: null`은 "만료를 알 수 없음"이지 "만료됨"이 아닙니다** — 검토자가 화면만 보고 세션 만료를 판정하면 안 되는 이유입니다. 화면으로 올라가는 `detail` 문자열은 파서의 `redactSecrets()`가 비밀 후보(키·토큰 형태의 대입문, 숫자를 포함한 20자 이상 불투명 문자열)를 `***`로 가린 뒤 넘기므로, **CLI가 출력에 키를 흘리더라도 그대로 화면·로그에 남지는 않습니다.** 다만 이것은 알려진 형태에 대한 방어이지 형식을 모르는 출력에 대한 보장이 아닙니다.
 
 `platform.claude.com`으로 가는 OAuth 갱신은 **Orca 관리 Claude 계정을 추가하지 않는 한 발생하지 않지만, 그 "추가하지 않음"을 사용자 선의에 맡기지 말고 `disableManagedClaudeAccounts`로 못 박으세요.** Bedrock 플릿에서 이 스위치는 egress 차단인 동시에 **기능 안정화**입니다 — 위 절에서 본 대로 관리형 계정의 환경 스트립은 `AWS_BEARER_TOKEN_BEDROCK`을 지우고, WSL 세션에서는 관리형 계정 없이도 켜져 Claude 스폰을 하드 실패시킵니다.
 
@@ -500,7 +518,7 @@ egress가 아니라 **환경변수가 에이전트까지 도달하는 경로**�
 | 1 | `setx`로 `AWS_REGION` 등을 넣었는데 **에이전트에는 안 보임** | 상주 PTY 데몬은 앱 재시작을 넘어 살아남고 **fork 시점의 `process.env`를 계속 씁니다.** 매 스폰마다 레지스트리에서 다시 읽는 값은 **`PATH` 하나뿐**입니다 | 데몬이 자기 `process.env`를 권위로 삼음 `src/main/daemon/pty-subprocess.ts:102`, 스폰 env 조립 `:563` / `PATH`만 재병합 `src/main/ipc/pty.ts:1003` ← `src/main/pty/windows-environment-path.ts:11-14`(레지스트리 키 2개) | `setx` 뒤에 **데몬 재시작 또는 재로그온**. 앱만 재시작하는 것으로는 부족 |
 | 2 | 설정에서 만든 per-agent 환경변수의 **값을 비워 두면 OS 값까지 사라짐** | 빈 문자열이 정상 값으로 저장되고(`nextEnv[key] = raw`) 스폰 시 OS 값 위에 덮어써서 **빈 문자열로 가려집니다** | 정규화 `src/shared/tui-agent-launch-defaults.ts:62-68`(빈 문자열을 거르지 않음), 해석 `:96-104` → 스폰 플랜의 `env`로 전달 `src/shared/tui-agent-startup.ts:94` → 병합 `src/main/daemon/pty-subprocess.ts:563`(`opts.env`가 `process.env`를 덮음) | 쓰지 않을 변수는 **값을 비우지 말고 행 자체를 삭제** |
 | 3 | WSL Claude 세션이 **스폰 즉시 에러로 종료** | `disableManagedClaudeAccounts`가 꺼져 있으면 WSL 분기가 관리형 계정 없이도 `stripAuthEnv`를 켜고, 런치 env에 인증 변수가 있으면 하드 실패 | `src/main/claude-accounts/runtime-auth-service.ts:647,657` → `src/main/ipc/pty.ts:3189-3163`, `:4250-4233` | `disableManagedClaudeAccounts: true` (= `lockdown: true`). **필수** |
-| 4 | Windows에서 설정한 `AWS_*`가 **WSL 게스트 안에서 안 보임** | `wsl.exe`는 `WSLENV`에 이름이 적힌 변수만 넘기는데, Orca가 등록하는 목록에 `AWS_*`가 **하나도 없습니다**(`ORCA_*`·`CODEX_HOME`·`CLAUDE_CONFIG_DIR` 계열뿐) | `src/main/pty/wsl-orca-env.ts:58-84`, 추가 등록 지점 `src/main/providers/local-pty-provider.ts:707,727,731,735` | 게스트 배포판 안에서 별도 설정(`~/.bashrc`, `/etc/environment`, WSL 쪽 AWS 프로필) |
+| 4 | Windows에서 설정한 `AWS_*`가 **WSL 게스트 안에서 안 보임** | `wsl.exe`는 `WSLENV`에 이름이 적힌 변수만 넘기는데, Orca가 등록하는 목록에 `AWS_*`가 **하나도 없습니다**(`ORCA_*`·`CODEX_HOME`·`CLAUDE_CONFIG_DIR` 계열뿐) | `src/main/pty/wsl-orca-env.ts:58-84`, 추가 등록 지점 `src/main/providers/local-pty-provider.ts:707,727,731,735` | 게스트 배포판 안에서 별도 설정(`~/.bashrc`, `/etc/environment`) + **게스트 안에서 `gateway-cli login`을 따로 실행** — 호스트 로그인은 게스트에 보이지 않습니다 |
 
 ---
 
@@ -659,6 +677,7 @@ Electron의 `configureHostResolver`는 `secureDnsMode`가 기본 `'automatic'`�
 - **`enforceNetworkAllowlist`는 WebSocket을 검사하지 않습니다.** 가드는 `http:`/`https:` URL만 보고 `globalThis.fetch`만 래핑합니다 (`src/main/enterprise/enterprise-network-guard.ts:66`). 원격 Orca 런타임과 모바일 페어링은 WebSocket이므로 **허용목록으로는 막히지 않습니다** — 그래서 `disableRemoteOrcaServer` / `disableMobilePairing`이 별도 스위치로 존재합니다. 허용목록만 켜고 두 스위치를 끄면 구멍이 남습니다.
 - **웹 클라이언트(`orca serve` / `pnpm dev:web`)에는 정책이 전달되지 않습니다.** `src/renderer/src/web/web-preload-api.ts`에 `enterprisePolicy` 키가 없어 렌더러 캐시가 "제한 없음"으로 남습니다. **UI 차단만 무력화되고 메인 프로세스 게이트는 그대로 유효**하므로 실제 egress는 막히지만, 화면에는 정책이 지운 섹션이 보입니다. 데스크톱 앱에는 해당하지 않습니다.
 - **Computer Use 승인은 창이 있을 때만 물을 수 있습니다.** `requireComputerUseApproval`은 띄울 창이 없으면 **거부**로 처리하므로 헤드리스 경로에서 무단 실행되지는 않지만, 그 경로에서는 Computer Use가 사실상 사용 불가가 됩니다.
+- **`gateway-cli`의 동작 전반 (§0.2 #25).** 이 저장소가 판정할 수 있는 것은 **Orca가 무엇을 하지 않는지**까지입니다. 다음은 그 CLI의 계약이며 코드로 확인하지 못했습니다: ① `gateway-cli verify`의 출력 형식(그래서 파서가 JSON → 텍스트 → 종료 코드 순으로 방어적입니다), ② `verify`가 네트워크를 타는지와 그 목적지, ③ virtual key의 저장 위치·수명·전달 방식(`AWS_BEARER_TOKEN_BEDROCK`을 쓰는지 포함), ④ `gateway-cli logout`의 존재 여부(**그래서 로그아웃을 구현하지 않았습니다** — 없는 하위 명령을 발명하지 않는 편이 낫다는 판단), ⑤ 설치 경로(그래서 PATH 해석만 하고 경로를 추측하지 않습니다), ⑥ 프록시·사설 CA 처리, ⑦ WSL 게스트·SSH 원격에서의 동작. **배포 전에 사내 인증 담당과 함께 실측하고, 최소한 IdP·게이트웨이 호스트명은 #25에 실명으로 채워 넣으십시오.**
 - **Chromium 컴포넌트 업데이터.** 이 브랜치는 관련 스위치를 걸지 않습니다 — `disable-features`에 들어가는 값은 `IntensiveWakeUpThrottling` 하나뿐이고(`src/main/startup/configure-process.ts:304-310`), 프로덕션 `appendSwitch` 호출 10곳(`configure-process.ts` 6곳, `index.ts:1381`, `startup/ensure-virtual-display.ts:22,25`, `startup/renderer-heap-headroom.ts:101`) 어디에도 컴포넌트 관련 항목이 없습니다. **통제 수단이 없다는 것은 확인했으나, Electron 런타임이 실제로 컴포넌트 업데이트 요청을 내는지는 패킷 캡처로 확인하지 못했습니다.** 배포 전 실측 권장.
 
 ---
@@ -670,5 +689,6 @@ Electron의 `configureHostResolver`는 `secureDnsMode`가 기본 `'automatic'`�
 git: GitHub REST/GraphQL·PR 백그라운드 폴링·아바타·star-nag / GitLab / Bitbucket / Azure DevOps / Gitea 폴백 / 일반 git fetch·push·clone / attribution 푸터.
 이슈: Linear GraphQL·에이전트 write·첨부 signed URL / Jira REST / GitHub·GitLab 이슈 소스 / 본문 마크다운의 인라인 이미지·벤더 아바타.
 AI: Claude 사용량(`api.anthropic.com`)·OAuth갱신(`platform.claude.com`) / Codex / Gemini / MiniMax / OpenCode / Grok / Kimi / 받아쓰기(OpenAI).
+인증: 사내 게이트웨이 CLI(`gateway-cli login`/`verify` → 사내 OIDC IdP + 게이트웨이). **자식 프로세스라 Orca가 소켓을 열지 않으므로 위 44건에 포함되지 않습니다** — §0.2 #25의 잔여 위험 항목입니다.
 클라우드: PostHog / 진단 번들(`onorca.dev`). (업데이터·넛지·changelog, 피드백/크래시 제출, 그리고 Orca Cloud 로그인·모바일 페어링 릴레이·Artifacts 공유는 코드에서 제거되어 목록에 없습니다 — §3, §3.1.)
 에셋: STT 모델(sherpa-onnx)·scrcpy(에뮬레이터) GitHub Releases 다운로드 / Google favicon·아바타 이미지 / SSH 릴레이의 원격 npm install.

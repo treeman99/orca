@@ -890,7 +890,7 @@
         "linearDescription": "How Linear works in Orca, setup checklist, agent skill, and example prompts.",
         "pluginsTitle": "Plugins",
         "pluginsDescription": "Install and manage experimental Orca plugins.",
-        "accountsCorporate": "AWS SSO sign-in and your organization’s self-hosted model endpoints.",
+        "accountsCorporate": "Corporate gateway sign-in and your organization’s self-hosted model endpoints.",
         "tasksDescription": "Connect providers, install the Linear skill, and choose what appears in Tasks.",
         "artifactsTitle": "Artifacts",
         "artifactsDescription": "Share HTML and Markdown files with your team and manage their public links.",
@@ -10359,42 +10359,36 @@
           "tokenInputLabel": "GitHub personal access token",
           "connectWithToken": "Connect with token"
         },
-        "AwsSsoSection": {
-          "heading": "AWS SSO sign-in",
-          "intro": "Claude on Bedrock authenticates through the AWS credential chain, which needs a live SSO session. This runs `aws sso login` for the profile you pick and lets the AWS CLI open your browser. The token stays in the CLI’s own cache — Orca reads only when it expires.",
-          "awsMissing": "Orca could not run the AWS CLI. If `aws --version` works in a terminal, restart Orca so it picks up the current PATH; otherwise install AWS CLI v2 first.",
-          "noProfiles": "No SSO profiles in your AWS config. Run `aws configure sso` once to create one, then reopen this pane.",
-          "profileLabel": "AWS profile",
+        "GatewaySection": {
+          "heading": "Corporate gateway sign-in",
+          "intro": "Signing in opens an OIDC round trip in your browser, and the gateway issues a virtual key on its own — there is no AWS profile or credential to manage here. `gateway-cli` keeps that credential; Orca neither stores it nor passes it on.",
+          "gatewayMissing": "Orca could not run `gateway-cli`. If `gateway-cli --version` works in a terminal, restart Orca so it picks up the current PATH.",
           "signedIn": "Signed in",
           "signedInUntil": "Signed in — valid until {{value0}}",
           "expired": "Session expired",
           "notSignedIn": "Not signed in",
           "signIn": "Sign in with browser",
           "signInAgain": "Sign in again",
-          "signOut": "Sign out",
           "cancel": "Cancel",
-          "deviceCodeLabel": "Use the device-code flow. Pick this when the default sign-in cannot come back to this machine — a browser on another device, or a desktop that blocks the CLI’s local callback.",
           "enterCodePrompt": "A browser should have opened. Enter this code to authorize:",
           "browserPrompt": "A browser should have opened. Finish the authorization there — this waits for it.",
           "openAuthPage": "Open authorization page",
-          "errorNoProfile": "Pick an AWS profile first.",
-          "errorAwsUnavailable": "Orca could not run the AWS CLI. Confirm `aws --version` works in a terminal, then try again.",
+          "errorGatewayUnavailable": "Orca could not run `gateway-cli`. Confirm `gateway-cli --version` works in a terminal, then try again.",
+          "errorPtyUnavailable": "Orca could not start a terminal to run `gateway-cli`. Restart Orca, then try again.",
           "errorTimeout": "Sign-in timed out before it completed in the browser. Try again.",
           "errorCancelled": "Sign-in was cancelled.",
-          "errorFailed": "Sign-in failed. Check the profile and your network, then try again.",
-          "profileSaveFailed": "Could not save the profile.",
-          "logoutFailed": "Could not sign out.",
-          "errorPtyUnavailable": "Orca could not start a terminal to run the AWS CLI. Restart Orca, then try again."
+          "errorFailed": "Sign-in failed. Check your network, then try again."
         },
-        "awsSso": {
+        "gateway": {
           "search": {
-            "title": "AWS SSO sign-in",
-            "description": "Run `aws sso login` for a profile so Claude on Bedrock has a live AWS session.",
-            "aws": "aws",
-            "sso": "sso",
+            "title": "Corporate gateway sign-in",
+            "description": "Run `gateway-cli login` so the gateway issues the virtual key Claude on Bedrock uses.",
+            "gateway": "gateway",
+            "oidc": "oidc",
+            "login": "login",
             "bedrock": "bedrock",
-            "profile": "profile",
-            "login": "login"
+            "virtualKey": "virtual key",
+            "gatewayKo": "게이트웨이"
           }
         },
         "GitHubEnterpriseHostReadout": {

@@ -31,7 +31,11 @@ import type {
   LocalLogTailReadResult,
   LocalLogTailWatchArgs
 } from '../shared/local-log-tail-types'
-import type { AwsSsoLoginProgress, AwsSsoLoginResult, AwsSsoStatus } from '../shared/aws-sso-auth'
+import type {
+  GatewayLoginProgress,
+  GatewayLoginResult,
+  GatewayStatus
+} from '../shared/gateway-auth'
 import type { ReadClipboardTextOptions } from '../shared/clipboard-text'
 import type { EnterprisePolicyView } from '../shared/enterprise-policy-view'
 import type {
@@ -3485,13 +3489,12 @@ export type PreloadApi = {
     /** Blocking read for gates evaluated before the async one can resolve. */
     getSync: () => EnterprisePolicyView | null
   }
-  awsSso: {
-    getStatus: () => Promise<AwsSsoStatus>
-    setProfile: (args: { profile: string }) => Promise<AwsSsoStatus>
-    login: (args: { profile: string; useDeviceCode: boolean }) => Promise<AwsSsoLoginResult>
+  // No logout and no login argument: the gateway CLI owns the credential end to end.
+  gateway: {
+    getStatus: () => Promise<GatewayStatus>
+    login: () => Promise<GatewayLoginResult>
     cancelLogin: () => Promise<void>
-    logout: (args: { profile: string }) => Promise<void>
-    onLoginProgress: (callback: (progress: AwsSsoLoginProgress) => void) => () => void
+    onLoginProgress: (callback: (progress: GatewayLoginProgress) => void) => () => void
   }
   githubEnterprise: {
     getStatus: () => Promise<GithubEnterpriseAuthStatus>

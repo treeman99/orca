@@ -811,7 +811,7 @@
         "pluginsTitle": "プラグイン",
         "pluginsDescription": "試験的な Orca プラグインをインストールして管理します。",
         "tasksDescription": "プロバイダーを接続し、Linear スキルをインストールして、タスクに表示する項目を選択します。",
-        "accountsCorporate": "AWS SSO sign-in and your organization’s self-hosted model endpoints."
+        "accountsCorporate": "社内ゲートウェイへのサインインと、組織が自前でホストするモデルのエンドポイント。"
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "貼り付け内容が大きすぎます。"
@@ -10196,42 +10196,36 @@
           "tokenInputLabel": "GitHub personal access token",
           "connectWithToken": "Connect with token"
         },
-        "AwsSsoSection": {
-          "heading": "AWS SSO sign-in",
-          "intro": "Claude on Bedrock authenticates through the AWS credential chain, which needs a live SSO session. This runs `aws sso login` for the profile you pick and lets the AWS CLI open your browser. The token stays in the CLI’s own cache — Orca reads only when it expires.",
-          "awsMissing": "The AWS CLI (aws) is not installed or not on your PATH. Install AWS CLI v2 first, then sign in here.",
-          "noProfiles": "No SSO profiles in your AWS config. Run `aws configure sso` once to create one, then reopen this pane.",
-          "profileLabel": "AWS profile",
-          "signedIn": "Signed in",
-          "signedInUntil": "Signed in — valid until {{value0}}",
-          "expired": "Session expired",
-          "notSignedIn": "Not signed in",
-          "signIn": "Sign in with browser",
-          "signInAgain": "Sign in again",
-          "signOut": "Sign out",
-          "cancel": "Cancel",
-          "deviceCodeLabel": "Use the device-code flow. Pick this when the default sign-in cannot come back to this machine — a browser on another device, or a desktop that blocks the CLI’s local callback.",
-          "enterCodePrompt": "A browser should have opened. Enter this code to authorize:",
-          "browserPrompt": "A browser should have opened. Finish the authorization there — this waits for it.",
-          "openAuthPage": "Open authorization page",
-          "errorNoProfile": "Pick an AWS profile first.",
-          "errorAwsUnavailable": "The AWS CLI (aws) was not found on your PATH. Install it, then try again.",
-          "errorTimeout": "Sign-in timed out before it completed in the browser. Try again.",
-          "errorCancelled": "Sign-in was cancelled.",
-          "errorFailed": "Sign-in failed. Check the profile and your network, then try again.",
-          "profileSaveFailed": "Could not save the profile.",
-          "logoutFailed": "Could not sign out.",
-          "errorPtyUnavailable": "Orca could not start a terminal to run the AWS CLI. Restart Orca, then try again."
+        "GatewaySection": {
+          "heading": "社内ゲートウェイへのサインイン",
+          "intro": "サインインするとブラウザで OIDC 認証が始まり、ゲートウェイが virtual key を自動で発行します。ここで管理する AWS プロファイルや認証情報はありません。認証情報は `gateway-cli` が保持し、Orca は保存も受け渡しもしません。",
+          "gatewayMissing": "`gateway-cli` を実行できませんでした。ターミナルで `gateway-cli --version` が動くなら、Orca を再起動して現在の PATH を読み直させてください。",
+          "signedIn": "サインイン済み",
+          "signedInUntil": "サインイン済み — {{value0}} まで有効",
+          "expired": "セッションの有効期限が切れています",
+          "notSignedIn": "サインインしていません",
+          "signIn": "ブラウザでサインイン",
+          "signInAgain": "サインインし直す",
+          "cancel": "キャンセル",
+          "enterCodePrompt": "ブラウザが開いているはずです。このコードを入力して承認してください:",
+          "browserPrompt": "ブラウザが開いているはずです。そちらで承認を完了してください — ここで待機します。",
+          "openAuthPage": "認証ページを開く",
+          "errorGatewayUnavailable": "`gateway-cli` を実行できませんでした。ターミナルで `gateway-cli --version` が動くか確認してから、もう一度お試しください。",
+          "errorPtyUnavailable": "`gateway-cli` を実行するターミナルを起動できませんでした。Orca を再起動してから、もう一度お試しください。",
+          "errorTimeout": "ブラウザでの手続きが終わる前にサインインがタイムアウトしました。もう一度お試しください。",
+          "errorCancelled": "サインインをキャンセルしました。",
+          "errorFailed": "サインインに失敗しました。ネットワークを確認してから、もう一度お試しください。"
         },
-        "awsSso": {
+        "gateway": {
           "search": {
-            "title": "AWS SSO sign-in",
-            "description": "Run `aws sso login` for a profile so Claude on Bedrock has a live AWS session.",
-            "aws": "aws",
-            "sso": "sso",
+            "title": "社内ゲートウェイへのサインイン",
+            "description": "`gateway-cli login` を実行し、Bedrock 上の Claude が使う virtual key をゲートウェイから発行します。",
+            "gateway": "ゲートウェイ",
+            "oidc": "oidc",
+            "login": "ログイン",
             "bedrock": "bedrock",
-            "profile": "profile",
-            "login": "login"
+            "virtualKey": "バーチャルキー",
+            "gatewayKo": "게이트웨이"
           }
         },
         "GitHubEnterpriseHostReadout": {

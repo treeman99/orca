@@ -67,7 +67,7 @@ import { registerClaudeAccountHandlers } from './claude-accounts'
 import { registerMiniMaxCredentialsHandlers } from './minimax-credentials'
 import { registerCorporateLlmEndpointHandlers } from './corporate-llm-endpoints'
 import { registerEnterprisePolicyHandlers } from './enterprise-policy'
-import { registerAwsSsoHandlers } from './aws-sso'
+import { registerGatewayHandlers } from './gateway'
 import { registerGithubEnterpriseHandlers } from './github-enterprise'
 import { registerGrokAccountHandlers } from './grok-accounts'
 import {
@@ -155,7 +155,7 @@ export function registerCoreHandlers(
   registerMiniMaxCredentialsHandlers(rateLimits)
   registerCorporateLlmEndpointHandlers()
   registerEnterprisePolicyHandlers()
-  registerAwsSsoHandlers()
+  registerGatewayHandlers()
   registerGithubEnterpriseHandlers()
   registerGrokAccountHandlers()
   registerRateLimitHandlers(rateLimits, codexAccounts)
