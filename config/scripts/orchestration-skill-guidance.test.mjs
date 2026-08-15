@@ -377,6 +377,26 @@ describe('orchestration install stub', () => {
     expect(ledger).toContain('12 blocks and 200 lines')
   })
 
+  // Why: promotion criteria without a trigger point is a protocol that never runs. Both
+  // boundaries must survive — end-of-run alone loses everything when a session dies mid-flight,
+  // and start-of-run alone leaves the user answering for work they no longer remember.
+  it('binds candidate settlement to both ledger boundaries', () => {
+    const ledger = getSection(readSkill(), 'Project Rule Ledger')
+
+    expect(ledger).toContain('After the last worker of a run settles')
+    expect(ledger).toContain('at the start of the next run')
+    expect(ledger).toContain('before the first `task-create`')
+    expect(ledger).toContain('Never carry an unsettled candidate silently into a third run')
+  })
+
+  it('records added requirements, not only corrections to finished work', () => {
+    const ledger = getSection(readSkill(), 'Project Rule Ledger')
+
+    expect(ledger).toContain('corrects an accepted `worker_done`')
+    expect(ledger).toContain('supplies a project-specific requirement mid-run')
+    expect(ledger).toContain("a preference about this one task's output is not a rule")
+  })
+
   it('makes the coordinator load the ledger as part of its opening sequence', () => {
     const nextAction = getSection(readSkill(), 'Next Action')
 
