@@ -21,6 +21,12 @@
 >
 > ⚠️ **이 전환에서 확인하지 못한 것**: `gateway-cli verify`의 출력 형식(그래서 파서가 방어적입니다), virtual key의 저장 위치와 수명, `gateway-cli logout`의 존재 여부(그래서 로그아웃을 구현하지 않았습니다), WSL 게스트·SSH 원격에서의 동작, `gateway-cli`의 설치 경로·프록시·사설 CA 처리. **이 문서는 확인된 것만 단정하고 나머지는 미확인으로 표시합니다.**
 >
+> **v1.4.184 갱신 (2026-08-17).** 이 판에서 재검증한 것은 **v1.4.183 → v1.4.184 구간의 델타**입니다(트리 diff 561 파일, +33,214/−8,252, 신규 파일 119건 — 추가 라인 전수 grep(`fetch`/`net.fetch`/`https?://`/`new URL`/`WebSocket`/`openExternal`/`child_process`/`gh`/`curl`/`npx`/업데이터·텔레메트리 토큰/새 IPC·RPC 이름) + 신규 파일 도메인 훑기 + `mobile/src` 31건). 나머지 확정 항목은 각자의 기준 시점 서술이며 이번에 다시 열어보지 않았습니다.
+>
+> 이 구간에 **신규 외부 목적지는 0건**, 통째로 들어온 신규 기능 도메인도 0건입니다(신규 119파일 전부 기존 도메인의 확장·리팩터). 프로덕션 추가 라인에서 호스트명 리터럴은 하나도 나오지 않았습니다. 새로 생긴 것은 **기존 레인 위의 트리거 표면 2건**뿐입니다 — ① Cmd+J 팔레트에 `linear.app/<org>/issue/<ID>` URL을 붙여넣으면 즉시 이슈를 조회합니다(`WorktreeJumpPalette.tsx` → `lib/linear-issue-url-lookup.ts` → `linear:getIssue` → `src/main/linear/client.ts`, `api.linear.app` GraphQL — 저장된 Linear 자격증명이 있을 때만, 전용 스위치는 여전히 없고 `enforceNetworkAllowlist`의 fetch 가드만 적용, §부록 "이슈" 항목과 통제 수단 동일), ② 같은 팔레트에 GitHub 이슈/PR URL을 붙여넣으면 제목을 조회합니다(`lib/cmd-j-github-url-lookup.ts` → `gh:workItemByOwnerRepo` → `src/main/github/client.ts`, URL의 host/owner/repo가 저장소 리모트와 다르면 `gh`를 띄우지 않으므로 목적지는 리모트 호스트(사내 GHES)로 고정 — §0.2 #1의 `gh` 자식 프로세스 잔여 위험과 동일 레인). 반대로 upstream이 **git/gh attribution shim을 제거**해(`src/main/attribution/*`, `src/shared/orca-attribution.ts` 삭제, PTY env 8개 키 스트립, `enableGitHubAttribution` 설정 제거) `Co-authored-by: Orca` 트레일러·"Made with Orca" 푸터가 git 호스트로 나가던 경로는 사라졌습니다 — egress 감소. 업데이터 표면 유입은 0건(§3 수행 이력).
+>
+> ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다.
+>
 > **⚠️ 델타 판정의 기준은 `git log`가 아니라 트리 diff입니다.** 업스트림은 릴리스 브랜치에 태그를 달고 그 태그들은 서로의 자손이 아닙니다. 같은 변경이 main과 릴리스 브랜치에 다른 SHA로 존재하면 `git log <old>..<new>`에는 나타나되 트리에는 차이가 없으므로, **로그는 델타를 과대 계상합니다.** 실례: `git log v1.4.178..v1.4.180`에는 Artifacts 관련 커밋 3건(`24c68087bd` 수동 공유 #13369, `05160cd08e` 능력 게이팅 #13368, `2f221bdbfe` 관리 UI #13356)이 보이지만 `git diff --name-only v1.4.178 v1.4.180 -- '*artifact*' '*Artifact*'`는 **비어 있습니다** — 두 태그의 artifact 트리는 동일하며 그 기능들은 이미 v1.4.178 트리에 있었습니다(§3.1). 그러므로 델타 감사는 `git diff --name-status <old> <new>` 기준으로 하고 로그는 맥락 파악에만 쓰십시오. **함정은 양방향입니다** — 로그만 보고 "이번에 새로 들어왔다"고 오판하는 것과, 트리가 같은 것을 보고 "업스트림이 이 레인을 접었다"고 안심하는 것 둘 다 틀립니다(후자의 경우 업스트림은 계속 개발 중이며, 다만 그 작업이 더 이른 태그에 이미 들어와 있었을 뿐입니다).
 
 ---
@@ -322,6 +328,9 @@ UI 표면도 함께 사라졌습니다 — 앱/Help 메뉴, 트레이, 사이드
 | --- | --- |
 | v1.4.167 → v1.4.176 | 🔴 업데이터 표면 파일 8종 유입 — 머지 커밋 `e25a3f0f93`에서 전부 삭제 |
 | v1.4.178 → v1.4.180 | ✅ **0건.** 신규 파일과 추가 라인 양쪽에서 `updater`/`update-recovery`/`release-channel`/`feedUrl`/`autoUpdate`/`releases/tag`/`downloadUrl` 모두 매치 없음 |
+| v1.4.180 → v1.4.182 | ✅ **신규 파일 0건.** 추가 라인 매치 9건은 전부 포크가 이미 삭제한 파일(`ReleaseChannelSection.tsx`, `shared/release-channel.ts`, `updater-release-builds.test.ts`)에 대한 upstream 수정이라 머지에서 삭제 상태가 유지됨(사후 기록, 2026-08-17 확인) |
+| v1.4.182 → v1.4.183 | ✅ **0건.** 신규 파일·추가 라인 모두 매치 없음(사후 기록, 2026-08-17 확인) |
+| v1.4.183 → v1.4.184 | ✅ **0건.** 신규 파일·추가 라인 모두 매치 없음 |
 
 빌드 단계의 phone-home(electron-builder가 github에 업로드 시도)은 [윈도우 빌드 가이드 §5](./windows-corporate-build.md)에서 `--publish never`로 이미 다룹니다.
 
@@ -686,8 +695,8 @@ Electron의 `configureHostResolver`는 `secureDnsMode`가 기본 `'automatic'`�
 
 전체 원자료(호스트·파일·라인·차단 평가)는 조사 산출물에 있습니다. 여기서는 실제 외부 호출로 **확정된** 기능만 나열합니다.
 
-git: GitHub REST/GraphQL·PR 백그라운드 폴링·아바타·star-nag / GitLab / Bitbucket / Azure DevOps / Gitea 폴백 / 일반 git fetch·push·clone / attribution 푸터.
-이슈: Linear GraphQL·에이전트 write·첨부 signed URL / Jira REST / GitHub·GitLab 이슈 소스 / 본문 마크다운의 인라인 이미지·벤더 아바타.
+git: GitHub REST/GraphQL·PR 백그라운드 폴링·아바타·star-nag / GitLab / 일반 git fetch·push·clone. (Bitbucket·Azure DevOps·Gitea 폴백은 포크가 코드에서 제거했고, attribution 푸터는 upstream이 v1.4.184에서 제거해 목록에서 빠졌습니다.)
+이슈: Linear GraphQL·에이전트 write·첨부 signed URL / Jira REST / GitHub·GitLab 이슈 소스 / 본문 마크다운의 인라인 이미지·벤더 아바타. v1.4.184부터 Cmd+J 팔레트의 Linear/GitHub URL 붙여넣기도 같은 레인의 트리거입니다(신규 목적지 아님).
 AI: Claude 사용량(`api.anthropic.com`)·OAuth갱신(`platform.claude.com`) / Codex / Gemini / MiniMax / OpenCode / Grok / Kimi / 받아쓰기(OpenAI).
 인증: 사내 게이트웨이 CLI(`gateway-cli login`/`verify` → 사내 OIDC IdP + 게이트웨이). **자식 프로세스라 Orca가 소켓을 열지 않으므로 위 44건에 포함되지 않습니다** — §0.2 #25의 잔여 위험 항목입니다.
 클라우드: PostHog / 진단 번들(`onorca.dev`). (업데이터·넛지·changelog, 피드백/크래시 제출, 그리고 Orca Cloud 로그인·모바일 페어링 릴레이·Artifacts 공유는 코드에서 제거되어 목록에 없습니다 — §3, §3.1.)
