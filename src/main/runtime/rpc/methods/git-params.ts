@@ -194,7 +194,6 @@ export const GitGenerateCommitMessage = WorktreeSelector.extend({
   sourceControlAi: SourceControlAiSettings.optional(),
   sourceControlAiResolvedParams: ResolvedSourceControlAiGenerationParams.optional(),
   agentCmdOverrides: z.record(z.string(), z.string()).optional(),
-  enableGitHubAttribution: z.boolean().optional(),
   commitMessageDiscoveryHostKey: z.string().optional()
 })
 
