@@ -711,6 +711,7 @@ import {
   scanLocalRepoWorktreesForResolution,
   type RuntimeWorktreeScanResult
 } from './repo-worktree-resolution-scan'
+import { readRepoWorktreeAdminFingerprint } from './repo-worktree-admin-fingerprint'
 import {
   getLocalWorktreePathAccess,
   removeLocalWorktreePath,
@@ -1012,6 +1013,7 @@ import {
   recentTerminalOutputIncludesPath,
   recentTerminalPathCandidatesIncludePath
 } from './terminal-output-path-candidates'
+import { nativeChatTranscriptIncludesPath } from '../native-chat/native-chat-file-provenance'
 import {
   getSelectedReviewBranch,
   getSelectedReviewLookupHints,
@@ -2535,12 +2537,25 @@ type RuntimeWorktreeScanCache = {
   runtimeKey: string
   result: RuntimeWorktreeScanResult
   expiresAt: number
+  /**
+   * Git-admin state read as of the scan's start, kept unresolved so no caller ever waits on the
+   * probe to receive a scan result. Resolves to `null` when the state could not be read.
+   */
+  adminFingerprint: Promise<string | null>
+  /** When the Git scan behind `result` actually ran, so reconciliation can be bounded. */
+  scannedAt: number
 }
 
 type RuntimeWorktreeScanInFlight = {
   generation: number
   runtimeKey: string
-  promise: Promise<RuntimeWorktreeScanResult>
+  promise: Promise<RuntimeWorktreeScanRefresh>
+}
+
+type RuntimeWorktreeScanRefresh = {
+  result: RuntimeWorktreeScanResult
+  adminFingerprint: Promise<string | null>
+  scannedAt: number
 }
 
 type WorktreeLineageCandidate = {
@@ -2706,6 +2721,10 @@ export class OrcaRuntimeService {
   private managedHookReconciliationTail: Promise<void> = Promise.resolve()
   private readonly orchestrationEnvironmentTransport: OrchestrationEnvironmentTransport | null
   private readonly orchestrationFederationTimers = new Map<string, ReturnType<typeof setInterval>>()
+  private orchestrationTerminalHistoryRecoveryTimer: ReturnType<typeof setTimeout> | null = null
+  private orchestrationTerminalHistoryRecoveryInFlight: Promise<void> | null = null
+  private orchestrationTerminalRecoveryRowId = 0
+  private orchestrationFederationRelayGeneration = 0
   private readonly orchestrationFederationSyncs = new Map<
     string,
     { db: OrchestrationDb; promise: Promise<void> }
@@ -3837,15 +3856,15 @@ export class OrcaRuntimeService {
       const { app } = require('electron')
       const dbPath = join(app.getPath('userData'), 'orchestration.db')
       this._orchestrationDb = new OrchestrationDb(dbPath)
+      this.ensureOrchestrationFederationRelay()
     }
     return this._orchestrationDb
   }
 
   setOrchestrationDb(db: OrchestrationDb): void {
-    clearFederationAckCheckpoints(this)
-    this.orchestrationFederationSyncs.clear()
-    this.orchestrationFederationWarnings.clear()
+    this.stopOrchestrationFederationRelay()
     this._orchestrationDb = db
+    this.ensureOrchestrationFederationRelay()
   }
 
   private getLegacyWorkerTerminalRecoveryPlan(): LegacyWorkerTerminalRecoveryPlan {
@@ -4724,8 +4743,7 @@ export class OrcaRuntimeService {
         continue
       }
       const tick = () => {
-        const worker = this.getOrchestrationDb().getWorkerDispatch(dispatch.dispatch_id)
-        if (!worker || !['starting', 'ready', 'stopping'].includes(worker.state)) {
+        if (!this.getOrchestrationDb().isFederatedDispatchRelayEligible(dispatch.dispatch_id)) {
           const activeTimer = this.orchestrationFederationTimers.get(dispatch.dispatch_id)
           if (activeTimer) {
             clearInterval(activeTimer)
@@ -4741,13 +4759,64 @@ export class OrcaRuntimeService {
       this.orchestrationFederationTimers.set(dispatch.dispatch_id, timer)
       tick()
     }
+    this.ensureTerminalHistoryRecovery()
+  }
+
+  private ensureTerminalHistoryRecovery(): void {
+    if (
+      this.orchestrationTerminalHistoryRecoveryTimer ||
+      this.orchestrationTerminalHistoryRecoveryInFlight
+    ) {
+      return
+    }
+    const generation = this.orchestrationFederationRelayGeneration
+    const recovery = this.recoverNextTerminalHistoryAcknowledgment(generation).catch((error) => {
+      console.warn('[orchestration] terminal federation acknowledgment recovery failed', error)
+    })
+    this.orchestrationTerminalHistoryRecoveryInFlight = recovery
+    void recovery.finally(() => {
+      if (this.orchestrationTerminalHistoryRecoveryInFlight === recovery) {
+        this.orchestrationTerminalHistoryRecoveryInFlight = null
+      }
+    })
+  }
+
+  private async recoverNextTerminalHistoryAcknowledgment(generation: number): Promise<void> {
+    const db = this.getOrchestrationDb()
+    let historical = db.findNextTerminalFederatedDispatchPendingAcknowledgment(
+      this.orchestrationTerminalRecoveryRowId
+    )
+    if (!historical && this.orchestrationTerminalRecoveryRowId > 0) {
+      this.orchestrationTerminalRecoveryRowId = 0
+      historical = db.findNextTerminalFederatedDispatchPendingAcknowledgment(0)
+    }
+    if (!historical) {
+      return
+    }
+    this.orchestrationTerminalRecoveryRowId = historical.rowId
+    await this.syncOrchestrationFederatedDispatch(historical.dispatchId).catch(() => undefined)
+    if (generation !== this.orchestrationFederationRelayGeneration) {
+      return
+    }
+    this.orchestrationTerminalHistoryRecoveryTimer = setTimeout(() => {
+      this.orchestrationTerminalHistoryRecoveryTimer = null
+      this.ensureTerminalHistoryRecovery()
+    }, 1_000)
+    this.orchestrationTerminalHistoryRecoveryTimer.unref?.()
   }
 
   stopOrchestrationFederationRelay(): void {
+    this.orchestrationFederationRelayGeneration += 1
     for (const timer of this.orchestrationFederationTimers.values()) {
       clearInterval(timer)
     }
     this.orchestrationFederationTimers.clear()
+    if (this.orchestrationTerminalHistoryRecoveryTimer) {
+      clearTimeout(this.orchestrationTerminalHistoryRecoveryTimer)
+      this.orchestrationTerminalHistoryRecoveryTimer = null
+    }
+    this.orchestrationTerminalHistoryRecoveryInFlight = null
+    this.orchestrationTerminalRecoveryRowId = 0
     this.orchestrationFederationWarnings.clear()
     this.orchestrationFederationSyncs.clear()
     clearFederationAckCheckpoints(this)
@@ -8768,6 +8837,13 @@ export class OrcaRuntimeService {
       this.resolveTerminalFileUriHostname(terminalHandle),
     hasRecentTerminalOutputPath: (terminalHandle, pathText, absolutePath) =>
       this.hasRecentTerminalOutputPath(terminalHandle, pathText, absolutePath),
+    hasRecentNativeChatOutputPath: (worktreeId, context, pathText, absolutePath) =>
+      nativeChatTranscriptIncludesPath({
+        tabs: this.getMobileSessionTabsForWorktree(worktreeId).tabs,
+        context,
+        pathText,
+        absolutePath
+      }),
     resolveRuntimeGitTarget: (selector) => this.resolveRuntimeGitTarget(selector),
     openFile: (worktreeId, filePath, relativePath, runtimeEnvironmentId) => {
       if (!this.notifier?.openFile) {
@@ -18505,6 +18581,7 @@ export class OrcaRuntimeService {
         | 'pendingFirstAgentMessageRename'
         | 'firstAgentMessageRenameError'
         | 'lastActivityAt'
+        | 'diffComments'
       >
     >
   ): Promise<FolderWorkspace | null> {
@@ -19152,6 +19229,7 @@ export class OrcaRuntimeService {
         | 'externalWorktreeVisibilityPromptDismissedAt'
         | 'externalWorktreeInboxBaselinePaths'
         | 'importedExternalWorktreePaths'
+        | 'agentWorktreeVisibility'
         | 'projectGroupId'
         | 'projectGroupOrder'
       >
@@ -28402,16 +28480,9 @@ export class OrcaRuntimeService {
   private async resolveFolderWorkspaceLaunchScope(
     selector: string
   ): Promise<TerminalWorkspaceLaunchScope | null> {
-    const workspaceSelector = selector.startsWith('id:') ? selector.slice(3) : selector
-    const parsed = parseWorkspaceKey(workspaceSelector)
-    if (parsed?.type !== 'folder') {
-      return null
-    }
-    const workspace = this.store
-      ?.getFolderWorkspaces?.()
-      .find((entry) => entry.id === parsed.folderWorkspaceId)
+    const workspace = this.resolveFolderWorkspaceSelector(selector)
     if (!workspace) {
-      throw new Error('selector_not_found')
+      return null
     }
     if (!this.store) {
       throw new Error('runtime_unavailable')
@@ -28429,6 +28500,36 @@ export class OrcaRuntimeService {
       repo: null,
       folderWorkspace: workspace
     }
+  }
+
+  private resolveFolderWorkspaceSelector(selector: string): FolderWorkspace | null {
+    const workspaceSelector = selector.startsWith('id:') ? selector.slice(3) : selector
+    const parsed = parseWorkspaceKey(workspaceSelector)
+    if (parsed?.type !== 'folder') {
+      return null
+    }
+    const workspace = this.store
+      ?.getFolderWorkspaces?.()
+      .find((entry) => entry.id === parsed.folderWorkspaceId)
+    if (!workspace) {
+      throw new Error('selector_not_found')
+    }
+    return workspace
+  }
+
+  private async resolveEmulatorWorkspaceId(selector: string): Promise<string> {
+    const folderWorkspace = this.resolveFolderWorkspaceSelector(selector)
+    return folderWorkspace
+      ? folderWorkspaceKey(folderWorkspace.id)
+      : (await this.resolveWorktreeSelector(selector)).id
+  }
+
+  private async resolveEmulatorCleanupWorkspaceId(selector: string): Promise<string> {
+    const workspaceSelector = selector.startsWith('id:') ? selector.slice(3) : selector
+    const parsed = parseWorkspaceKey(workspaceSelector)
+    return parsed?.type === 'folder'
+      ? folderWorkspaceKey(parsed.folderWorkspaceId)
+      : this.resolveEmulatorWorkspaceId(selector)
   }
 
   private folderWorkspaceToResolvedWorktree(folderWorkspace: FolderWorkspace): ResolvedWorktree {
@@ -29266,31 +29367,79 @@ export class OrcaRuntimeService {
     }
     const inFlight = this.worktreeScanInFlight.get(repo.id)
     if (inFlight?.generation === generation && inFlight.runtimeKey === runtimeKey) {
-      return inFlight.promise
+      return (await inFlight.promise).result
     }
-    const promise = this.listRepoWorktreesForResolutionUncached(repo, projectRuntime)
+    const reusableCached =
+      cached?.generation === generation && cached.runtimeKey === runtimeKey ? cached : null
+    const promise = this.refreshRepoWorktreeScan(repo, projectRuntime, reusableCached)
     this.worktreeScanInFlight.set(repo.id, { generation, runtimeKey, promise })
     try {
-      const result = await promise
+      const refresh = await promise
       // Why: back off local spawn failures under resource pressure while disconnected SSH can recover on the next poll.
       if (
-        (result.ok || !repo.connectionId) &&
+        (refresh.result.ok || !repo.connectionId) &&
         generation === (this.worktreeScanGenerations.get(repo.id) ?? 0) &&
         this.worktreeScanInFlight.get(repo.id)?.promise === promise
       ) {
         this.worktreeScanCache.set(repo.id, {
           generation,
           runtimeKey,
-          result,
-          expiresAt: Date.now() + resolveWorktreeScanCacheTtlMs(repo)
+          result: refresh.result,
+          expiresAt: Date.now() + resolveWorktreeScanCacheTtlMs(repo),
+          adminFingerprint: refresh.adminFingerprint,
+          scannedAt: refresh.scannedAt
         })
       }
-      return result
+      return refresh.result
     } finally {
       if (this.worktreeScanInFlight.get(repo.id)?.promise === promise) {
         this.worktreeScanInFlight.delete(repo.id)
       }
     }
+  }
+
+  /**
+   * Refresh one repo's worktree rows, skipping the `git worktree list` subprocess when a cheap
+   * Git-admin fingerprint proves nothing changed since the cached scan.
+   */
+  private async refreshRepoWorktreeScan(
+    repo: Repo,
+    projectRuntime: ProjectExecutionRuntimeResolution | undefined,
+    cached: RuntimeWorktreeScanCache | null
+  ): Promise<RuntimeWorktreeScanRefresh> {
+    const scannedAt = Date.now()
+    // SSH and WSL-routed repos run Git off-host, so a local admin-dir read cannot describe them.
+    const fingerprintCapable =
+      !repo.connectionId &&
+      // Why: a repo whose scan TTL already reaches the reconciliation interval can never reuse a
+      // fingerprint, so reading one would be pure work. Agent-scratch roots are that case today.
+      resolveWorktreeScanCacheTtlMs(repo) < WORKTREE_SCAN_ADMIN_RECONCILE_INTERVAL_MS &&
+      !getLocalProjectWorktreeGitOptionsForRuntime(repo, projectRuntime).wslDistro
+    // Why issue it before the scan: a change landing while the scan runs must not be stamped as
+    // already-observed, or the next probe would mask it until the reconciliation deadline.
+    const adminFingerprint = fingerprintCapable
+      ? readRepoWorktreeAdminFingerprint(repo.path)
+      : UNFINGERPRINTED_WORKTREE_SCAN
+    const reusable =
+      fingerprintCapable &&
+      cached?.result.ok === true &&
+      scannedAt - cached.scannedAt < WORKTREE_SCAN_ADMIN_RECONCILE_INTERVAL_MS
+        ? cached
+        : null
+    if (reusable) {
+      // Why await only here: this is the one branch whose decision needs the probe. A scan-bound
+      // caller must never wait on it, or every cold read pays filesystem latency it cannot use.
+      const [current, previous] = await Promise.all([adminFingerprint, reusable.adminFingerprint])
+      if (current !== null && current === previous) {
+        return {
+          result: reusable.result,
+          adminFingerprint: reusable.adminFingerprint,
+          scannedAt: reusable.scannedAt
+        }
+      }
+    }
+    const result = await this.listRepoWorktreesForResolutionUncached(repo, projectRuntime)
+    return { result, adminFingerprint, scannedAt }
   }
 
   private async listRepoWorktreesForResolutionUncached(
@@ -35111,7 +35260,9 @@ export class OrcaRuntimeService {
 
   private readonly emulatorCommands = new RuntimeEmulatorCommands({
     getEmulatorBridge: () => this.emulatorBridge,
-    resolveWorktreeSelector: (selector) => this.resolveWorktreeSelector(selector),
+    resolveEmulatorWorkspaceId: (selector) => this.resolveEmulatorWorkspaceId(selector),
+    resolveEmulatorCleanupWorkspaceId: (selector) =>
+      this.resolveEmulatorCleanupWorkspaceId(selector),
     getAuthoritativeWindow: () => this.getAuthoritativeWindow(),
     getSettings: () => this.requireStore().getSettings()
   })
@@ -35615,6 +35766,12 @@ const WORKTREE_SCAN_CACHE_TTL_MS = 30_000
 // fan-out was measured at ~128 git execs/min on real installs, mostly against
 // these (crash-cluster diagnostics, 2026-07).
 const WORKTREE_SCAN_AGENT_SCRATCH_TTL_MS = 5 * 60_000
+// Why: the Git-admin fingerprint reads HEAD and its ref tip exactly, but sparse-checkout pattern
+// edits are invisible to it and a tip living in packed-refs or reftable only gets an mtime + size
+// stamp, so a real scan still runs on this interval even while the probe reports "unchanged".
+export const WORKTREE_SCAN_ADMIN_RECONCILE_INTERVAL_MS = 5 * 60_000
+/** Stand-in for a repo the local admin probe cannot or need not describe; never matches a real read. */
+const UNFINGERPRINTED_WORKTREE_SCAN: Promise<string | null> = Promise.resolve(null)
 const RESOLVED_WORKTREE_REPO_TIMEOUT_MS = 5000
 
 export function resolveWorktreeScanCacheTtlMs(repo: Pick<Repo, 'path' | 'connectionId'>): number {

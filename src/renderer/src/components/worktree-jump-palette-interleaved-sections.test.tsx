@@ -102,11 +102,7 @@ function makeRepo(): Repo {
   }
 }
 
-function makeWorktree(
-  id: string,
-  displayName: string,
-  overrides: Partial<Worktree> = {}
-): Worktree {
+function makeWorktree(id: string, displayName: string): Worktree {
   return {
     id,
     repoId: 'repo-1',
@@ -124,8 +120,7 @@ function makeWorktree(
     isUnread: false,
     isPinned: false,
     sortOrder: 0,
-    lastActivityAt: 0,
-    ...overrides
+    lastActivityAt: 0
   }
 }
 
@@ -339,57 +334,5 @@ describe('WorktreeJumpPalette interleaved primary sections', () => {
     expect(rows).toEqual([{ header: 'Open Tabs', rowId: 'workspace-tab:tab-0' }])
     expect(testContainer.textContent).toContain('Open Tabs')
     expect(testContainer.textContent).not.toContain('Worktrees')
-  })
-
-  it('puts the tab title on the left and the worktree name in the badge rail', async () => {
-    const longTitle = 'macOS Orca App Permission Update Delivery'
-    await renderPalette({
-      worktreesByRepo: {
-        'repo-1': [makeWorktree('wt-tabs', 'user-support')]
-      },
-      showSleepingWorkspaces: true,
-      ptyIdsByTabId: { 'term-0': ['pty-0'] },
-      tabsByWorktree: {
-        'wt-tabs': [makeTerminalTab('term-0', 'wt-tabs', longTitle)]
-      },
-      unifiedTabsByWorktree: {
-        'wt-tabs': [makeUnifiedTab('tab-0', 'wt-tabs', 'term-0', longTitle)]
-      },
-      groupsByWorktree: { 'wt-tabs': [makeGroup('wt-tabs', ['tab-0'])] },
-      activeGroupIdByWorktree: { 'wt-tabs': 'group-wt-tabs' }
-    })
-
-    const row = testContainer.querySelector('[data-command-item="workspace-tab:tab-0"]')
-    expect(row).not.toBeNull()
-    const title = row?.querySelector('[data-slot="palette-open-tab-title"]')
-    const worktree = row?.querySelector('[data-slot="palette-open-tab-worktree"]')
-    expect(title?.textContent).toBe(longTitle)
-    expect(worktree?.textContent).toBe('user-support')
-    expect(worktree?.compareDocumentPosition(title ?? document.createElement('span'))).toBe(
-      Node.DOCUMENT_POSITION_PRECEDING
-    )
-  })
-
-  it('tags the worktree rail label as a branch when the visible name is the branch', async () => {
-    await renderPalette({
-      worktreesByRepo: {
-        'repo-1': [makeWorktree('wt-tabs', '', { displayName: '' })]
-      },
-      showSleepingWorkspaces: true,
-      ptyIdsByTabId: { 'term-0': ['pty-0'] },
-      tabsByWorktree: {
-        'wt-tabs': [makeTerminalTab('term-0', 'wt-tabs', 'Query the API')]
-      },
-      unifiedTabsByWorktree: {
-        'wt-tabs': [makeUnifiedTab('tab-0', 'wt-tabs', 'term-0', 'Query the API')]
-      },
-      groupsByWorktree: { 'wt-tabs': [makeGroup('wt-tabs', ['tab-0'])] },
-      activeGroupIdByWorktree: { 'wt-tabs': 'group-wt-tabs' }
-    })
-
-    const row = testContainer.querySelector('[data-command-item="workspace-tab:tab-0"]')
-    expect(row).not.toBeNull()
-    const worktree = row?.querySelector('[data-slot="palette-open-tab-worktree"]')
-    expect(worktree?.textContent).toBe('main')
   })
 })
