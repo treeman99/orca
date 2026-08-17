@@ -45,7 +45,7 @@
 | **에이전트 스킬 설치·업데이트 (npmjs + github.com)** | 설정/온보딩이 `npx skills add <업스트림 저장소>`를 인쇄·실행 | 🚫 **코드에서 제거됨** (§3.2) — 스킬 바이트가 패키지에 동봉되고 설치는 로컬 복사 | 없음 (사용자가 커뮤니티 CLI를 직접 쓰는 것은 #1과 같은 사각지대) |
 | **AI 벤더 사용량 폴링 (Claude/Codex/Grok/…)** | 🔴 **Orca 계정 연동과 무관 — 로컬 벤더 CLI 자격증명만 있으면 15분마다 폴링** | ✅ `disableUsagePolling` | 없음 (§4) |
 | **Claude OAuth 토큰 회전 (platform.claude.com)** | Orca 관리 Claude 계정을 쓸 때만 | ✅ `disableManagedClaudeAccounts` | egress는 없음. 단 이 스위치는 **Bedrock 플릿에서 선택이 아니라 필수**입니다 — 끄면 WSL 세션이 관리형 계정 없이도 인증 env를 스트립하고, 런치 env에 `AWS_BEARER_TOKEN_BEDROCK` 등이 있으면 스폰이 하드 실패합니다 (§4) |
-| **git 호스팅 (GitHub/GitLab/…)** | 사용자 열람 + 일부 자동 폴링 | ➖ `githubEnterpriseHost`는 **Gitea 폴백 오인만 차단**(호스트 전환도, 트래픽 차단도 아님) | `gh` 목적지는 여전히 `GH_HOST`/origin 리모트가 결정 (§1, §7 레벨 2) |
+| **git 호스팅 (GitHub/GitLab)** | 사용자 열람 + 일부 자동 폴링 | ➖ `githubEnterpriseHost`는 허용목록 자동 추가·GHES 로그인 대상 기본값·GHES 퍼머링크 인식뿐(호스트 전환도, 트래픽 차단도 아님). Bitbucket·Azure DevOps·Gitea 연동은 **코드에서 제거**(커밋 `4d58e5f21c`, §1) | `gh` 목적지는 여전히 origin 리모트/`GH_HOST`/`gh` 자체 설정이 결정 (§1, §7 레벨 2) |
 | **맞춤법 사전 다운로드 (Chromium)** | Windows/Linux에서 자동 | ✅ `disableSpellcheck` | 없음 (§8) |
 | **DNS-over-HTTPS 자동 승격 (Chromium)** | 머신 리졸버가 알려진 DoH 제공자면 자동 | ✅ `lockdown` (OS 리졸버로 고정) | 없음 (§8). 개별 스위치 없이 `lockdown`에만 달려 있습니다 |
 | **렌더러 외부 이미지 (Google favicon / 아바타 / 마크다운 인라인)** | 아이콘·본문 표시 시 자동 | ➖ `enforceNetworkAllowlist` opt-in 시에만 | 기본값은 차단 안 됨 (§6) |
@@ -115,7 +115,7 @@
 | 키 | 타입 | 기본값 | 효과와 **구현 위치** |
 | --- | --- | --- | --- |
 | `lockdown` | boolean | `false` | 마스터 스위치. 아래 7개 스위치의 기본값이 됩니다 (`src/shared/enterprise-policy.ts:52-60`, `:196-200`) |
-| `githubEnterpriseHost` | string | `GH_HOST` 폴백 | 해당 호스트를 Gitea 후보에서 제외 → 폴백 오인 방지 (`src/main/gitea/repository-ref.ts:87-98`) + 허용목록에 자동 추가 (`enterprise-policy.ts:204-207`). **`gh`의 대상 호스트는 바꾸지 않습니다** (§7 레벨 2) |
+| `githubEnterpriseHost` | string | `GH_HOST` → `gh` 자체 설정의 기본 호스트(`src/main/github/gh-config-host.ts`) → `null` | 허용목록 자동 추가(`src/shared/enterprise-policy.ts:370-371`) · 설정 → GitHub Enterprise 팬의 로그인 대상 기본값(`src/main/ipc/github-enterprise.ts:83-86`, 사용자가 저장한 호스트가 없을 때) · GHES 퍼머링크(blob/commit URL) 인식(`src/main/git/hosted-remote-url.ts:38-42`) · `disableVendorLinks`의 GHES 예외(`src/main/enterprise/enterprise-vendor-link-guard.ts:80-83`). 예전의 "Gitea 폴백 후보에서 제외" 역할은 Gitea 연동 자체가 제거되어(커밋 `4d58e5f21c`) 사라졌습니다. **`gh`의 대상 호스트는 바꾸지 않습니다** (§7 레벨 2) |
 | `disableTelemetry` | boolean | = `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88`) **및** 진단/크래시 번들 업로드 (`src/main/observability/index.ts:103,120-133`). 로컬 NDJSON 로깅은 유지(`localFileEnabled: true`, `:130`) |
 | `disableAutoUpdate` | boolean | = `lockdown` | 🔴 **죽은 스위치.** 인앱 업데이터가 코드에서 제거되어(§3) 이 키를 읽는 게이트가 저장소에 없습니다. 리베이스 안전판 겸 기존 정책 파일 호환을 위해 키만 유지합니다 |
 | `disableStarNag` | boolean | = `lockdown` | `checkOrcaStarred()` (`src/main/github/client.ts:233`) / `starOrca()` (`:419`) |
@@ -155,7 +155,7 @@
 | `src/shared/enterprise-policy.ts` | 순수 리졸버 + 타입 (I/O 없음, 단위 테스트 가능) |
 | `src/main/enterprise/enterprise-policy-file.ts` | 탐색 / 파싱 / 캐시 |
 | `src/main/enterprise/enterprise-network-guard.ts` | opt-in 허용목록 |
-| `src/main/enterprise/enterprise-policy-fixture.ts` | 테스트 전용 픽스처 (`makeEnterprisePolicy` / `makeLockdownPolicy`) |
+| `src/shared/enterprise-policy-fixture.ts` | 테스트 전용 픽스처 (`makeEnterprisePolicy` / `makeLockdownPolicy`) |
 | `config/vitest-enterprise-policy-isolation.ts` | 빌드 머신의 머신 전역 파일이 테스트 스위트를 잠그지 않도록 무효화 |
 | `resources/enterprise-policy.json` | 설치 프로그램에 내장되는 기본 정책 (위 2순위 후보의 원본) |
 | `config/scripts/verify-packaged-enterprise-policy.cjs` | `afterPack` 검사 — 번들 정책이 실제 산출물에 있고, JSONC로 파싱되며, `lockdown: true`인지. 아니면 패키징 실패 |
@@ -180,7 +180,7 @@
 | 10 | **STT(sherpa-onnx) 모델 다운로드** | `huggingface.co/<repo>/resolve/<revision>` (v1.4.159에서 GitHub Releases → Hugging Face로 이전) | 사용자가 로컬 받아쓰기 모델을 명시적으로 내려받을 때 | ✅ `disableVoice` — `getSpeechModelManager()`가 정책 확인 후 던지므로 `ModelManager` 자체가 생성되지 않습니다 (`src/main/speech/speech-runtime-service.ts`). 스위치를 끄면 여전히 가드가 없고, Electron `net.request`를 쓰므로 §5 프록시는 탑니다 | `src/main/speech/model-download-catalog.ts:12`(URL 조립), `model-manager.ts:2,778`(`net.request`) (가드 미사용) |
 | ~~11~~ | ~~**Claude OAuth 토큰 회전**~~ | ~~`platform.claude.com`~~ | — | **해소됨**: `disableManagedClaudeAccounts`가 덮습니다 (§4). 이전 판의 "정책 스위치 없음"은 더 이상 사실이 아닙니다 | 게이트 `src/main/claude-accounts/oauth-refresh.ts:131-133` |
 | 12 | **임베디드 브라우저** | 사용자가 방문하는 임의의 사이트 | 사용자 조작 | 허용목록은 `persist:` 파티션을 의도적으로 제외합니다 — 그 슬롯은 인증서 게이트가 이미 점유 중이고, 임의 사이트 열람이 이 기능의 목적이기 때문 | `enterprise-network-guard.ts:9-13` |
-| 13 | **Gitea/Forgejo 폴백 직접 fetch** | origin 리모트에서 동적 유도된 호스트 | 미지정 git 호스트를 쓸 때 | `githubEnterpriseHost`를 지정하면 GHES는 제외되지만, **그 외 모든 미지정 호스트는 여전히 Gitea로 간주**됩니다 (§1) | `src/main/gitea/repository-ref.ts:87-98`, `client.ts:91` |
+| ~~13~~ | ~~**Gitea/Forgejo 폴백 직접 fetch**~~ | ~~origin 리모트에서 동적 유도된 호스트~~ | ~~미지정 git 호스트를 쓸 때~~ | ✅ **해소 — Gitea 연동을 코드에서 제거했습니다**(커밋 `4d58e5f21c`, `src/main/gitea/**` 9파일 삭제, Bitbucket·Azure DevOps와 함께 62파일/−9,029줄). 미지정 리모트 호스트는 이제 어느 provider에도 배정되지 않고 `unsupported`로 남습니다(`src/main/source-control/forge-provider.ts:201`) — 요청이 나가지 않습니다 | (삭제됨) |
 | 14 | **사내 LLM 엔드포인트로 가는 프롬프트·소스** | 관리자가 정책 파일에 배포한 사내 호스트 **또는 사용자가 설정에서 직접 추가한 임의의 https 호스트** | 사용자가 세션을 그 엔드포인트로 돌리고 토큰을 저장했을 때. **관리자 배포만이 아닙니다** — 설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"의 Add 폼(`corporateLlmEndpoints:addUserEndpoint`, 정책 확인 없음)으로 사용자가 URL·프로토콜·자기 토큰을 직접 등록하면 정책 엔드포인트와 **동일하게** 모델 피커에 오르고 스폰 시 env로 주입됩니다 | 목적지가 사내이든 아니든 **전송 주체가 에이전트 CLI(서브프로세스)** 라 Orca 측 통제 밖입니다(#1). 정책 파일은 전송 내용을 통제하지 않으므로 감사는 엔드포인트 서비스 쪽에서 해야 합니다 (§4). 🔴 **사용자 레인을 덮는 스위치가 없습니다** — `llmEndpoints`는 관리자 목록(데이터)일 뿐이고, `LOCKDOWN_INHERITING_KEYS` 17개 중 이 레인을 끄는 키가 없으며, 사용자 엔드포인트 저장소와 그 IPC 어디에도 `getEnterprisePolicy()` 호출이 없습니다. 인접 스위치도 명시적으로 비켜갑니다(`disableVendorProviderAccounts` 헤더: "corporate self-hosted endpoints … are never gated here"). 게다가 **정책 엔드포인트 호스트만** `allowedNetworkHosts`에 자동 추가되고 사용자 엔드포인트는 추가되지 않으며, Orca가 그 호스트를 자식 프로세스의 `NO_PROXY`에 병합하므로 **사내 프록시 가시성까지 함께 걷힙니다**. ⚠️ **권한 상승은 아닙니다**: 같은 사용자는 셸 rc나 설정 → 에이전트의 per-agent 환경변수로 `ANTHROPIC_BASE_URL`을 직접 넣어 같은 리다이렉션을 만들 수 있고(#1), 노출되는 토큰도 본인이 입력한 자기 토큰입니다 — 즉 새로 생긴 유출 경로가 아니라 **Orca가 공식 UI로 제공하고 잠금이 덮지 않는 레인**입니다. **부수**: 사용자 엔드포인트 파일은 **쓰기 시점에만** https가 검증되고 읽기 시점에는 `id`/`baseUrl`이 문자열인지만 봅니다 — 프로파일의 `corporate-llm-user-endpoints.json`을 손으로 고치면 `http://` 항목이 목록에 올라옵니다. 이것도 같은 사용자만 할 수 있어 새 경로는 아니지만, 파일 헤더 주석이 코드가 보장하는 것보다 강하게 쓰여 있습니다. 스위치를 만든다면 축은 "http 금지"가 아니라 "사용자가 엔드포인트를 추가할 수 있는가"(예: `disableUserLlmEndpoints`)이고, 초크포인트는 `getAllCorporateLlmEndpoints()`의 사용자 레인 한 곳입니다 | 주입·`NO_PROXY` `src/shared/corporate-llm-launch-env.ts:49-72`, 사용자 레인 `src/main/enterprise/corporate-llm-user-endpoints.ts:29-35`(읽기 재검증 없음)·`:64-75`(쓰기 검증), 병합 `corporate-llm-endpoint-registry.ts:11-18`, IPC `src/main/ipc/corporate-llm-endpoints.ts:167-170`, 허용목록 자동 추가는 정책 전용 `src/shared/enterprise-policy.ts:370-378` |
 
 | 15 | **외부 자동화 CLI를 스케줄로 실행** (`hermes`, `openclaw`) | 해당 벤더가 정한 목적지 (Orca는 목적지를 모릅니다) | 자동화 페이지에서 외부 잡을 만들거나, 이미 등록된 잡의 크론 시각이 되었을 때 | ✅ `disableExternalAutomations`(또는 `allowedAgents`)가 **Orca 쪽 진입점**(발견·생성·수정·실행)을 전부 거부합니다 (`src/main/automations/external-manager.ts`). 🔴 **잔여**: Orca는 스케줄러가 아니라 조작 UI일 뿐이므로, 이미 `~/.hermes/cron`에 등록된 잡은 **Hermes 자신의 스케줄러로 계속 실행됩니다** — Orca를 잠근 뒤에도 남아 있는 잡은 `hermes cron rm`으로 직접 제거해야 하고, 잠근 뒤에는 앱 안에서 그 목록을 볼 수 없습니다. 로컬 읽기(`~/.hermes/cron/jobs.json`, `state.db`, 출력 마크다운)와 SSH 호스트별 릴레이 레인도 같은 게이트로 함께 닫힙니다 | 게이트 `external-manager.ts`의 `isExternalAutomationProviderAllowed`, 릴레이 레인 `src/relay/external-automations-handler.ts` |
@@ -209,7 +209,7 @@
 
 ---
 
-## 1. Git 호스팅 (GitHub / GitLab / Bitbucket / Azure DevOps / Gitea)
+## 1. Git 호스팅 (GitHub / GitLab — Bitbucket·Azure DevOps·Gitea는 코드에서 제거)
 
 ### GitHub — `gh` CLI 서브프로세스 (직접 fetch 아님)
 
@@ -234,7 +234,7 @@
 
 ### ⚠️ 주의 1: GHES 감지가 `gh auth status`에 의존
 
-사내 GHES가 `gh`에 로그인돼 있지 않으면 GHES 감지(`src/main/github/github-enterprise-repository.ts:156`)가 실패하고 **Gitea 폴백 경로로 떨어질 수 있습니다**. → 배포 시 `gh auth login --hostname github.samsungds.net`을 선행하세요. 정책 파일의 `githubEnterpriseHost`는 Gitea 폴백 오인을 별도로 막아 주지만(아래), `gh` 로그인 자체를 대신하지는 않습니다.
+사내 GHES가 `gh`에 로그인돼 있지 않으면 GHES 감지(`src/main/github/github-enterprise-repository.ts:156`)가 실패하고 저장소가 **어느 provider에도 배정되지 않아(`unsupported`) PR·이슈가 보이지 않습니다** — 예전에 있던 Gitea 폴백은 코드에서 제거됐으므로 이 상태에서 잘못된 호스트로 요청이 나가지는 않습니다. → 배포 시 `gh auth login --hostname github.samsungds.net`을 선행하세요. 정책 파일의 `githubEnterpriseHost`는 그 로그인의 대상 호스트를 미리 채워 줄 뿐(§0.1 표), `gh` 로그인 자체를 대신하지는 않습니다.
 
 반대 방향도 정리됐습니다: **`gh`만 사내 호스트로 로그인하고 정책 파일은 없는 기계**에서, 이제 `githubEnterpriseHost`가 `gh`의 `hosts.yml`을 마지막 폴백으로 읽습니다(`src/main/github/gh-config-host.ts`). `gh auth login --hostname`은 환경변수가 아니라 그 파일에만 쓰고, GUI로 실행된 Electron 앱은 셸 rc의 `export GH_HOST`를 상속하지 않으므로 — 사내에서 가장 흔한 설치 순서에서 이 경로가 유일한 단서였습니다. 로그인된 호스트가 **둘 이상이면 채택하지 않습니다**(`gh` 자신의 `DefaultHost()`와 동일하게 `github.com`으로 떨어집니다). 확정적으로 못 박으려면 여전히 정책 파일에 `githubEnterpriseHost`를 적는 것이 유일한 방법입니다 — 추론에 의존하지 않기 때문입니다.
 
@@ -262,11 +262,11 @@
 | Provider | 방식 | 호스트 | 폴백 위험 |
 | --- | --- | --- | --- |
 | **GitLab** | `glab` CLI 서브프로세스 | `gitlab.com` / self-hosted | 자체 self-hosted 감지 있음 |
-| **Bitbucket** | Orca **직접 fetch** (global fetch) | `api.bitbucket.org` | — |
-| **Azure DevOps** | Orca **직접 fetch** (global fetch) | `dev.azure.com`, `*.visualstudio.com` | `ORCA_AZURE_DEVOPS_API_BASE_URL`로 지정 가능 |
-| 🔴 **Gitea/Forgejo** | Orca **직접 fetch** (global fetch, `src/main/gitea/client.ts:91`) | **origin 리모트에서 동적 유도** | **미지정 호스트 전부의 폴백 provider** |
+| ~~Bitbucket~~ | 🚫 **코드에서 제거** (커밋 `4d58e5f21c`) | ~~`api.bitbucket.org`~~ | — |
+| ~~Azure DevOps~~ | 🚫 **코드에서 제거** (커밋 `4d58e5f21c`) | ~~`dev.azure.com`, `*.visualstudio.com`~~ | — |
+| ~~Gitea/Forgejo~~ | 🚫 **코드에서 제거** (커밋 `4d58e5f21c`) | ~~origin 리모트에서 동적 유도~~ | 폴백 provider 자체가 없어졌습니다 — 미지정 호스트는 `unsupported` |
 
-**🔴 Gitea 폴백이 핵심 리스크**: `KNOWN_NON_GITEA_HOSTS`(`github.com`/`gitlab.com`/`bitbucket.org`/`dev.azure.com`/`ssh.dev.azure.com` — `repository-ref.ts:17-23`), `*.visualstudio.com`(`:96`), 그리고 **정책 파일의 `githubEnterpriseHost`**만 제외하고, **그 외 모든 리모트 호스트를 Gitea로 간주**해 `<host>/api/v1/...`로 직접 fetch합니다 (`src/main/gitea/repository-ref.ts:87-98`, API 베이스 조립은 `:81-82`). 즉 사내 git 호스트가 GitHub로 인식되지 못하면 Orca가 `github.samsungds.net/api/v1/...`(Gitea API)로 요청을 쏩니다. `ORCA_GITEA_TOKEN`(`client.ts:58`)이 없어도 무인증 GET은 그대로 나갑니다. → **정책 파일에 `githubEnterpriseHost`를 반드시 지정**하는 것이 이 폴백을 막는 방법입니다. 다만 GHES 외의 다른 사내 git 호스트가 있다면 그쪽은 여전히 Gitea로 오인됩니다.
+**✅ Gitea 폴백 리스크는 해소됐습니다(이력).** v1.4.183 동기화 직후 커밋 `4d58e5f21c`가 Bitbucket·Azure DevOps·Gitea 연동을 통째로 삭제했습니다(62파일, −9,029줄; `src/main/bitbucket/**` 16, `src/main/azure-devops/**` 10, `src/main/gitea/**` 9 등). 삭제 전에는 알려진 호스트와 정책의 `githubEnterpriseHost`를 뺀 **모든 리모트 호스트를 Gitea로 간주해 `<host>/api/v1/...`로 무인증 GET을 보냈고**, 그래서 `githubEnterpriseHost` 지정이 필수였습니다. 지금은 provider 탐색이 GitLab → GitHub 둘뿐이고 어느 쪽도 아니면 `unsupported`로 끝나므로(`src/main/source-control/forge-provider.ts:201`), GHES 외의 사내 git 호스트가 있어도 오인 요청은 나가지 않습니다. `githubEnterpriseHost`의 현재 역할은 §0.1 표를 보십시오. 잔여: `src/main/source-control/hosted-review-api-request.ts`(global fetch 래퍼)는 호출부가 전부 삭제돼 **현재 import하는 곳이 없는 사장 코드**로 남아 있습니다(§5 표) — 다음 정리에서 지우는 편이 안전합니다.
 
 ---
 
@@ -545,15 +545,12 @@ egress가 아니라 **환경변수가 에이전트까지 도달하는 경로**�
 
 | 파일 | 목적지 |
 | --- | --- |
-| `main/azure-devops/azure-devops-api-request.ts` | Azure DevOps |
-| `main/bitbucket/client.ts` | Bitbucket |
-| `main/gitea/client.ts` | Gitea/Forgejo (§1 폴백 포함) |
 | `main/orca-profiles/profile-cloud-client.ts` | Orca Cloud — 🚫 도달 불가 (§3.1) |
 | `main/orca-profiles/profile-cloud-org-members-client.ts` | Orca Cloud — 🚫 도달 불가 (§3.1) |
 | `main/artifacts/artifact-cloud-request.ts` | Artifacts 공유 (v1.4.178 신규) — 🚫 도달 불가 (§3.1) |
 | `main/rate-limits/codex-fetcher.ts` | Codex 사용량 |
 | `main/runtime/relay/relay-http-client.ts` | SSH 릴레이 HTTP |
-| `main/source-control/hosted-review-api-request.ts` | 호스팅형 리뷰 API |
+| `main/source-control/hosted-review-api-request.ts` | 호스팅형 리뷰 API 래퍼 — Bitbucket·Azure DevOps 삭제(`4d58e5f21c`) 이후 **호출부 없음**(사장 코드, §1) |
 | `main/speech/openai-transcription-client.ts` | `api.openai.com` |
 
 (같은 표의 나머지 항목 — `main/amp/hook-service.ts`, `main/opencode/hook-service.ts`, `main/pi/agent-status-extension-source.ts`, `main/ipc/worktree-remote.ts`, `relay/git-handler.ts` — 은 주입 스크립트 문자열 / `git fetch` 식별자라 실제 HTTP 호출이 아닙니다.)
@@ -608,7 +605,7 @@ NODE_EXTRA_CA_CERTS=C:\path\to\corp-root-ca.pem
 }
 ```
 
-이것으로 §2(텔레메트리·진단), §1(star-nag), §4(사용량 폴링 + 관리형 Claude 계정/`platform.claude.com` OAuth 회전), 맞춤법 사전 다운로드, scrcpy jar 직접 다운로드(§0.2 #9), Chromium의 DNS-over-HTTPS 자동 승격(§8)이 한 번에 닫히고, Gitea 폴백 오인이 방지됩니다. (Orca Cloud/모바일 릴레이는 이제 이 정책이 아니라 소스에서 제거되어 있습니다 — §3.1. `disableCloudRelay`는 죽은 스위치로 유지됩니다.)
+이것으로 §2(텔레메트리·진단), §1(star-nag), §4(사용량 폴링 + 관리형 Claude 계정/`platform.claude.com` OAuth 회전), 맞춤법 사전 다운로드, scrcpy jar 직접 다운로드(§0.2 #9), Chromium의 DNS-over-HTTPS 자동 승격(§8)이 한 번에 닫힙니다(예전에 함께 적혀 있던 "Gitea 폴백 오인 방지"는 Gitea 연동 자체가 제거돼 더는 필요 없습니다 — §1). (Orca Cloud/모바일 릴레이는 이제 이 정책이 아니라 소스에서 제거되어 있습니다 — §3.1. `disableCloudRelay`는 죽은 스위치로 유지됩니다.)
 
 **닫히지 않는 것**(§0.2와 동일): 서브프로세스 트래픽, 렌더러 외부 이미지, SSH 릴레이의 원격 `npm install`, STT 모델 다운로드. 레벨 1만으로 "외부 통신이 끊겼다"고 보고하면 안 됩니다.
 
@@ -624,7 +621,7 @@ HTTPS_PROXY / HTTP_PROXY / NO_PROXY # 프록시 (§5, Electron 세션 한정)
 NODE_EXTRA_CA_CERTS=<corp-ca.pem>  # 사설 CA (§5)
 ```
 
-⚠️ **`githubEnterpriseHost`는 `GH_HOST`를 대체하지 않습니다.** 저장소 전체에서 이 정책 값을 읽는 곳은 `src/main/gitea/repository-ref.ts:91`(Gitea 폴백 후보에서 제외)과 `src/shared/enterprise-policy.ts:204-207`(허용목록에 자동 추가) 두 곳뿐입니다. `gh`가 어느 호스트로 나갈지는 여전히 origin 리모트에서 유도한 `options.host` 또는 `GH_HOST`가 정합니다 (`src/main/git/runner.ts:1306-1312,1370-1376`). 의존 방향은 오히려 반대입니다 — `githubEnterpriseHost`가 비어 있을 때 `GH_HOST`를 폴백으로 읽습니다 (`src/shared/enterprise-policy.ts:203`).
+⚠️ **`githubEnterpriseHost`는 `GH_HOST`를 대체하지 않습니다.** 이 정책 값을 읽는 곳은 허용목록 자동 추가(`src/shared/enterprise-policy.ts:370-371`) · 설정 → GitHub Enterprise 팬의 로그인 대상 기본값(`src/main/ipc/github-enterprise.ts:83-86`, 사용자가 저장한 호스트가 없을 때) · GHES 퍼머링크(blob/commit URL) 인식(`src/main/git/hosted-remote-url.ts:38-42`) · `disableVendorLinks`의 GHES 예외(`src/main/enterprise/enterprise-vendor-link-guard.ts:80-83`), 그리고 정책 트레이스(`src/main/enterprise/enterprise-policy-trace.ts:53`)와 설정 팬의 "실제로 gh가 향할 호스트" 표시의 최후순위 후보(`src/main/github/effective-github-host.ts`)뿐입니다 — 어느 것도 `gh` API 호출의 argv나 환경을 바꾸지 않습니다(로그인 팬이 이 값을 대상으로 `gh auth login --hostname`을 실행하면 그 뒤로는 `gh` 자신의 설정이 기본 호스트를 정합니다). `gh`가 어느 호스트로 나갈지는 여전히 origin 리모트에서 유도한 `options.host` 또는 `GH_HOST`가 정합니다 (`src/main/git/runner.ts:1306-1312,1370-1376`). 의존 방향은 오히려 반대입니다 — `githubEnterpriseHost`가 비어 있을 때 `GH_HOST`를 폴백으로 읽습니다 (`src/shared/enterprise-policy.ts:203`).
 
 ### 레벨 3 — 허용목록 하드 게이트 (opt-in)
 

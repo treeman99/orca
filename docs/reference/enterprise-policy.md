@@ -139,7 +139,7 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 | 키 | 타입 | 기본값 | 실제로 끄는 것 (게이트 위치) |
 | --- | --- | --- | --- |
 | `lockdown` | boolean | `false` | 마스터 스위치. 아래 상속 스위치 전부(`LOCKDOWN_INHERITING_KEYS`, 현재 17개)의 **기본값**이 됩니다 (`src/shared/enterprise-policy.ts:52-60`, `:196-200`). 그 자체로 직접 끄는 기능은 없습니다 |
-| `githubEnterpriseHost` | string | `GH_HOST` → `gh`의 `hosts.yml` → 없으면 `null` | 해당 호스트를 GitHub로 인식시켜 **Gitea 오폴백**(`<host>/api/v1/...` 직접 fetch)을 막습니다 (`src/main/gitea/repository-ref.ts:91-99`). 허용목록에도 자동 추가 (`enterprise-policy.ts:204-207`). **폴백 3순위가 `gh` 자신의 설정 파일입니다** — `gh auth login --hostname <ghes>`는 환경변수가 아니라 `hosts.yml`에 쓰므로, GUI로 실행된 앱이 셸 rc의 `GH_HOST`를 못 보는 흔한 상황에서 이 경로가 유일한 단서입니다 (`src/main/github/gh-config-host.ts`). 로그인된 호스트가 **정확히 하나일 때만** 채택합니다(gh의 `DefaultHost()`와 동일) |
+| `githubEnterpriseHost` | string | `GH_HOST` → `gh`의 `hosts.yml` → 없으면 `null` | 사내 GHES 호스트명. 하는 일: 허용목록 자동 추가(`src/shared/enterprise-policy.ts:370-371`) · 설정 → GitHub Enterprise 팬의 로그인 대상 기본값(`src/main/ipc/github-enterprise.ts:83-86`, 사용자가 저장한 호스트가 없을 때) · GHES 퍼머링크(blob/commit URL) 인식(`src/main/git/hosted-remote-url.ts:38-42`) · `disableVendorLinks`의 GHES 예외(`src/main/enterprise/enterprise-vendor-link-guard.ts:80-83`). **호스트를 GitHub로 인식시키는 기능은 아닙니다**(그건 `gh auth status`) — 예전 문서가 적었던 "Gitea 오폴백 차단"은 Gitea 연동이 코드에서 제거돼(커밋 `4d58e5f21c`) 더는 해당하지 않습니다. **폴백 3순위가 `gh` 자신의 설정 파일입니다** — `gh auth login --hostname <ghes>`는 환경변수가 아니라 `hosts.yml`에 쓰므로, GUI로 실행된 앱이 셸 rc의 `GH_HOST`를 못 보는 흔한 상황에서 이 경로가 유일한 단서입니다 (`src/main/github/gh-config-host.ts`). 로그인된 호스트가 **정확히 하나일 때만** 채택합니다(gh의 `DefaultHost()`와 동일) |
 | `disableTelemetry` | boolean | `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88-90`) **및** 진단 번들 업로드 — 컨센트 계산은 `src/main/observability/index.ts:103, 120-134`이고 실제 거부는 메인의 IPC 게이트(`src/main/ipc/diagnostics.ts:221`(수집), `:253`·`:263`(업로드))에서 일어납니다. ℹ️ **제품 피드백·크래시 리포트 전송 경로(`onorca.dev/v1/feedback`)는 이 포크에서 코드째 삭제**되었으므로 이 스위치가 덮던 그 레인은 더 이상 존재하지 않습니다(§3-0). **로컬 NDJSON 로깅은 그대로 유지됩니다** (`observability/index.ts:129-133`) |
 | `disableAutoUpdate` | boolean | `lockdown` | 🔴 **죽은 스위치입니다.** 이 포크는 인앱 업데이터를 코드에서 통째로 제거했으므로(§3-0) 이 키를 읽는 게이트가 저장소에 하나도 없습니다. 키 자체는 `LOCKDOWN_INHERITING_KEYS`에 남겨 둡니다 — 업스트림 리베이스로 업데이터가 되살아났을 때 잠금이 자동으로 다시 걸리게 하기 위한 안전판이고, 이미 배포된 정책 파일이 이 키를 담고 있어도 경고 없이 계속 파싱되게 하기 위해서입니다 |
 | `disableStarNag` | boolean | `lockdown` | `checkOrcaStarred()`는 "이미 star함"으로 응답(`src/main/github/client.ts:233-235`), `starOrca()`는 실패로 응답(`:419-421`). 도달 경로 4개를 모두 덮습니다 — `star-nag/service.ts:121`, `star-nag/agent-value-moment.ts:46`, `star-nag/direct-star-attempt.ts:9`, `ipc/github.ts:1174-1175`(랜딩/설정 화면) |
@@ -383,7 +383,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 { "lockdown": true }
 ```
 
-일곱 개 스위치가 전부 켜집니다. `githubEnterpriseHost`가 없으므로 GHES 호스트는 `gh`의 `GH_HOST`에서 폴백을 시도하고, 그것도 없으면 Gitea 오폴백 방지가 동작하지 않습니다 — 사내 GHES를 쓴다면 §4-1처럼 반드시 명시하세요.
+일곱 개 스위치가 전부 켜집니다. `githubEnterpriseHost`가 없으므로 GHES 호스트는 `GH_HOST` → `gh` 자체 설정의 기본 호스트 순으로 폴백을 시도하고, 그것도 없으면 허용목록 자동 추가·로그인 대상 기본값·GHES 퍼머링크 인식이 동작하지 않습니다 — 사내 GHES를 쓴다면 §4-1처럼 반드시 명시하세요.
 
 ### 4-3. 잠그되 한 스위치만 예외로 허용
 
@@ -558,7 +558,7 @@ Ansible/Puppet/Salt의 file 리소스로 관리하거나, 사내 `.deb`/`.rpm`�
 | `disableSpellcheck` | 입력창에 오타 입력 | 빨간 물결 밑줄이 생기지 않음 (`createMainWindow.ts:299`) |
 | `disableStarNag` | 앱을 한동안 사용 | star 요청 카드/토스트가 뜨지 않음 (`github/client.ts:233-235`) |
 | `disableManagedClaudeAccounts` | WSL 런타임으로 Claude 세션 스폰 | **UI로는 확인할 수 없습니다** — 계정 스위처 화면은 그대로 뜹니다. 관측 가능한 신호는 WSL Claude 세션이 `AWS_BEARER_TOKEN_BEDROCK` 등을 이유로 스폰 실패하던 증상이 사라지는 것(`ipc/pty.ts:3189-3163`, `:4250-4233`)과, §7-2의 `enterprise.policy` 스팬에 찍힌 스위치 값입니다 |
-| `githubEnterpriseHost` | GHES 리모트 저장소에서 PR 목록 열기 | 정상 조회. `<host>/api/v1/...`(Gitea API)로 나가는 요청이 없어야 함 (`gitea/repository-ref.ts:91-99`) |
+| `githubEnterpriseHost` | GHES 리모트 저장소에서 PR 목록 열기 + 설정 → GitHub Enterprise 팬 열기 | 정상 조회. 팬의 로그인 대상 호스트가 정책 값으로 채워져 있어야 하고(`src/main/ipc/github-enterprise.ts:83-86`), GHES blob/commit URL이 파일 링크로 열려야 함(`src/main/git/hosted-remote-url.ts:38-42`). `enforceNetworkAllowlist`를 켰다면 그 호스트가 목록에 없어도 통과해야 함(자동 추가) |
 | 호스트 폴백(정책 없이 `gh`만 로그인한 기계) | 설정 → Git 및 소스 제어 → "Git 호스트" | 출처가 **"gh가 로그인되어 있는 호스트에서"** 로 표시되고 값이 사내 호스트여야 합니다. `github.com`/"gh 기본값"으로 보이면 `gh auth status`에 사내 호스트가 없거나 두 개 이상 로그인돼 있는 것입니다(둘 이상이면 gh 자신도 `github.com`을 기본값으로 쓰므로 추정하지 않습니다) |
 
 > Privacy 안내 박스는 정책 파일이 사유일 때 **`An enterprise policy file disables diagnostics on this machine.`** 를 표시합니다. 사유 코드 `enterprise_policy`(`observability/index.ts:128`)에 대응하는 전용 분기가 `PrivacyDiagnosticsSection.tsx:306-310`에 있습니다. 이 문구가 보이면 정책 파일이 적용된 것입니다 — 환경변수를 찾아볼 필요가 없습니다.

@@ -91,7 +91,7 @@ Orca는 여러 CLI 코딩 에이전트(Claude Code, Codex 등)를 **각자의 gi
 ```
 
 - `lockdown: true` — 마스터 스위치. 개별 `disable*` 키를 쓰지 않아도 전부 상속됩니다(`enterprise-policy.ts:52-60`, `:196-200`).
-- `githubEnterpriseHost` — Gitea 폴백 오인 차단 + GHES blob/commit URL 인식(§2).
+- `githubEnterpriseHost` — 허용목록 자동 추가 + GHES 로그인 대상 기본값 + GHES blob/commit URL 인식(§2).
 - `lockdown`을 쓰지 않을 거라면 **`disableManagedClaudeAccounts`와 `disableUsagePolling`은 Bedrock 플릿에서 명시적으로 켜야 합니다**(§3.3).
 - `enforceNetworkAllowlist` / `allowedNetworkHosts` — `lockdown`을 상속하지 않는 opt-in(§4.3).
 
@@ -180,17 +180,20 @@ gh auth status                      # github.samsungds.net 이 목록에 보여�
 
 #### 정책의 `githubEnterpriseHost`가 하는 일
 
-두 가지입니다. **GitHub로 인식시키는 기능은 여기 없습니다**(그건 위의 `gh auth status`입니다).
+세 가지입니다. **GitHub로 인식시키는 기능은 여기 없습니다**(그건 위의 `gh auth status`입니다).
 
-1. **Gitea 폴백 오인 차단** — 그 호스트를 Gitea 폴백에서 제외합니다(`src/main/gitea/repository-ref.ts:91-99`). `gh` 인증이 없거나 깨진 상태에서는 GitHub 판정이 실패하고, 탐색 순서의 마지막인 Gitea 프로바이더(`forge-provider.ts:265-271`: gitlab → github → bitbucket → azure-devops → gitea)가 사내 호스트를 자기 것으로 주장해 `https://github.samsungds.net/api/v1/...`라는 존재하지 않는 엔드포인트를 때립니다. 이 키가 그 잘못된 요청을 막습니다.
-2. **GHES 퍼머링크 인식** — GHES는 `/owner/repo/blob/<ref>/<path>#L<n>` 형태를 호스트 루트에 그대로 서비스하므로, 호스트를 알아보는 것만으로 blob/commit URL이 GitHub 프로바이더로 매핑됩니다(`src/main/git/hosted-remote-url.ts:38-42`).
+1. **네트워크 허용목록 자동 추가** — `enforceNetworkAllowlist`를 켠 플릿에서 관리자가 GHES 호스트를 `allowedNetworkHosts`에 한 번 더 적지 않아도 되도록 자동으로 넣습니다(`src/shared/enterprise-policy.ts:370-371`).
+2. **GHES 로그인 대상 기본값** — 설정 → GitHub Enterprise 팬에서 사용자가 호스트를 저장한 적이 없으면 이 값이 `gh auth login --hostname <host>`의 대상이 됩니다(`src/main/ipc/github-enterprise.ts:83-86`). 로그인 뒤 실제로 `gh`가 어느 호스트로 나가는지는 `gh` 자신의 설정이 정하고, 팬은 그 "실효 호스트"를 별도로 표시합니다(`src/main/github/effective-github-host.ts`).
+3. **GHES 퍼머링크 인식** — GHES는 `/owner/repo/blob/<ref>/<path>#L<n>` 형태를 호스트 루트에 그대로 서비스하므로, 호스트를 알아보는 것만으로 blob/commit URL이 GitHub 프로바이더로 매핑됩니다(`src/main/git/hosted-remote-url.ts:38-42`). 같은 값이 `disableVendorLinks`의 예외로도 쓰여 사내 GHES 링크는 벤더 링크로 차단되지 않습니다(`src/main/enterprise/enterprise-vendor-link-guard.ts:80-83`).
+
+예전 README가 첫 번째 역할로 적었던 "Gitea 폴백 오인 차단"은 이제 해당하지 않습니다 — Bitbucket·Azure DevOps·Gitea 연동을 커밋 `4d58e5f21c`에서 코드째 제거했고, provider 탐색은 GitLab → GitHub 둘뿐이라 어느 쪽도 아니면 `unsupported`로 끝납니다(잘못된 호스트로 요청이 나가지 않습니다).
 
 ```jsonc
 // 정책 파일 (§4)
 { "githubEnterpriseHost": "github.samsungds.net" }
 ```
 
-값이 없으면 `gh`의 `GH_HOST`를 폴백으로 읽습니다(`enterprise-policy.ts:203`). 프로토콜·포트·경로·자격증명이 붙어 있어도 호스트명만 정규화해 씁니다(`:110-123`).
+값이 없으면 `gh`의 `GH_HOST` → `gh` 자체 설정의 기본 호스트(`gh auth login --hostname <ghes>`가 쓰는 `hosts.yml`, 로그인 호스트가 정확히 하나일 때) 순으로 폴백합니다(`src/shared/enterprise-policy.ts:364-367`, `src/main/github/gh-config-host.ts`). 프로토콜·포트·경로·자격증명이 붙어 있어도 호스트명만 정규화해 씁니다(`:110-123`).
 
 #### git 바이너리(clone/fetch/push·워크트리) 전제조건
 
@@ -500,7 +503,7 @@ git diff --name-status v1.4.163..HEAD   # A=신규, M=upstream 파일 수정, D=
 | --- | --- | --- |
 | **신규(포크 전용)** | `src/shared/enterprise-policy.ts`(+`.test.ts`), `src/main/enterprise/**` 24개(정책 파일 탐색·트레이스·네트워크 가드·직접 다운로드 가드·secure DNS·에뮬레이터/원격 서버/에이전트 허용목록 가드·픽스처·테스트), `src/main/rate-limits/usage-polling-disabled-providers.ts`(+`.test.ts`), `src/main/observability/observability-consent.test.ts`, `src/main/claude-accounts/environment.test.ts`, `src/main/emulator/android/scrcpy-server-download.test.ts`, `config/vitest-enterprise-policy-isolation.ts`, `docs/reference/*.md` 5개, `.claude/harness/*.md` 3개(규칙 원장 — [7절](#7-오케스트레이션-규칙-원장)) | 거의 없음 |
 | **포크가 삭제한 표면** | upstream 대비 **123개 파일**을 지웠습니다. 도메인별로 피드백 제출 12개(`ipc/feedback*`, `sidebar/SidebarFeedback*`, `lib/feedback-image-attachments*`, `crash-reporting/crash-feedback-diagnostic-bundle.ts`), 크래시 리포트 7개, local-builds 7개, orca-profiles 4개, artifacts 3개 등. 게이트를 다는 대신 표면 자체를 없앤 경우입니다 | **가장 위험한 범주입니다.** upstream이 지운 파일을 수정하면 modify/delete 충돌이 나고, incoming을 수용하면 **표면이 통째로 되살아납니다** — 파일이 통째로 돌아오므로 게이트 grep에도 타입체크에도 잡히지 않습니다. 동기화마다 `comm -23 <(git ls-tree -r --name-only <옛태그>) <(git ls-tree -r --name-only HEAD)` 로 삭제 목록을 뽑아 upstream 변경분과 교집합을 확인하세요 |
-| **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `gitea/repository-ref.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄). 문서: `skill-guides/orchestration.md`의 `## Project Rule Ledger` 절 + `## Next Action`의 원장 로드 한 구절 | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다. 오케스트레이션 가이드 절은 `config/scripts/orchestration-skill-guidance.test.mjs`가 지키므로 유실 시 테스트가 먼저 붉어집니다 |
+| **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄). 문서: `skill-guides/orchestration.md`의 `## Project Rule Ledger` 절 + `## Next Action`의 원장 로드 한 구절 | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다. 오케스트레이션 가이드 절은 `config/scripts/orchestration-skill-guidance.test.mjs`가 지키므로 유실 시 테스트가 먼저 붉어집니다 |
 | **포크가 재작성해 소유한 문서** | `README.md`(upstream 원문 268줄을 사내 문서로 전면 교체 — 남은 공통 문장이 거의 없어 자동 병합이 되지 않습니다), `CLAUDE.md`(upstream은 `@AGENTS.md` 한 줄짜리 11바이트 스텁 → 126줄로 확장) | **둘 다 upstream에도 존재하므로 upstream이 손댈 때마다 반드시 충돌합니다.** 리베이스에서 사내 버전을 남기려면 `git checkout --theirs README.md CLAUDE.md` — **리베이스에서는 `--ours`가 재배치 대상(upstream), `--theirs`가 재생 중인 사내 커밋**이라 머지와 의미가 뒤집혀 있습니다. 그다음 upstream 변경분 중 필요한 것만 수동으로 반영하세요 |
 
 > 위 목록에는 정책 작업과 무관한 upstream 접근성/드리프트 수정도 섞여 있습니다(예: `src/renderer/src/components/DetachedHeadBadge.tsx`, `src/renderer/src/components/skills/skill-freshness-group.tsx`). 이런 커밋은 upstream에 PR로 올려 없애는 편이 장기적으로 리베이스 충돌 면적을 줄입니다.
@@ -564,7 +567,7 @@ scope가 겹치는 것, 이 머신에서만 참인 것은 승격하지 않습니
   - `src/main/enterprise/enterprise-network-guard.ts` — opt-in 허용 목록
   - `src/main/enterprise/enterprise-secure-dns.ts` — `lockdown` 시 DNS-over-HTTPS 승격 차단
   - `src/main/enterprise/enterprise-direct-download-guard.ts` — `node:https` 직접 다운로드 거부
-  - `src/main/enterprise/enterprise-policy-fixture.ts` — 테스트 전용 픽스처
+  - `src/shared/enterprise-policy-fixture.ts` — 테스트 전용 픽스처
   - `config/vitest-enterprise-policy-isolation.ts` — 이 포크를 빌드하는 머신에는 머신 전역 정책 파일이 깔려 있으므로, 테스트 스위트가 lockdown 상태로 돌지 않도록 무력화
   - `src/shared/gateway-auth.ts` + `src/main/gateway/` — 사내 게이트웨이 로그인 레인(§3.1). 자격증명은 다루지 않고 `gateway-cli`의 실행과 상태 표시만 합니다. 이전의 AWS SSO 레인(`src/main/aws/`, `awsSso:*` IPC)을 **완전히 대체**했습니다
   - upstream 파일에 삽입된 게이트 목록은 §6 표 참고
