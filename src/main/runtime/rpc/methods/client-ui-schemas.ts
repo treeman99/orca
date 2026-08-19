@@ -44,6 +44,7 @@ const STATIC_RIGHT_SIDEBAR_TABS = [
   'workspaces',
   'pr-checks',
   'source-control',
+  'vscode-source-control',
   'checks',
   'ports'
 ] as const

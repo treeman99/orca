@@ -11078,7 +11078,8 @@
             "fc3095d2ed": "탐색기",
             "aiVaultSessionHistory": "에이전트",
             "folderWorkspaces": "연결된 워크트리",
-            "parentPrChecks": "PR 검사"
+            "parentPrChecks": "PR 검사",
+            "vscodeSourceControl": "VS Code 소스 제어"
           },
           "right": {
             "panel": {
@@ -11545,6 +11546,58 @@
             "mayBeSlower": "느려질 수 있음",
             "slowest": "가장 느림",
             "unlimited": "무제한"
+          },
+          "vscodeScm": {
+            "modified": "수정됨",
+            "added": "추가됨",
+            "deleted": "삭제됨",
+            "renamed": "이름 변경됨",
+            "untracked": "추적되지 않음",
+            "copied": "복사됨",
+            "bothModified": "양쪽에서 수정됨",
+            "bothAdded": "양쪽에서 추가됨",
+            "bothDeleted": "양쪽에서 삭제됨",
+            "addedByUs": "우리 쪽에서 추가됨",
+            "addedByThem": "상대 쪽에서 추가됨",
+            "deletedByUs": "우리 쪽에서 삭제됨",
+            "deletedByThem": "상대 쪽에서 삭제됨",
+            "resolvedLocally": "로컬에서 해결됨"
+          },
+          "vscodeSourceControl": {
+            "mergeChanges": "병합 변경 사항",
+            "stagedChanges": "스테이징된 변경 사항",
+            "changes": "변경 사항",
+            "untrackedChanges": "추적되지 않는 변경 사항",
+            "stageChanges": "스테이지에 올리기",
+            "unstageChanges": "언스테이지",
+            "discardChanges": "변경 사항 취소",
+            "stageAllChanges": "모두 스테이지",
+            "unstageAllChanges": "모두 언스테이징",
+            "discardAllChanges": "모든 변경 사항 취소",
+            "commit": "커밋",
+            "commitAll": "모두 커밋",
+            "publishBranch": "브랜치 게시",
+            "syncChanges": "변경 사항 동기화",
+            "resolveConflicts": "충돌 해결",
+            "commitMessageLabel": "커밋 메시지",
+            "commitMessagePlaceholder": "메시지 ({{shortcut}}로 커밋)",
+            "commitMessagePlaceholderBranch": "메시지 ({{shortcut}}로 {{branch}}에 커밋)",
+            "smartCommit": "스마트 커밋 — 스테이징된 항목이 없으면 모든 변경 사항을 커밋합니다",
+            "hintConflicts": "커밋하기 전에 모든 충돌을 해결하세요.",
+            "hintEmptyMessage": "커밋 메시지를 입력하세요.",
+            "hintNothingStaged": "먼저 변경 사항을 스테이지에 올리거나, 스마트 커밋을 켜서 전체를 커밋하세요.",
+            "hintDetachedHead": "HEAD가 분리되어 있습니다. 커밋하려면 브랜치를 체크아웃하세요.",
+            "hintBusy": "Git 작업이 이미 실행 중입니다.",
+            "detachedHead": "분리된 HEAD",
+            "viewAsTree": "트리로 보기",
+            "viewAsList": "목록으로 보기",
+            "separateUntracked": "추적되지 않는 항목을 별도 그룹으로 표시",
+            "mixUntracked": "추적되지 않는 항목을 변경 사항에 포함",
+            "refresh": "새로 고침",
+            "dismissError": "닫기",
+            "noChanges": "변경 사항이 없습니다.",
+            "noGitWorkspace": "소스 제어를 사용하려면 Git 워크트리를 여세요.",
+            "tooManyChanges": "변경 사항이 너무 많아 표시할 수 없습니다. 상태를 넘치게 하는 폴더를 무시한 뒤 새로 고치세요."
           }
         }
       },

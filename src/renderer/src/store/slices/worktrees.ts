@@ -2464,6 +2464,7 @@ function buildWorktreePurgeState(s: AppState, worktreeIds: string[]): Partial<Ap
         tab === 'vault' ||
         tab === 'workspaces' ||
         tab === 'source-control' ||
+        tab === 'vscode-source-control' ||
         tab === 'checks' ||
         tab === 'ports'
       ) {

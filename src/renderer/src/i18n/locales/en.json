@@ -11659,7 +11659,8 @@
             "fc3095d2ed": "explorer",
             "aiVaultSessionHistory": "Agents",
             "folderWorkspaces": "Attached worktrees",
-            "parentPrChecks": "PR Checks"
+            "parentPrChecks": "PR Checks",
+            "vscodeSourceControl": "VS Code Source Control"
           },
           "right": {
             "panel": {
@@ -12213,6 +12214,58 @@
             "90cabf6cfc": "Stack this PR above #{{value0}}",
             "ff81473a57": "Creates a GitHub Stack or extends the parent's existing stack.",
             "29732f2fb0": "new PR"
+          },
+          "vscodeSourceControl": {
+            "publishBranch": "Publish Branch",
+            "syncChanges": "Sync Changes",
+            "resolveConflicts": "Resolve Conflicts",
+            "commitAll": "Commit All",
+            "commit": "Commit",
+            "hintConflicts": "Resolve every conflict before committing.",
+            "hintEmptyMessage": "Enter a commit message.",
+            "hintNothingStaged": "Stage a change first, or turn on Smart Commit to commit everything.",
+            "hintDetachedHead": "HEAD is detached. Check out a branch to commit.",
+            "hintBusy": "A Git operation is already running.",
+            "commitMessageLabel": "Commit message",
+            "commitMessagePlaceholderBranch": "Message ({{shortcut}} to commit on {{branch}})",
+            "commitMessagePlaceholder": "Message ({{shortcut}} to commit)",
+            "smartCommit": "Smart Commit — commit all changes when nothing is staged",
+            "mergeChanges": "Merge Changes",
+            "stagedChanges": "Staged Changes",
+            "untrackedChanges": "Untracked Changes",
+            "changes": "Changes",
+            "stageAllChanges": "Stage All Changes",
+            "unstageAllChanges": "Unstage All Changes",
+            "discardAllChanges": "Discard All Changes",
+            "discardChanges": "Discard Changes",
+            "unstageChanges": "Unstage Changes",
+            "stageChanges": "Stage Changes",
+            "noGitWorkspace": "Open a Git worktree to use Source Control.",
+            "detachedHead": "Detached HEAD",
+            "viewAsTree": "View as Tree",
+            "viewAsList": "View as List",
+            "separateUntracked": "Show Untracked as a separate group",
+            "mixUntracked": "Fold Untracked into Changes",
+            "refresh": "Refresh",
+            "dismissError": "Dismiss",
+            "tooManyChanges": "Too many changes to list. Ignore the folder that is flooding status, then refresh.",
+            "noChanges": "No changes detected."
+          },
+          "vscodeScm": {
+            "bothModified": "Both modified",
+            "bothAdded": "Both added",
+            "bothDeleted": "Both deleted",
+            "addedByUs": "Added by us",
+            "addedByThem": "Added by them",
+            "deletedByUs": "Deleted by us",
+            "deletedByThem": "Deleted by them",
+            "modified": "Modified",
+            "added": "Added",
+            "deleted": "Deleted",
+            "renamed": "Renamed",
+            "untracked": "Untracked",
+            "copied": "Copied",
+            "resolvedLocally": "resolved locally"
           }
         }
       },

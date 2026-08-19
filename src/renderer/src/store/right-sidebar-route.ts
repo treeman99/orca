@@ -42,6 +42,7 @@ export function normalizeRightSidebarRoute(
     tab === 'workspaces' ||
     tab === 'pr-checks' ||
     tab === 'source-control' ||
+    tab === 'vscode-source-control' ||
     tab === 'checks' ||
     tab === 'ports'
   ) {

@@ -212,6 +212,7 @@
   --git-decoration-untracked: #007100;
   --git-decoration-copied: #007acc;
   --git-decoration-ignored: #8c8c8c;
+  --git-decoration-conflicting: #ad0707;
   --git-graph-ref: #007acc;
   --git-graph-remote-ref: #b66dff;
   --git-graph-base-ref: #ea5c00;
@@ -319,6 +320,7 @@
   --git-decoration-untracked: #73c991;
   --git-decoration-copied: #73c991;
   --git-decoration-ignored: #6e6e6e;
+  --git-decoration-conflicting: #e4676b;
   --git-graph-ref: #3794ff;
   --git-graph-remote-ref: #b66dff;
   --git-graph-base-ref: #ea5c00;
