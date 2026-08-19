@@ -27,6 +27,12 @@
 >
 > ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다.
 >
+> **v1.4.185 갱신 (2026-08-19).** 이 판에서 재검증한 것은 **v1.4.184 → v1.4.185 구간의 델타**입니다(트리 diff 3,199 파일, +75,171/−25,572, 신규 383건 · 삭제 13건 · 이름변경 54건 — 추가 라인 전수 스윕(`https?://`/`wss?://`·호스트 리터럴·`fetch(`/`net.fetch`/`https?.get|request`/`new WebSocket`/`axios`/`dns.`/`tls.connect`·`child_process`·`shell.openExternal`/`loadURL`·다운로드 경로) + 양 태그의 프로덕션 네트워크 호출지점 **집합 대조** + 신규 파일 디렉터리 훑기). 나머지 확정 항목은 각자의 기준 시점 서술이며 이번에 다시 열어보지 않았습니다. **델타의 대부분은 egress와 무관한 디렉터리 재편입니다** — `src/shared/types.ts` 해체(3,947줄 → 45개 신규 타입 모듈), `src/preload/api-types.ts` 분할(3,720줄 → `src/preload/api/*.ts` 47개), 사이드바 `WorktreeList.tsx` 폭발(-6,759줄 → `worktree-list/*` 70개), workspace-cleanup 재작성. GitHub·GitLab·Linear·Jira 클라이언트 변경은 **전부 import 경로 치환**이고 호출은 한 줄도 바뀌지 않았습니다.
+>
+> 이 구간에 **신규 외부 목적지는 0건**(앱 런타임), 통째로 들어온 신규 기능 도메인도 0건입니다. 프로덕션 네트워크 호출지점은 44 → 46으로 늘었고 **증가분 2건은 전부 한 파일**(`src/main/runtime/relay/relay-region-preference.ts:182,218` — 릴레이 리전 카탈로그 조회와 셀 지연 프로브)이며, §3.1에서 이미 **소스에서 제거한 릴레이 레인 위에 얹힌 코드라 이 빌드에서는 도달하지 않습니다**(`ORCA_CLOUD_REMOVED`가 `DesktopRelayService` 생성 자체를 막습니다 — 아래 §3.1 경고 참조). `shell.openExternal` 호출지점 40 → 40, 에이전트 CLI 목록 36 → 36, 신규 쉘아웃 0건, 신규 의존성 0건, 프로덕션 추가 라인의 호스트명 리터럴 0건입니다(`ssh.github.com`/`altssh.gitlab.com`은 목적지가 아니라 SSH-over-443 별칭을 접는 **매처**이며, 그나마 신규가 아니라 `github-remote-identity-parsing.ts`에서 `src/shared/git-remote-host-alias.ts`로 **이동**한 것입니다). 제거된 egress도 0건입니다(삭제된 `mobile/src/transport/rpc-client-activity-probe.ts`는 신규 `rpc-session-liveness-watchdog.ts`로 대체됐고 목적지는 그대로). 다만 **CI 레인에는 신규 목적지 1건**이 생겼습니다(§8 신설 항목 — Docker Hub + Ubuntu 아카이브, 배포 산출물에는 미포함). 엔터프라이즈 게이트 라인 대조는 **486라인/139파일 유실 0**이었고, 게이트가 보호하던 대상의 이사도 0건입니다(-1,000줄 이상 삭제된 4개 파일은 전부 게이트 무보유 파일의 분할이었습니다). 업데이터 표면 유입은 upstream 신규 2파일(`src/preload/api/updater-api.ts`, `src/shared/update-status-types.ts`)이 전부이며 **둘 다 머지 트리에 넣지 않았습니다**(§3 수행 이력).
+>
+> ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다. 특히 `relay-region-preference`의 도달 불가는 호출 그래프 추적으로 판정한 것이지 실행으로 확인한 것이 아닙니다. `.github/`는 판정 범위 밖이었고, 새 Docker 스텝의 CI 실행 여부를 확인하기 위해서만 `pr.yml`을 열었습니다.
+>
 > **⚠️ 델타 판정의 기준은 `git log`가 아니라 트리 diff입니다.** 업스트림은 릴리스 브랜치에 태그를 달고 그 태그들은 서로의 자손이 아닙니다. 같은 변경이 main과 릴리스 브랜치에 다른 SHA로 존재하면 `git log <old>..<new>`에는 나타나되 트리에는 차이가 없으므로, **로그는 델타를 과대 계상합니다.** 실례: `git log v1.4.178..v1.4.180`에는 Artifacts 관련 커밋 3건(`24c68087bd` 수동 공유 #13369, `05160cd08e` 능력 게이팅 #13368, `2f221bdbfe` 관리 UI #13356)이 보이지만 `git diff --name-only v1.4.178 v1.4.180 -- '*artifact*' '*Artifact*'`는 **비어 있습니다** — 두 태그의 artifact 트리는 동일하며 그 기능들은 이미 v1.4.178 트리에 있었습니다(§3.1). 그러므로 델타 감사는 `git diff --name-status <old> <new>` 기준으로 하고 로그는 맥락 파악에만 쓰십시오. **함정은 양방향입니다** — 로그만 보고 "이번에 새로 들어왔다"고 오판하는 것과, 트리가 같은 것을 보고 "업스트림이 이 레인을 접었다"고 안심하는 것 둘 다 틀립니다(후자의 경우 업스트림은 계속 개발 중이며, 다만 그 작업이 더 이른 태그에 이미 들어와 있었을 뿐입니다).
 
 ---
@@ -331,6 +337,7 @@ UI 표면도 함께 사라졌습니다 — 앱/Help 메뉴, 트레이, 사이드
 | v1.4.180 → v1.4.182 | ✅ **신규 파일 0건.** 추가 라인 매치 9건은 전부 포크가 이미 삭제한 파일(`ReleaseChannelSection.tsx`, `shared/release-channel.ts`, `updater-release-builds.test.ts`)에 대한 upstream 수정이라 머지에서 삭제 상태가 유지됨(사후 기록, 2026-08-17 확인) |
 | v1.4.182 → v1.4.183 | ✅ **0건.** 신규 파일·추가 라인 모두 매치 없음(사후 기록, 2026-08-17 확인) |
 | v1.4.183 → v1.4.184 | ✅ **0건.** 신규 파일·추가 라인 모두 매치 없음 |
+| v1.4.184 → v1.4.185 | 🔴 **신규 파일 2종 유입** — `src/preload/api/updater-api.ts`(preload 47분할 과정에서 되살아난 `UpdaterApi` 타입 껍데기)와 `src/shared/update-status-types.ts`(`types.ts` 해체로 분리된 `UpdateStatus`/`UpdateCheckOptions`/`LinuxPackageInstallRecovery`). **머지 커밋 `cf73207b45`에서 둘 다 제외**했고, `api-types.ts`의 `updater: UpdaterApi` 키와 도달 불가해진 e2e 스펙(`tests/e2e/update-install-renderer-checkpoint-recovery.spec.ts`)도 같이 지웠습니다. 머지 트리에 남은 매치는 `SkillUpdateRow.tsx`(스킬 업데이트 UI, 앱 업데이터 무관) 하나뿐이고 `electron-updater`/`autoUpdater`/`checkForUpdates` grep은 0건입니다 |
 
 빌드 단계의 phone-home(electron-builder가 github에 업로드 시도)은 [윈도우 빌드 가이드 §5](./windows-corporate-build.md)에서 `--publish never`로 이미 다룹니다.
 
@@ -381,7 +388,7 @@ git grep -n "from: 'skills'" -- config/electron-builder.config.cjs
 | --- | --- | --- | --- |
 | **Artifacts 공유** (v1.4.178 신규) | `share.onorca.dev` (인증 갱신은 벤더 로그인 호스트) | **파일 본문 전체**(최대 800KB), 파일 basename, 선택적 제목, `Bearer` 토큰(계정 신원). 절대경로·워크트리명·텔레메트리는 아님 | `ArtifactCloudService.withAuth` (`src/main/artifacts/artifact-cloud-service.ts`) |
 | **Orca Cloud 로그인** | 벤더 로그인 호스트 `/v1/desktop/auth/{authorize,session,refresh,capabilities,profile,org,logout,relay-token}` | OAuth 세션·프로필·조직 정보 | `getOrcaCloudAuthConfig()` (`src/main/orca-profiles/profile-cloud-auth-config.ts`) |
-| **모바일 페어링 릴레이 디렉터** | 벤더 릴레이 호스트 | 릴레이 초대 토큰, 릴레이 경유 터미널 브리지 | 동일 — `DesktopRelayService`는 이 호출이 `configured`일 때만 생성됩니다 (`src/main/index.ts`) |
+| **모바일 페어링 릴레이 디렉터** | 벤더 릴레이 호스트 | 릴레이 초대 토큰, 릴레이 경유 터미널 브리지, **(v1.4.185~) 리전 카탈로그 조회 `GET {director}/v1/regions`와 셀 origin별 지연 프로브 `GET {origin}/health`**(3샘플 × 최대 2 origin × 2 리전, 24h 캐시 — `src/main/runtime/relay/relay-region-preference.ts:182,218`) | 동일 — `DesktopRelayService`는 이 호출이 `configured`일 때만 생성됩니다 (`src/main/index.ts`). 리전 프로브도 그 생성자 안에서 배선되므로 같은 초크포인트가 덮습니다 |
 
 **⚠️ Artifacts — v1.4.180 재확인: 로그와 트리가 어긋납니다.** `git log v1.4.178..v1.4.180`에는 Artifacts 후속 커밋 3건(수동 공유 #13369, 능력 게이팅 #13368, 관리 UI #13356)이 보이지만 **트리는 v1.4.178과 동일합니다** — `git diff --name-only v1.4.178 v1.4.180 -- '*artifact*' '*Artifact*'`가 비어 있습니다. 그 작업은 이미 v1.4.178 트리에 들어와 있었고, 포크의 제거(`f259c8d780`)가 여전히 표면 전부를 덮습니다. **로그만 보고 "이번에 새로 들어왔다"고 읽지 마십시오**(문서 상단 방법론). 반대로 **트리가 같다고 해서 업스트림이 이 레인을 접은 것도 아니므로**, 아래 소스 감사 테스트는 계속 필요합니다.
 
@@ -393,6 +400,8 @@ git grep -n "from: 'skills'" -- config/electron-builder.config.cjs
 **초크포인트 선택이 중요했습니다.** Artifacts는 `share`/`publish`/`update`만 업스트림 capability 게이트를 통과하고 `list`/`getPublishedLink`/`unshare`/`delete` 4종은 **의도적으로 무게이트**입니다(옛 링크를 감사·회수할 수 있어야 한다는 이유). 7개 RPC가 전부 지나가는 `withAuth`에 걸어야 다 막힙니다. 특히 dev 빌드의 `authToken` 우회는 인증 설정 검사를 건너뛰므로 **그 분기보다 앞**에 두어야 합니다.
 
 **하드코딩 상수도 삭제했습니다.** 벤더 로그인 호스트, `orca-desktop` OAuth client id, 릴레이 디렉터 origin의 패키지 빌드용 폴백을 지웠습니다. 번들에서 문자열 자체가 사라져 검토자가 grep할 대상이 없고, 가드가 리베이스로 사라지더라도 폴백할 엔드포인트가 없습니다. 환경변수(`ORCA_CLOUD_API_URL`, `ORCA_RELAY_URL`)로도 복구되지 않습니다 — env var는 Orca가 스폰하는 모든 프로세스에 상속되므로(§0.1) 그걸 존중하는 빌드는 `export` 한 번이면 뚫립니다.
+
+**⚠️ v1.4.185: 이 레인의 *도달 불가 코드*가 늘었습니다.** 업스트림이 릴레이 리전 선택(`relay-region-preference.ts`)을 새로 넣었고, 이 포크는 그것을 **지우지 않고 도달 불가 상태로 두었습니다** — `getOrcaCloudAuthConfig()`가 `ORCA_CLOUD_REMOVED`로 조기 반환하므로 `DesktopRelayService` 자체가 생성되지 않기 때문입니다. 차단은 여전히 유효하지만 **이 레인의 코드 표면은 릴리스마다 커집니다.** 즉 "제거됨"은 *호출 경로가 끊겼다*는 뜻이지 *코드가 없다*는 뜻이 아니며, 리베이스가 `ORCA_CLOUD_REMOVED` 가드를 잘못 해소하면 문서에 없던 요청 형태까지 함께 살아납니다. 아래 소스 감사 테스트를 계속 유지해야 하는 이유가 하나 늘었습니다.
 
 **UI 표면도 함께 제거**했습니다(Artifacts): 사이드바 행, 설정 페인(레지스트리 + 딥링크), 에디터·브라우저 패널의 publish 버튼, artifacts 뷰 라우팅. 뷰 라우팅은 **영속 상태 복원 경로까지** 막았습니다 — 페이지를 켜둔 채 종료한 PC는 디스크에 `activeView: 'artifacts'`가 남아 다음 실행에서 다시 마운트되기 때문입니다(모바일 뷰에서 겪은 것과 같은 패턴).
 
@@ -677,6 +686,12 @@ Electron은 `spellcheck`를 기본 켜며, **Windows/Linux에서 Chromium이 hun
 Electron의 `configureHostResolver`는 `secureDnsMode`가 기본 `'automatic'`이라, 머신에 설정된 리졸버가 알려진 DoH 제공자면 Chromium이 스스로 DoH로 승격합니다. 그러면 이름 해석이 443으로 공용 리졸버에 나가면서 **사내 호스트만 풀 수 있는 split-horizon DNS와 DNS 기반 egress 모니터링을 동시에 지나칩니다** — 근거는 코드 주석에 그대로 있습니다(`src/main/enterprise/enterprise-secure-dns.ts:1-8`). `lockdown`이면 `secureDnsMode: 'off'`로 고정합니다(`:19-24`). 배선은 `ready` 이후입니다(`src/main/index.ts:2084`, Electron이 `ready` 전 호출을 거부하므로). 고정에 실패해도 stderr 한 줄만 남기고 기동은 계속합니다(`:25-30`).
 
 > ⚠️ 이 통제는 **커맨드라인 스위치가 아니라 `app.configureHostResolver` 호출**이므로 `disable-features`/`appendSwitch` 목록에는 나타나지 않습니다. 스위치 목록만 보고 “DoH 통제 수단이 없다”고 읽으면 안 됩니다 — 이전 판이 그렇게 적었고, 틀렸습니다.
+
+### ⚠️ 신규 (v1.4.185): CI 패키징 잡의 Docker Hub · Ubuntu 아카이브 접근
+
+`.github/workflows/pr.yml:389`의 Linux 패키징 잡에 **"Verify headless serve signal shutdown" 스텝이 새로 생겼습니다**(`config/scripts/run-headless-serve-shutdown-docker.mjs`). 이 스크립트는 `spawnSync('docker', …)`로 `config/docker/headless-serve-shutdown/Dockerfile`을 빌드하고, 그 Dockerfile이 `ubuntu@sha256:678c6550…`를 pull한 뒤 `apt-get install`로 23개 패키지를 받습니다. 목적지는 **Docker Hub 레지스트리와 Ubuntu apt 아카이브**입니다.
+
+**배포 산출물에는 실리지 않습니다** — 개발자·CI 머신에서만 도는 검증 도구이고, `electron-builder.config.cjs` 변경은 `asarUnpack`에 `wsl-transcript-fs-process-entry.js` 한 줄 추가뿐이며 publish/update feed 설정은 손대지 않았습니다. 다만 `docker`는 **자식 프로세스**라 `enforceNetworkAllowlist`의 `fetch` 가드도 Electron 세션 가드도 보지 못하고, 애초에 Orca 프로세스가 아니므로 엔터프라이즈 정책 파일의 사정권 밖입니다(§0.2 #1의 `gh`/`git` 자식 프로세스와 같은 사각지대). **사내 CI에서 `pr.yml`을 그대로 돌린다면 두 목적지를 미러로 돌리거나 이 스텝을 제외해야 합니다.** 위의 "로케일 카탈로그의 Google Translate — 빌드 스크립트 한정"과 같은 성격의 항목입니다.
 
 ### ⚠️ 남은 미검증
 
