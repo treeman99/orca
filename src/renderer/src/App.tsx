@@ -116,7 +116,10 @@ import { useWebSessionTabsSync } from './runtime/web-session-tabs-sync'
 import { useGlobalFileDrop } from './hooks/useGlobalFileDrop'
 import { MacosTccPromptNoticeHost } from './hooks/MacosTccPromptNoticeHost'
 import { useRadixBodyPointerEventsRecovery } from './hooks/useRadixBodyPointerEventsRecovery'
-import { registerAppRestartBeforeUnloadBypass } from './lib/app-restart-beforeunload'
+import {
+  isIntentionalAppRestartInProgress,
+  registerAppRestartBeforeUnloadBypass
+} from './lib/app-restart-beforeunload'
 import { ORCA_APP_RESTART_ABORTED_EVENT } from '../../shared/app-restart-renderer-events'
 import { ORCA_RENDERER_UNLOAD_PREVENTED_EVENT } from '../../shared/renderer-shutdown-events'
 import {
@@ -170,7 +173,7 @@ import { selectFloatingVisibleTabCount } from './store/selectors'
 import { selectActiveTerminalChromeState } from './store/active-terminal-chrome-selector'
 import type { VirtualizedScrollAnchor } from './hooks/useVirtualizedScrollAnchor'
 import type { RemoteWorkspacePatchResult } from '../../shared/remote-workspace-types'
-import type { OnboardingState } from '../../shared/types'
+import type { OnboardingState } from '../../shared/onboarding-state-types'
 import {
   getFeatureTipsAppOpenDecision,
   isCliFeatureTipCompleted
@@ -1329,9 +1332,26 @@ function App(): React.JSX.Element {
       // into the store via Zustand setters. The earlier read is only for the
       // gating flags and would miss those updates.
       const freshState = useAppStore.getState()
-      const sessionSnapshots = shouldCaptureSession
-        ? buildWorkspaceSessionHostSnapshots(buildWorkspaceSessionPayload(freshState), freshState)
-        : []
+      let sessionSnapshots: ReturnType<typeof buildWorkspaceSessionHostSnapshots> = []
+      try {
+        sessionSnapshots = shouldCaptureSession
+          ? buildWorkspaceSessionHostSnapshots(buildWorkspaceSessionPayload(freshState), freshState)
+          : []
+      } catch (error) {
+        // Why: dirty drafts exist only in the full session snapshot.
+        if (
+          !isIntentionalAppRestartInProgress() ||
+          freshState.openFiles.some((file) => file.isDirty)
+        ) {
+          throw error
+        }
+        console.error('[app] Full renderer session snapshot failed; using durable session', error)
+        window.api.app.stageBeforeUnloadSync({
+          sessions: [],
+          ui: buildActiveViewUnloadPatch(freshState)
+        })
+        return
+      }
       window.api.app.stageBeforeUnloadSync({
         sessions: sessionSnapshots,
         ui: buildActiveViewUnloadPatch(freshState)

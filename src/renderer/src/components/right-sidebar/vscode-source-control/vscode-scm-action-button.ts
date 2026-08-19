@@ -1,4 +1,4 @@
-import type { GitConflictOperation } from '../../../../../shared/types'
+import type { GitConflictOperation } from '../../../../../shared/git-status-types'
 
 /**
  * VS Code's Source Control view shows exactly one primary button whose identity

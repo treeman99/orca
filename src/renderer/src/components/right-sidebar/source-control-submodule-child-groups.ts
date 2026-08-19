@@ -1,4 +1,4 @@
-import type { GitStatusEntry } from '../../../../shared/types'
+import type { GitStatusEntry } from '../../../../shared/git-status-types'
 
 /**
  * Group an expanded submodule's own `git status` into the sections that repository

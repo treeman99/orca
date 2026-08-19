@@ -31,7 +31,7 @@ import {
 } from '../source-control-discard-dialog'
 import { canDiscardStatusEntry, canStageStatusEntry } from '../source-control-entry-actions'
 import type { DiscardAllArea } from '../discard-all-sequence'
-import type { GitStatusEntry } from '../../../../../shared/types'
+import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 
 const DISCARD_AREA_BY_GROUP: Partial<Record<VscodeScmGroupId, DiscardAllArea>> = {
   index: 'staged',

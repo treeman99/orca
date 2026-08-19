@@ -1,5 +1,8 @@
 import { ipcMain } from 'electron'
-import type { PathSource, ShellHydrationFailureReason } from '../../shared/types'
+import type {
+  PathSource,
+  ShellHydrationFailureReason
+} from '../../shared/shell-path-hydration-types'
 import { hydrateShellPath, mergePathSegments } from '../startup/hydrate-shell-path'
 import { _resetKnownHostsCache } from '../gitlab/gl-utils'
 import { mergePersistedWindowsPathAsync } from '../pty/windows-environment-path'

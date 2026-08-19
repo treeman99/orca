@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDefaultSettings } from '../../../../shared/constants'
 import type { EnterprisePolicyView } from '../../../../shared/enterprise-policy-view'
-import type { TuiAgent } from '../../../../shared/types'
+import type { TuiAgent } from '../../../../shared/tui-agent'
 
 const UNRESTRICTED: EnterprisePolicyView = {
   allowedAgents: null,

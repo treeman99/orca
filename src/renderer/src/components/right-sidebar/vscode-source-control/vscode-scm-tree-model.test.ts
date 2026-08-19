@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildVscodeScmRows, buildVscodeScmTreeRows } from './vscode-scm-tree-model'
-import type { GitStatusEntry } from '../../../../../shared/types'
+import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 
 function entry(path: string, area: GitStatusEntry['area'] = 'unstaged'): GitStatusEntry {
   return { path, status: 'modified', area }

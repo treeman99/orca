@@ -1,4 +1,4 @@
-import type { GitStatusEntry } from '../../../../shared/types'
+import type { GitStatusEntry } from '../../../../shared/git-status-types'
 
 /**
  * True for a row that IS a submodule pointer, at any nesting depth.

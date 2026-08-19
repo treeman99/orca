@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { translate } from '@/i18n/i18n'
 import { getVscodeScmDecoration } from './vscode-scm-status-letter'
 import type { VscodeScmRow } from './vscode-scm-tree-model'
-import type { GitStatusEntry } from '../../../../../shared/types'
+import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 
 const INDENT_PER_DEPTH = 12
 

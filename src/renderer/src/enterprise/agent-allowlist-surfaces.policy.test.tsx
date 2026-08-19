@@ -24,7 +24,7 @@ import {
   type EnterprisePolicyView
 } from '../../../shared/enterprise-policy-view'
 import { getDefaultSettings } from '../../../shared/constants'
-import type { TuiAgent } from '../../../shared/types'
+import type { TuiAgent } from '../../../shared/tui-agent'
 
 const ALLOWED = ['claude', 'opencode'] as const
 // Ids the corporate policy does NOT list, one per catalog neighbourhood the pickers order by.
@@ -250,9 +250,9 @@ describe('agent dashboard → spawn menu under allowedAgents', () => {
     detectedAgentIds: [...ALLOWED, ...BLOCKED]
   } as unknown as Parameters<typeof buildDashboardWorktreeLaunchOptions>[0]
   const CARDS = [] as Parameters<typeof buildDashboardWorktreeLaunchOptions>[1]
-  const WORKSPACES = [
-    { worktreeId: 'w1', repoId: 'r1' }
-  ] as unknown as Parameters<typeof buildDashboardWorktreeLaunchOptions>[2]
+  const WORKSPACES = [{ worktreeId: 'w1', repoId: 'r1' }] as unknown as Parameters<
+    typeof buildDashboardWorktreeLaunchOptions
+  >[2]
 
   it('offers every detected agent when no corporate policy is deployed', async () => {
     await deliverPolicy(UNRESTRICTED_VIEW)

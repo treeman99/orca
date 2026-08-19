@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
-import type { TerminalQuickCommand, TuiAgent } from '../../../../shared/types'
+import type { TerminalQuickCommand } from '../../../../shared/terminal-quick-command-types'
+import type { TuiAgent } from '../../../../shared/tui-agent'
 import {
   isTerminalAgentQuickCommand,
   supportsTerminalAgentQuickCommand

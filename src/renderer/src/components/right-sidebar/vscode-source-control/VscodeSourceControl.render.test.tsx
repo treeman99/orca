@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import VscodeSourceControl from './VscodeSourceControl'
 import type { VscodeScmContext } from './use-vscode-scm-context'
-import type { GitStatusEntry } from '../../../../../shared/types'
+import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 
 const scmMock = vi.hoisted(() => ({ current: null as VscodeScmContext | null }))
 

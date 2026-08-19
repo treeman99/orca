@@ -28,10 +28,12 @@ import {
 import { getHostDisplayLabelOverrides } from '../../../../shared/host-setting-overrides'
 import type { PreflightStatus } from '../../../../preload/api-types'
 import type { TaskSourceContext } from '../../../../shared/task-source-context'
-import type { OrcaHooks, Repo, TuiAgent } from '../../../../shared/types'
+import type { OrcaHooks } from '../../../../shared/orca-yaml-hook-types'
+import type { Repo } from '../../../../shared/repo-types'
+import type { TuiAgent } from '../../../../shared/tui-agent'
 import { resolveAutomationDefaultAgent } from './automation-default-agent'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
-import { getWorktreePathBasenameFromId } from '../../../../shared/worktree-id'
+import { getWorktreePathBasenameFromId } from '../../../../shared/worktree/id'
 import {
   buildAutomationRrule,
   isValidAutomationCronSchedule,

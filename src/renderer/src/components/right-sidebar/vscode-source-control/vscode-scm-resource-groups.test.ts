@@ -5,7 +5,7 @@ import {
   getVisibleVscodeScmGroups,
   isMergeGroupEntry
 } from './vscode-scm-resource-groups'
-import type { GitStatusEntry } from '../../../../../shared/types'
+import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 
 function entry(partial: Partial<GitStatusEntry> & Pick<GitStatusEntry, 'path'>): GitStatusEntry {
   return { status: 'modified', area: 'unstaged', ...partial }

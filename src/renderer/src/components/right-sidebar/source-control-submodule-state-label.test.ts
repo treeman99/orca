@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { GitStatusEntry } from '../../../../shared/types'
+import type { GitStatusEntry } from '../../../../shared/git-status-types'
 import { getSubmoduleRowStateLabel } from './source-control-submodule-state-label'
 
 function gitlinkRow(submodule: GitStatusEntry['submodule']): GitStatusEntry {

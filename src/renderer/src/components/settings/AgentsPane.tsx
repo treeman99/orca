@@ -11,7 +11,8 @@ import {
   RefreshCw,
   Terminal
 } from 'lucide-react'
-import type { GlobalSettings, TuiAgent } from '../../../../shared/types'
+import type { GlobalSettings } from '../../../../shared/global-settings-types'
+import type { TuiAgent } from '../../../../shared/tui-agent'
 import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { useDetectedAgents, type AgentDetectionTarget } from '@/hooks/useDetectedAgents'

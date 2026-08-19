@@ -1,5 +1,6 @@
 import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
-import type { StatusBarItem, TuiAgent } from '../../../../shared/types'
+import type { TuiAgent } from '../../../../shared/tui-agent'
+import type { StatusBarItem } from '../../../../shared/ui-chrome-types'
 import { isAgentAllowedByPolicy } from '../../../../shared/corporate-agent-access'
 import { usageProviderAgentId } from '../../../../shared/usage-provider-agent'
 

@@ -9,7 +9,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDefaultUIState } from '../../../../shared/constants'
-import type { PersistedUIState } from '../../../../shared/types'
+import type { PersistedUIState } from '../../../../shared/persisted-ui-state-types'
 import type { EnterprisePolicyView } from '../../../../shared/enterprise-policy-view'
 import type { AppState } from '../types'
 

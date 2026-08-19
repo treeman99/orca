@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, nativeTheme } from 'electron'
 import type { Store } from '../persistence'
-import type { GlobalSettings, PersistedState } from '../../shared/types'
+import type { GlobalSettings } from '../../shared/global-settings-types'
+import type { PersistedState } from '../../shared/persisted-state-types'
 import { listSystemFontFamilies } from '../system-fonts'
 import { isRemoteOrcaServerDisabled } from '../enterprise/remote-orca-server-guard'
 import { previewGhosttyImport } from '../ghostty/index'

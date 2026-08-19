@@ -1,6 +1,7 @@
 import type { HostedReviewInfo } from '../../shared/hosted-review'
 import { hostedReviewInfoFromGitHubPRInfo } from '../../shared/hosted-review-github'
-import type { MRInfo, PRInfo } from '../../shared/types'
+import type { PRInfo } from '../../shared/github/pull-request-types'
+import type { MRInfo } from '../../shared/gitlab-types'
 
 export function mapGitHubReview(pr: PRInfo): HostedReviewInfo {
   return hostedReviewInfoFromGitHubPRInfo(pr)

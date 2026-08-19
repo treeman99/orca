@@ -1,4 +1,4 @@
-import type { GitStatusEntry } from '../../../../shared/types'
+import type { GitStatusEntry } from '../../../../shared/git-status-types'
 import { translate } from '@/i18n/i18n'
 import { isSubmoduleGitlinkRow } from './source-control-submodule-gitlink-row'
 

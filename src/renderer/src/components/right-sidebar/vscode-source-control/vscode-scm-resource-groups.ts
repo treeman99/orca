@@ -1,4 +1,4 @@
-import type { GitStatusEntry } from '../../../../../shared/types'
+import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 
 /** VS Code's four SCM resource groups, in the order its Source Control view renders them. */
 export type VscodeScmGroupId = 'merge' | 'index' | 'workingTree' | 'untracked'

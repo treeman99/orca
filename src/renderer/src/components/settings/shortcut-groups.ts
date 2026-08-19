@@ -5,7 +5,7 @@ import {
   type KeybindingDefinition
 } from '../../../../shared/keybindings'
 import { normalizeDisabledTuiAgents } from '../../../../shared/tui-agent-selection'
-import type { TuiAgent } from '../../../../shared/types'
+import type { TuiAgent } from '../../../../shared/tui-agent'
 import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { getFullAgentCatalog } from '@/lib/agent-catalog'
 import { isAgentAllowedByPolicy } from '../../../../shared/corporate-agent-access'

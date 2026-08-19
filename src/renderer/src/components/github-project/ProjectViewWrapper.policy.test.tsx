@@ -10,7 +10,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EnterprisePolicyView } from '../../../../shared/enterprise-policy-view'
-import type { GitHubProjectViewSummary } from '../../../../shared/github-project-types'
+import type { GitHubProjectViewSummary } from '../../../../shared/github/project-types'
 
 const policyState = vi.hoisted(() => ({ disableVendorLinks: false }))
 

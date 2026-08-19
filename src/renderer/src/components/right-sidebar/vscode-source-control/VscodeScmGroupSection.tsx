@@ -11,7 +11,7 @@ import {
   canStageStatusEntry,
   canUnstageStatusEntry
 } from '../source-control-entry-actions'
-import type { GitStatusEntry } from '../../../../../shared/types'
+import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 
 export type VscodeScmGroupAction = 'stage-all' | 'unstage-all' | 'discard-all'
 

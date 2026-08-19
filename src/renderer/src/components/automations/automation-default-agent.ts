@@ -1,6 +1,7 @@
 import { isTuiAgentEnabled } from '../../../../shared/tui-agent-selection'
 import { isAgentAllowedByPolicy } from '../../../../shared/corporate-agent-access'
-import type { GlobalSettings, TuiAgent } from '../../../../shared/types'
+import type { GlobalSettings } from '../../../../shared/global-settings-types'
+import type { TuiAgent } from '../../../../shared/tui-agent'
 
 /**
  * The agent a brand-new automation draft starts on.

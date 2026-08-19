@@ -1,4 +1,4 @@
-import type { GitHubPRStack } from '../../shared/types'
+import type { GitHubPRStack } from '../../shared/github/pull-request-types'
 import { translateMain } from '../i18n/main-i18n'
 
 /**

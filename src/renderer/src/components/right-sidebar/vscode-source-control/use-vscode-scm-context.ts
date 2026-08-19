@@ -20,7 +20,7 @@ import type {
   GitConflictOperation,
   GitStatusEntry,
   GitUpstreamStatus
-} from '../../../../../shared/types'
+} from '../../../../../shared/git-status-types'
 
 // Why module-level: an inline `?? []` literal is a fresh reference on every
 // store write, which re-renders the whole panel on unrelated state changes.

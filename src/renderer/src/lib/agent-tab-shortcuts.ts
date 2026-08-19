@@ -7,7 +7,7 @@ import { ALL_TUI_AGENTS } from '../../../shared/tui-agent-display-names'
 import { normalizeDisabledTuiAgents, pickTuiAgent } from '../../../shared/tui-agent-selection'
 import { isAgentAllowedByPolicy } from '../../../shared/corporate-agent-access'
 import { getPolicyAllowedAgents } from '../enterprise/enterprise-policy-access'
-import type { TuiAgent } from '../../../shared/types'
+import type { TuiAgent } from '../../../shared/tui-agent'
 
 export type BoundAgentTabAction = {
   agent: TuiAgent

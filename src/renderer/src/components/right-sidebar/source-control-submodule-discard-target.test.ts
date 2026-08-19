@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resolveSubmoduleDiscardTarget } from './source-control-submodule-discard-target'
-import type { GitStatusEntry } from '../../../../shared/types'
+import type { GitStatusEntry } from '../../../../shared/git-status-types'
 
 function entry(overrides: Partial<GitStatusEntry>): GitStatusEntry {
   return { path: 'vendor/sub/a.txt', status: 'modified', area: 'unstaged', ...overrides }

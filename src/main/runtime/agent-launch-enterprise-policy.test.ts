@@ -9,7 +9,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 import { getDefaultSettings } from '../../shared/constants'
-import type { GlobalSettings } from '../../shared/types'
+import type { GlobalSettings } from '../../shared/global-settings-types'
 
 const getEnterprisePolicyMock = vi.hoisted(() => vi.fn())
 vi.mock('../enterprise/enterprise-policy-file', () => ({

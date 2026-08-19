@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { groupSubmoduleChildEntries } from './source-control-submodule-child-groups'
-import type { GitStatusEntry } from '../../../../shared/types'
+import type { GitStatusEntry } from '../../../../shared/git-status-types'
 
 function entry(path: string, area: GitStatusEntry['area']): GitStatusEntry {
   return { path, status: 'modified', area }

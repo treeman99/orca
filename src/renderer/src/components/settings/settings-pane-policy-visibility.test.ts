@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isSettingsPaneHiddenByPolicy } from './settings-pane-policy-visibility'
 import { buildSettingsNavigationMetadata } from '@/hooks/useSettingsNavigationMetadata'
 import type { EnterprisePolicyView } from '../../../../shared/enterprise-policy-view'
-import type { Repo } from '../../../../shared/types'
+import type { Repo } from '../../../../shared/repo-types'
 
 const UNRESTRICTED: EnterprisePolicyView = {
   allowedAgents: null,

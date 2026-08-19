@@ -1,6 +1,9 @@
 import { ipcMain } from 'electron'
 import type { Store } from '../persistence'
-import type { WorkspaceSessionPatch, WorkspaceSessionState } from '../../shared/types'
+import type {
+  WorkspaceSessionPatch,
+  WorkspaceSessionState
+} from '../../shared/workspace-session-state-types'
 import {
   collectPersistedTerminalTabPtyIds,
   retireClosedTerminalTabsFromPersistence

@@ -1,5 +1,5 @@
 import { useAppStore } from '../../store'
-import type { StatusBarItem } from '../../../../shared/types'
+import type { StatusBarItem } from '../../../../shared/ui-chrome-types'
 import { isStatusBarItemAvailable } from './status-bar-agent-gating'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 

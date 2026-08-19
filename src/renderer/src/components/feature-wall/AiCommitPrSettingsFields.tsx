@@ -6,7 +6,7 @@ import {
   type CommitMessageAgentCapability,
   type CommitMessageModelCapability
 } from '../../../../shared/commit-message-agent-spec'
-import type { CommitMessageAiSettings } from '../../../../shared/types'
+import type { CommitMessageAiSettings } from '../../../../shared/commit-message-ai-types'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { useCommitMessageAgentCapabilities } from '@/lib/use-commit-message-agent-capabilities'
 import { cn } from '@/lib/utils'

@@ -1,5 +1,5 @@
 import { translate } from '@/i18n/i18n'
-import type { GitConflictKind, GitStatusEntry } from '../../../../../shared/types'
+import type { GitConflictKind, GitStatusEntry } from '../../../../../shared/git-status-types'
 
 /**
  * VS Code renders one status letter per row plus a decoration color. Orca's

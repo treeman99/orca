@@ -1,4 +1,4 @@
-import type { GitStatusEntry } from '../../../../../shared/types'
+import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 
 /**
  * Row model behind VS Code's `scm.defaultViewMode` list/tree switch. The tree
