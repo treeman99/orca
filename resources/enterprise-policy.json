@@ -21,7 +21,7 @@
   "disableManagedClaudeAccounts": true, // platform.claude.com OAuth 회전 + Bedrock 자격증명 스트립
   "disableSpellcheck": true, // Chromium 사전 CDN 다운로드
   "disableMobilePairing": true, // 모바일 페어링 자체 (LAN 경로 포함 — disableCloudRelay로는 부족)
-  "disableVendorProviderAccounts": true, // 벤더 AI 계정 등록 (AWS SSO·사내 엔드포인트는 제외)
+  "disableVendorProviderAccounts": true, // 벤더 AI 계정 등록 (사내 게이트웨이 로그인은 제외)
   "disableRemoteOrcaServer": true, // 다른 Orca에 붙기 (SSH 호스트는 제외)
   "disableVoice": true, // 받아쓰기 전체
   "disablePlugins": true, // 플러그인 시스템 전체 (사용자 설정을 덮어쓰는 유일한 스위치)
