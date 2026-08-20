@@ -40,10 +40,15 @@ export function registerCodexAccountHandlers(
     assertVendorAccountRegistrationAllowed()
     return codexAccounts.addAccount(args)
   })
-  ipcMain.handle('codexAccounts:reauthenticate', (_event, args: { accountId: string }) => {
-    assertVendorAccountRegistrationAllowed()
-    return codexAccounts.reauthenticateAccount(args.accountId)
-  })
+  ipcMain.handle(
+    'codexAccounts:reauthenticate',
+    (_event, args: { accountId: string; activateIfSelectionWasEmpty?: boolean }) => {
+      assertVendorAccountRegistrationAllowed()
+      return codexAccounts.reauthenticateAccount(args.accountId, {
+        activateIfSelectionWasEmpty: args.activateIfSelectionWasEmpty === true
+      })
+    }
+  )
   ipcMain.handle('codexAccounts:remove', (_event, args: { accountId: string }) =>
     codexAccounts.removeAccount(args.accountId)
   )

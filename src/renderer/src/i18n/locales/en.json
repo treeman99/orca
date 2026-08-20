@@ -923,13 +923,13 @@
         "linearDescription": "How Linear works in Orca, setup checklist, agent skill, and example prompts.",
         "pluginsTitle": "Plugins",
         "pluginsDescription": "Install and manage experimental Orca plugins.",
-        "accountsCorporate": "Corporate gateway sign-in and your organization’s self-hosted model endpoints.",
         "tasksDescription": "Connect providers, install the Linear skill, and choose what appears in Tasks.",
         "artifactsTitle": "Artifacts",
         "artifactsDescription": "Share HTML and Markdown files with your team and manage their public links.",
         "automationsTitle": "Automations",
         "automationsDescription": "Schedule agent work and choose whether Automations appears in the sidebar.",
-        "floatingWorkspaceWebDescription": "Global terminal and markdown tabs."
+        "floatingWorkspaceWebDescription": "Global terminal and markdown tabs.",
+        "accountsCorporate": "Corporate gateway sign-in and your organization’s self-hosted model endpoints."
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "Paste is too large."
@@ -3450,7 +3450,9 @@
             "antigravityUsageDetails": "Open Antigravity usage details",
             "grokUsageAria": "Open Grok usage details",
             "grokUsageMenu": "Grok Usage",
-            "floatingTerminalNewActivity": "{{label}}, new activity"
+            "floatingTerminalNewActivity": "{{label}}, new activity",
+            "codexSignInSuccess": "Signed in to Codex",
+            "codexSignInError": "Codex sign-in failed. Please try again."
           },
           "StatusBarUsageEmptyCta": {
             "828c764a79": "Connect an account",
@@ -4415,7 +4417,8 @@
           "d36883e046": "Cancel",
           "b79b39d865": "Remove Project",
           "removeDescriptionSsh": "This only removes {{name}} from Orca. Its files stay on {{host}} — re-add that SSH host to recover it.",
-          "removeDescriptionLocal": "This only removes {{name}} from Orca. It is still on your disk."
+          "removeDescriptionLocal": "This only removes {{name}} from Orca. It is still on your disk.",
+          "removeDescriptionVmRecipe": "This removes {{name}} from Orca. Its VM recipe determines whether the environment and its files are permanently deleted."
         },
         "ScrollToCurrentWorkspaceToolbarButton": {
           "23989bb663": "Reveal active workspace"
@@ -4935,7 +4938,9 @@
           "noneFound": "No non-Orca worktrees found",
           "tryDifferentSearch": "Try a different name or path.",
           "disableSource": "Disable a source to manage its worktrees individually.",
-          "appearWhenDetected": "New worktrees will appear here when Orca detects them."
+          "appearWhenDetected": "New worktrees will appear here when Orca detects them.",
+          "openGlobalSettings": "Manage in Global Settings",
+          "globalSettingsSources": "These sources have a global setting you can override here:"
         },
         "add": {
           "repo": {
@@ -5441,15 +5446,21 @@
           "duplicatePath": "This location is already listed.",
           "limit": "Remove a custom location before adding another.",
           "sources": "Sources",
-          "sourcesDescription": "Enabled sources include current and future worktrees in the sidebar.",
+          "sourcesDescription": "Shown sources include current and future worktrees in the sidebar.",
           "found": "{{value0}} found",
           "remove": "Remove {{value0}}",
           "removeLocation": "Remove custom location",
-          "toggle": "Show current and future worktrees from {{value0}}",
           "addLocation": "Add location",
           "worktreeRoot": "Worktree root",
           "add": "Add",
-          "rootHelp": "Orca will recognize worktrees beneath this folder."
+          "rootHelp": "Orca will recognize worktrees beneath this folder.",
+          "visibility": "Visibility for {{value0}}",
+          "show": "Show",
+          "hide": "Hide",
+          "overridingGlobal": "Overriding global setting: {{value0}}",
+          "projectOnly": "Added in this project only.",
+          "useGlobalFor": "Use global for {{value0}}",
+          "useGlobal": "Use global"
         }
       },
       "shared": {
@@ -5642,6 +5653,7 @@
           "codexSystemDefaultNeedsSignIn": "No Codex sign-in was found for {{value0}}.",
           "codexConfigSyncMissingSource": "Codex is still using the settings it last synced because {{value0}} is missing. Restore that file to resume syncing.",
           "codexConfigSyncBlankSource": "Codex is still using the settings it last synced because {{value0}} is empty. That is expected while a synced folder finishes downloading.",
+          "codexConfigSyncManagedHomeUnavailable": "Orca could not read this account’s Codex files just now, so settings may not be syncing. This usually clears on its own — antivirus or a backup tool briefly locks them.",
           "codexConfigSyncUnreadableSource": "Codex is still using the settings it last synced because {{value0}} could not be read. Check that file's permissions."
         },
         "AdvancedPane": {
@@ -6329,7 +6341,11 @@
           "7511097c5d": "Workspace",
           "31e300af1c": "Ask Before Deleting Artifacts",
           "fb29a73a17": "Show a confirmation dialog before deleting a shared artifact and breaking its public link.",
-          "bf46474e33": "Show a confirmation before deleting a shared artifact. Anyone holding its public link loses access."
+          "bf46474e33": "Show a confirmation before deleting a shared artifact. Anyone holding its public link loses access.",
+          "externalWorktrees": "External worktrees",
+          "externalWorktreesDescription": "Choose whether worktrees created outside Orca appear by default.",
+          "show": "Show",
+          "hide": "Hide"
         },
         "GhosttyImportModal": {
           "9d3e56ca36": "Apply Changes",
@@ -7056,7 +7072,14 @@
           "hostStateUnknown": "Unknown",
           "nestedHostLabel": "{{value0}} via {{value1}}",
           "hostStateWorkspaceWindowClosed": "Workspace window closed",
-          "hostWorkspaceWindowClosedHelp": "The server is reachable but its Orca window is closed. Open Orca on {{value0}} to use this setup."
+          "hostWorkspaceWindowClosedHelp": "The server is reachable but its Orca window is closed. Open Orca on {{value0}} to use this setup.",
+          "externalWorktrees": "External worktrees",
+          "externalWorktreesDescription": "Override whether worktrees created outside Orca appear for this project.",
+          "externalWorktreesInherited": "Using global: {{value0}}",
+          "show": "Show",
+          "hide": "Hide",
+          "externalWorktreesGlobal": "Global default: {{value0}}",
+          "useGlobal": "Use global"
         },
         "RepositorySourceControlAiActionRows": {
           "548a6e1281": "Command template",
@@ -8689,7 +8712,9 @@
             "e61157e926": "Editor Word Wrap",
             "005be5c699": "Wrap long lines in file editors instead of requiring horizontal scrolling.",
             "editorFontFamily": "Editor Font Family",
-            "editorFontFamilyDesc": "Font used by file editors and diff views. Leave empty to follow the terminal font."
+            "editorFontFamilyDesc": "Font used by file editors and diff views. Leave empty to follow the terminal font.",
+            "externalWorktrees": "External worktrees",
+            "externalWorktreesDescription": "Choose whether worktrees created outside Orca appear by default."
           }
         },
         "git": {
@@ -9191,7 +9216,9 @@
             "keepForkUpToDate": "Keep Fork Up to Date",
             "keepForkUpToDateDescription": "Safely fast-forward this fork from upstream.",
             "projectRuntime": "Project Runtime",
-            "projectRuntimeDescription": "Choose whether this project runs on Windows or WSL."
+            "projectRuntimeDescription": "Choose whether this project runs on Windows or WSL.",
+            "externalWorktrees": "External worktrees",
+            "externalWorktreesDescription": "Override whether worktrees created outside Orca appear for this project."
           }
         },
         "runtime": {
@@ -9966,7 +9993,11 @@
           "cloudVmTitle": "Cloud VM runtimes",
           "cloudVmRefresh": "Refresh Cloud VM runtimes",
           "cloudVmLoading": "Checking Cloud VM runtimes…",
-          "cloudVmEmptyWithSetup": "No Cloud VM runtimes yet. Create one from a workspace using an environment recipe."
+          "cloudVmEmptyWithSetup": "No Cloud VM runtimes yet. Create one from a workspace using an environment recipe.",
+          "stoppingCleanup": "Stopping…",
+          "stopCleanup": "Stop cleanup",
+          "cleanupStopped": "Cleanup stopped",
+          "stopCleanupFailed": "Couldn’t stop Cloud VM cleanup."
         },
         "ephemeralVms": {
           "search": {
@@ -10452,116 +10483,6 @@
             "development": "development plugins"
           }
         },
-        "CorporateLlmEndpointsSection": {
-          "encryptionUnavailable": "Not saved. Orca could not reach this device’s secure credential store, so the token could not be encrypted — and Orca will not write a token to disk in plain text. Sign in to your desktop session again, then try once more.",
-          "unknownEndpoint": "Not saved. Your administrator’s policy no longer provisions this endpoint. Restart Orca to reload the policy file.",
-          "writeFailed": "Not saved. Orca could not write to your profile folder. Check that it is writable and not blocked by security software, then try again.",
-          "tokenActionFailed": "Endpoint token update failed.",
-          "tokenSaved": "Token saved",
-          "tokenNotSaved": "No token",
-          "model": "Model: {{value0}}",
-          "tokenPlaceholder": "Paste your token for this endpoint",
-          "tokenInputLabel": "Token for {{value0}}",
-          "replace": "Replace",
-          "save": "Save",
-          "forget": "Forget token",
-          "heading": "Self-hosted models",
-          "intro": "Your administrator provisions these endpoints. The token identifies you, so you enter it here: Orca encrypts it with this device’s credential store and never shows it again. You can replace it or forget it, but not read it back.",
-          "loading": "Loading…",
-          "empty": "No self-hosted endpoints are provisioned. They come from your administrator’s corporate policy file, not from this screen — ask your administrator to add one, then restart Orca.",
-          "removeEndpoint": "Remove endpoint",
-          "addHeading": "Add a self-hosted model",
-          "addLabelPlaceholder": "Display name (e.g. Company LLM)",
-          "addUrlPlaceholder": "https://llm.your-company.com/v1",
-          "addApiLabel": "API protocol",
-          "addModelPlaceholder": "Model id (optional)",
-          "addTokenPlaceholder": "Token (optional — you can add it later)",
-          "add": "Add",
-          "removeFailed": "Could not remove the endpoint.",
-          "apiOpenai": "OpenAI",
-          "apiAnthropic": "Anthropic"
-        },
-        "corporateLlm": {
-          "search": {
-            "title": "Self-Hosted Model Endpoints",
-            "description": "Save your personal token for each self-hosted model endpoint your administrator provisioned.",
-            "selfHosted": "self-hosted",
-            "endpoint": "endpoint",
-            "token": "token",
-            "corporate": "corporate",
-            "policy": "policy",
-            "administrator": "administrator"
-          }
-        },
-        "GitHubEnterpriseSection": {
-          "errorNoHost": "Enter your company GitHub host first.",
-          "errorGhUnavailable": "The GitHub CLI (gh) was not found on your PATH. Install it, then try again.",
-          "errorTimeout": "Sign-in timed out before it completed in the browser. Try again.",
-          "errorCancelled": "Sign-in was cancelled.",
-          "errorFailed": "Sign-in failed. Check the host and your network, then try again.",
-          "hostSaveFailed": "Could not save the host.",
-          "logoutFailed": "Could not sign out.",
-          "heading": "Company GitHub (Enterprise)",
-          "intro": "If gh cannot reach github.com at your company, enter your internal GitHub Enterprise host and sign in through the browser. Orca stores nothing — the login goes into the gh CLI’s own keyring, so pull requests, checks, and review status start working.",
-          "ghMissing": "The GitHub CLI (gh) is not installed or not on your PATH. Install gh first, then sign in here.",
-          "hostLabel": "GitHub host",
-          "saveHost": "Save",
-          "signedInAs": "Signed in as {{value0}}",
-          "signedIn": "Signed in",
-          "notSignedIn": "Not signed in",
-          "signInAgain": "Sign in again",
-          "signInBrowser": "Sign in with browser",
-          "signOut": "Sign out",
-          "enterCodePrompt": "A browser should have opened. Enter this one-time code to authorize:",
-          "openVerification": "Open verification page",
-          "hostPlaceholder": "github.your-company.com",
-          "tokenHint": "If the browser flow is blocked, paste a personal access token instead.",
-          "tokenPlaceholder": "Personal access token",
-          "tokenInputLabel": "GitHub personal access token",
-          "connectWithToken": "Connect with token"
-        },
-        "GatewaySection": {
-          "heading": "Corporate gateway sign-in",
-          "intro": "Signing in opens an OIDC round trip in your browser, and the gateway issues a virtual key on its own — there is no AWS profile or credential to manage here. `gateway-cli` keeps that credential; Orca neither stores it nor passes it on.",
-          "gatewayMissing": "Orca could not run `gateway-cli`. If `gateway-cli --version` works in a terminal, restart Orca so it picks up the current PATH.",
-          "signedIn": "Signed in",
-          "signedInUntil": "Signed in — valid until {{value0}}",
-          "expired": "Session expired",
-          "notSignedIn": "Not signed in",
-          "signIn": "Sign in with browser",
-          "signInAgain": "Sign in again",
-          "cancel": "Cancel",
-          "enterCodePrompt": "A browser should have opened. Enter this code to authorize:",
-          "browserPrompt": "A browser should have opened. Finish the authorization there — this waits for it.",
-          "openAuthPage": "Open authorization page",
-          "errorGatewayUnavailable": "Orca could not run `gateway-cli`. Confirm `gateway-cli --version` works in a terminal, then try again.",
-          "errorPtyUnavailable": "Orca could not start a terminal to run `gateway-cli`. Restart Orca, then try again.",
-          "errorTimeout": "Sign-in timed out before it completed in the browser. Try again.",
-          "errorCancelled": "Sign-in was cancelled.",
-          "errorFailed": "Sign-in failed. Check your network, then try again."
-        },
-        "gateway": {
-          "search": {
-            "title": "Corporate gateway sign-in",
-            "description": "Run `gateway-cli login` so the gateway issues the virtual key Claude on Bedrock uses.",
-            "gateway": "gateway",
-            "oidc": "oidc",
-            "login": "login",
-            "bedrock": "bedrock",
-            "virtualKey": "virtual key",
-            "gatewayKo": "게이트웨이"
-          }
-        },
-        "GitHubEnterpriseHostReadout": {
-          "sourceRemote": "from this workspace’s git remote",
-          "sourceEnv": "from the GH_HOST environment variable",
-          "sourceGhConfig": "from the host gh is signed in to",
-          "sourceUser": "from the host you saved here",
-          "sourcePolicy": "from your organization’s Orca policy",
-          "sourceDefault": "the gh default — no corporate host is configured",
-          "label": "GitHub requests go to",
-          "remoteNote": "A workspace whose git remote points at another host uses that host instead."
-        },
         "LinearAgentSkillGuide": {
           "setupConnectTitle": "1. Connect Linear",
           "setupConnectBody": "Personal API key so Orca can list issues and open linked workspaces.",
@@ -10823,6 +10744,131 @@
               "disconnectFailed": "Could not remove the saved Bitbucket credential."
             }
           }
+        },
+        "GlobalWorktreeVisibilitySourcesSetting": {
+          "saveFailed": "Could not save visibility defaults.",
+          "updateServer": "Update this server to configure source defaults.",
+          "updateServerDefaults": "Update this server to configure visibility defaults."
+        },
+        "EphemeralVmCleanupStopDialog": {
+          "title": "Stop cleanup?",
+          "description": "The VM may remain running and incur charges. You can retry cleanup later.",
+          "cancel": "Keep cleaning",
+          "stopping": "Stopping…",
+          "confirm": "Stop cleanup"
+        },
+        "shortcutDefinitionCatalog": {
+          "missionControlConflict": "Blocked by Mission Control. Remap here or change it in System Settings."
+        },
+        "CorporateLlmEndpointsSection": {
+          "encryptionUnavailable": "Not saved. Orca could not reach this device’s secure credential store, so the token could not be encrypted — and Orca will not write a token to disk in plain text. Sign in to your desktop session again, then try once more.",
+          "unknownEndpoint": "Not saved. Your administrator’s policy no longer provisions this endpoint. Restart Orca to reload the policy file.",
+          "writeFailed": "Not saved. Orca could not write to your profile folder. Check that it is writable and not blocked by security software, then try again.",
+          "tokenActionFailed": "Endpoint token update failed.",
+          "tokenSaved": "Token saved",
+          "tokenNotSaved": "No token",
+          "model": "Model: {{value0}}",
+          "tokenPlaceholder": "Paste your token for this endpoint",
+          "tokenInputLabel": "Token for {{value0}}",
+          "replace": "Replace",
+          "save": "Save",
+          "forget": "Forget token",
+          "heading": "Self-hosted models",
+          "intro": "Your administrator provisions these endpoints. The token identifies you, so you enter it here: Orca encrypts it with this device’s credential store and never shows it again. You can replace it or forget it, but not read it back.",
+          "loading": "Loading…",
+          "empty": "No self-hosted endpoints are provisioned. They come from your administrator’s corporate policy file, not from this screen — ask your administrator to add one, then restart Orca.",
+          "removeEndpoint": "Remove endpoint",
+          "addHeading": "Add a self-hosted model",
+          "addLabelPlaceholder": "Display name (e.g. Company LLM)",
+          "addUrlPlaceholder": "https://llm.your-company.com/v1",
+          "addApiLabel": "API protocol",
+          "addModelPlaceholder": "Model id (optional)",
+          "addTokenPlaceholder": "Token (optional — you can add it later)",
+          "add": "Add",
+          "removeFailed": "Could not remove the endpoint.",
+          "apiOpenai": "OpenAI",
+          "apiAnthropic": "Anthropic"
+        },
+        "corporateLlm": {
+          "search": {
+            "title": "Self-Hosted Model Endpoints",
+            "description": "Save your personal token for each self-hosted model endpoint your administrator provisioned.",
+            "selfHosted": "self-hosted",
+            "endpoint": "endpoint",
+            "token": "token",
+            "corporate": "corporate",
+            "policy": "policy",
+            "administrator": "administrator"
+          }
+        },
+        "GitHubEnterpriseSection": {
+          "errorNoHost": "Enter your company GitHub host first.",
+          "errorGhUnavailable": "The GitHub CLI (gh) was not found on your PATH. Install it, then try again.",
+          "errorTimeout": "Sign-in timed out before it completed in the browser. Try again.",
+          "errorCancelled": "Sign-in was cancelled.",
+          "errorFailed": "Sign-in failed. Check the host and your network, then try again.",
+          "hostSaveFailed": "Could not save the host.",
+          "logoutFailed": "Could not sign out.",
+          "heading": "Company GitHub (Enterprise)",
+          "intro": "If gh cannot reach github.com at your company, enter your internal GitHub Enterprise host and sign in through the browser. Orca stores nothing — the login goes into the gh CLI’s own keyring, so pull requests, checks, and review status start working.",
+          "ghMissing": "The GitHub CLI (gh) is not installed or not on your PATH. Install gh first, then sign in here.",
+          "hostLabel": "GitHub host",
+          "saveHost": "Save",
+          "signedInAs": "Signed in as {{value0}}",
+          "signedIn": "Signed in",
+          "notSignedIn": "Not signed in",
+          "signInAgain": "Sign in again",
+          "signInBrowser": "Sign in with browser",
+          "signOut": "Sign out",
+          "enterCodePrompt": "A browser should have opened. Enter this one-time code to authorize:",
+          "openVerification": "Open verification page",
+          "hostPlaceholder": "github.your-company.com",
+          "tokenHint": "If the browser flow is blocked, paste a personal access token instead.",
+          "tokenPlaceholder": "Personal access token",
+          "tokenInputLabel": "GitHub personal access token",
+          "connectWithToken": "Connect with token"
+        },
+        "GatewaySection": {
+          "heading": "Corporate gateway sign-in",
+          "intro": "Signing in opens an OIDC round trip in your browser, and the gateway issues a virtual key on its own — there is no AWS profile or credential to manage here. `gateway-cli` keeps that credential; Orca neither stores it nor passes it on.",
+          "gatewayMissing": "Orca could not run `gateway-cli`. If `gateway-cli --version` works in a terminal, restart Orca so it picks up the current PATH.",
+          "signedIn": "Signed in",
+          "signedInUntil": "Signed in — valid until {{value0}}",
+          "expired": "Session expired",
+          "notSignedIn": "Not signed in",
+          "signIn": "Sign in with browser",
+          "signInAgain": "Sign in again",
+          "cancel": "Cancel",
+          "enterCodePrompt": "A browser should have opened. Enter this code to authorize:",
+          "browserPrompt": "A browser should have opened. Finish the authorization there — this waits for it.",
+          "openAuthPage": "Open authorization page",
+          "errorGatewayUnavailable": "Orca could not run `gateway-cli`. Confirm `gateway-cli --version` works in a terminal, then try again.",
+          "errorPtyUnavailable": "Orca could not start a terminal to run `gateway-cli`. Restart Orca, then try again.",
+          "errorTimeout": "Sign-in timed out before it completed in the browser. Try again.",
+          "errorCancelled": "Sign-in was cancelled.",
+          "errorFailed": "Sign-in failed. Check your network, then try again."
+        },
+        "gateway": {
+          "search": {
+            "title": "Corporate gateway sign-in",
+            "description": "Run `gateway-cli login` so the gateway issues the virtual key Claude on Bedrock uses.",
+            "gateway": "gateway",
+            "oidc": "oidc",
+            "login": "login",
+            "bedrock": "bedrock",
+            "virtualKey": "virtual key",
+            "gatewayKo": "게이트웨이"
+          }
+        },
+        "GitHubEnterpriseHostReadout": {
+          "sourceRemote": "from this workspace’s git remote",
+          "sourceEnv": "from the GH_HOST environment variable",
+          "sourceGhConfig": "from the host gh is signed in to",
+          "sourceUser": "from the host you saved here",
+          "sourcePolicy": "from your organization’s Orca policy",
+          "sourceDefault": "the gh default — no corporate host is configured",
+          "label": "GitHub requests go to",
+          "remoteNote": "A workspace whose git remote points at another host uses that host instead."
         }
       },
       "right": {
@@ -15892,6 +15938,20 @@
       }
     }
   },
+  "featureTips": {
+    "voice": {
+      "demoPrompt": "Review this diff for edge cases and add tests for anything you find.",
+      "startDictation": "Start dictation",
+      "agentPromptTitle": "Agent prompt",
+      "listening": "Listening...",
+      "focusPaneInstruction": "Focus a terminal, editor, or agent prompt, then press",
+      "startInstruction": "to start voice dictation. Press",
+      "stopInstruction": "again to stop.",
+      "unassignedInstruction": "Assign a dictation shortcut before starting voice dictation in a focused pane.",
+      "settingsInstruction": "Change the model, dictation mode, or shortcut anytime in",
+      "settingsLink": "Settings → Voice"
+    }
+  },
   "enterprise": {
     "corporateLlm": {
       "appliesNextSession": "Company-hosted model — applies from the next session",
@@ -15919,20 +15979,6 @@
     "submoduleDetectionLimit": "Only the first {{count}} submodules are shown. The rest are not listed here.",
     "submoduleWriteUnsupportedHost": "This host does not support submodule write operations. Update Orca on the remote host to stage, commit, or push inside a submodule.",
     "submoduleUnsafePath": "Orca refused this path: it does not resolve inside the submodule."
-  },
-  "featureTips": {
-    "voice": {
-      "demoPrompt": "Review this diff for edge cases and add tests for anything you find.",
-      "startDictation": "Start dictation",
-      "agentPromptTitle": "Agent prompt",
-      "listening": "Listening...",
-      "focusPaneInstruction": "Focus a terminal, editor, or agent prompt, then press",
-      "startInstruction": "to start voice dictation. Press",
-      "stopInstruction": "again to stop.",
-      "unassignedInstruction": "Assign a dictation shortcut before starting voice dictation in a focused pane.",
-      "settingsInstruction": "Change the model, dictation mode, or shortcut anytime in",
-      "settingsLink": "Settings → Voice"
-    }
   },
   "github": {
     "stackMerge": {

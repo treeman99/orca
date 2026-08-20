@@ -211,6 +211,7 @@ import {
   isCodexHomeAuthReadyForLaunch,
   waitForManagedCodexAuthReady
 } from '../codex-accounts/managed-codex-auth-readiness'
+import { ManagedCodexHomeTemporarilyUnavailableError } from '../codex-accounts/host-codex-managed-home-ownership'
 import {
   forgetCodexPaneAccount,
   getCodexPaneAccount,
@@ -1310,6 +1311,26 @@ const MANAGED_CODEX_AUTH_UNAVAILABLE_MESSAGE =
   'The selected Codex account credentials are temporarily unavailable. Try opening the terminal again.'
 const CODEX_RESUME_AUTH_UNAVAILABLE_MESSAGE =
   'The Codex account credentials for this session are temporarily unavailable. Try opening the terminal again.'
+const MANAGED_CODEX_HOME_UNAVAILABLE_MESSAGE =
+  'Codex account files are temporarily locked. Retry in a moment.'
+
+/**
+ * Why: launch prep refuses an unreadable managed home by throwing instead of
+ * returning `null`, because `null` already means "launch the system default".
+ * Turn that refusal into the same shape as the auth-unavailable refusal above —
+ * a user-facing spawn rejection — so the pane never starts on another account's
+ * credentials (#STA-4422).
+ */
+function resolveSelectedCodexHomeOrRefuseSpawn(resolve: () => string | null): string | null {
+  try {
+    return resolve()
+  } catch (error) {
+    if (error instanceof ManagedCodexHomeTemporarilyUnavailableError) {
+      throw new Error(MANAGED_CODEX_HOME_UNAVAILABLE_MESSAGE, { cause: error })
+    }
+    throw error
+  }
+}
 
 type ManagedCodexAuthResolutionArgs = {
   selectedCodexHomePath: string | null
@@ -4650,7 +4671,7 @@ export function registerPtyHandlers(
       if (args.preAllocatedHandle) {
         env = { ...env, ORCA_TERMINAL_HANDLE: args.preAllocatedHandle }
       }
-      let selectedCodexHomePath =
+      let selectedCodexHomePath = resolveSelectedCodexHomeOrRefuseSpawn(() =>
         !preAdoptedStablePane && !args.connectionId
           ? getCompatibleSelectedCodexHomePath(
               codexSelectionTarget,
@@ -4670,6 +4691,7 @@ export function registerPtyHandlers(
                   }) ?? null)
             )
           : null
+      )
       if (
         !preAdoptedStablePane &&
         args.launchAgent === 'codex' &&
@@ -4681,21 +4703,25 @@ export function registerPtyHandlers(
           requiredCodexHomePath: codexResumeHome?.codexHomePath,
           target: codexSelectionTarget,
           resolveCurrent: () =>
-            getCompatibleSelectedCodexHomePath(
-              codexSelectionTarget,
-              getSelectedCodexHomePath?.(codexSelectionTarget, env, {
-                workspacePath: cwd,
-                launchAgent: 'codex'
-              }) ?? null
+            resolveSelectedCodexHomeOrRefuseSpawn(() =>
+              getCompatibleSelectedCodexHomePath(
+                codexSelectionTarget,
+                getSelectedCodexHomePath?.(codexSelectionTarget, env, {
+                  workspacePath: cwd,
+                  launchAgent: 'codex'
+                }) ?? null
+              )
             ),
           resolveAfterUnavailable: (unavailableManagedHomePath) =>
-            getCompatibleSelectedCodexHomePath(
-              codexSelectionTarget,
-              getSelectedCodexHomePath?.(codexSelectionTarget, env, {
-                workspacePath: cwd,
-                launchAgent: 'codex',
-                unavailableManagedHomePath
-              }) ?? null
+            resolveSelectedCodexHomeOrRefuseSpawn(() =>
+              getCompatibleSelectedCodexHomePath(
+                codexSelectionTarget,
+                getSelectedCodexHomePath?.(codexSelectionTarget, env, {
+                  workspacePath: cwd,
+                  launchAgent: 'codex',
+                  unavailableManagedHomePath
+                }) ?? null
+              )
             )
         })
         selectedCodexHomePath = resolution instanceof Promise ? await resolution : resolution
@@ -5444,8 +5470,17 @@ export function registerPtyHandlers(
     },
     write: (ptyId, data) => {
       try {
-        getProviderForPty(ptyId).write(ptyId, data)
-        return true
+        return getProviderForPty(ptyId).write(ptyId, data) !== false
+      } catch {
+        return false
+      }
+    },
+    writeWithSettlement: async (ptyId, data) => {
+      try {
+        const provider = getProviderForPty(ptyId)
+        return provider.writeWithSettlement
+          ? await provider.writeWithSettlement(ptyId, data)
+          : provider.write(ptyId, data) !== false
       } catch {
         return false
       }
@@ -6331,7 +6366,7 @@ export function registerPtyHandlers(
         // Why: declared after the strip so a local-provider spawn cannot capture the
         // pre-strip env — only the daemon branch below re-derives this from baseEnv.
         let env: Record<string, string> | undefined = baseEnv
-        let selectedCodexHomePath =
+        let selectedCodexHomePath = resolveSelectedCodexHomeOrRefuseSpawn(() =>
           !preAdoptedStablePane && !args.connectionId
             ? getCompatibleSelectedCodexHomePath(
                 codexSelectionTarget,
@@ -6351,6 +6386,7 @@ export function registerPtyHandlers(
                     }) ?? null)
               )
             : null
+        )
         if (!preAdoptedStablePane && args.launchAgent === 'codex' && args.sessionId === undefined) {
           const resolution = resolveCodexHomeAfterManagedAuthReadiness({
             selectedCodexHomePath,
@@ -6358,21 +6394,25 @@ export function registerPtyHandlers(
             requiredCodexHomePath: codexResumeHome?.codexHomePath,
             target: codexSelectionTarget,
             resolveCurrent: () =>
-              getCompatibleSelectedCodexHomePath(
-                codexSelectionTarget,
-                getSelectedCodexHomePath?.(codexSelectionTarget, baseEnv, {
-                  workspacePath: cwd,
-                  launchAgent: 'codex'
-                }) ?? null
+              resolveSelectedCodexHomeOrRefuseSpawn(() =>
+                getCompatibleSelectedCodexHomePath(
+                  codexSelectionTarget,
+                  getSelectedCodexHomePath?.(codexSelectionTarget, baseEnv, {
+                    workspacePath: cwd,
+                    launchAgent: 'codex'
+                  }) ?? null
+                )
               ),
             resolveAfterUnavailable: (unavailableManagedHomePath) =>
-              getCompatibleSelectedCodexHomePath(
-                codexSelectionTarget,
-                getSelectedCodexHomePath?.(codexSelectionTarget, baseEnv, {
-                  workspacePath: cwd,
-                  launchAgent: 'codex',
-                  unavailableManagedHomePath
-                }) ?? null
+              resolveSelectedCodexHomeOrRefuseSpawn(() =>
+                getCompatibleSelectedCodexHomePath(
+                  codexSelectionTarget,
+                  getSelectedCodexHomePath?.(codexSelectionTarget, baseEnv, {
+                    workspacePath: cwd,
+                    launchAgent: 'codex',
+                    unavailableManagedHomePath
+                  }) ?? null
+                )
               )
           })
           selectedCodexHomePath = resolution instanceof Promise ? await resolution : resolution
