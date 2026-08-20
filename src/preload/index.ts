@@ -18,11 +18,6 @@ import type {
 } from '../shared/terminal-preview'
 import type { CliInstallStatus } from '../shared/cli-install-types'
 import type {
-  CorporateLlmAddEndpointResult,
-  CorporateLlmEndpointStatus,
-  CorporateLlmTokenSaveResult
-} from '../shared/corporate-llm-endpoint-status'
-import type {
   GatewayLoginProgress,
   GatewayLoginResult,
   GatewayStatus
@@ -4485,28 +4480,6 @@ const api = {
     clearCookie: (): Promise<{ configured: boolean }> =>
       ipcRenderer.invoke('minimaxCredentials:clearCookie')
   },
-
-  corporateLlm: {
-    listEndpoints: (): Promise<CorporateLlmEndpointStatus[]> =>
-      ipcRenderer.invoke('corporateLlmEndpoints:list'),
-    // The token travels to main and stops there; the result carries only `hasToken`.
-    saveToken: (args: {
-      endpointId: string
-      token: string
-    }): Promise<CorporateLlmTokenSaveResult> =>
-      ipcRenderer.invoke('corporateLlmEndpoints:saveToken', args),
-    clearToken: (args: { endpointId: string }): Promise<CorporateLlmTokenSaveResult> =>
-      ipcRenderer.invoke('corporateLlmEndpoints:clearToken', args),
-    addUserEndpoint: (args: {
-      label: string
-      baseUrl: string
-      api: 'anthropic' | 'openai'
-      model: string | null
-    }): Promise<CorporateLlmAddEndpointResult> =>
-      ipcRenderer.invoke('corporateLlmEndpoints:addUserEndpoint', args),
-    removeUserEndpoint: (args: { endpointId: string }): Promise<void> =>
-      ipcRenderer.invoke('corporateLlmEndpoints:removeUserEndpoint', args)
-  } satisfies PreloadApi['corporateLlm'],
 
   enterprisePolicy: {
     get: (): Promise<EnterprisePolicyView> => ipcRenderer.invoke('enterprisePolicy:get'),

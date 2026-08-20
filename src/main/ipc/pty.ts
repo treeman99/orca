@@ -107,10 +107,6 @@ import {
 import type { ClaudeRuntimeAuthPreparation } from '../claude-accounts/runtime-auth-service'
 import type { ClaudeAccountSelectionTarget } from '../claude-accounts/runtime-selection'
 import { CLAUDE_AUTH_ENV_VARS, hasClaudeAuthEnvConflict } from '../claude-accounts/environment'
-import {
-  applyCorporateLlmSelection,
-  reportCorporateLlmSelection
-} from '../enterprise/corporate-llm-launch-report'
 import { assertAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 import {
   isClaudeAuthSwitchInProgress,
@@ -1725,10 +1721,6 @@ export function buildPtyHostEnv(
 ): Record<string, string> {
   mergePersistedWindowsPath(baseEnv)
   Object.assign(baseEnv, buildConfiguredProxyEnv(opts.networkProxySettings, baseEnv))
-  // Why: after the proxy merge so the endpoint host can be added to the NO_PROXY
-  // that merge just wrote; the token itself never reaches persisted launch config.
-  reportCorporateLlmSelection(applyCorporateLlmSelection(baseEnv))
-
   // Why: local path's baseEnv includes process.env but the daemon path doesn't (fork inheritance, not IPC); check both sources so guards stay in lock-step across spawn paths.
   const preexistingOpenCodeConfigDir = resolveOpenCodeSourceConfigDir(baseEnv)
   const launchCommandHint = resolveSetupAgentSequenceLaunchCommand(baseEnv, opts.launchCommand)

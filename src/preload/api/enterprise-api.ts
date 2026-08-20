@@ -1,8 +1,3 @@
-import type {
-  CorporateLlmAddEndpointResult,
-  CorporateLlmEndpointStatus,
-  CorporateLlmTokenSaveResult
-} from '../../shared/corporate-llm-endpoint-status'
 import type { EnterprisePolicyView } from '../../shared/enterprise-policy-view'
 import type {
   GatewayLoginProgress,
@@ -14,20 +9,6 @@ import type {
   GithubEnterpriseLoginProgress,
   GithubEnterpriseLoginResult
 } from '../../shared/github-enterprise-auth'
-
-// The token is write-only across this boundary: it goes in, and only `hasToken` comes back.
-export type CorporateLlmApi = {
-  listEndpoints: () => Promise<CorporateLlmEndpointStatus[]>
-  saveToken: (args: { endpointId: string; token: string }) => Promise<CorporateLlmTokenSaveResult>
-  clearToken: (args: { endpointId: string }) => Promise<CorporateLlmTokenSaveResult>
-  addUserEndpoint: (args: {
-    label: string
-    baseUrl: string
-    api: 'anthropic' | 'openai'
-    model: string | null
-  }) => Promise<CorporateLlmAddEndpointResult>
-  removeUserEndpoint: (args: { endpointId: string }) => Promise<void>
-}
 
 export type EnterprisePolicyApi = {
   get: () => Promise<EnterprisePolicyView>

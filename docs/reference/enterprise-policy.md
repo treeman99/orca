@@ -92,13 +92,13 @@ ORCA_GITHUB_ENTERPRISE_HOST
 바닥선의 규칙은 둘뿐이고, 둘 다 **관리자가 항상 이기도록** 만들어져 있습니다:
 
 1. **채택된 파일이 언급한 키는 절대 건드리지 않습니다.** 관리자가 `"allowedAgents": ["claude","codex"]`라고 쓰면 그게 이깁니다. 풀고 싶으면 **명시하세요** — 적지 않으면 내장값이 남습니다.
-2. **조이는 방향으로만 채웁니다.** 내장 정책의 `true`(또는 허용목록)만 반영되고, `false`는 무시됩니다. per-user NSIS 설치에서는 설치 폴더가 **그 사용자 소유**라(§7-5), 그렇지 않으면 표준 사용자가 설치 폴더의 파일에 `false`를 써넣어 관리자의 머신 전역 잠금에 구멍을 낼 수 있습니다.
+2. **조이는 방향으로만 채웁니다.** 내장 정책의 `true`(또는 허용목록)만 반영되고, `false`는 무시됩니다. per-user NSIS 설치에서는 설치 폴더가 **그 사용자 소유**라(§2), 그렇지 않으면 표준 사용자가 설치 폴더의 파일에 `false`를 써넣어 관리자의 머신 전역 잠금에 구멍을 낼 수 있습니다.
 
-`llmEndpoints`·`allowedNetworkHosts`·`githubEnterpriseHost`는 **바닥선에서 제외**입니다. 조이는 값이 아니라 넓히는 값이고, 관리자 파일이 그 키들의 주인입니다.
+`allowedNetworkHosts`·`githubEnterpriseHost`는 **바닥선에서 제외**입니다. 조이는 값이 아니라 넓히는 값이고, 관리자 파일이 그 키들의 주인입니다.
 
 #### 그 아래 한 겹 더 — 빌드에 박힌 에이전트 바닥값
 
-위 바닥선은 **채택된 파일이 있을 때** 그 빈칸을 채웁니다. 채택할 파일이 아예 없으면 채울 대상이 없고, `allowedAgents`가 없다는 것은 곧 **제한 없음**이므로 모든 벤더 CLI가 피커에 돌아옵니다. per-user NSIS 설치에서는 설치 폴더가 그 사용자 소유라(§7-5) `resources\enterprise-policy.json`을 **지우기만 해도** 그 상태가 됩니다.
+위 바닥선은 **채택된 파일이 있을 때** 그 빈칸을 채웁니다. 채택할 파일이 아예 없으면 채울 대상이 없고, `allowedAgents`가 없다는 것은 곧 **제한 없음**이므로 모든 벤더 CLI가 피커에 돌아옵니다. per-user NSIS 설치에서는 설치 폴더가 그 사용자 소유라(§2) `resources\enterprise-policy.json`을 **지우기만 해도** 그 상태가 됩니다.
 
 그래서 파일이 아니라 **코드에 박힌 목록**이 마지막 바닥값으로 깔려 있습니다 (`BUILT_IN_AGENT_ALLOWLIST`, `src/shared/enterprise-policy-baseline.ts`). 현재 값은 `["claude", "opencode"]`이고, 바꾸려면 **저장소를 수정해 다시 빌드해야 합니다.**
 
@@ -159,7 +159,6 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 | `requireComputerUseApproval` | boolean | `lockdown` | Computer Use가 **무언가를 바꾸기 전에** 사용자에게 네이티브 확인 창을 띄웁니다 (클릭/타이핑/키/드래그/스크롤/붙여넣기/값 입력). 읽기(접근성 트리·스크린샷)는 묻지 않습니다. 창에는 대상 앱과 입력될 텍스트가 표시되고, 기본 버튼과 Esc는 **거부**입니다. 띄울 창이 없으면(헤드리스 `orca serve`) 거부합니다. 게이트: `callComputerSidecarAction`(`src/main/computer/sidecar-client.ts`) — 변경 동작 9개가 전부 지나가는 유일한 지점 |
 | `enforceNetworkAllowlist` | boolean | **`false`** (lockdown을 상속하지 **않음**) | §5 참고. `src/shared/enterprise-policy.ts:386-388`에 이유가 주석으로 박혀 있습니다 |
 | `allowedNetworkHosts` | string[] | `[]` (+ `githubEnterpriseHost` 자동 포함) | `enforceNetworkAllowlist: true`일 때만 의미가 있습니다 |
-| `llmEndpoints` | object[] | `[]` | 사내에서 직접 서비스하는 모델의 접속 지점 목록. 사용자가 세션을 Bedrock 대신 여기로 돌릴 수 있습니다. 각 엔드포인트의 호스트는 허용목록에 자동 추가됩니다 (`src/shared/enterprise-policy.ts:373-381`). **토큰은 여기 넣지 않습니다** — §3-2 참고 |
 | `allowedAgents` | string[] | `null` (제한 없음) | 사용자가 **쓸 수 있는 에이전트 CLI id 목록** (예: `"claude"`). ⚠️ **UI 필터가 아니라 하드 거부입니다** — 예전 판의 "고를 수 있는 목록"이라는 설명은 부족했습니다. 두 축으로 동작합니다: ① **표시** — 에이전트/모델 피커·계정 설정·하단 사용량 미터가 이 목록으로만 좁혀지고, 나머지 벤더(codex/gpt, gemini, opencode, grok 등)는 UI에서 사라지고 사용량 폴링(예: Codex → chatgpt.com)도 하지 않습니다. ② **스폰 거부** — 목록 밖 에이전트는 **실제로 실행되지 않습니다**. 표시 게이트만으로 부족한 이유는 렌더러를 거치지 않는 경로가 여럿이기 때문입니다: 정책 배포 전에 바인딩된 키보드 코드, `orca` CLI, 페어링된 모바일/웹 클라이언트, 오케스트레이션 디스패치. 초크포인트 2곳 — `pty:spawn` IPC(`src/main/ipc/pty.ts`)와 `runtime.setPtyController({spawn})`(`src/main/runtime/orca-runtime.ts`, CLI·모바일·자동화·오케스트레이션이 지나는 레인). 거부는 `agent_blocked_by_enterprise_policy` 오류로 사용자 토스트에 표시됩니다 (`src/main/enterprise/agent-allowlist-guard.ts`). 빈 배열/오타는 피커를 완전히 막지 않도록 "제한 없음"으로 처리됩니다. 사내 self-hosted 모델은 에이전트가 아니라 허용된 에이전트의 모델 피커에 얹히므로 여기 적을 필요가 없습니다. §3-3 참고 |
 | `$schema` | string | — | 알려진 키라 경고가 나지 않습니다. 에디터 편의용 (`enterprise-policy.ts:180`) |
 
@@ -208,78 +207,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 
 > ⚠️ **이 스위치가 WSL 게스트에 자격증명을 넣어 주지는 않습니다.** 이 스위치가 없애는 것은 "지우는 동작"뿐입니다. `wsl.exe`는 `WSLENV`에 등록된 변수만 게스트로 넘기는데, Orca가 등록하는 것은 `ORCA_*`와 워크트리 경로 변수(`src/main/pty/wsl-orca-env.ts:77-102` → `:44-54`의 `CONDUCTOR_ROOT_PATH`/`GHOSTX_ROOT_PATH` 포함), 그리고 에이전트 홈 경로(`CODEX_HOME`·`CLAUDE_CONFIG_DIR` — `src/main/providers/local-pty-provider.ts:748`, `:769`)뿐입니다. **어느 등록 지점에도 `AWS_*`는 없습니다** (배경은 `src/main/rate-limits/claude-pty.ts:273-274` 주석). WSL 안에서 Bedrock을 쓰려면 **게스트 배포판 안에서 `gateway-cli login`을 따로 실행**하고 리전 설정도 게스트에 두어야 합니다 — 호스트의 로그인은 게스트에 보이지 않습니다([README §3.4](../../README.md)).
 
-### 3-2. `llmEndpoints` — 사내에서 직접 서비스하는 모델
-
-사내가 오픈웨이트 모델을 직접 서비스한다면, 사용자가 세션을 Bedrock 대신 그쪽으로 돌릴 수 있습니다. **정책 파일의 엔드포인트는 관리자 소유이고 토큰은 사용자 소유**이지만, 아래처럼 **사용자가 엔드포인트 자체를 추가하는 별도 레인이 있습니다** — 즉 실제 목록은 관리자 배포분과 사용자 추가분의 합집합입니다.
-
-> **사용자 직접 추가(UI):** 관리자가 정책 파일에 넣지 않아도, 사용자가 **설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"(영문 UI: Accounts → Self-hosted models)** 에서 URL·프로토콜·토큰을 입력해 엔드포인트를 직접 추가할 수 있습니다(`src/renderer/src/components/settings/CorporateLlmEndpointsSection.tsx`). 저장 위치는 사용자 프로파일(`%APPDATA%\Orca\corporate-llm-user-endpoints.json`, 토큰은 별도 암호화 저장)이며, 정책 엔드포인트와 동일하게 모델 피커·실행 주입 경로를 탑니다(`corporate-llm-endpoint-registry.ts`). URL은 https만 허용됩니다(루프백 예외, 쓰기 시점 검증). **이 레인을 끄는 정책 스위치는 없고, `enforceNetworkAllowlist: true`도 이것을 막지 못합니다** — 실제 전송 주체가 에이전트 CLI 서브프로세스라 허용목록이 원리적으로 보지 못하기 때문입니다(감사 문서 §0.2 #1·#14). 하드 잠금 배포에서 사용자 지정 목적지를 통제하려면 망 계층(프록시 강제·방화벽)이 유일한 수단입니다.
-
-#### 엔드포인트 항목 스키마 (`src/shared/enterprise-llm-endpoints.ts`)
-
-| 필드 | 필수 | 기본값 | 설명 |
-| --- | --- | --- | --- |
-| `id` | ✅ | — | 안정적인 키. **파일명이 되므로** 토큰 저장소가 `^[a-zA-Z0-9._-]{1,64}$`만 받습니다 (`corporate-llm-token-store.ts:21-23`). 이 범위를 벗어난 id는 정책 파싱은 통과해도 **토큰을 저장할 수 없습니다** |
-| `baseUrl` | ✅ | — | **`https`만 허용**합니다. 예외는 루프백(`localhost` / `127.0.0.1` / `::1`)뿐 (`:40-46`, `:49-52`). 후행 슬래시는 제거됩니다 |
-| `api` | | `"openai"` | `"anthropic"` 또는 `"openai"`. 사내 서비스가 말하는 프로토콜 |
-| `label` | | `id`와 동일 | UI에 표시되는 이름 |
-| `model` | | 없음 | 서비스가 모델 id를 요구할 때만 |
-
-> **왜 `https`를 강제하나**: 토큰은 이 URL이 가리키는 곳으로 전송됩니다. `http://`로 잘못 적으면 사내망에 **평문으로 흐릅니다** (`:26-27` 주석).
-
-**항목 하나가 잘못돼도 정책 전체가 죽지는 않습니다.** 쓸 수 없는 항목은 경고와 함께 버려지고 나머지는 적용됩니다 (`:91-95` 주석) — 엔드포인트 오타 하나가 플릿의 잠금 스위치를 날리면 안 되기 때문입니다. id가 중복되면 **처음 것을 유지**합니다 (`:114-117`).
-
-#### 토큰은 관리자가 배포하지 않습니다
-
-정책 파일은 `%ProgramData%`에 있어 **그 PC의 모든 계정이 읽을 수 있습니다.** 토큰은 사람을 식별하므로 여기 넣으면 머신 공용 토큰이 되고 개인별 추적이 불가능해집니다. 그래서 **사용자가 앱에서 직접 입력**합니다.
-
-| | |
-| --- | --- |
-| 입력 위치 | **설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"(영문 UI: Accounts → Self-hosted models)** (`src/renderer/src/components/settings/AccountsPane.tsx:1972`) |
-| 저장 위치 | `%APPDATA%\Orca\corporate-llm-tokens\<id>.token` (`corporate-llm-token-store.ts:17`, `:28`) |
-| 암호화 | Electron `safeStorage` = **Windows에서는 DPAPI**. 사용자 계정에 묶여 다른 프로필은 파일에 접근해도 못 읽습니다. 파일 모드 `0600` (`:94`) |
-| 암호화 불가 시 | **저장을 거부합니다** (`:87-90`). 평문으로 떨어뜨리지 않습니다 |
-
-관리자가 할 일은 `llmEndpoints`를 배포하는 것까지입니다. 사용자에게는 "설정에서 자기 토큰을 한 번 넣으라"고만 안내하면 됩니다.
-
-#### 에이전트에 실제로 전달되는 것 (`src/shared/corporate-llm-launch-env.ts:53-72`)
-
-| `api` | 전달되는 환경변수 |
-| --- | --- |
-| `"openai"` | `OPENAI_BASE_URL`, `OPENAI_API_KEY`, (`model` 지정 시) `OPENAI_MODEL` |
-| `"anthropic"` | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, (`model` 지정 시) `ANTHROPIC_MODEL` |
-
-여기에 더해 엔드포인트 호스트가 `NO_PROXY`/`no_proxy`에 **병합**됩니다(기존 값을 덮지 않음, `:28-40`). 사내 엔드포인트를 외부 프록시로 보내면 실패하거나 프롬프트 트래픽이 노출되기 때문입니다.
-
-**토큰은 정책 파일에도, 저장되는 세션 설정에도 들어가지 않습니다.** 선택은 `ORCA_CORPORATE_LLM_ENDPOINT=<id>`라는 **비밀이 아닌 값**으로만 이동하고, 스폰 시점에 main이 정책에서 URL을, 암호화 저장소에서 토큰을 꺼내 합칩니다 (`src/main/enterprise/corporate-llm-launch-injection.ts`). 이렇게 나눈 이유는 `SleepingAgentLaunchConfig`가 에이전트 환경을 **평문으로 디스크에 저장**하기 때문입니다 (`src/shared/sleeping-agent-launch-config.ts:12-16`).
-
-#### 두 가지 제약 — 배포 전에 알고 계세요
-
-1. **워크스페이스 단위가 아닙니다.** 이 코드베이스에 워크스페이스별 에이전트 설정 계층이 없어서, 선택은 **에이전트 단위**로 저장되고 그 에이전트의 이후 모든 런치에 적용됩니다.
-2. **첫 런치에서는 고를 수 없습니다.** 모델 선택 표면이 스폰이 큐잉된 뒤에 붙습니다. 새 설치의 첫 세션은 Bedrock으로 뜨고, 사용자가 그 세션의 모델 핀에서 사내 LLM을 고르면 **이후 런치부터** 적용됩니다. 모르면 "고장났다"고 판단할 지점이라 사용자 안내에 꼭 넣으세요.
-
-#### 선택이 먹히지 않을 때 — 스폰은 죽지 않습니다
-
-정책에 없는 id이거나 토큰이 저장돼 있지 않으면 **환경을 건드리지 않고** 기존 백엔드(이 플릿에서는 Bedrock)를 유지합니다 (`corporate-llm-launch-injection.ts:53`, `:57`). 인증 없는 요청을 보내거나 터미널이 안 뜨는 것보다 낫다는 판단입니다. 진단은 §7-5를 보세요.
-
-#### WSL
-
-`wsl.exe`는 `WSLENV` 등재 변수만 게스트로 넘깁니다. 위 환경변수 전부와 `NO_PROXY`·`ORCA_CORPORATE_LLM_ENDPOINT`가 `/u`로, `NODE_EXTRA_CA_CERTS`가 `/p`(Windows 경로일 때) 또는 `/u`(이미 Linux 경로일 때)로 등재됩니다 (`src/main/enterprise/corporate-llm-wsl-passthrough.ts:9-27`). 인증서 번들은 경로라서 게스트용으로 번역해야 하기 때문입니다.
-
-**`HTTP_PROXY`/`HTTPS_PROXY`는 넘기지 않습니다** — 모든 WSL 에이전트의 네트워킹을 바꾸는 변경이라 이 기능의 곁다리로 처리하지 않았습니다.
-
-#### 사내 CA
-
-사내 엔드포인트가 사내 인증서를 쓰면 Node 기반 에이전트 CLI는 `NODE_EXTRA_CA_CERTS`가 필요합니다. **OS 환경변수로 심으면 됩니다** — Orca는 PTY에 `process.env`를 통째로 상속시키고 allowlist가 없어서 Windows 호스트에서는 이미 전달되고, 위 항목으로 WSL에도 넘어갑니다.
-
-### 값 해석 규칙
-
-- **boolean 키**는 진짜 boolean 외에 문자열 `"true"/"yes"/"on"/"1"`, `"false"/"no"/"off"/"0"`도 받습니다 (`enterprise-policy.ts:190-191`, `:212-220`).
-- **인식할 수 없는 값은 "부재"로 처리**되어 `lockdown`을 상속하고, stderr에 경고가 나갑니다 (`:221-222`). 절대 "off"로 읽지 않습니다 — 관리자의 오타가 조용히 잠금을 푸는 사고를 막기 위한 설계입니다 (`:197-199` 주석).
-- **호스트 문자열**은 스킴·경로·자격증명·포트를 벗겨내고 소문자로 정규화됩니다 (`:227-240`). `https://github.samsungds.net/`, `git@github.samsungds.net:8443` 모두 `github.samsungds.net`이 됩니다.
-- **모르는 키**는 무시되고 경고만 나갑니다 (`:352-356`). 오타난 키(`disableStarNagg`)는 곧 "그 스위치는 부재" = `lockdown` 상속입니다.
-- **문법이 깨진 파일은 통째로 거부**합니다 (`enterprise-policy-file.ts:187-194`). 절반만 적용되는 상태는 만들지 않습니다 — 대신 **다음 후보로 넘어갑니다**(§2). 즉 결과는 "그 파일의 값이 사라지고 아래 후보(보통 번들 정책)가 적용됨"이며, 아래에 아무 후보도 없으면 **정책 미적용**입니다. §7-4에서 반드시 확인하세요.
-
-### 3-3. `allowedAgents` — Bedrock + 사내 모델만 남기기
+### 3-3. `allowedAgents` — Bedrock 에이전트만 남기기
 
 기본 배포판에는 Claude·Codex(gpt)·Gemini·OpenCode·Grok 등 여러 에이전트 CLI와 그 벤더 모델이 UI 곳곳에 노출됩니다. `allowedAgents`를 지정하면 **고를 수 있는 에이전트를 이 목록으로만 좁힙니다.** Bedrock 전용 플릿이라면 `["claude"]` 하나면 됩니다 — `claude` 에이전트만이 사내 게이트웨이가 발급한 자격증명으로 Bedrock에 말하기 때문입니다. *(그 자격증명이 구체적으로 어떤 변수·경로로 CLI에 전달되는지는 `gateway-cli`의 계약이며 이 저장소로 검증할 수 없습니다.)*
 
@@ -289,7 +217,6 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 - **자동 선택 폴백:** 탐지가 아직 진행 중일 때(`null`) 쓰이는 자동 선택 순서도 필터됩니다 (`quick-workspace-agent-selection.ts`). 이게 빠지면 목록은 필터됐는데 **미리 선택된 값이 차단된 에이전트**여서 그대로 실행되는 상태가 됩니다.
 - **외부 자동화:** `hermes`·`openclaw`는 provider id가 곧 에이전트 CLI id라, `allowedAgents`가 자동화 페이지의 외부 소스와 에디터의 Orca/Hermes 대상 토글까지 함께 좁힙니다 (`src/main/automations/external-manager.ts`). 마스터 스위치로 끄고 싶다면 `disableExternalAutomations`를 쓰세요.
 - **폴링 차단 (메인):** 허용되지 않은 벤더의 사용량 미터는 네트워크로 나가지 않습니다 — 예로 Codex는 `chatgpt.com`을 조회하지 않습니다 (`src/main/rate-limits/service.ts`의 `isUsageProviderAllowed`). `claude`는 Bedrock 에이전트라 여기서 게이트되지 않습니다 (Claude 사용량 폴링 자체를 끄려면 `disableUsagePolling`).
-- **사내 self-hosted 모델:** 에이전트가 아니라 허용된 에이전트의 **모델 피커에 얹히는** 항목이므로(`corporate-llm-session-catalog.ts`) `allowedAgents`에 적지 않아도 그대로 유지됩니다. `llmEndpoints`(§3-2)로 배포하면 됩니다.
 - **안전장치:** 빈 배열이나 전부 무효한 값은 "제한 없음(`null`)"으로 처리되고 경고가 나갑니다 (`enterprise-policy.ts`의 `readAgentAllowlist`) — 관리자의 오타가 피커를 완전히 비워 앱을 못 쓰게 만드는 사고를 막습니다. `lockdown`을 상속하지 않으므로 제한하려면 **명시**해야 합니다.
 
 ### 3-4. 사내 GHES 로그인 — 설정 UI에서 브라우저 로그인
@@ -352,18 +279,6 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
   "disableExternalAutomations": true,    // hermes/openclaw 크론 레인
   "disableAgentInstallSuggestions": true, // "직접 설치하세요" 안내 표면
   "disableVendorLinks": true,            // Discord/X/공개 이슈 트래커/벤더 문서로 나가는 링크 (사내 GHES는 예외)
-
-  // 사내에서 직접 서비스하는 모델 (§3-2). 토큰은 여기 넣지 않습니다 — 사용자가 앱에서 입력합니다.
-  // 호스트는 allowedNetworkHosts에 자동 추가되므로 아래에 또 적을 필요가 없습니다.
-  "llmEndpoints": [
-    {
-      "id": "ds-llm",
-      "label": "사내 LLM (Qwen3-Coder)",
-      "baseUrl": "https://llm.samsungds.net/v1", // https 필수 (루프백만 예외)
-      "api": "openai",                            // 사내 서비스가 말하는 프로토콜
-      "model": "qwen3-coder"
-    }
-  ],
 
   // Bedrock(claude) + 사내 게이트웨이 자격증명으로 연동되는 opencode + 위 사내 모델만 남기고
   // 나머지 벤더를 탐지·UI·폴링에서 제거 (§3-3).
@@ -543,7 +458,7 @@ Ansible/Puppet/Salt의 file 리소스로 관리하거나, 사내 `.deb`/`.rpm`�
 | `disableCloudRelay` | 설정에서 Orca Cloud 프로필 연결 시도 | 정책과 무관하게 항상 실패합니다(v1.4.178~). 토스트 `Orca Cloud sign-in is not configured` + 설명 **`Orca Cloud sign-in is removed in this build. …`** — 문구가 "disabled by an enterprise policy"로 나오면 제거 가드가 리베이스에서 사라졌다는 뜻이므로 [감사 §3.1](./external-integrations-audit.md)의 검증 명령을 돌리십시오 |
 | `disableAutoUpdate` | — | 확인할 것이 없습니다. 업데이트 표면은 정책과 무관하게 코드에 존재하지 않습니다 — 앱/Help 메뉴, 트레이, 사이드바 `?` 메뉴, 설정 → 일반 어디에도 "업데이트 확인" 항목이 없습니다 |
 | `disableMobilePairing` | 사이드바·설정 → 모바일, Cmd+J에 `mobile` | 진입점이 전부 사라집니다. 이미 페어링된 폰은 RPC가 `forbidden`으로 거부됩니다 |
-| `disableVendorProviderAccounts` | 설정 → AI 제공업체 계정 | Claude 구독/Codex/Gemini/OpenCode/MiniMax/Grok 섹션이 사라지고 **사내 게이트웨이 로그인과 사내 자체 호스팅 모델만** 남습니다. 이미 등록된 계정의 제거는 계속 가능합니다 |
+| `disableVendorProviderAccounts` | 설정 → AI 제공업체 계정 | Claude 구독/Codex/Gemini/OpenCode/MiniMax/Grok 섹션이 사라지고 **사내 게이트웨이 로그인만** 남습니다. 이미 등록된 계정의 제거는 계속 가능합니다 |
 | `disableRemoteOrcaServer` | 설정 → 원격 Orca 서버, 새 워크스페이스의 실행 대상 피커 | 섹션과 "Add Remote Orca Server" 항목이 사라집니다. **설정 → SSH 호스트는 그대로 남아야 정상입니다**. v1.4.162가 피커를 `components/new-workspace/RunTargetCombobox.tsx`로 추출한 뒤로 이 행의 게이트는 **부모가 `onAddRemoteServer`를 넘기지 않는 것**입니다 (`NewWorkspaceComposerCard.tsx`) — 자식 컴포넌트에는 정책 임포트가 없으니 그쪽만 grep하면 게이트가 없어 보입니다. 회귀 방지는 `NewWorkspaceComposerCard.policy.test.tsx` |
 | `disableVoice` | 설정 → 음성, 컴포저의 마이크 버튼, `Mod+E` | 탭·버튼·단축키 행이 모두 사라집니다 |
 | `disablePlugins` | 설정 → 플러그인, 우측 사이드바의 플러그인 패널 탭, Cmd+J의 `plugins` | 팬이 사이드바·설정 검색·Cmd+J·딥링크에서 모두 사라지고, 설치돼 있던 플러그인 패널 탭도 없어집니다. ⚠️ **정책 배포 전에 이미 플러그인을 켰던 기계**는 설정 파일에 `pluginSystemEnabled: true`가 남아 있으므로 렌더러도 정책을 직접 읽습니다(`right-sidebar/index.tsx`) — 안 그러면 없는 IPC 채널을 호출하는 탭이 그려집니다 |
@@ -621,45 +536,11 @@ Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "enterpr
 | **`gh`를 사내 호스트로 바꿨는데 앱은 계속 github.com으로 보임** | 원인이 셋입니다. ①`gh auth login --hostname`은 환경변수가 아니라 `hosts.yml`에 씁니다 → 이제 앱이 그 파일을 읽습니다(§3-4). ②userData의 `github-enterprise-host.json`에 `github.com`이 저장돼 있으면 관리자 정책보다 우선했습니다 → 이제 벤더 호스트는 저장되지 않습니다. ③`gh`에 두 개 이상의 호스트가 로그인돼 있으면 `gh` 자신이 `github.com`을 기본값으로 쓰므로 앱도 추정하지 않습니다 | 설정 → Git 및 소스 제어의 "Git 호스트" **출처 문구**를 먼저 보세요(§7-1 표). 그다음 `gh auth status`로 로그인된 호스트가 사내 것 **하나뿐인지** 확인하고, 여러 개면 `gh auth logout --hostname github.com`. 확정적으로 못 박으려면 정책 파일에 `githubEnterpriseHost`를 적으세요 — 추론에 의존하지 않는 유일한 방법입니다 |
 | 리포지토리를 추가한 뒤 origin을 사내 미러로 바꿨는데 계속 github.com으로 보임 | **위와 다른 문제입니다.** `Repo.gitRemoteIdentity`(`repo-git-remote-identity-enrichment.ts`)와 `Repo.upstream`(`repo-icon-autodetect.ts`)은 추가 시점에 1회만 판정하고 다시 프로브하지 않습니다 — 정책이나 `gh` 설정과 무관합니다 | 해당 프로젝트를 제거하고 다시 추가하세요. 이 증상이 "재설치해야 고쳐진다"로 보이는 두 번째 경로입니다 |
 
-### 7-5. `llmEndpoints` 확인
-
-**엔드포인트가 배포됐는지**: 설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"(영문 UI: Accounts → Self-hosted models)에 항목이 뜨는지 봅니다. 목록이 비어 있으면 정책 파일에 항목이 없거나 전부 검증에서 버려진 것이니, §7-2 스팬의 `…warnings`를 확인하세요.
-
-⚠️ **목록에 있다는 것만으로 관리자가 배포했다는 뜻은 아닙니다** — 이 화면은 정책 엔드포인트와 사용자가 직접 추가한 엔드포인트를 구분 없이 함께 보여줍니다(§3의 사용자 직접 추가 레인). 관리자 배포분만 확정하려면 §7-2 스팬을 보세요.
-
-**세션이 실제로 사내 LLM을 쓰는지**: 그 세션의 터미널에서 선택자를 직접 확인할 수 있습니다. 비밀이 아니라서 일부러 노출해 둔 값입니다.
-
-```powershell
-echo $env:ORCA_CORPORATE_LLM_ENDPOINT   # PowerShell 패널
-```
-```bash
-echo "$ORCA_CORPORATE_LLM_ENDPOINT"     # WSL/bash 패널
-```
-
-**선택이 무시됐을 때**: 스폰은 죽지 않고 기존 백엔드를 유지하므로 증상이 조용합니다. 결과별로 1회씩 stderr에 다음이 나갑니다 (`src/main/enterprise/corporate-llm-launch-report.ts:30`, 문구는 `corporate-llm-launch-injection.ts:66-75`).
-
-| 상황 | 메시지 (`[corporate-llm]` 접두) |
-| --- | --- |
-| 적용됨 | `using corporate LLM endpoint "<id>" (<baseUrl>)` |
-| 목록에 없는 id | `ignoring unknown corporate LLM endpoint "<id>" — it is not a policy-provisioned or user-added endpoint` |
-| 토큰 미저장 | `no token saved for corporate LLM endpoint "<id>" — the launch keeps its existing backend` |
-
-> §7-2와 같은 한계가 여기도 적용됩니다 — 시작 메뉴로 띄운 Windows GUI 프로세스는 stderr가 빈 스텁이라 이 줄들이 보이지 않습니다. 실무적으로는 위 `echo`로 확인하세요.
-
-**토큰이 저장됐는지**: UI가 "Token saved" / "No token"으로 표시합니다. 파일 존재로도 확인할 수 있지만 내용은 DPAPI로 암호화돼 있어 읽을 수 없습니다.
-
-```powershell
-Test-Path "$env:APPDATA\Orca\corporate-llm-tokens\ds-llm.token"
-```
-
----
-
 ## 8. 정책 파일이 덮지 않는 것
 
 과신하지 마세요. 아래는 §3의 **기능 스위치로는 막히지 않습니다**. 일부는 옵트인 `enforceNetworkAllowlist`(§5)로만 막히고, 나머지는 정책 파일의 사정 범위 밖입니다.
 
 - **서브프로세스 트래픽 전부** — `gh`, `glab`, `git`, 에이전트 CLI, SSH 릴레이. 정책은 Orca 프로세스 안에서만 동작하므로 허용목록으로도 막히지 않습니다. 이들은 프록시(`HTTPS_PROXY`/`NO_PROXY`)·사내 CA(`NODE_EXTRA_CA_CERTS`)·방화벽으로 다뤄야 합니다.
-- **사내 LLM 엔드포인트로 나가는 것(§3-2)** — 위 항목의 구체적인 사례입니다. 프롬프트와 소스는 **에이전트 CLI가** 보내므로 Orca의 어떤 네트워크 통제도 관여하지 않습니다. 유효한 토큰을 가진 사용자는 그 엔드포인트로 소스를 보낼 수 있고, 정책 파일은 **어느 엔드포인트가 목록에 오르는지만** 통제합니다. 전송 내용에 대한 통제는 엔드포인트 쪽 서비스의 로깅·감사에서 해야 합니다.
 - **Claude Code CLI 자체의 Bedrock 트래픽** — Orca가 스폰한 CLI가 `bedrock-runtime.<region>.amazonaws.com`으로 나가는 것은 서브프로세스 트래픽이며 정책 파일 밖입니다. 이것은 의도된 정상 경로입니다.
 - **받아쓰기(STT) → `api.openai.com`** (엔드포인트 `src/main/speech/openai-transcription-client.ts:8`, 전송은 `:118`) — 전용 스위치가 없습니다. 메인 프로세스의 global `fetch`라서 `enforceNetworkAllowlist`를 켜면 그 레인에서는 막히지만, 기본 상태가 3중 옵트인(`voice.enabled: false` + 모델 미선택 + API 키 미설정)이라 켜지 않는 편이 확실합니다([외부 연동 감사](./external-integrations-audit.md) §4).
 - **렌더러의 외부 이미지** — 파비콘(`www.google.com`), 아바타, 티켓 첨부. `enforceNetworkAllowlist`를 켜야만 차단됩니다(§5).

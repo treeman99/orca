@@ -10,12 +10,6 @@
 // This module is a pure function of the already-parsed document so it is
 // trivially testable; discovery and file I/O live in src/main/enterprise/.
 
-import {
-  enterpriseLlmEndpointHost,
-  resolveEnterpriseLlmEndpoints,
-  type EnterpriseLlmEndpoint
-} from './enterprise-llm-endpoints'
-
 export type EnterprisePolicy = {
   /** Master switch. When on, every non-essential vendor phone-home defaults off. */
   lockdown: boolean
@@ -138,11 +132,6 @@ export type EnterprisePolicy = {
    * agents — they ride the allowed agent's picker — so they need no entry here.
    */
   allowedAgents: readonly string[] | null
-  /**
-   * Self-hosted model endpoints a user may point a session at. Administrator-owned;
-   * the per-user token is never here — see enterprise-llm-endpoints.ts.
-   */
-  llmEndpoints: readonly EnterpriseLlmEndpoint[]
   /** Absolute path of the policy file in effect, or null when none was found. */
   sourcePath: string | null
   /** Admin-facing complaints about the document (unknown keys, wrong types). */
@@ -182,6 +171,8 @@ const KNOWN_KEYS: ReadonlySet<string> = new Set<string>([
   'githubEnterpriseHost',
   'allowedAgents',
   'allowedNetworkHosts',
+  // Retired: the self-hosted model lane was removed. Still accepted so a deployed
+  // policy file that still carries it does not start reporting an unknown key.
   'llmEndpoints',
   'enforceNetworkAllowlist',
   ...LOCKDOWN_INHERITING_KEYS
@@ -370,16 +361,6 @@ export function resolveEnterprisePolicy(
   if (githubEnterpriseHost) {
     allowed.add(githubEnterpriseHost)
   }
-  const llmEndpoints = resolveEnterpriseLlmEndpoints(effective.llmEndpoints, warnings)
-  // Why: an administrator who provisions an endpoint has already decided it is
-  // reachable, so making them repeat it in allowedNetworkHosts is a trap.
-  for (const endpoint of llmEndpoints) {
-    const host = enterpriseLlmEndpointHost(endpoint)
-    if (host) {
-      allowed.add(host)
-    }
-  }
-
   return {
     lockdown,
     ...switches,
@@ -389,7 +370,6 @@ export function resolveEnterprisePolicy(
     allowedNetworkHosts: [...allowed],
     githubEnterpriseHost,
     allowedAgents,
-    llmEndpoints,
     sourcePath,
     warnings
   }

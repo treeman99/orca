@@ -2,7 +2,7 @@
 // both the pure agent catalog and React panes can gate the provider surfaces on the
 // same value.
 //
-// Mirrors corporate-llm-endpoint-sync: a build without the corporate IPC surface (or
+// A build without the corporate IPC surface (or
 // with no policy file) simply stays unrestricted — allowedAgents null — which is the
 // upstream behavior. The value only ever narrows what the UI offers, never widens it.
 

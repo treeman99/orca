@@ -125,16 +125,7 @@ describe('registerEnterprisePolicyHandlers', () => {
       makeEnterprisePolicy({
         allowedAgents: ['claude'],
         githubEnterpriseHost: 'github.samsungds.net',
-        sourcePath: '/etc/orca/enterprise-policy.json',
-        llmEndpoints: [
-          {
-            id: 'internal',
-            label: 'Internal',
-            baseUrl: 'https://llm.example.net/v1',
-            api: 'openai',
-            model: 'internal-code'
-          }
-        ]
+        sourcePath: '/etc/orca/enterprise-policy.json'
       })
     )
     expect(Object.keys(invokeGet()).sort()).toEqual(VIEW_FIELDS)

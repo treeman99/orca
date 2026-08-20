@@ -1,10 +1,10 @@
 # 로컬 실행 가이드 — 설치 프로그램을 만들기 전에
 
-[Windows 사내 빌드 가이드](./windows-corporate-build.md)는 **배포용 `.exe`를 만드는 절차**입니다. 이 문서는 그 앞 단계 — **패키징 없이 소스에서 바로 앱을 띄워서** 사내 커스터마이즈(정책 파일, GHES, 사내 LLM, 에이전트 허용목록)가 의도대로 도는지 확인하는 방법입니다.
+[Windows 사내 빌드 가이드](./windows-corporate-build.md)는 **배포용 `.exe`를 만드는 절차**입니다. 이 문서는 그 앞 단계 — **패키징 없이 소스에서 바로 앱을 띄워서** 사내 커스터마이즈(정책 파일, GHES, 에이전트 허용목록)가 의도대로 도는지 확인하는 방법입니다.
 
 정책 키의 의미와 스키마는 [정책 파일 레퍼런스](./enterprise-policy.md)에, 사람이 밟는 배포 경로는 [README](../../README.md)에 있습니다. 여기서는 **"내 PC에서 어떻게 돌려보고 무엇까지 확인되는가"**만 다룹니다.
 
-**화면만 보면 되는 경우엔 [macOS dev UI 확인 가이드](./macos-dev-ui-check.md)가 더 짧습니다.** 이 문서는 Windows 기준으로, 화면에 안 나타나는 것(트레이스 스팬, 사내 LLM 배선, 망 허용목록 튜닝)과 **개발 인스턴스로는 원리상 증명할 수 없는 것**까지 다룹니다.
+**화면만 보면 되는 경우엔 [macOS dev UI 확인 가이드](./macos-dev-ui-check.md)가 더 짧습니다.** 이 문서는 Windows 기준으로, 화면에 안 나타나는 것(트레이스 스팬, 망 허용목록 튜닝)과 **개발 인스턴스로는 원리상 증명할 수 없는 것**까지 다룹니다.
 
 ---
 
@@ -63,7 +63,7 @@ macOS/Linux에서 개발한다면 마지막 두 줄만 동일하게 실행하면
 - Claude Code·VS Code의 통합 터미널에서 실행해도 됩니다 — 러너가 `ELECTRON_RUN_AS_NODE`를 지웁니다(`run-electron-vite-dev.mjs`).
 - `Native modules still do not load for Node <v>`는 Node 메이저 문제가 아니라 **`pnpm install`이 안 됐거나 실패했다**는 뜻입니다(`CLAUDE.md`).
 
-`pnpm dev:web`은 렌더러만 브라우저에 띄웁니다. 정책·GHES·사내 LLM은 전부 **메인 프로세스** 기능이라 `dev:web`으로는 확인할 수 없습니다.
+`pnpm dev:web`은 렌더러만 브라우저에 띄웁니다. 정책·GHES는 전부 **메인 프로세스** 기능이라 `dev:web`으로는 확인할 수 없습니다.
 
 ---
 
@@ -73,7 +73,7 @@ macOS/Linux에서 개발한다면 마지막 두 줄만 동일하게 실행하면
 | --- | --- | --- |
 | `userData` | `%APPDATA%\orca-dev` (`src/main/startup/configure-process.ts`). `ORCA_DEV_USER_DATA_PATH`로 더 격리 가능 | `%APPDATA%\Orca` |
 | 정책 환경변수 | `ORCA_ENTERPRISE_POLICY`가 **1순위**, 무력화 값으로 탐색 전체를 끌 수 있음 | 후보 **추가**만 가능(`enterprise-policy-file.ts`) |
-| `[enterprise-policy]` / `[corporate-llm]` / `[enterprise-network]` stderr | **터미널에 그대로 보임** | 콘솔 없는 GUI 프로세스라 소실(`enterprise-policy-file.ts`) |
+| `[enterprise-policy]` / `[enterprise-network]` stderr | **터미널에 그대로 보임** | 콘솔 없는 GUI 프로세스라 소실(`enterprise-policy-file.ts`) |
 | 자동 업데이트 | 양쪽 모두 **소스에 없음** — 업데이터·넛지·릴리스 채널 모듈이 삭제됐습니다([감사 문서 §3](./external-integrations-audit.md)). `disableAutoUpdate`는 아무도 읽지 않는 dead switch입니다(`src/shared/enterprise-policy.ts`) | 동일 |
 | 텔레메트리 전송 | 키가 컴파일 상수라 dev 빌드는 **전송 자체가 불가**(`CLAUDE.md`) | 정책·동의에 따름 |
 | 트레이스 로그 | `%APPDATA%\orca-dev\logs\main.trace.ndjson` | `%APPDATA%\Orca\logs\main.trace.ndjson` |
@@ -150,8 +150,6 @@ Select-String -Path "$env:APPDATA\orca-dev\logs\main.trace.ndjson" -Pattern "ent
 
 > `allowedAgents`가 `switches`와 **따로** 기록되는 이유: 이 키는 lockdown을 상속하지 않습니다. 키가 없거나 오타가 나면 다른 속성은 전부 "잠김"으로 보이는데 에이전트만 전부 선택 가능한 상태가 되므로, `(unrestricted)`라는 값 자체가 판정 근거입니다.
 >
-> **스팬에 들어가지 않는 것: `llmEndpoints`.** §6-3처럼 UI와 `[corporate-llm]` 로그로 확인해야 합니다.
-
 ⚠️ 셸에 `CI`, `GITHUB_ACTIONS` 등이 설정돼 있으면 **로컬 파일 로깅 자체가 꺼져** 이 파일이 생기지 않습니다(`src/main/observability/index.ts`). dev 셸에서는 지우고 실행하세요.
 
 ### 6-2. GHES (`githubEnterpriseHost`)
@@ -160,48 +158,6 @@ Select-String -Path "$env:APPDATA\orca-dev\logs\main.trace.ndjson" -Pattern "ent
 - `gh`가 PATH에 없으면 `The GitHub CLI (gh) was not found on your PATH.`가 뜹니다(`GitHubEnterpriseSection.tsx`) — 오류 처리까지는 사내망 없이도 확인됩니다.
 - **사내망 밖에서는 여기까지가 한계입니다.** "이 호스트는 GitHub다"라는 판정은 `gh auth status` 인벤토리에 달려 있으므로(README §2), PR·이슈 조회가 실제로 되는지는 GHES에 로그인된 머신에서만 확인됩니다.
 - 정책 키 자체(정규화 결과)는 §6-1 스팬의 `…github_enterprise_host`로 확인합니다.
-
-### 6-3. 사내 LLM (`llmEndpoints`) — 사내 서버 없이 전 구간 시험하기
-
-`baseUrl`은 https를 요구하지만 **loopback은 http를 허용합니다**(`src/shared/enterprise-llm-endpoints.ts`). 그래서 로컬 목 서버로 끝까지 밟을 수 있습니다.
-
-```jsonc
-{
-  "llmEndpoints": [
-    {
-      "id": "local-mock",
-      "label": "Local mock",
-      "baseUrl": "http://127.0.0.1:8787",
-      "api": "openai",
-      "model": "mock-model"
-    }
-  ]
-}
-```
-
-1. **목록에 뜨는가** — 설정 → **AI 제공업체 계정**의 **사내 자체 호스팅 모델** 섹션(`AccountsPane.tsx`). 뜨면 정책이 읽힌 것입니다. 정책 파일 없이 **UI에서 직접 추가**해도 되므로, 관리자 배포 경로와 사용자 자가등록 경로를 각각 시험할 수 있습니다(`src/main/enterprise/corporate-llm-user-endpoints.ts`).
-2. **토큰 저장** — 아무 문자열이나 넣어도 됩니다. 개발 프로필에 암호화 저장됩니다: `%APPDATA%\orca-dev\corporate-llm-tokens\local-mock.token`(`src/main/enterprise/corporate-llm-token-store.ts`).
-3. **세션에서 선택** — 실행 중 세션의 모델 핀에서 고릅니다. **적용은 다음 런치부터**입니다(README §3.5) — 이걸 모르면 "안 먹는다"로 오해합니다.
-4. **환경이 실제로 주입됐는가** — 그 세션 터미널에서:
-
-```powershell
-echo $env:ORCA_CORPORATE_LLM_ENDPOINT   # local-mock
-echo $env:OPENAI_BASE_URL               # http://127.0.0.1:8787
-```
-
-`api`가 `anthropic`이면 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_MODEL`입니다(`src/shared/corporate-llm-launch-env.ts`).
-
-5. **왜 안 먹었는지** — 선택이 무시돼도 스폰은 죽지 않고 조용히 기존 백엔드를 유지하므로, 판단 근거는 `pnpm dev` 터미널의 `[corporate-llm]` 한 줄입니다(`src/main/enterprise/corporate-llm-launch-report.ts`, 문구는 `corporate-llm-launch-injection.ts`).
-
-| 결과 | 메시지 |
-| --- | --- |
-| 적용 | `using corporate LLM endpoint "<id>" (<baseUrl>)` |
-| 목록에 없는 id | `ignoring unknown corporate LLM endpoint "<id>" — …` |
-| 토큰 없음 | `no token saved for corporate LLM endpoint "<id>" — the launch keeps its existing backend` |
-
-**설치본에서는 이 줄들이 보이지 않습니다.** 사내 LLM 배선을 디버깅할 자리는 사실상 개발 인스턴스뿐입니다.
-
-목 서버는 요청을 받아 로그만 남겨도 충분합니다 — 여기서 확인하는 것은 "에이전트가 그 URL로 갔는가"이지 응답 품질이 아닙니다. 실제 응답까지 보려면 사내 엔드포인트가 필요합니다.
 
 ### 6-4. `allowedAgents`
 
@@ -290,5 +246,4 @@ pnpm build:unpack        # dist\win-unpacked\Orca.exe
 | `main.trace.ndjson`이 아예 없음 | 셸에 `CI` 등이 설정됨 | 해당 변수 제거 후 재실행(`observability/index.ts`) |
 | 개발에선 잠기는데 `pnpm test`는 안 잠김 | 의도된 격리 | §7 |
 | 환경변수로 지정한 경로가 무시됨 | 언팩·설치본으로 시험한 것 | 1순위는 비패키징에서만(§5-A, §8) |
-| 사내 LLM을 골랐는데 그대로 Bedrock | 첫 세션에는 선택 표면이 없음 / 토큰 미저장 / id 오타 | `[corporate-llm]` 줄과 `ORCA_CORPORATE_LLM_ENDPOINT`로 구분(§6-3) |
 | `dev:web`에서 정책·GHES가 안 보임 | 메인 프로세스 기능 | `pnpm dev` |

@@ -25,7 +25,6 @@
 | --- | --- |
 | 정책 파일 파싱·경고, 채택된 값 (trace 기록) | `%ProgramData%\Orca` ACL, 머신 전역 경로 우선순위 |
 | 설정 → 연동의 **사내 GitHub (Enterprise)** 섹션과 정책 호스트 프리필 | `gh` 자격증명 저장소(맥은 Keychain, Windows는 gh 자체 저장소) |
-| 설정 → AI 제공업체 계정의 **사내 자체 호스팅 모델** 섹션·추가·토큰 저장 | 토큰 암호화가 **DPAPI**로 되는지 (맥은 Keychain 항목 `Orca Dev Safe Storage`) |
 | `allowedAgents`로 에이전트/모델 피커가 좁혀지는지 | NSIS per-user 설치, 무서명 실행 |
 | **업데이트·피드백 항목이 메뉴·트레이·설정·사이드바에 아예 없는지** (정책 무관 — 코드에서 제거) | — |
 | **설정 → 모바일 / 음성 / 원격 Orca 서버 탭이 사라지는지** | — |
@@ -86,16 +85,7 @@ cat > ~/orca-dev-policy/enterprise-policy.json <<'JSON'
   "disableVendorProviderAccounts": true,
   "disableRemoteOrcaServer": true,
   "disableVoice": true,
-  "requireComputerUseApproval": true,
-  "llmEndpoints": [
-    {
-      "id": "ds-internal-openai",
-      "label": "사내 모델 (OpenAI 호환)",
-      "baseUrl": "https://llm.samsungds.net/v1",
-      "api": "openai",
-      "model": "internal-code"
-    }
-  ]
+  "requireComputerUseApproval": true
 }
 JSON
 ```
@@ -138,8 +128,6 @@ ORCA_ENTERPRISE_POLICY=~/orca-dev-policy/enterprise-policy.json pnpm dev
 
 | 무엇 | 경로 |
 | --- | --- |
-| 사용자가 추가한 self-hosted 엔드포인트 | `~/Library/Application Support/orca-dev/corporate-llm-user-endpoints.json` |
-| 엔드포인트 토큰 (safeStorage 암호화, `0600`) | `~/Library/Application Support/orca-dev/corporate-llm-tokens/<id>.token` |
 | 사용자가 저장한 GHES 호스트 | 사용자 프로파일 (`~/Library/Application Support/orca-dev/profiles/`) |
 
 ---
@@ -164,7 +152,7 @@ grep -h enterprise.policy ~/Library/Application\ Support/orca-dev/logs/main.trac
                                    "disableCloudRelay": true, "disableUsagePolling": true,
                                    "disableManagedClaudeAccounts": true, "disableSpellcheck": true },
   "enterprise.policy.github_enterprise_host": "github.samsungds.net",
-  "enterprise.policy.allowed_network_hosts": ["github.samsungds.net", "llm.samsungds.net"],
+  "enterprise.policy.allowed_network_hosts": ["github.samsungds.net"],
   "enterprise.policy.warnings": []
 }
 ```
@@ -173,7 +161,7 @@ grep -h enterprise.policy ~/Library/Application\ Support/orca-dev/logs/main.trac
 
 - `source_path`가 내가 만든 파일인가. `(none found)`이면 경로/환경변수가 잘못된 것입니다.
 - `warnings`가 비어 있는가. 오타 난 키·못 알아보는 값은 **조용히 무시되지 않고** 여기 남습니다.
-- `allowed_network_hosts`에 GHES 호스트와 `llmEndpoints`의 호스트가 자동으로 들어왔는가 — `llmEndpoints`가 파싱됐다는 증거입니다.
+- `allowed_network_hosts`에 GHES 호스트가 자동으로 들어왔는가 — `githubEnterpriseHost`가 파싱됐다는 증거입니다.
 - `ORCA_DIAGNOSTICS_DISABLED`를 켜 두면 이 기록도 사라집니다.
 
 ---
@@ -185,7 +173,6 @@ grep -h enterprise.policy ~/Library/Application\ Support/orca-dev/logs/main.trac
 | 어디 | 무엇이 보여야 하는가 |
 | --- | --- |
 | **설정 → 연동**, 맨 위 | **사내 GitHub (Enterprise)** 섹션. `githubEnterpriseHost`가 `GitHub 호스트`에 프리필. `브라우저로 로그인` + `토큰으로 연결`(개인용 액세스 토큰) 두 경로. `gh`가 없으면 노란 경고 배너 |
-| **설정 → AI 제공업체 계정** | **사내 자체 호스팅 모델** 섹션. 정책 엔드포인트는 읽기 전용, 사용자가 추가한 것은 삭제 가능. 토큰은 저장 후 다시 표시되지 않음(`토큰 저장됨` 배지) |
 | **설정 → AI 제공업체 계정**, 아래쪽 | **사내 게이트웨이 로그인** 섹션. `gateway-cli` 설치 감지, `verify` 결과로 그리는 상태 배지, 미설치 경고 배너. 프로필 선택 UI는 **없는 것이 정상**입니다 — `gateway-cli login`은 인자를 받지 않습니다. **맥에 `gateway-cli`가 없으면 경고 배너가 뜨는 것까지가 dev 확인 범위**이고, 실제 로그인·브라우저 띄우기는 `gateway-cli` 몫입니다 |
 | **에이전트/모델 피커, 에이전트 설정, 하단 사용량 미터** | `allowedAgents`에 없는 벤더(codex/gemini/opencode/grok …)가 **사라짐** |
 | **설정 → 개인정보 및 텔레메트리 / 고급** | 잠금 스위치들은 화면 문구를 바꾸지 않습니다. 여기서 확인하려 하지 말고 §5를 보세요 |
@@ -196,7 +183,7 @@ grep -h enterprise.policy ~/Library/Application\ Support/orca-dev/logs/main.trac
 
 > 문구가 영어로 보이면 그 키가 `ko.json`에 번역되지 않은 것입니다 — 화면이 없는 게 아닙니다.
 > 사내 추가 섹션의 한국어는 `src/renderer/src/i18n/locales/ko.json`의
-> `auto.components.settings.GitHubEnterpriseSection` / `…CorporateLlmEndpointsSection` / `…GatewaySection`에 있습니다.
+> `auto.components.settings.GitHubEnterpriseSection` / `…GatewaySection`에 있습니다.
 
 ---
 

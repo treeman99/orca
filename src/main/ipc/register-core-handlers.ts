@@ -63,7 +63,6 @@ import { getPtyIdForPaneKey } from './pty'
 import { registerAgentTrustHandlers } from './agent-trust'
 import { registerClaudeAccountHandlers } from './claude-accounts'
 import { registerMiniMaxCredentialsHandlers } from './minimax-credentials'
-import { registerCorporateLlmEndpointHandlers } from './corporate-llm-endpoints'
 import { registerEnterprisePolicyHandlers } from './enterprise-policy'
 import { registerGatewayHandlers } from './gateway'
 import { registerGithubEnterpriseHandlers } from './github-enterprise'
@@ -151,7 +150,6 @@ export function registerCoreHandlers(
   registerAgentTrustHandlers()
   registerClaudeAccountHandlers(claudeAccounts)
   registerMiniMaxCredentialsHandlers(rateLimits)
-  registerCorporateLlmEndpointHandlers()
   registerEnterprisePolicyHandlers()
   registerGatewayHandlers()
   registerGithubEnterpriseHandlers()

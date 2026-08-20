@@ -44,7 +44,7 @@ Orca는 여러 CLI 코딩 에이전트(Claude Code, Codex 등)를 **각자의 gi
 | **C. Claude Code 설정** | `%USERPROFILE%\.claude\settings.json` | Bedrock 관련 키(`env`, `awsAuthRefresh`)는 **Claude Code CLI만.** 단 같은 파일의 `hooks`/`statusLine` 키는 **Orca도 읽고 씁니다** — 아래 C | 사용자 |
 | **D. 빌드 셸 전용** | 빌드하는 PowerShell 세션 안에서만 | `electron-builder`와 빌드 스크립트 (패키징 시점) | 빌드 담당자 |
 
-이 네 버킷은 **설정 값**만 다룹니다. **자격증명과 신뢰 저장소는 여기 없습니다** — `gh auth status` 인벤토리(§2), `git config`의 `http.sslBackend`/`http.sslCAInfo`(§2), `gateway-cli`가 자기 안에 들고 있는 게이트웨이 세션(§3.1), 그리고 사내 LLM 토큰(§3.5)은 각각 별도의 위치이며 해당 절에서 다룹니다. 사내 LLM 토큰이 특히 헷갈리기 쉬운데, **엔드포인트 정의는 버킷 B(정책 파일)이지만 토큰은 어느 버킷에도 없습니다** — 사용자가 앱 안에서 입력하고 Orca가 사용자 프로필에 암호화해 보관합니다.
+이 네 버킷은 **설정 값**만 다룹니다. **자격증명과 신뢰 저장소는 여기 없습니다** — `gh auth status` 인벤토리(§2), `git config`의 `http.sslBackend`/`http.sslCAInfo`(§2), `gateway-cli`가 자기 안에 들고 있는 게이트웨이 세션(§3.1), 은 각각 별도의 위치이며 해당 절에서 다룹니다.
 
 핵심 원칙: **Orca의 동작을 바꾸는 값은 환경 변수가 아니라 정책 파일(B)에 넣습니다.** 이유는 Orca가 `env`에서 읽는 값이 Orca가 띄우는 **모든 자식 프로세스**(에이전트 CLI, `gh`, `git`, 릴레이)에 그대로 상속되고, `setx`로 심은 값은 같은 머신의 무관한 도구까지 오염시키기 때문입니다 — 근거: `src/shared/enterprise-policy.ts:4-8`, `src/main/enterprise/enterprise-policy-file.ts:4-11`.
 
@@ -285,25 +285,6 @@ Orca의 책임 경계는 AWS SSO 시절과 **동일합니다** — 로그인 명
 - **`enforceNetworkAllowlist`는 Bedrock 호출과도, 게이트웨이 로그인과도 무관합니다.** Electron session과 메인 프로세스 `fetch`만 감싸므로(`src/main/enterprise/enterprise-network-guard.ts:128-136`) 자식 프로세스(Claude Code CLI, `gateway-cli`, `git`, `gh`)의 egress에는 적용되지 않습니다. `bedrock-runtime.<region>.amazonaws.com`이나 사내 IdP·게이트웨이 호스트를 `allowedNetworkHosts`에 넣을 필요가 없고, 넣어도 CLI에는 아무 효과가 없습니다.
 - `setx` 후 데몬 staleness — §0의 경고 박스를 참고하세요. Bedrock 설정을 OS 환경 변수로 넣었을 때 "설정했는데 안 먹는다"의 1순위 원인입니다.
 
-### 3.5 대안 — 사내에서 직접 서비스하는 모델
-
-사내가 오픈웨이트 모델을 직접 서비스한다면, 세션을 Bedrock 대신 그쪽으로 돌릴 수 있습니다. 스키마 전체는 [정책 파일 레퍼런스 §3-2](docs/reference/enterprise-policy.md)에 있고, 여기서는 **사람이 밟는 경로**만 적습니다.
-
-**역할이 둘로 나뉩니다.** 관리자는 정책 파일에 엔드포인트(URL·프로토콜·모델)를 배포하고, **토큰은 사용자가 각자 입력**합니다. 정책 파일은 그 PC의 모든 계정이 읽을 수 있어서, 토큰을 거기 넣으면 머신 공용이 되고 개인별 추적이 불가능해지기 때문입니다.
-
-1. **토큰 넣기** — **설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"(영문 UI: Accounts → Self-hosted models)**. 관리자가 배포한 엔드포인트가 목록에 뜹니다. base URL을 확인하고(내 토큰을 어느 호스트에 맡기는지 보라고 노출해 둔 값입니다) 토큰을 붙여넣고 저장합니다. Orca가 이 기기의 자격증명 저장소로 암호화해 보관하며 **다시 보여주지 않습니다.** 교체와 삭제만 가능합니다.
-2. **세션에서 고르기** — 실행 중인 세션의 **모델 핀**에서 사내 LLM을 고릅니다.
-
-> [!IMPORTANT]
-> **첫 실행에서는 고를 수 없습니다.** 모델 선택 표면이 세션이 뜬 뒤에 붙기 때문에, 새 설치의 첫 세션은 Bedrock으로 시작합니다. 그 세션의 모델 핀에서 사내 LLM을 고르면 **이후 런치부터** 적용됩니다. 이걸 모르면 "설정했는데 안 먹는다"로 오해하기 쉽습니다.
->
-> **선택 범위는 워크스페이스가 아니라 에이전트 단위입니다.** 이 코드베이스에 워크스페이스별 에이전트 설정 계층이 없어서, 한 번 고르면 그 에이전트의 이후 모든 런치에 적용됩니다.
-
-**안 먹을 때**: 스폰이 죽지 않고 조용히 기존 백엔드(Bedrock)를 유지하도록 만들어 두었습니다 — 인증 없는 요청을 보내거나 터미널이 안 뜨는 것보다 낫다는 판단입니다. 그래서 증상이 조용하니, 해당 세션 터미널에서 `echo $env:ORCA_CORPORATE_LLM_ENDPOINT`(WSL이면 `echo "$ORCA_CORPORATE_LLM_ENDPOINT"`)로 확인하세요. 진단 절차는 [레퍼런스 §7-5](docs/reference/enterprise-policy.md).
-
-**WSL과 사내 CA**: WSL 프로젝트도 지원됩니다 — Bedrock과 달리 사내 LLM 변수는 `WSLENV`로 게스트까지 넘어갑니다(`src/main/enterprise/corporate-llm-wsl-passthrough.ts`). 엔드포인트가 사내 인증서를 쓰면 `NODE_EXTRA_CA_CERTS`를 **OS 환경 변수(버킷 A)로** 심으세요. Windows 호스트에서는 이미 전달되고, WSL에도 경로 번역과 함께 넘어갑니다.
-
----
 
 ## 4. 외부 연동 잠금 — 관리자 소유 정책 파일
 

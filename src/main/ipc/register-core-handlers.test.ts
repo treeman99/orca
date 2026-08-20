@@ -329,10 +329,6 @@ vi.mock('./grok-accounts', () => ({
   registerGrokAccountHandlers: registerGrokAccountHandlersMock
 }))
 
-vi.mock('./corporate-llm-endpoints', () => ({
-  registerCorporateLlmEndpointHandlers: vi.fn()
-}))
-
 vi.mock('../window/clipboard-ipc-handlers', () => ({
   registerClipboardHandlers: registerClipboardHandlersMock,
   setTrustedClipboardRendererWebContentsId: setTrustedClipboardRendererWebContentsIdMock

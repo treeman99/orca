@@ -4,7 +4,6 @@ import {
   ORCHESTRATION_COMPATIBILITY_HOST_INCARNATION_ENV,
   ORCHESTRATION_COMPATIBILITY_HOST_KIND_ENV
 } from '../../shared/orchestration-compatibility-evidence'
-import { corporateLlmWslenvEntries } from '../enterprise/corporate-llm-wsl-passthrough'
 import {
   SETUP_AGENT_SEQUENCE_STARTUP_COMMAND_ENV,
   SETUP_AGENT_SEQUENCE_STARTUP_SCRIPT_ENV
@@ -97,8 +96,7 @@ export function addOrcaWslInteropEnv(env: Record<string, string>): void {
     'ORCA_WSL_HOOK_INSTANCE/u',
     'ORCA_OMP_SOURCE_AGENT_DIR/p',
     'ORCA_OMP_STATUS_EXTENSION/p',
-    ...worktreeSetupWslenvEntries(env),
-    ...corporateLlmWslenvEntries(env)
+    ...worktreeSetupWslenvEntries(env)
   ]
   applyWslenvPassthrough(env, passthroughEntries)
 }

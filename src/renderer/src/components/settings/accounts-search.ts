@@ -1,6 +1,5 @@
 import type { SettingsSearchEntry } from './settings-search'
 import { getGatewaySearchEntries } from './gateway-search'
-import { getCorporateLlmEndpointsSearchEntries } from './corporate-llm-endpoints-search'
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
@@ -231,6 +230,5 @@ export const getAccountsPaneSearchEntries = (): SettingsSearchEntry[] => [
   ...(getEnterprisePolicyView().disableVendorProviderAccounts
     ? []
     : getVendorAccountSearchEntries()),
-  ...getCorporateLlmEndpointsSearchEntries(),
   ...getGatewaySearchEntries()
 ]

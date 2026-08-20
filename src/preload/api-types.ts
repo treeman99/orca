@@ -23,12 +23,7 @@ import type { CliApi } from './api/cli-install-api'
 import type { CrashReportsApi } from './api/crash-report-api'
 import type { DashboardApi, TerminalPreviewApi } from './api/dashboard-api'
 import type { EmulatorApi } from './api/emulator-api'
-import type {
-  CorporateLlmApi,
-  EnterprisePolicyApi,
-  GatewayApi,
-  GithubEnterpriseApi
-} from './api/enterprise-api'
+import type { EnterprisePolicyApi, GatewayApi, GithubEnterpriseApi } from './api/enterprise-api'
 import type { EphemeralVmApi } from './api/ephemeral-vm-api'
 import type { ExportApi, FilesystemApi } from './api/filesystem-api'
 import type { GitInspectionApi } from './api/git-inspection-api'
@@ -151,7 +146,6 @@ export type PreloadApi = {
   agentStatus: AgentStatusApi
   mobile: MobileApi
   speech: SpeechApi
-  corporateLlm: CorporateLlmApi
   enterprisePolicy: EnterprisePolicyApi
   gateway: GatewayApi
   githubEnterprise: GithubEnterpriseApi

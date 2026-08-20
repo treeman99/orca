@@ -825,7 +825,7 @@
         "pluginsTitle": "플러그인",
         "pluginsDescription": "실험적인 Orca 플러그인을 설치하고 관리합니다.",
         "tasksDescription": "제공업체를 연결하고 Linear 스킬을 설치한 다음 작업에 표시할 항목을 선택하세요.",
-        "accountsCorporate": "사내 게이트웨이 로그인과 사내 자체 호스팅 모델 엔드포인트."
+        "accountsCorporate": "사내 게이트웨이 로그인."
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "붙여넣기 내용이 너무 큽니다."
@@ -10175,47 +10175,6 @@
           "updateServer": "소스 기본값을 구성하려면 이 서버를 업데이트하세요.",
           "updateServerDefaults": "표시 기본값을 구성하려면 이 서버를 업데이트하세요."
         },
-        "CorporateLlmEndpointsSection": {
-          "encryptionUnavailable": "저장하지 않았습니다. 이 기기의 보안 자격 증명 저장소에 접근할 수 없어 토큰을 암호화할 수 없었고, Orca는 토큰을 평문으로 디스크에 쓰지 않습니다. 데스크톱 세션에 다시 로그인한 뒤 한 번 더 시도하세요.",
-          "unknownEndpoint": "저장하지 않았습니다. 관리자 정책이 더 이상 이 엔드포인트를 제공하지 않습니다. Orca를 다시 시작해 정책 파일을 다시 읽으세요.",
-          "writeFailed": "저장하지 않았습니다. Orca가 프로필 폴더에 쓸 수 없습니다. 쓰기 권한이 있는지, 보안 소프트웨어가 막고 있지 않은지 확인한 뒤 다시 시도하세요.",
-          "tokenActionFailed": "엔드포인트 토큰 업데이트에 실패했습니다.",
-          "tokenSaved": "토큰 저장됨",
-          "tokenNotSaved": "토큰 없음",
-          "model": "모델: {{value0}}",
-          "tokenPlaceholder": "이 엔드포인트에 쓸 토큰을 붙여 넣으세요",
-          "tokenInputLabel": "{{value0}} 토큰",
-          "replace": "교체",
-          "save": "저장",
-          "forget": "토큰 삭제",
-          "heading": "사내 자체 호스팅 모델",
-          "intro": "엔드포인트는 관리자가 배포합니다. 토큰은 사용자 본인을 식별하므로 여기서 직접 입력합니다 — Orca가 이 기기의 자격 증명 저장소로 암호화해 보관하고 다시 보여주지 않습니다. 교체하거나 삭제할 수는 있지만 다시 읽을 수는 없습니다.",
-          "loading": "불러오는 중…",
-          "empty": "제공된 자체 호스팅 엔드포인트가 없습니다. 이 화면이 아니라 관리자의 사내 정책 파일에서 옵니다 — 관리자에게 추가를 요청한 뒤 Orca를 다시 시작하세요.",
-          "removeEndpoint": "엔드포인트 삭제",
-          "addHeading": "자체 호스팅 모델 추가",
-          "addLabelPlaceholder": "표시 이름 (예: 사내 LLM)",
-          "addUrlPlaceholder": "https://llm.your-company.com/v1",
-          "addApiLabel": "API 프로토콜",
-          "addModelPlaceholder": "모델 id (선택)",
-          "addTokenPlaceholder": "토큰 (선택 — 나중에 추가할 수 있습니다)",
-          "add": "추가",
-          "removeFailed": "엔드포인트를 삭제할 수 없습니다.",
-          "apiOpenai": "OpenAI",
-          "apiAnthropic": "Anthropic"
-        },
-        "corporateLlm": {
-          "search": {
-            "title": "사내 자체 호스팅 모델 엔드포인트",
-            "description": "관리자가 제공한 자체 호스팅 모델 엔드포인트별로 개인 토큰을 저장합니다.",
-            "selfHosted": "자체 호스팅",
-            "endpoint": "엔드포인트",
-            "token": "토큰",
-            "corporate": "회사",
-            "policy": "정책",
-            "administrator": "관리자"
-          }
-        },
         "GitHubEnterpriseSection": {
           "errorNoHost": "사내 GitHub 호스트를 먼저 입력하세요.",
           "errorGhUnavailable": "GitHub CLI(gh)를 PATH에서 찾을 수 없습니다. 설치한 뒤 다시 시도하세요.",
@@ -14856,12 +14815,7 @@
       }
     }
   },
-  "enterprise": {
-    "corporateLlm": {
-      "appliesNextSession": "사내 LLM — 다음 세션부터 적용됩니다",
-      "tokenMissing": "사내 LLM — 설정에서 토큰을 먼저 저장하세요"
-    }
-  },
+  "enterprise": {},
   "computerUse": {
     "approval": {
       "deny": "거부",

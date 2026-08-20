@@ -187,7 +187,7 @@
 | ~~11~~ | ~~**Claude OAuth 토큰 회전**~~ | ~~`platform.claude.com`~~ | — | **해소됨**: `disableManagedClaudeAccounts`가 덮습니다 (§4). 이전 판의 "정책 스위치 없음"은 더 이상 사실이 아닙니다 | 게이트 `src/main/claude-accounts/oauth-refresh.ts:131-133` |
 | 12 | **임베디드 브라우저** | 사용자가 방문하는 임의의 사이트 | 사용자 조작 | 허용목록은 `persist:` 파티션을 의도적으로 제외합니다 — 그 슬롯은 인증서 게이트가 이미 점유 중이고, 임의 사이트 열람이 이 기능의 목적이기 때문 | `enterprise-network-guard.ts:9-13` |
 | ~~13~~ | ~~**Gitea/Forgejo 폴백 직접 fetch**~~ | ~~origin 리모트에서 동적 유도된 호스트~~ | ~~미지정 git 호스트를 쓸 때~~ | ✅ **해소 — Gitea 연동을 코드에서 제거했습니다**(커밋 `4d58e5f21c`, `src/main/gitea/**` 9파일 삭제, Bitbucket·Azure DevOps와 함께 62파일/−9,029줄). 미지정 리모트 호스트는 이제 어느 provider에도 배정되지 않고 `unsupported`로 남습니다(`src/main/source-control/forge-provider.ts:201`) — 요청이 나가지 않습니다 | (삭제됨) |
-| 14 | **사내 LLM 엔드포인트로 가는 프롬프트·소스** | 관리자가 정책 파일에 배포한 사내 호스트 **또는 사용자가 설정에서 직접 추가한 임의의 https 호스트** | 사용자가 세션을 그 엔드포인트로 돌리고 토큰을 저장했을 때. **관리자 배포만이 아닙니다** — 설정 → AI 제공업체 계정 → "사내 자체 호스팅 모델"의 Add 폼(`corporateLlmEndpoints:addUserEndpoint`, 정책 확인 없음)으로 사용자가 URL·프로토콜·자기 토큰을 직접 등록하면 정책 엔드포인트와 **동일하게** 모델 피커에 오르고 스폰 시 env로 주입됩니다 | 목적지가 사내이든 아니든 **전송 주체가 에이전트 CLI(서브프로세스)** 라 Orca 측 통제 밖입니다(#1). 정책 파일은 전송 내용을 통제하지 않으므로 감사는 엔드포인트 서비스 쪽에서 해야 합니다 (§4). 🔴 **사용자 레인을 덮는 스위치가 없습니다** — `llmEndpoints`는 관리자 목록(데이터)일 뿐이고, `LOCKDOWN_INHERITING_KEYS` 17개 중 이 레인을 끄는 키가 없으며, 사용자 엔드포인트 저장소와 그 IPC 어디에도 `getEnterprisePolicy()` 호출이 없습니다. 인접 스위치도 명시적으로 비켜갑니다(`disableVendorProviderAccounts` 헤더: "corporate self-hosted endpoints … are never gated here"). 게다가 **정책 엔드포인트 호스트만** `allowedNetworkHosts`에 자동 추가되고 사용자 엔드포인트는 추가되지 않으며, Orca가 그 호스트를 자식 프로세스의 `NO_PROXY`에 병합하므로 **사내 프록시 가시성까지 함께 걷힙니다**. ⚠️ **권한 상승은 아닙니다**: 같은 사용자는 셸 rc나 설정 → 에이전트의 per-agent 환경변수로 `ANTHROPIC_BASE_URL`을 직접 넣어 같은 리다이렉션을 만들 수 있고(#1), 노출되는 토큰도 본인이 입력한 자기 토큰입니다 — 즉 새로 생긴 유출 경로가 아니라 **Orca가 공식 UI로 제공하고 잠금이 덮지 않는 레인**입니다. **부수**: 사용자 엔드포인트 파일은 **쓰기 시점에만** https가 검증되고 읽기 시점에는 `id`/`baseUrl`이 문자열인지만 봅니다 — 프로파일의 `corporate-llm-user-endpoints.json`을 손으로 고치면 `http://` 항목이 목록에 올라옵니다. 이것도 같은 사용자만 할 수 있어 새 경로는 아니지만, 파일 헤더 주석이 코드가 보장하는 것보다 강하게 쓰여 있습니다. 스위치를 만든다면 축은 "http 금지"가 아니라 "사용자가 엔드포인트를 추가할 수 있는가"(예: `disableUserLlmEndpoints`)이고, 초크포인트는 `getAllCorporateLlmEndpoints()`의 사용자 레인 한 곳입니다 | 주입·`NO_PROXY` `src/shared/corporate-llm-launch-env.ts:49-72`, 사용자 레인 `src/main/enterprise/corporate-llm-user-endpoints.ts:29-35`(읽기 재검증 없음)·`:64-75`(쓰기 검증), 병합 `corporate-llm-endpoint-registry.ts:11-18`, IPC `src/main/ipc/corporate-llm-endpoints.ts:167-170`, 허용목록 자동 추가는 정책 전용 `src/shared/enterprise-policy.ts:370-378` |
+| ~~14~~ | ~~**사내 LLM 엔드포인트로 가는 프롬프트·소스**~~ | ~~관리자 배포 사내 호스트 또는 사용자가 직접 추가한 임의의 https 호스트~~ | — | ✅ **해소 — 사내 자체 호스팅 모델 레인을 코드에서 제거했습니다.** 정책 필드·IPC·설정 UI·토큰 저장소·실행 주입·모델 카탈로그 등록·WSL 전달이 전부 사라졌고, 이 항목의 🔴였던 **사용자 자가등록 레인**도 함께 닫혔습니다. ⚠️ 리다이렉션 능력 자체가 사라진 것은 아닙니다 — 같은 사용자는 셸 rc나 per-agent 환경변수로 `ANTHROPIC_BASE_URL`/`OPENAI_BASE_URL`을 여전히 직접 넣을 수 있습니다(#1). 없어진 것은 Orca가 공식 UI로 제공하던 경로입니다 | 아래 "⛔ 제거됨" 절 |
 
 | 15 | **외부 자동화 CLI를 스케줄로 실행** (`hermes`, `openclaw`) | 해당 벤더가 정한 목적지 (Orca는 목적지를 모릅니다) | 자동화 페이지에서 외부 잡을 만들거나, 이미 등록된 잡의 크론 시각이 되었을 때 | ✅ `disableExternalAutomations`(또는 `allowedAgents`)가 **Orca 쪽 진입점**(발견·생성·수정·실행)을 전부 거부합니다 (`src/main/automations/external-manager.ts`). 🔴 **잔여**: Orca는 스케줄러가 아니라 조작 UI일 뿐이므로, 이미 `~/.hermes/cron`에 등록된 잡은 **Hermes 자신의 스케줄러로 계속 실행됩니다** — Orca를 잠근 뒤에도 남아 있는 잡은 `hermes cron rm`으로 직접 제거해야 하고, 잠근 뒤에는 앱 안에서 그 목록을 볼 수 없습니다. 로컬 읽기(`~/.hermes/cron/jobs.json`, `state.db`, 출력 마크다운)와 SSH 호스트별 릴레이 레인도 같은 게이트로 함께 닫힙니다 | 게이트 `external-manager.ts`의 `isExternalAutomationProviderAllowed`, 릴레이 레인 `src/relay/external-automations-handler.ts` |
 | 16 | **사용량 통계를 X(구 Twitter)로 공유** | `x.com/intent/post` (사용자의 **기본 브라우저**로 열림) | 설정 → 통계 및 사용량에서 공유 버튼을 눌렀을 때 | ✅ **이중 차단**: `disableUsagePolling`이 그 팬을 없애 도달 불가로 만들고, `disableVendorLinks`가 버튼 자체를 숨기는 동시에 메인 프로세스 초크포인트에서 URL을 거부합니다 — 둘 중 하나만 켠 플릿에서도 닫힙니다. 기본 브라우저로 나가므로 `enforceNetworkAllowlist`가 **원리적으로 볼 수 없다는 점은 그대로**이고, 그래서 판정이 링크를 여는 시점(`shell:openUrl`)에 있어야 했습니다 | `ShareUsageButton.tsx`, 초크포인트 `src/main/ipc/shell-open-url.ts`, 규칙표 `src/main/enterprise/enterprise-vendor-link-guard.ts` |
@@ -470,36 +470,18 @@ Orca가 스폰하는 에이전트 CLI(claude/codex/…)의 트래픽이 아니�
 
 **요점**: 손봐야 하는 건 **로컬 CLI 자격증명만으로 발동하는 사용량 폴링 4종(Claude·Codex·Grok·Kimi → `disableUsagePolling`)** 과 **관리형 Claude 계정(→ `disableManagedClaudeAccounts`)** 이며, `lockdown: true` 하나로 둘 다 켜집니다. Gemini/MiniMax/OpenCode/Kimi는 기본 opt-in이라 켜지 않으면 나가지 않고, **켜더라도 `disableUsagePolling`이 덮습니다** — 이들의 fetcher는 `runFetchAllCycle` 안에서만 호출되고 그 사이클로 들어가는 경로가 전부 게이트를 지납니다. **받아쓰기 계열 두 경로**(전사 `api.openai.com`, 로컬 모델 다운로드 `huggingface.co` — §0.2 #10)는 이제 `disableVoice`가 덮습니다. 두 경로 모두 STT 런타임/모델 매니저를 거치는데, `disableVoice`면 그 두 게터가 생성 전에 던지기 때문입니다.
 
-### ✅ 신규: 사내에서 직접 서비스하는 모델 (`llmEndpoints`)
+### ⛔ 제거됨: 사내에서 직접 서비스하는 모델 (`llmEndpoints`)
 
-이 브랜치는 Bedrock 외에 **사내 자체 호스팅 모델**을 두 번째 승인 백엔드로 지원합니다. 보안 검토에서 중요한 구분은 **호출 주체**입니다.
-
-| | |
-| --- | --- |
-| 목적지 | 관리자가 정책 파일에 배포한 **사내 호스트**, 그리고 **사용자가 설정에서 직접 추가한 호스트**(`corporateLlmEndpoints:addUserEndpoint`, 정책 확인 없음 — §0.2 #14). 양쪽 모두 `https` 강제(루프백만 예외, `src/shared/enterprise-llm-endpoints.ts:40-46`)이나, 그 검증은 **쓰기 시점에만** 걸립니다 |
-| 호출 주체 | **에이전트 CLI(서브프로세스)**. Orca 자신은 이 엔드포인트로 아무 요청도 보내지 않습니다 |
-| 적용되는 통제 | 프록시(`NO_PROXY`에 호스트 자동 병합, `src/shared/corporate-llm-launch-env.ts:28-40`), 사내 CA(`NODE_EXTRA_CA_CERTS`), 방화벽 |
-| 적용되지 **않는** 통제 | `enforceNetworkAllowlist` — 서브프로세스 트래픽을 덮지 않습니다. 엔드포인트 호스트가 `allowedNetworkHosts`에 자동 추가되지만(`src/shared/enterprise-policy.ts:373-381`), 그것은 Orca 측 요청에만 의미가 있습니다 |
-
-#### 토큰 — 디스크에 저장되는 새 비밀
+이전 리비전은 Bedrock 외에 **사내 자체 호스팅 모델**을 두 번째 승인 백엔드로 지원했습니다. **이 레인은 코드에서 제거되었습니다** — 정책 필드, IPC 표면, 설정 UI, 토큰 저장소, 실행 주입, 모델 카탈로그 등록, WSL 전달까지 전부입니다.
 
 | | |
 | --- | --- |
-| 위치 | `%APPDATA%\Orca\corporate-llm-tokens\<id>.token` (`src/main/enterprise/corporate-llm-token-store.ts:17`, `:28`) |
-| 보호 | Electron `safeStorage` = Windows **DPAPI**, 파일 모드 `0600` (`:94`). 사용자 계정에 묶이므로 같은 PC의 다른 프로필은 파일에 접근해도 복호화 불가 |
-| 암호화 불가 시 | **저장 거부** (`:87-90`). 평문으로 기록하지 않습니다 |
-| 배포 주체 | 관리자가 아니라 **사용자 본인**. 정책 파일은 머신 전역이라 모든 계정이 읽을 수 있어 토큰을 두기에 부적합합니다 |
+| 제거 이유 | 주입되는 변수(`OPENAI_*` / `ANTHROPIC_*`)를 읽는 것은 에이전트 CLI 쪽 계약이라, 실제로 쓰려면 그 이름을 읽는 별도 에이전트가 필요했습니다. 승인된 백엔드는 Bedrock 하나로 좁혔습니다 |
+| 사라진 것 | **사용자가 임의 URL을 엔드포인트로 자가등록하던 레인**(이전 §0.2 #14의 🔴 항목). 이제 그 UI가 없습니다 |
+| 사라진 디스크 비밀 | `%APPDATA%\Orca\corporate-llm-tokens\<id>.token` — 더 이상 쓰이지도 읽히지도 않습니다. 기존 배포에서 남은 파일은 수동 삭제 대상입니다 |
+| 정책 파일 호환 | `llmEndpoints` 키는 **인식 목록에 남겨** 두었습니다. 이미 배포된 정책 파일이 그 키를 들고 있어도 "알 수 없는 키" 경고가 나지 않고, 값은 무시됩니다 (`src/shared/enterprise-policy.ts`) |
 
-**검증하고 정리된 유출 경로** — 각각 코드로 확인했습니다.
-
-- **렌더러에 도달하지 않음** — IPC는 `hasToken` 불리언만 반환합니다 (`src/main/ipc/corporate-llm-endpoints.ts`). UI는 토큰을 되읽을 수 없고 교체/삭제만 가능합니다.
-- **영속 설정에 저장되지 않음** — 저장되는 것은 비밀이 아닌 `ORCA_CORPORATE_LLM_ENDPOINT=<id>`뿐입니다. 이렇게 나눈 이유가 바로 `SleepingAgentLaunchConfig`가 에이전트 환경을 **평문으로 디스크에 저장**하기 때문입니다 (`src/shared/sleeping-agent-launch-config.ts:12-16`). 토큰은 스폰 시점에 main이 암호화 저장소에서 꺼내 합칩니다 (`src/main/enterprise/corporate-llm-launch-injection.ts`).
-- **트레이스/진단에 실리지 않음** — 관측 redactor가 키 이름 기준으로 `ANTHROPIC_AUTH_TOKEN`과 `OPENAI_API_KEY`를 드롭합니다 (`src/main/observability/redactor.ts:83-84`의 normalized 분기). `ANTHROPIC_BASE_URL`은 비밀이 아니라 통과합니다 — 의도된 동작입니다.
-
-#### 잔여 위험 — 정직하게
-
-**프롬프트와 소스 코드는 에이전트 CLI가 이 엔드포인트로 보내며, Orca의 어떤 네트워크 통제도 관여하지 않습니다.** 정책 파일이 통제하는 것은 **어느 엔드포인트가 목록에 오르는지**까지이고, 사용자가 유효한 토큰을 가지면 그 엔드포인트로 소스를 보낼 수 있습니다. 전송 내용에 대한 통제는 엔드포인트 쪽 서비스의 로깅·감사에서 해야 합니다. 사용자가 임의의 URL을 스스로 추가할 수 **있다는** 점(설정 → AI 제공업체 계정의 Add 폼, 정책 스위치 없음)이 이 위험의 실제 경계입니다 — 목록은 관리자 소유가 아니라 **관리자 배포분 + 사용자 추가분의 합집합**입니다. 다만 같은 사용자는 셸 rc나 per-agent 환경변수로도 같은 리다이렉션을 만들 수 있으므로(§0.2 #1), 이 레인을 없앤다고 리다이렉션 자체가 막히지는 않습니다. 실질 통제는 망 계층(프록시 강제·방화벽·TLS 검사)과 엔드포인트 서비스 쪽 감사입니다.
-
+⚠️ **이것이 사내 모델로의 리다이렉션 자체를 막지는 않습니다.** 같은 사용자는 셸 rc나 설정 → 에이전트의 per-agent 환경변수로 `ANTHROPIC_BASE_URL`/`OPENAI_BASE_URL`을 직접 넣어 같은 일을 할 수 있습니다(§0.2 #1). 없어진 것은 **Orca가 공식 UI로 제공하던 경로**이지 능력이 아닙니다. 실질 통제는 여전히 망 계층(프록시 강제·방화벽·TLS 검사)입니다.
 ### AWS Bedrock으로 Claude를 쓰는 경우
 
 사내가 Bedrock을 쓴다면 인증은 Orca가 스폰하는 **Claude Code CLI 자체**가 처리합니다(`bedrock-runtime.<region>.amazonaws.com`). Orca는 셸/워크스페이스 환경변수를 PTY에 전달하므로, 아래를 사용자 셸 또는 per-workspace 환경에 넣으면 됩니다.

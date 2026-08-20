@@ -54,8 +54,6 @@ import {
 } from './accounts-search'
 import { GatewaySection } from './GatewaySection'
 import { getGatewaySearchEntries } from './gateway-search'
-import { CorporateLlmEndpointsSection } from './CorporateLlmEndpointsSection'
-import { getCorporateLlmEndpointsSearchEntries } from './corporate-llm-endpoints-search'
 import { GrokAccountsSection } from './GrokAccountsSection'
 import { getRemoteAccountsPaneScope } from './provider-account-scope'
 import { ProviderHostScopeControl } from './ProviderHostScopeControl'
@@ -2005,9 +2003,6 @@ export function AccountsPane({
     ) : null,
     matchesSettingsSearch(searchQuery, getAccountsGrokSearchEntries()) ? (
       <GrokAccountsSection key="grok" />
-    ) : null,
-    matchesSettingsSearch(searchQuery, getCorporateLlmEndpointsSearchEntries()) ? (
-      <CorporateLlmEndpointsSection key="corporate-llm" />
     ) : null,
     matchesSettingsSearch(searchQuery, getGatewaySearchEntries()) ? (
       <GatewaySection key="gateway" />

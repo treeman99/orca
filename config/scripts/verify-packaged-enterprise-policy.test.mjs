@@ -64,9 +64,6 @@ describe('resources/enterprise-policy.json', () => {
   it('carries the deployment targets of this fork', () => {
     expect(document.githubEnterpriseHost).toBe('github.samsungds.net')
     expect(document.allowedAgents).toEqual(['claude', 'opencode'])
-    expect(document.llmEndpoints.map((endpoint) => endpoint.baseUrl)).toEqual([
-      'https://llm.samsungds.net/v1'
-    ])
   })
 
   // Asserting the document's keys proves the bytes, not the behaviour: `allowedAgents` is

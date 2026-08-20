@@ -18,7 +18,6 @@ describe('resolveEnterprisePolicy', () => {
       allowedNetworkHosts: [],
       githubEnterpriseHost: null,
       allowedAgents: null,
-      llmEndpoints: [],
       sourcePath: null,
       warnings: []
     })

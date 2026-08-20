@@ -929,7 +929,7 @@
         "automationsTitle": "Automations",
         "automationsDescription": "Schedule agent work and choose whether Automations appears in the sidebar.",
         "floatingWorkspaceWebDescription": "Global terminal and markdown tabs.",
-        "accountsCorporate": "Corporate gateway sign-in and your organization’s self-hosted model endpoints."
+        "accountsCorporate": "Corporate gateway sign-in."
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "Paste is too large."
@@ -10760,47 +10760,6 @@
         "shortcutDefinitionCatalog": {
           "missionControlConflict": "Blocked by Mission Control. Remap here or change it in System Settings."
         },
-        "CorporateLlmEndpointsSection": {
-          "encryptionUnavailable": "Not saved. Orca could not reach this device’s secure credential store, so the token could not be encrypted — and Orca will not write a token to disk in plain text. Sign in to your desktop session again, then try once more.",
-          "unknownEndpoint": "Not saved. Your administrator’s policy no longer provisions this endpoint. Restart Orca to reload the policy file.",
-          "writeFailed": "Not saved. Orca could not write to your profile folder. Check that it is writable and not blocked by security software, then try again.",
-          "tokenActionFailed": "Endpoint token update failed.",
-          "tokenSaved": "Token saved",
-          "tokenNotSaved": "No token",
-          "model": "Model: {{value0}}",
-          "tokenPlaceholder": "Paste your token for this endpoint",
-          "tokenInputLabel": "Token for {{value0}}",
-          "replace": "Replace",
-          "save": "Save",
-          "forget": "Forget token",
-          "heading": "Self-hosted models",
-          "intro": "Your administrator provisions these endpoints. The token identifies you, so you enter it here: Orca encrypts it with this device’s credential store and never shows it again. You can replace it or forget it, but not read it back.",
-          "loading": "Loading…",
-          "empty": "No self-hosted endpoints are provisioned. They come from your administrator’s corporate policy file, not from this screen — ask your administrator to add one, then restart Orca.",
-          "removeEndpoint": "Remove endpoint",
-          "addHeading": "Add a self-hosted model",
-          "addLabelPlaceholder": "Display name (e.g. Company LLM)",
-          "addUrlPlaceholder": "https://llm.your-company.com/v1",
-          "addApiLabel": "API protocol",
-          "addModelPlaceholder": "Model id (optional)",
-          "addTokenPlaceholder": "Token (optional — you can add it later)",
-          "add": "Add",
-          "removeFailed": "Could not remove the endpoint.",
-          "apiOpenai": "OpenAI",
-          "apiAnthropic": "Anthropic"
-        },
-        "corporateLlm": {
-          "search": {
-            "title": "Self-Hosted Model Endpoints",
-            "description": "Save your personal token for each self-hosted model endpoint your administrator provisioned.",
-            "selfHosted": "self-hosted",
-            "endpoint": "endpoint",
-            "token": "token",
-            "corporate": "corporate",
-            "policy": "policy",
-            "administrator": "administrator"
-          }
-        },
         "GitHubEnterpriseSection": {
           "errorNoHost": "Enter your company GitHub host first.",
           "errorGhUnavailable": "The GitHub CLI (gh) was not found on your PATH. Install it, then try again.",
@@ -15952,12 +15911,7 @@
       "settingsLink": "Settings → Voice"
     }
   },
-  "enterprise": {
-    "corporateLlm": {
-      "appliesNextSession": "Company-hosted model — applies from the next session",
-      "tokenMissing": "Company-hosted model — save your token in Settings first"
-    }
-  },
+  "enterprise": {},
   "computerUse": {
     "approval": {
       "deny": "Deny",

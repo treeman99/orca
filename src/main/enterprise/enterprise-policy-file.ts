@@ -25,7 +25,6 @@ import {
   applyEnterprisePolicyBaseline,
   BUILT_IN_AGENT_ALLOWLIST
 } from '../../shared/enterprise-policy-baseline'
-import { registerCorporateLlmEndpoints } from '../../shared/corporate-llm-session-catalog'
 import { readGhConfiguredHost } from '../github/gh-config-host'
 import {
   resolveEnterprisePolicy,
@@ -362,7 +361,6 @@ export function getEnterprisePolicy(): EnterprisePolicy {
   // Why: main builds launch plans too (CLI, mobile, background sessions), and
   // without this a persisted corporate model id would be passed to the agent's
   // --model flag instead of resolving to the endpoint's environment.
-  registerCorporateLlmEndpoints(policy.llmEndpoints)
   cached = policy
   return policy
 }

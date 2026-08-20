@@ -825,7 +825,7 @@
         "pluginsTitle": "プラグイン",
         "pluginsDescription": "実験的機能の Orca プラグインをインストール・管理します。",
         "tasksDescription": "プロバイダーを接続し、Linear スキルをインストールして、タスクに表示する項目を選択します。",
-        "accountsCorporate": "社内ゲートウェイへのサインインと、組織が自前でホストするモデルのエンドポイント。"
+        "accountsCorporate": "社内ゲートウェイのサインイン。"
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "貼り付け内容が大きすぎます。"
@@ -10175,47 +10175,6 @@
           "updateServer": "ソースのデフォルトを設定するには、このサーバーを更新してください。",
           "updateServerDefaults": "表示のデフォルトを設定するには、このサーバーを更新してください。"
         },
-        "CorporateLlmEndpointsSection": {
-          "encryptionUnavailable": "Not saved. Orca could not reach this device’s secure credential store, so the token could not be encrypted — and Orca will not write a token to disk in plain text. Sign in to your desktop session again, then try once more.",
-          "unknownEndpoint": "Not saved. Your administrator’s policy no longer provisions this endpoint. Restart Orca to reload the policy file.",
-          "writeFailed": "Not saved. Orca could not write to your profile folder. Check that it is writable and not blocked by security software, then try again.",
-          "tokenActionFailed": "Endpoint token update failed.",
-          "tokenSaved": "Token saved",
-          "tokenNotSaved": "No token",
-          "model": "Model: {{value0}}",
-          "tokenPlaceholder": "Paste your token for this endpoint",
-          "tokenInputLabel": "Token for {{value0}}",
-          "replace": "Replace",
-          "save": "Save",
-          "forget": "Forget token",
-          "heading": "Self-hosted models",
-          "intro": "Your administrator provisions these endpoints. The token identifies you, so you enter it here: Orca encrypts it with this device’s credential store and never shows it again. You can replace it or forget it, but not read it back.",
-          "loading": "Loading…",
-          "empty": "No self-hosted endpoints are provisioned. They come from your administrator’s corporate policy file, not from this screen — ask your administrator to add one, then restart Orca.",
-          "removeEndpoint": "Remove endpoint",
-          "addHeading": "Add a self-hosted model",
-          "addLabelPlaceholder": "Display name (e.g. Company LLM)",
-          "addUrlPlaceholder": "https://llm.your-company.com/v1",
-          "addApiLabel": "API protocol",
-          "addModelPlaceholder": "Model id (optional)",
-          "addTokenPlaceholder": "Token (optional — you can add it later)",
-          "add": "Add",
-          "removeFailed": "Could not remove the endpoint.",
-          "apiOpenai": "OpenAI",
-          "apiAnthropic": "Anthropic"
-        },
-        "corporateLlm": {
-          "search": {
-            "title": "Self-Hosted Model Endpoints",
-            "description": "Save your personal token for each self-hosted model endpoint your administrator provisioned.",
-            "selfHosted": "セルフホスト",
-            "endpoint": "エンドポイント",
-            "token": "トークン",
-            "corporate": "社内",
-            "policy": "ポリシー",
-            "administrator": "管理者"
-          }
-        },
         "GitHubEnterpriseSection": {
           "errorNoHost": "Enter your company GitHub host first.",
           "errorGhUnavailable": "The GitHub CLI (gh) was not found on your PATH. Install it, then try again.",
@@ -14790,12 +14749,7 @@
       }
     }
   },
-  "enterprise": {
-    "corporateLlm": {
-      "appliesNextSession": "社内 LLM — 次のセッションから適用されます",
-      "tokenMissing": "社内 LLM — 先に設定でトークンを保存してください"
-    }
-  },
+  "enterprise": {},
   "computerUse": {
     "approval": {
       "deny": "Deny",

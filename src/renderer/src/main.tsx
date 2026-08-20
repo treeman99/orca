@@ -13,13 +13,11 @@ import { installTypingLatencyDiagnostic } from './lib/typing-latency-diagnostic'
 import { shouldEnableReactGrab } from './lib/react-grab-dev-gate'
 import { I18nProvider } from './i18n/I18nProvider'
 import { translate } from './i18n/i18n'
-import { startCorporateLlmEndpointSync } from './enterprise/corporate-llm-endpoint-sync'
 import { startEnterprisePolicySync } from './enterprise/enterprise-policy-access'
 import { getOrCreateRendererRoot } from './lib/react-renderer-root'
 
 recordRendererCrashBreadcrumb('renderer_bootstrap_started', { dev: import.meta.env.DEV })
 installRendererCrashDiagnostics()
-startCorporateLlmEndpointSync()
 startEnterprisePolicySync()
 installTypingLatencyDiagnostic()
 

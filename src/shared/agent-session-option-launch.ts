@@ -1,6 +1,5 @@
 import type { AgentType } from './agent-status-types'
 import { findCatalogModel, getAgentSessionOptionCatalog } from './agent-session-option-catalog'
-import { corporateLlmModelApply } from './corporate-llm-session-catalog'
 import type { SessionOptionValue } from './native-chat-session-options'
 
 export type ResolvedSessionOptionLaunch = {
@@ -77,7 +76,7 @@ export function resolveAgentSessionOptionLaunch(
     : modelId
   // A model may replace the catalog-wide apply when the CLI cannot name it — a
   // corporate endpoint does so even after the policy stopped provisioning it.
-  const modelApply = model?.apply ?? corporateLlmModelApply(modelId) ?? catalog.modelApply
+  const modelApply = model?.apply ?? catalog.modelApply
   const modelOverridden = modelApply.agentArgsOverride?.(trailingAgentArgs) === true
 
   if (modelApply.launchArgs) {
