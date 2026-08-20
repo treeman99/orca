@@ -6,7 +6,9 @@ import {
   getSharedManagedScriptPath,
   isPlainObject,
   MANAGED_HOOK_TIMEOUT_SECONDS,
+  quotePowerShellString,
   removeManagedCommands,
+  wrapWindowsPowerShellEncodedCommand,
   type HookCommandConfig,
   type HookDefinition,
   type HooksConfig
@@ -16,19 +18,19 @@ import { wrapRuntimeHomeHookCommand } from '../agent-hooks/runtime-home-hook-com
 export type ClaudeCompatibleHookSettings = {
   configDirName: '.claude' | '.openclaude'
   scriptBaseName: 'claude-hook' | 'openclaude-hook'
-  supportsExecHookArgs: boolean
+  usesWindowsPowerShellLauncher: boolean
 }
 
 export const CLAUDE_HOOK_SETTINGS: ClaudeCompatibleHookSettings = {
   configDirName: '.claude',
   scriptBaseName: 'claude-hook',
-  supportsExecHookArgs: true
+  usesWindowsPowerShellLauncher: true
 }
 
 export const OPENCLAUDE_HOOK_SETTINGS: ClaudeCompatibleHookSettings = {
   configDirName: '.openclaude',
   scriptBaseName: 'openclaude-hook',
-  supportsExecHookArgs: false
+  usesWindowsPowerShellLauncher: false
 }
 
 export const CLAUDE_EVENTS = [
@@ -108,11 +110,15 @@ export function getRemoteConfigPath(remoteHome: string, settings = CLAUDE_HOOK_S
   return `${remoteHome.replace(/\/$/, '')}/${settings.configDirName}/settings.json`
 }
 
-export function getManagedCommand(scriptPath: string): string {
+export function getManagedCommand(
+  scriptPath: string,
+  options: { neutralJsonWhenMissing?: boolean } = {}
+): string {
   const scriptFileName = basename(scriptPath)
   const extension = extname(scriptFileName)
   return wrapRuntimeHomeHookCommand(
-    extension ? scriptFileName.slice(0, -extension.length) : scriptFileName
+    extension ? scriptFileName.slice(0, -extension.length) : scriptFileName,
+    options
   )
 }
 
@@ -120,25 +126,25 @@ export function getManagedLifecycleHook(
   scriptPath: string,
   settings = CLAUDE_HOOK_SETTINGS
 ): HookCommandConfig {
-  if (process.platform !== 'win32' || !settings.supportsExecHookArgs) {
-    return buildManagedCommandHook(getManagedCommand(scriptPath))
+  if (process.platform !== 'win32' || !settings.usesWindowsPowerShellLauncher) {
+    return buildManagedCommandHook(getManagedCommand(scriptPath, { neutralJsonWhenMissing: true }))
   }
   return getWindowsManagedLifecycleHook(scriptPath)
 }
 
+// Why: some Claude-compatible consumers ignore `args`, so the invocation must be self-contained.
 export function getWindowsManagedLifecycleHook(scriptPath: string): HookCommandConfig {
-  const system32 = win32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32')
-  const runtimeScriptPath = win32.join(
-    '%USERPROFILE%',
-    '.orca',
-    'agent-hooks',
-    win32.basename(scriptPath)
-  )
-  // Why: Claude's Windows shell form opens Git Bash consoles; exec form hosts the client in a windowless console.
+  const scriptFileName = win32.basename(scriptPath)
+  // Why: runtime profile resolution keeps the managed entry portable across users (STA-3348).
+  const quotedRelativePath = quotePowerShellString(`.orca\\agent-hooks\\${scriptFileName}`)
+  // Why: compat consumers require neutral JSON even when the managed script is missing (#14818).
+  const innerCommand =
+    `$scriptPath = Join-Path $env:USERPROFILE ${quotedRelativePath}; ` +
+    'if (Test-Path -LiteralPath $scriptPath -PathType Leaf) { & $scriptPath; exit $LASTEXITCODE }; ' +
+    "[Console]::In.ReadToEnd() | Out-Null; Write-Output '{}'; exit 0"
   return {
     type: 'command',
-    command: win32.join(system32, 'conhost.exe'),
-    args: ['--headless', win32.join(system32, 'cmd.exe'), '/d', '/c', runtimeScriptPath],
+    command: wrapWindowsPowerShellEncodedCommand(innerCommand),
     timeout: MANAGED_HOOK_TIMEOUT_SECONDS
   }
 }
@@ -154,7 +160,7 @@ export function hasSameManagedHookInvocation(
 }
 
 export function getRemoteManagedCommand(scriptPath: string): string {
-  return getManagedCommand(scriptPath)
+  return getManagedCommand(scriptPath, { neutralJsonWhenMissing: true })
 }
 
 export function applyManagedHooks(

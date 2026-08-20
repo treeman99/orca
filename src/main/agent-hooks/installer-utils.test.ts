@@ -31,7 +31,6 @@ import {
   type HooksConfig
 } from './installer-utils'
 import { POSIX_HOOK_STDIN_DRAIN_COMMAND } from './hook-stdin-contract'
-import { wrapRuntimeHomeHookCommand } from './runtime-home-hook-command'
 
 let tmpDir: string
 let configPath: string
@@ -254,6 +253,16 @@ describe('createManagedCommandMatcher', () => {
   it('matches encoded Windows launcher commands by decoding their script path', () => {
     const command = wrapWindowsHookCommand('C:\\Users\\alice\\.orca\\agent-hooks\\claude-hook.cmd')
     expect(match(command)).toBe(true)
+  })
+
+  it('matches the pre-default-form launcher so upgrades replace it instead of duplicating', () => {
+    // Why: installs before the ${VAR-} conversion emitted bare $HOME/$SYSTEMROOT. The sweep must
+    // still recognize them, or an upgrade would leave the stale entry beside the new one.
+    expect(
+      match(
+        'if [ -z "$HOME" ]; then :; else if [ -f "$HOME/.orca/agent-hooks/claude-hook.sh" ]; then /bin/sh "$HOME/.orca/agent-hooks/claude-hook.sh"; fi; fi'
+      )
+    ).toBe(true)
   })
 
   it('matches PowerShell and POSIX variants across Copilot platform switches', () => {
@@ -539,7 +548,7 @@ describe('wrapPosixHookCommand', () => {
 })
 
 const qualifiedWindowsPowerShellCommand =
-  /^[A-Za-z]:\/[^"]*\/System32\/WindowsPowerShell\/v1\.0\/powershell\.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand \S+$/
+  /^[A-Za-z]:\/[^"]*\/System32\/WindowsPowerShell\/v1\.0\/powershell\.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand \S+$/
 
 function decodeWindowsHookCommand(command: string): string {
   const encodedCommand = command.match(/ -EncodedCommand (\S+)$/)?.[1]
@@ -549,7 +558,8 @@ function decodeWindowsHookCommand(command: string): string {
 
 function expectedDecodedWindowsHookCommand(scriptPath: string): string {
   const quoted = `'${scriptPath.replaceAll("'", "''")}'`
-  return `if (Test-Path -LiteralPath ${quoted} -PathType Leaf) { & ${quoted}; exit $LASTEXITCODE }; [Console]::In.ReadToEnd() | Out-Null; exit 0`
+  // Why: PowerShell progress CLIXML corrupts consumers that merge stderr into JSON stdout.
+  return `$ProgressPreference='SilentlyContinue'; if (Test-Path -LiteralPath ${quoted} -PathType Leaf) { & ${quoted}; exit $LASTEXITCODE }; [Console]::In.ReadToEnd() | Out-Null; exit 0`
 }
 
 describe('wrapWindowsHookCommand', () => {
@@ -645,90 +655,6 @@ describe('wrapWindowsCmdHookCommand', () => {
     const command = wrapWindowsCmdHookCommand(scriptPath)
     expect(command).toMatch(qualifiedWindowsPowerShellCommand)
     expect(decodeWindowsHookCommand(command)).toBe(expectedDecodedWindowsHookCommand(scriptPath))
-  })
-})
-
-describe('wrapRuntimeHomeHookCommand', () => {
-  it('selects the runtime platform variant under HOME', () => {
-    const command = wrapRuntimeHomeHookCommand('claude-hook')
-
-    expect(command).toContain('case "${OSTYPE-}" in msys*|cygwin*|win32*)')
-    expect(command).toContain('case "$HOME" in *\\&*|*\\^*|*\\(*|*\\)*|*\\;*|*,*|*=*|*%*|*\\!*)')
-    expect(command).not.toContain('uname')
-    expect(command).toContain('"$HOME/.orca/agent-hooks/claude-hook.cmd"')
-    expect(command).toContain('/bin/sh "$HOME/.orca/agent-hooks/claude-hook.sh"')
-    expect(command).not.toMatch(/[A-Z]:[\\/]|\/Users\/|\/home\//)
-  })
-
-  it('rejects a script base name that could inject shell syntax', () => {
-    expect(() => wrapRuntimeHomeHookCommand('claude-hook; echo injected')).toThrow(
-      'Invalid managed script base name'
-    )
-  })
-
-  it('executes the destination HOME script for the current runtime', () => {
-    const sourceHome = join(tmpDir, 'source profile')
-    const destinationHome = join(tmpDir, "destination $HOME ' & profile")
-    const sourceScriptDir = join(sourceHome, '.orca', 'agent-hooks')
-    const destinationScriptDir = join(destinationHome, '.orca', 'agent-hooks')
-    mkdirSync(sourceScriptDir, { recursive: true })
-    mkdirSync(destinationScriptDir, { recursive: true })
-    const windowsExitCode = process.platform === 'win32' ? 7 : 9
-    const posixExitCode = process.platform === 'win32' ? 9 : 7
-    writeFileSync(
-      join(destinationScriptDir, 'claude-hook.cmd'),
-      `@echo off\r\nexit /b ${windowsExitCode}\r\n`,
-      'utf-8'
-    )
-    writeFileSync(
-      join(destinationScriptDir, 'claude-hook.sh'),
-      `#!/bin/sh\nexit ${posixExitCode}\n`,
-      'utf-8'
-    )
-    writeFileSync(join(sourceScriptDir, 'claude-hook.cmd'), '@echo off\r\nexit /b 9\r\n', 'utf-8')
-    writeFileSync(join(sourceScriptDir, 'claude-hook.sh'), '#!/bin/sh\nexit 9\n', 'utf-8')
-    chmodSync(join(destinationScriptDir, 'claude-hook.sh'), 0o755)
-
-    const shell =
-      process.platform === 'win32'
-        ? join(process.env.ProgramFiles ?? 'C:\\Program Files', 'Git', 'bin', 'bash.exe')
-        : '/bin/sh'
-    const result = spawnSync(shell, ['-c', wrapRuntimeHomeHookCommand('claude-hook')], {
-      env: {
-        ...process.env,
-        HOME: destinationHome.replaceAll('\\', '/'),
-        USERPROFILE: destinationHome
-      }
-    })
-
-    expect(result.error).toBeUndefined()
-    expect(result.status, result.stderr.toString()).toBe(7)
-  })
-
-  it.skipIf(process.platform !== 'win32')('keeps common Windows profiles on the fast path', () => {
-    const destinationHome = join(tmpDir, 'destination 国際 profile')
-    const scriptDir = join(destinationHome, '.orca', 'agent-hooks')
-    mkdirSync(scriptDir, { recursive: true })
-    writeFileSync(join(scriptDir, 'claude-hook.cmd'), '@echo off\r\nexit /b 7\r\n', 'utf-8')
-    const gitBash = join(process.env.ProgramFiles ?? 'C:\\Program Files', 'Git', 'bin', 'bash.exe')
-    const result = spawnSync(gitBash, ['-c', wrapRuntimeHomeHookCommand('claude-hook')], {
-      env: { ...process.env, HOME: destinationHome.replaceAll('\\', '/') }
-    })
-
-    expect(result.error).toBeUndefined()
-    expect(result.status, result.stderr.toString()).toBe(7)
-  })
-
-  it('drains stdin when HOME is unavailable', () => {
-    const command = `unset HOME; ${wrapRuntimeHomeHookCommand('claude-hook')}`
-    const shell =
-      process.platform === 'win32'
-        ? join(process.env.ProgramFiles ?? 'C:\\Program Files', 'Git', 'bin', 'bash.exe')
-        : '/bin/sh'
-    const result = spawnSync(shell, ['-c', command], { input: Buffer.alloc(1_000_000, 'x') })
-
-    expect(result.error).toBeUndefined()
-    expect(result.status).toBe(0)
   })
 })
 
