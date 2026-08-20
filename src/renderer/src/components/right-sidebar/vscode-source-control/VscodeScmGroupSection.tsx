@@ -6,14 +6,12 @@ import { buildVscodeScmRows } from './vscode-scm-tree-model'
 import { VscodeScmDirectoryRow, VscodeScmResourceRow } from './VscodeScmResourceRow'
 import type { VscodeScmRowAction } from './VscodeScmResourceRow'
 import type { VscodeScmResourceGroup } from './vscode-scm-resource-groups'
-import {
-  canDiscardStatusEntry,
-  canStageStatusEntry,
-  canUnstageStatusEntry
-} from '../source-control-entry-actions'
+import { resolveVscodeScmRowActions, type VscodeScmRepositoryRole } from './vscode-scm-row-actions'
 import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 
 export type VscodeScmGroupAction = 'stage-all' | 'unstage-all' | 'discard-all'
+
+const EMPTY_ROW_ACTIONS: readonly VscodeScmRowAction[] = []
 
 function groupLabel(group: VscodeScmResourceGroup): string {
   switch (group.id) {
@@ -73,29 +71,15 @@ function groupActionLabel(action: VscodeScmGroupAction): string {
   }
 }
 
-function rowActionsFor(
-  entry: GitStatusEntry,
-  groupId: VscodeScmResourceGroup['id']
-): VscodeScmRowAction[] {
-  const actions: VscodeScmRowAction[] = []
-  if (canDiscardStatusEntry(entry)) {
-    actions.push('discard')
-  }
-  if (groupId === 'index' && canUnstageStatusEntry(entry)) {
-    actions.push('unstage')
-  }
-  if (groupId !== 'index' && canStageStatusEntry(entry)) {
-    actions.push('stage')
-  }
-  return actions
-}
-
 export function VscodeScmGroupSection({
   group,
   viewMode,
   collapsed,
   collapsedDirectoryKeys,
   busy,
+  readOnly = false,
+  role,
+  writeDisabledReason = null,
   onToggleCollapsed,
   onToggleDirectory,
   onGroupAction,
@@ -107,6 +91,11 @@ export function VscodeScmGroupSection({
   collapsed: boolean
   collapsedDirectoryKeys: ReadonlySet<string>
   busy: boolean
+  /** Hides every action, for a section whose status could not be read at all. */
+  readOnly?: boolean
+  role: VscodeScmRepositoryRole
+  /** Actions stay visible but disabled, with this as their tooltip. */
+  writeDisabledReason?: string | null
   onToggleCollapsed: () => void
   onToggleDirectory: (key: string) => void
   onGroupAction: (action: VscodeScmGroupAction, group: VscodeScmResourceGroup) => void
@@ -133,7 +122,7 @@ export function VscodeScmGroupSection({
           <span className="truncate">{label}</span>
         </button>
         <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/header:opacity-100 focus-within:opacity-100">
-          {groupActions(group).map((action) => {
+          {(readOnly ? [] : groupActions(group)).map((action) => {
             const Icon = GROUP_ACTION_ICON[action]
             const actionLabel = groupActionLabel(action)
             return (
@@ -142,14 +131,14 @@ export function VscodeScmGroupSection({
                   <button
                     type="button"
                     aria-label={`${actionLabel} — ${label}`}
-                    disabled={busy || group.entries.length === 0}
+                    disabled={busy || group.entries.length === 0 || writeDisabledReason !== null}
                     onClick={() => onGroupAction(action, group)}
                     className="flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
                   >
                     <Icon size={13} />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>{actionLabel}</TooltipContent>
+                <TooltipContent>{writeDisabledReason ?? actionLabel}</TooltipContent>
               </Tooltip>
             )
           })}
@@ -173,8 +162,11 @@ export function VscodeScmGroupSection({
               key={row.key}
               row={row}
               entry={row.entry}
-              actions={rowActionsFor(row.entry, group.id)}
+              actions={
+                readOnly ? EMPTY_ROW_ACTIONS : resolveVscodeScmRowActions(row.entry, group.id, role)
+              }
               busy={busy}
+              disabledReason={writeDisabledReason}
               onOpen={() => onOpenEntry(row.entry)}
               onAction={(action) => onRowAction(action, row.entry)}
             />

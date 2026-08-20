@@ -4,6 +4,8 @@
    small amount of param plumbing. */
 import type { SshChannelMultiplexer } from '../ssh/ssh-channel-multiplexer'
 import type { GitProviderStatusOptions, IGitProvider } from './types'
+import type { GitSubmoduleListResult } from '../../shared/git-submodule-list'
+import { SUBMODULE_WRITE_UNSUPPORTED_MESSAGE } from '../../shared/git-submodule-write-support'
 import type {
   GitBranchCompareResult,
   GitCommitCompareResult,
@@ -494,6 +496,83 @@ export class SshGitProvider implements IGitProvider {
     } finally {
       this.gitDiffReadDedupe.clear()
     }
+  }
+
+  /**
+   * Submodule write ops shipped after the oldest relay a client may pair with. An old
+   * relay answers method-not-found; rethrow one recognizable message so the renderer can
+   * degrade explicitly instead of showing a JSON-RPC error or appearing to succeed.
+   */
+  private async requestSubmoduleWrite<T>(method: string, params: Record<string, unknown>) {
+    this.gitDiffReadDedupe.clear()
+    try {
+      return (await this.mux.request(method, params)) as T
+    } catch (error) {
+      if (isJsonRpcMethodNotFoundError(error)) {
+        throw new Error(SUBMODULE_WRITE_UNSUPPORTED_MESSAGE)
+      }
+      throw error
+    } finally {
+      this.gitDiffReadDedupe.clear()
+    }
+  }
+
+  async listSubmodules(worktreePath: string): Promise<GitSubmoduleListResult> {
+    return this.requestSubmoduleWrite<GitSubmoduleListResult>('git.submoduleList', {
+      worktreePath
+    })
+  }
+
+  async stageSubmoduleFiles(
+    worktreePath: string,
+    submodulePath: string,
+    filePaths: string[]
+  ): Promise<void> {
+    await this.requestSubmoduleWrite('git.submoduleStage', {
+      worktreePath,
+      submodulePath,
+      filePaths
+    })
+  }
+
+  async unstageSubmoduleFiles(
+    worktreePath: string,
+    submodulePath: string,
+    filePaths: string[]
+  ): Promise<void> {
+    await this.requestSubmoduleWrite('git.submoduleUnstage', {
+      worktreePath,
+      submodulePath,
+      filePaths
+    })
+  }
+
+  async commitSubmodule(
+    worktreePath: string,
+    submodulePath: string,
+    message: string
+  ): Promise<{ success: boolean; error?: string }> {
+    return this.requestSubmoduleWrite<{ success: boolean; error?: string }>('git.submoduleCommit', {
+      worktreePath,
+      submodulePath,
+      message
+    })
+  }
+
+  async pushSubmodule(
+    worktreePath: string,
+    submodulePath: string,
+    publish?: boolean
+  ): Promise<void> {
+    await this.requestSubmoduleWrite('git.submodulePush', {
+      worktreePath,
+      submodulePath,
+      ...(publish === undefined ? {} : { publish })
+    })
+  }
+
+  async pullSubmodule(worktreePath: string, submodulePath: string): Promise<void> {
+    await this.requestSubmoduleWrite('git.submodulePull', { worktreePath, submodulePath })
   }
 
   async bulkDiscardChanges(worktreePath: string, filePaths: string[]): Promise<void> {

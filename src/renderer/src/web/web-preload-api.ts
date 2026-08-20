@@ -2099,6 +2099,51 @@ function createGitApi(): NonNullable<Partial<PreloadApi>['git']> {
         submodulePath
       })
     },
+    submoduleList: async ({ worktreePath }) => {
+      const worktree = await resolveRuntimeWorktreeByPath(worktreePath)
+      return callRuntimeResult('git.submoduleList', {
+        worktree: toRuntimeWorktreeSelector(worktree.id)
+      })
+    },
+    submoduleStage: async ({ worktreePath, submodulePath, filePaths }) => {
+      const worktree = await resolveRuntimeWorktreeByPath(worktreePath)
+      await callRuntimeResult('git.submoduleStage', {
+        worktree: toRuntimeWorktreeSelector(worktree.id),
+        submodulePath,
+        filePaths
+      })
+    },
+    submoduleUnstage: async ({ worktreePath, submodulePath, filePaths }) => {
+      const worktree = await resolveRuntimeWorktreeByPath(worktreePath)
+      await callRuntimeResult('git.submoduleUnstage', {
+        worktree: toRuntimeWorktreeSelector(worktree.id),
+        submodulePath,
+        filePaths
+      })
+    },
+    submoduleCommit: async ({ worktreePath, submodulePath, message }) => {
+      const worktree = await resolveRuntimeWorktreeByPath(worktreePath)
+      return callRuntimeResult('git.submoduleCommit', {
+        worktree: toRuntimeWorktreeSelector(worktree.id),
+        submodulePath,
+        message
+      })
+    },
+    submodulePush: async ({ worktreePath, submodulePath, publish }) => {
+      const worktree = await resolveRuntimeWorktreeByPath(worktreePath)
+      await callRuntimeResult('git.submodulePush', {
+        worktree: toRuntimeWorktreeSelector(worktree.id),
+        submodulePath,
+        ...(publish === undefined ? {} : { publish })
+      })
+    },
+    submodulePull: async ({ worktreePath, submodulePath }) => {
+      const worktree = await resolveRuntimeWorktreeByPath(worktreePath)
+      await callRuntimeResult('git.submodulePull', {
+        worktree: toRuntimeWorktreeSelector(worktree.id),
+        submodulePath
+      })
+    },
     checkIgnored: async ({ worktreePath, paths }) => {
       const worktree = await resolveRuntimeWorktreeByPath(worktreePath)
       return callRuntimeResult('git.checkIgnored', {

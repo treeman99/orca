@@ -14,6 +14,7 @@ import type { RemoveWorktreeResult } from '../../shared/worktree/create-types'
 import type { GitPushTarget, GitWorktreeInfo } from '../../shared/worktree/types'
 import type { GitHistoryOptions, GitHistoryResult } from '../../shared/git-history'
 import type { CommitMessageDraftContext } from '../../shared/commit-message-generation'
+import type { GitSubmoduleListResult } from '../../shared/git-submodule-list'
 import type { GitProviderStatusOptions } from './git-provider-status-options'
 
 export type { GitProviderStatusOptions } from './git-provider-status-options'
@@ -47,6 +48,28 @@ export type IGitProvider = {
     filePath: string
   ): Promise<void>
   restoreSubmodulePointer(worktreePath: string, submodulePath: string): Promise<void>
+  /** Configured submodules of the parent worktree, capped and marked initialized/not. */
+  listSubmodules(worktreePath: string): Promise<GitSubmoduleListResult>
+  /** `filePaths` are relative to the SUBMODULE root, not the parent worktree. */
+  stageSubmoduleFiles(
+    worktreePath: string,
+    submodulePath: string,
+    filePaths: string[]
+  ): Promise<void>
+  /** `filePaths` are relative to the SUBMODULE root, not the parent worktree. */
+  unstageSubmoduleFiles(
+    worktreePath: string,
+    submodulePath: string,
+    filePaths: string[]
+  ): Promise<void>
+  commitSubmodule(
+    worktreePath: string,
+    submodulePath: string,
+    message: string
+  ): Promise<{ success: boolean; error?: string }>
+  pushSubmodule(worktreePath: string, submodulePath: string, publish?: boolean): Promise<void>
+  /** Pull the submodule's own branch — the pull half of the section's Sync Changes. */
+  pullSubmodule(worktreePath: string, submodulePath: string): Promise<void>
   bulkDiscardChanges(worktreePath: string, filePaths: string[]): Promise<void>
   detectConflictOperation(worktreePath: string): Promise<GitConflictOperation>
   abortMerge(worktreePath: string): Promise<void>

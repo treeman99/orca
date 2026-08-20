@@ -2,6 +2,7 @@ import type { GitForkSyncExpectedUpstream, GitForkSyncResult } from '../../share
 import type { TuiAgent } from '../../shared/tui-agent'
 import type { GitPushTarget } from '../../shared/worktree/types'
 import type { HostedReviewProvider } from '../../shared/hosted-review'
+import type { GitSubmoduleListResult } from '../../shared/git-submodule-list'
 import type { ResolvedSourceControlAiGenerationParams } from '../../shared/source-control-ai'
 import type { SourceControlAiSettings } from '../../shared/source-control-ai-types'
 
@@ -133,6 +134,43 @@ export type GitOperationApi = {
   bulkDiscard: (args: {
     worktreePath: string
     filePaths: string[]
+    connectionId?: string
+  }) => Promise<void>
+  /** Configured submodules of the parent worktree, capped at MAX_DETECTED_SUBMODULES. */
+  submoduleList: (args: {
+    worktreePath: string
+    connectionId?: string
+  }) => Promise<GitSubmoduleListResult>
+  /** `filePaths` are relative to the SUBMODULE root, not the parent worktree. */
+  submoduleStage: (args: {
+    worktreePath: string
+    submodulePath: string
+    filePaths: string[]
+    connectionId?: string
+  }) => Promise<void>
+  /** `filePaths` are relative to the SUBMODULE root, not the parent worktree. */
+  submoduleUnstage: (args: {
+    worktreePath: string
+    submodulePath: string
+    filePaths: string[]
+    connectionId?: string
+  }) => Promise<void>
+  submoduleCommit: (args: {
+    worktreePath: string
+    submodulePath: string
+    message: string
+    connectionId?: string
+  }) => Promise<{ success: boolean; error?: string }>
+  submodulePush: (args: {
+    worktreePath: string
+    submodulePath: string
+    publish?: boolean
+    connectionId?: string
+  }) => Promise<void>
+  /** Pull the submodule's own branch — the pull half of a submodule Sync Changes. */
+  submodulePull: (args: {
+    worktreePath: string
+    submodulePath: string
     connectionId?: string
   }) => Promise<void>
 }

@@ -76,6 +76,7 @@ export function VscodeScmCommitBox({
   branch,
   smartCommit,
   onToggleSmartCommit,
+  disabledReason = null,
   onRun
 }: {
   message: string
@@ -84,12 +85,15 @@ export function VscodeScmCommitBox({
   branch: string | null
   smartCommit: boolean
   onToggleSmartCommit: () => void
+  /** Overrides every enabled state — e.g. a host that cannot write to this repository. */
+  disabledReason?: string | null
   onRun: () => void
 }): React.JSX.Element {
   const isMac = useMemo(() => getShortcutPlatform() === 'darwin', [])
   const Icon = ACTION_ICON[actionButton.kind]
   const label = actionLabel(actionButton)
-  const hint = disabledHint(actionButton)
+  const enabled = actionButton.enabled && disabledReason === null
+  const hint = disabledReason ?? disabledHint(actionButton)
   const commitShortcut = isMac ? '⌘⏎' : 'Ctrl+Enter'
 
   return (
@@ -99,7 +103,7 @@ export function VscodeScmCommitBox({
         onChange={(event) => onMessageChange(event.target.value)}
         onKeyDown={(event) => {
           const accelerator = isMac ? event.metaKey : event.ctrlKey
-          if (accelerator && event.key === 'Enter' && actionButton.enabled) {
+          if (accelerator && event.key === 'Enter' && enabled) {
             event.preventDefault()
             onRun()
           }
@@ -130,7 +134,7 @@ export function VscodeScmCommitBox({
         type="button"
         size="sm"
         variant={actionButton.kind === 'conflicts' ? 'outline' : 'default'}
-        disabled={!actionButton.enabled}
+        disabled={!enabled}
         title={hint}
         onClick={onRun}
         className="h-7 w-full gap-1.5 text-xs"
@@ -170,7 +174,7 @@ export function VscodeScmCommitBox({
         </span>
       </label>
 
-      {hint && !actionButton.enabled && (
+      {hint && !enabled && (
         <p className="text-[11px] leading-snug text-muted-foreground/80">{hint}</p>
       )}
     </div>

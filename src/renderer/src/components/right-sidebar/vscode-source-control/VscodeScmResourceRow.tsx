@@ -5,6 +5,7 @@ import { basename, dirname } from '@/lib/path'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import { getVscodeScmDecoration } from './vscode-scm-status-letter'
+import { getSubmoduleRowStateLabel } from '../source-control-submodule-state-label'
 import type { VscodeScmRow } from './vscode-scm-tree-model'
 import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 
@@ -14,6 +15,8 @@ export type VscodeScmRowAction = 'stage' | 'unstage' | 'discard'
 
 type RowActionButtonProps = {
   label: string
+  /** Replaces the tooltip text when the button is unavailable for a stated reason. */
+  disabledReason?: string | null
   onClick: () => void
   disabled: boolean
   children: React.ReactNode
@@ -21,6 +24,7 @@ type RowActionButtonProps = {
 
 function RowActionButton({
   label,
+  disabledReason = null,
   onClick,
   disabled,
   children
@@ -41,7 +45,7 @@ function RowActionButton({
           {children}
         </button>
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>{disabledReason ?? label}</TooltipContent>
     </Tooltip>
   )
 }
@@ -76,6 +80,7 @@ export function VscodeScmResourceRow({
   entry,
   actions,
   busy,
+  disabledReason = null,
   onOpen,
   onAction
 }: {
@@ -83,12 +88,17 @@ export function VscodeScmResourceRow({
   entry: GitStatusEntry
   actions: readonly VscodeScmRowAction[]
   busy: boolean
+  /** Shown instead of the action label, and disables it — e.g. a host that cannot write here. */
+  disabledReason?: string | null
   onOpen: () => void
   onAction: (action: VscodeScmRowAction) => void
 }): React.JSX.Element {
   const decoration = getVscodeScmDecoration(entry)
   const name = basename(entry.path)
   const directory = dirname(entry.path)
+  // Why: `git status` annotates a gitlink with this parenthetical; without it a
+  // submodule left behind by checkout/pull reads as a file the user edited.
+  const submoduleStateLabel = getSubmoduleRowStateLabel(entry)
 
   return (
     <div
@@ -115,6 +125,11 @@ export function VscodeScmResourceRow({
         {directory !== '.' && directory !== '' && (
           <span className="min-w-0 truncate text-[11px] text-muted-foreground/70">{directory}</span>
         )}
+        {submoduleStateLabel && (
+          <span className="min-w-0 truncate text-[11px] text-muted-foreground/70">
+            ({submoduleStateLabel})
+          </span>
+        )}
       </button>
 
       <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
@@ -124,7 +139,8 @@ export function VscodeScmResourceRow({
               'auto.components.right.sidebar.vscodeSourceControl.discardChanges',
               'Discard Changes'
             )}
-            disabled={busy}
+            disabled={busy || disabledReason !== null}
+            disabledReason={disabledReason}
             onClick={() => onAction('discard')}
           >
             <RotateCcw size={13} />
@@ -136,7 +152,8 @@ export function VscodeScmResourceRow({
               'auto.components.right.sidebar.vscodeSourceControl.unstageChanges',
               'Unstage Changes'
             )}
-            disabled={busy}
+            disabled={busy || disabledReason !== null}
+            disabledReason={disabledReason}
             onClick={() => onAction('unstage')}
           >
             <Minus size={13} />
@@ -148,7 +165,8 @@ export function VscodeScmResourceRow({
               'auto.components.right.sidebar.vscodeSourceControl.stageChanges',
               'Stage Changes'
             )}
-            disabled={busy}
+            disabled={busy || disabledReason !== null}
+            disabledReason={disabledReason}
             onClick={() => onAction('stage')}
           >
             <Plus size={13} />

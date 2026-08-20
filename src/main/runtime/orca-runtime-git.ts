@@ -25,7 +25,7 @@ import {
 } from '../../shared/source-control-ai'
 import { withLinkedIssueDraftContext } from '../../shared/source-control-ai-action-variables'
 import type { SourceControlAiOperation } from '../../shared/source-control-ai-types'
-import type { GitProviderStatusOptions } from '../providers/types'
+import type { GitProviderStatusOptions, IGitProvider } from '../providers/types'
 import { getRemoteCommitUrl, getRemoteFileUrl } from '../git/repo'
 import {
   abortMerge,
@@ -49,6 +49,15 @@ import {
   stageFile,
   unstageFile
 } from '../git/status'
+import {
+  commitSubmoduleChanges,
+  listSubmodules,
+  pullSubmodule,
+  pushSubmodule,
+  stageSubmoduleFiles,
+  unstageSubmoduleFiles
+} from '../git/submodule-write-ops'
+import type { GitSubmoduleListResult } from '../../shared/git-submodule-list'
 import { checkoutBranch, listLocalBranches } from '../git/checkout'
 import type { RuntimeGitCheckoutResult, RuntimeGitLocalBranches } from '../../shared/runtime-types'
 import { getHistory as getGitHistory } from '../git/history'
@@ -192,6 +201,14 @@ export type RuntimeGitCommandHost = {
 
 export class RuntimeGitCommands {
   constructor(private readonly host: RuntimeGitCommandHost) {}
+
+  private requireSshProvider(connectionId: string): IGitProvider {
+    const provider = getSshGitProvider(connectionId)
+    if (!provider) {
+      throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
+    }
+    return provider
+  }
 
   private linkedIssueForTarget(target: RuntimeGitTarget): number | null | undefined {
     const live = this.host.getWorktreeLinkedIssue?.(target.worktree.id)
@@ -1049,6 +1066,135 @@ export class RuntimeGitCommands {
       target.worktree.path,
       relativeSubmodulePath,
       relativePath,
+      localGitOptionsForTarget(target)
+    )
+    return { ok: true }
+  }
+
+  /** Configured submodules of the parent worktree (capped; see MAX_DETECTED_SUBMODULES). */
+  async listRuntimeGitSubmodules(worktreeSelector: string): Promise<GitSubmoduleListResult> {
+    const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
+    if (target.connectionId) {
+      return this.requireSshProvider(target.connectionId).listSubmodules(target.worktree.path)
+    }
+    return listSubmodules(target.worktree.path, localGitOptionsForTarget(target))
+  }
+
+  /** `filePaths` are relative to the SUBMODULE root. */
+  async stageRuntimeGitSubmodulePaths(
+    worktreeSelector: string,
+    submodulePath: string,
+    filePaths: string[]
+  ): Promise<{ ok: true }> {
+    const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
+    const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
+    const relativePaths = filePaths.map((filePath) => normalizeRuntimeGitRelativePath(filePath))
+    if (target.connectionId) {
+      await this.requireSshProvider(target.connectionId).stageSubmoduleFiles(
+        target.worktree.path,
+        relativeSubmodulePath,
+        relativePaths
+      )
+      return { ok: true }
+    }
+    await stageSubmoduleFiles(
+      target.worktree.path,
+      relativeSubmodulePath,
+      relativePaths,
+      localGitOptionsForTarget(target)
+    )
+    return { ok: true }
+  }
+
+  /** `filePaths` are relative to the SUBMODULE root. */
+  async unstageRuntimeGitSubmodulePaths(
+    worktreeSelector: string,
+    submodulePath: string,
+    filePaths: string[]
+  ): Promise<{ ok: true }> {
+    const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
+    const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
+    const relativePaths = filePaths.map((filePath) => normalizeRuntimeGitRelativePath(filePath))
+    if (target.connectionId) {
+      await this.requireSshProvider(target.connectionId).unstageSubmoduleFiles(
+        target.worktree.path,
+        relativeSubmodulePath,
+        relativePaths
+      )
+      return { ok: true }
+    }
+    await unstageSubmoduleFiles(
+      target.worktree.path,
+      relativeSubmodulePath,
+      relativePaths,
+      localGitOptionsForTarget(target)
+    )
+    return { ok: true }
+  }
+
+  async commitRuntimeGitSubmodule(
+    worktreeSelector: string,
+    submodulePath: string,
+    message: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
+    const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
+    if (target.connectionId) {
+      return this.requireSshProvider(target.connectionId).commitSubmodule(
+        target.worktree.path,
+        relativeSubmodulePath,
+        message
+      )
+    }
+    return commitSubmoduleChanges(
+      target.worktree.path,
+      relativeSubmodulePath,
+      message,
+      localGitOptionsForTarget(target)
+    )
+  }
+
+  async pushRuntimeGitSubmodule(
+    worktreeSelector: string,
+    submodulePath: string,
+    publish = false
+  ): Promise<{ ok: true }> {
+    const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
+    const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
+    if (target.connectionId) {
+      await this.requireSshProvider(target.connectionId).pushSubmodule(
+        target.worktree.path,
+        relativeSubmodulePath,
+        publish
+      )
+      return { ok: true }
+    }
+    await pushSubmodule(
+      target.worktree.path,
+      relativeSubmodulePath,
+      publish,
+      localGitOptionsForTarget(target)
+    )
+    return { ok: true }
+  }
+
+  /** The pull half of a submodule Sync Changes; push is a separate call. */
+  async pullRuntimeGitSubmodule(
+    worktreeSelector: string,
+    submodulePath: string
+  ): Promise<{ ok: true }> {
+    const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
+    const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
+    if (target.connectionId) {
+      await this.requireSshProvider(target.connectionId).pullSubmodule(
+        target.worktree.path,
+        relativeSubmodulePath
+      )
+      return { ok: true }
+    }
+    await pullSubmodule(
+      target.worktree.path,
+      relativeSubmodulePath,
       localGitOptionsForTarget(target)
     )
     return { ok: true }

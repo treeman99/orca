@@ -1,43 +1,17 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import {
-  ArrowDown,
-  ArrowUp,
-  FileQuestion,
-  GitBranch,
-  List,
-  ListTree,
-  RefreshCw,
-  X
-} from 'lucide-react'
+import { FileQuestion, GitBranch, List, ListTree, RefreshCw } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { useVscodeScmContext } from './use-vscode-scm-context'
-import { VscodeScmCommitBox } from './VscodeScmCommitBox'
-import { VscodeScmGroupSection, type VscodeScmGroupAction } from './VscodeScmGroupSection'
-import type { VscodeScmRowAction } from './VscodeScmResourceRow'
-import { resolveVscodeScmActionButton } from './vscode-scm-action-button'
-import {
-  buildVscodeScmResourceGroups,
-  getVisibleVscodeScmGroups,
-  isMergeGroupEntry,
-  type VscodeScmGroupId,
-  type VscodeScmResourceGroup,
-  type VscodeScmUntrackedPolicy
-} from './vscode-scm-resource-groups'
-import {
-  SourceControlDiscardDialog,
-  type PendingDiscardConfirmation
-} from '../source-control-discard-dialog'
-import { canDiscardStatusEntry, canStageStatusEntry } from '../source-control-entry-actions'
-import type { DiscardAllArea } from '../discard-all-sequence'
+import { useVscodeScmRepositories } from './use-vscode-scm-repositories'
+import { useVscodeScmSectionMutations } from './use-vscode-scm-section-mutations'
+import { VscodeScmAheadBehind } from './VscodeScmAheadBehind'
+import { VscodeScmRepositorySection } from './VscodeScmRepositorySection'
+import type { VscodeScmUntrackedPolicy } from './vscode-scm-resource-groups'
+import type { VscodeScmRepository } from './vscode-scm-repository'
+import { SourceControlDiscardDialog } from '../source-control-discard-dialog'
 import type { GitStatusEntry } from '../../../../../shared/git-status-types'
-
-const DISCARD_AREA_BY_GROUP: Partial<Record<VscodeScmGroupId, DiscardAllArea>> = {
-  index: 'staged',
-  workingTree: 'unstaged',
-  untracked: 'untracked'
-}
 
 function HeaderButton({
   label,
@@ -76,60 +50,20 @@ function HeaderButton({
 
 export default function VscodeSourceControl(): React.JSX.Element {
   const scm = useVscodeScmContext()
-  const [messageByWorktree, setMessageByWorktree] = useState<Record<string, string>>({})
+  const { repositories, refreshSubmodule, submoduleList } = useVscodeScmRepositories(scm)
+  const { mutationsFor, pendingDiscard, cancelDiscard, confirmDiscard } =
+    useVscodeScmSectionMutations({
+      scm,
+      refreshSubmodule,
+      submoduleWriteSupported: submoduleList.writeSupported
+    })
   const [viewMode, setViewMode] = useState<'list' | 'tree'>('list')
   // VS Code's `git.untrackedChanges`; `mixed` folds Untracked into Changes and is its default.
   const [untrackedPolicy, setUntrackedPolicy] = useState<VscodeScmUntrackedPolicy>('mixed')
-  const [smartCommit, setSmartCommit] = useState(false)
+  const [collapsedRepositories, setCollapsedRepositories] = useState<ReadonlySet<string>>(new Set())
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set())
   const [collapsedDirectoryKeys, setCollapsedDirectoryKeys] = useState<ReadonlySet<string>>(
     new Set()
-  )
-  const [pendingDiscard, setPendingDiscard] = useState<PendingDiscardConfirmation | null>(null)
-
-  const messageKey = scm.worktreeId ?? ''
-  const message = messageByWorktree[messageKey] ?? ''
-  const setMessage = useCallback(
-    (next: string) => setMessageByWorktree((prev) => ({ ...prev, [messageKey]: next })),
-    [messageKey]
-  )
-
-  const groups = useMemo(
-    () => buildVscodeScmResourceGroups(scm.entries, untrackedPolicy),
-    [scm.entries, untrackedPolicy]
-  )
-  const visibleGroups = useMemo(() => getVisibleVscodeScmGroups(groups), [groups])
-  const counts = useMemo(() => {
-    const byId = (id: VscodeScmGroupId): number =>
-      groups.find((group) => group.id === id)?.entries.length ?? 0
-    return {
-      staged: byId('index'),
-      workingTree: byId('workingTree'),
-      untracked: byId('untracked'),
-      unresolvedConflicts: scm.entries.filter(
-        (entry) => isMergeGroupEntry(entry) && entry.conflictStatus === 'unresolved'
-      ).length
-    }
-  }, [groups, scm.entries])
-
-  const actionButton = useMemo(
-    () =>
-      resolveVscodeScmActionButton({
-        stagedCount: counts.staged,
-        unstagedCount: counts.workingTree,
-        untrackedCount: counts.untracked,
-        unresolvedConflictCount: counts.unresolvedConflicts,
-        commitMessage: message,
-        smartCommit,
-        hasBranch: scm.branch !== null,
-        hasUpstream: scm.upstreamStatus?.hasUpstream ?? false,
-        hasConfiguredPushTarget: scm.upstreamStatus?.hasConfiguredPushTarget ?? false,
-        ahead: scm.upstreamStatus?.ahead ?? 0,
-        behind: scm.upstreamStatus?.behind ?? 0,
-        conflictOperation: scm.conflictOperation,
-        busy: scm.busy
-      }),
-    [counts, message, scm.branch, scm.busy, scm.conflictOperation, scm.upstreamStatus, smartCommit]
   )
 
   const toggleKey = useCallback(
@@ -145,68 +79,53 @@ export default function VscodeSourceControl(): React.JSX.Element {
     []
   )
 
-  const handleRunAction = useCallback(async () => {
-    if (actionButton.kind === 'publish') {
-      await scm.publish()
-      return
-    }
-    if (actionButton.kind === 'sync') {
-      await scm.sync()
-      return
-    }
-    if (actionButton.kind !== 'commit') {
-      return
-    }
-    const committed = await scm.commit(message, { stageAllFirst: actionButton.stagesAllFirst })
-    if (committed) {
-      setMessage('')
-    }
-  }, [actionButton.kind, actionButton.stagesAllFirst, message, scm, setMessage])
-
-  const handleRowAction = useCallback(
-    (action: VscodeScmRowAction, entry: GitStatusEntry) => {
-      if (action === 'stage') {
-        void scm.stage([entry.path])
+  const openEntryFor = useCallback(
+    (repository: VscodeScmRepository, entry: GitStatusEntry) => {
+      if (repository.submodulePath) {
+        scm.openSubmoduleEntryDiff(repository.submodulePath, entry)
         return
       }
-      if (action === 'unstage') {
-        void scm.unstage([entry.path])
-        return
-      }
-      setPendingDiscard({ kind: 'entry', entry })
+      scm.openEntryDiff(entry)
     },
     [scm]
   )
 
-  const handleGroupAction = useCallback(
-    (action: VscodeScmGroupAction, group: VscodeScmResourceGroup) => {
-      if (action === 'stage-all') {
-        void scm.stage(group.entries.filter(canStageStatusEntry).map((entry) => entry.path))
-        return
-      }
-      if (action === 'unstage-all') {
-        void scm.unstage(group.entries.map((entry) => entry.path))
-        return
-      }
-      const area = DISCARD_AREA_BY_GROUP[group.id]
-      const paths = group.entries.filter(canDiscardStatusEntry).map((entry) => entry.path)
-      if (!area || paths.length === 0) {
-        return
-      }
-      setPendingDiscard({ kind: 'area', area, paths })
-    },
-    [scm]
+  // VS Code's `scm.alwaysShowRepositories` defaults to false: a single repository
+  // renders with no section header at all.
+  const stacked = repositories.length > 1
+  const sections = useMemo(
+    () =>
+      repositories.map((repository) => (
+        <VscodeScmRepositorySection
+          key={repository.id}
+          repository={repository}
+          layout={stacked ? 'stacked' : 'single'}
+          showHeader={stacked}
+          collapsed={collapsedRepositories.has(repository.id)}
+          onToggleCollapsed={() => toggleKey(setCollapsedRepositories, repository.id)}
+          viewMode={viewMode}
+          untrackedPolicy={untrackedPolicy}
+          collapsedGroupKeys={collapsedGroups}
+          onToggleGroup={(key) => toggleKey(setCollapsedGroups, key)}
+          collapsedDirectoryKeys={collapsedDirectoryKeys}
+          onToggleDirectory={(key) => toggleKey(setCollapsedDirectoryKeys, key)}
+          onOpenEntry={(entry) => openEntryFor(repository, entry)}
+          mutations={mutationsFor(repository)}
+        />
+      )),
+    [
+      collapsedDirectoryKeys,
+      collapsedGroups,
+      collapsedRepositories,
+      mutationsFor,
+      openEntryFor,
+      repositories,
+      stacked,
+      toggleKey,
+      untrackedPolicy,
+      viewMode
+    ]
   )
-
-  const confirmDiscard = useCallback(() => {
-    if (!pendingDiscard) {
-      return
-    }
-    const paths =
-      pendingDiscard.kind === 'entry' ? [pendingDiscard.entry.path] : [...pendingDiscard.paths]
-    setPendingDiscard(null)
-    void scm.discard(paths)
-  }, [pendingDiscard, scm])
 
   if (!scm.ready) {
     return (
@@ -219,9 +138,6 @@ export default function VscodeSourceControl(): React.JSX.Element {
     )
   }
 
-  const ahead = scm.upstreamStatus?.ahead ?? 0
-  const behind = scm.upstreamStatus?.behind ?? 0
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex h-[28px] shrink-0 items-center gap-1 border-b border-border px-2">
@@ -233,22 +149,10 @@ export default function VscodeSourceControl(): React.JSX.Element {
               'Detached HEAD'
             )}
         </span>
-        {(behind > 0 || ahead > 0) && (
-          <span className="flex shrink-0 items-center gap-1 text-[11px] tabular-nums text-muted-foreground">
-            {behind > 0 && (
-              <span className="flex items-center gap-0.5">
-                <ArrowDown size={10} />
-                {behind}
-              </span>
-            )}
-            {ahead > 0 && (
-              <span className="flex items-center gap-0.5">
-                <ArrowUp size={10} />
-                {ahead}
-              </span>
-            )}
-          </span>
-        )}
+        <VscodeScmAheadBehind
+          ahead={scm.upstreamStatus?.ahead ?? 0}
+          behind={scm.upstreamStatus?.behind ?? 0}
+        />
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
           <HeaderButton
             label={
@@ -289,79 +193,25 @@ export default function VscodeSourceControl(): React.JSX.Element {
               'Refresh'
             )}
             disabled={scm.busy}
-            onClick={() => void scm.refresh()}
+            onClick={() => {
+              void scm.refresh()
+              submoduleList.refresh()
+            }}
           >
             <RefreshCw size={13} className={cn(scm.busy && 'animate-spin')} />
           </HeaderButton>
         </div>
       </div>
 
-      {scm.lastError && (
-        <div className="flex items-start gap-2 border-b border-border bg-destructive/10 px-2 py-1.5 text-[11px] leading-snug text-destructive">
-          <span className="min-w-0 flex-1 break-words">{scm.lastError}</span>
-          <button
-            type="button"
-            onClick={scm.clearError}
-            aria-label={translate(
-              'auto.components.right.sidebar.vscodeSourceControl.dismissError',
-              'Dismiss'
-            )}
-            className="shrink-0 rounded-sm p-0.5 hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <X size={12} />
-          </button>
-        </div>
+      {stacked ? (
+        <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">{sections}</div>
+      ) : (
+        sections
       )}
-
-      {scm.repositoryHuge && (
-        <p className="border-b border-border px-2 py-1.5 text-[11px] leading-snug text-muted-foreground">
-          {translate(
-            'auto.components.right.sidebar.vscodeSourceControl.tooManyChanges',
-            'Too many changes to list. Ignore the folder that is flooding status, then refresh.'
-          )}
-        </p>
-      )}
-
-      <VscodeScmCommitBox
-        message={message}
-        onMessageChange={setMessage}
-        actionButton={actionButton}
-        branch={scm.branch}
-        smartCommit={smartCommit}
-        onToggleSmartCommit={() => setSmartCommit((prev) => !prev)}
-        onRun={() => void handleRunAction()}
-      />
-
-      <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
-        {scm.entries.length === 0 ? (
-          <p className="p-4 text-center text-xs text-muted-foreground">
-            {translate(
-              'auto.components.right.sidebar.vscodeSourceControl.noChanges',
-              'No changes detected.'
-            )}
-          </p>
-        ) : (
-          visibleGroups.map((group) => (
-            <VscodeScmGroupSection
-              key={group.id}
-              group={group}
-              viewMode={viewMode}
-              collapsed={collapsedGroups.has(group.id)}
-              collapsedDirectoryKeys={collapsedDirectoryKeys}
-              busy={scm.busy}
-              onToggleCollapsed={() => toggleKey(setCollapsedGroups, group.id)}
-              onToggleDirectory={(key) => toggleKey(setCollapsedDirectoryKeys, key)}
-              onGroupAction={handleGroupAction}
-              onRowAction={handleRowAction}
-              onOpenEntry={scm.openEntryDiff}
-            />
-          ))
-        )}
-      </div>
 
       <SourceControlDiscardDialog
         pendingDiscard={pendingDiscard}
-        onCancel={() => setPendingDiscard(null)}
+        onCancel={cancelDiscard}
         onConfirm={confirmDiscard}
       />
     </div>

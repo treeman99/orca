@@ -11623,7 +11623,9 @@
             "dismissError": "닫기",
             "noChanges": "변경 사항이 없습니다.",
             "noGitWorkspace": "소스 제어를 사용하려면 Git 워크트리를 여세요.",
-            "tooManyChanges": "변경 사항이 너무 많아 표시할 수 없습니다. 상태를 넘치게 하는 폴더를 무시한 뒤 새로 고치세요."
+            "tooManyChanges": "변경 사항이 너무 많아 표시할 수 없습니다. 상태를 넘치게 하는 폴더를 무시한 뒤 새로 고치세요.",
+            "submoduleLoading": "서브모듈 상태를 읽는 중…",
+            "submoduleNotInitialized": "이 서브모듈은 아직 체크아웃되지 않았습니다. git submodule update --init 을 실행하면 변경 사항이 보입니다."
           }
         }
       },
@@ -14840,7 +14842,10 @@
     "submoduleBranchDiffersFromParent": "(루트와 다름)",
     "submoduleNewCommits": "새 커밋",
     "submoduleModifiedContent": "수정된 내용",
-    "submoduleUntrackedContent": "추적되지 않은 내용"
+    "submoduleUntrackedContent": "추적되지 않은 내용",
+    "submoduleDetectionLimit": "서브모듈 중 처음 {{count}}개만 표시합니다. 나머지는 여기에 나오지 않습니다.",
+    "submoduleWriteUnsupportedHost": "이 호스트는 서브모듈 쓰기 작업을 지원하지 않습니다. 서브모듈 안에서 스테이징·커밋·푸시하려면 원격 호스트의 Orca를 업데이트하세요.",
+    "submoduleUnsafePath": "Orca가 이 경로를 거부했습니다: 서브모듈 안으로 해석되지 않습니다."
   },
   "github": {
     "stackMerge": {

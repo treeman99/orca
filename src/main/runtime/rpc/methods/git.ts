@@ -27,6 +27,9 @@ import {
   GitSubmoduleStatus,
   GitSubmoduleFilePath,
   GitSubmodulePointer,
+  GitSubmodulePaths,
+  GitSubmoduleCommit,
+  GitSubmodulePush,
   GitTargetedRemote,
   WorktreeSelector
 } from './git-params'
@@ -370,6 +373,47 @@ export const GIT_METHODS: RpcMethod[] = [
     params: GitSubmoduleFilePath,
     handler: async (params, { runtime }) =>
       runtime.discardRuntimeGitSubmodulePath(params.worktree, params.submodulePath, params.filePath)
+  }),
+  defineMethod({
+    name: 'git.submoduleList',
+    params: WorktreeSelector,
+    handler: async (params, { runtime }) => runtime.listRuntimeGitSubmodules(params.worktree)
+  }),
+  defineMethod({
+    name: 'git.submoduleStage',
+    params: GitSubmodulePaths,
+    handler: async (params, { runtime }) =>
+      runtime.stageRuntimeGitSubmodulePaths(params.worktree, params.submodulePath, params.filePaths)
+  }),
+  defineMethod({
+    name: 'git.submoduleUnstage',
+    params: GitSubmodulePaths,
+    handler: async (params, { runtime }) =>
+      runtime.unstageRuntimeGitSubmodulePaths(
+        params.worktree,
+        params.submodulePath,
+        params.filePaths
+      )
+  }),
+  defineMethod({
+    name: 'git.submoduleCommit',
+    params: GitSubmoduleCommit,
+    handler: async (params, { runtime }) =>
+      runtime.commitRuntimeGitSubmodule(params.worktree, params.submodulePath, params.message)
+  }),
+  defineMethod({
+    name: 'git.submodulePush',
+    params: GitSubmodulePush,
+    handler: async (params, { runtime }) =>
+      params.publish === undefined
+        ? runtime.pushRuntimeGitSubmodule(params.worktree, params.submodulePath)
+        : runtime.pushRuntimeGitSubmodule(params.worktree, params.submodulePath, params.publish)
+  }),
+  defineMethod({
+    name: 'git.submodulePull',
+    params: GitSubmodulePointer,
+    handler: async (params, { runtime }) =>
+      runtime.pullRuntimeGitSubmodule(params.worktree, params.submodulePath)
   }),
   defineMethod({
     name: 'git.submoduleRestorePointer',

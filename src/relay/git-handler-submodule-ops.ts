@@ -8,6 +8,10 @@
  * Split from git-handler-ops.ts to keep that file under the max-lines budget.
  */
 import * as path from 'node:path'
+import {
+  parseSubmoduleConfigOutput,
+  type GitSubmoduleConfigEntry
+} from '../shared/git-submodule-list'
 import { buildDiffResult } from './git-diff-result'
 import type { GitExec } from './git-handler-ops'
 
@@ -18,7 +22,7 @@ import type { GitExec } from './git-handler-ops'
  */
 export const SUBMODULE_PATHS_CACHE_TTL_MS = 5_000
 export const MAX_SUBMODULE_PATHS_CACHE_ENTRIES = 512
-type SubmodulePathsCacheEntry = { paths: string[]; expiresAt: number }
+type SubmodulePathsCacheEntry = { entries: GitSubmoduleConfigEntry[]; expiresAt: number }
 export type SubmodulePathsCache = {
   entries: Map<string, SubmodulePathsCacheEntry>
   generation: number
@@ -43,7 +47,7 @@ function getCachedSubmodulePaths(
   cache: SubmodulePathsCache,
   worktreePath: string,
   now: number
-): string[] | null {
+): GitSubmoduleConfigEntry[] | null {
   const cached = cache.entries.get(worktreePath)
   if (!cached) {
     return null
@@ -54,7 +58,7 @@ function getCachedSubmodulePaths(
   }
   cache.entries.delete(worktreePath)
   cache.entries.set(worktreePath, cached)
-  return cached.paths
+  return cached.entries
 }
 
 function pruneExpiredSubmodulePaths(cache: SubmodulePathsCache, now: number): void {
@@ -68,11 +72,11 @@ function pruneExpiredSubmodulePaths(cache: SubmodulePathsCache, now: number): vo
 function rememberSubmodulePaths(
   cache: SubmodulePathsCache,
   worktreePath: string,
-  paths: string[],
+  entries: GitSubmoduleConfigEntry[],
   now: number
 ): void {
   cache.entries.delete(worktreePath)
-  cache.entries.set(worktreePath, { paths, expiresAt: now + SUBMODULE_PATHS_CACHE_TTL_MS })
+  cache.entries.set(worktreePath, { entries, expiresAt: now + SUBMODULE_PATHS_CACHE_TTL_MS })
   while (cache.entries.size > MAX_SUBMODULE_PATHS_CACHE_ENTRIES) {
     const oldestPath = cache.entries.keys().next().value
     if (oldestPath === undefined) {
@@ -88,12 +92,12 @@ function rememberSubmodulePaths(
  * and never leaks across relay instances or tests. An empty result is cached
  * too, so a submodule-free repo doesn't re-read `.gitmodules` on every diff.
  */
-export async function listSubmodulePathsCached(
+export async function listSubmoduleConfigEntriesCached(
   git: GitExec,
   worktreePath: string,
   cache: SubmodulePathsCache,
   now: number = Date.now()
-): Promise<string[]> {
+): Promise<GitSubmoduleConfigEntry[]> {
   const cached = getCachedSubmodulePaths(cache, worktreePath, now)
   if (cached) {
     return cached
@@ -102,38 +106,46 @@ export async function listSubmodulePathsCached(
   // repeated SSH diff clicks keep their O(1) cache-hit path.
   pruneExpiredSubmodulePaths(cache, now)
   const cacheGeneration = cache.generation
-  const paths = await listSubmodulePaths(git, worktreePath)
+  const entries = await listSubmoduleConfigEntries(git, worktreePath)
   if (cacheGeneration === cache.generation) {
-    rememberSubmodulePaths(cache, worktreePath, paths, now)
+    rememberSubmodulePaths(cache, worktreePath, entries, now)
   }
-  return paths
+  return entries
+}
+
+/** Paths only, for the diff-routing callers. */
+export async function listSubmodulePathsCached(
+  git: GitExec,
+  worktreePath: string,
+  cache: SubmodulePathsCache,
+  now: number = Date.now()
+): Promise<string[]> {
+  return (await listSubmoduleConfigEntriesCached(git, worktreePath, cache, now)).map(
+    (entry) => entry.path
+  )
 }
 
 /**
- * Configured submodule paths (relative, forward-slash) read from `.gitmodules`.
- * Used to route gitlink/inner diffs without an index-wide `ls-files` scan.
+ * Configured submodules (name + relative forward-slash path) read from `.gitmodules`,
+ * avoiding an index-wide `ls-files` scan.
  */
-export async function listSubmodulePaths(git: GitExec, worktreePath: string): Promise<string[]> {
+export async function listSubmoduleConfigEntries(
+  git: GitExec,
+  worktreePath: string
+): Promise<GitSubmoduleConfigEntry[]> {
   try {
     const { stdout } = await git(
       ['config', '--file', '.gitmodules', '--get-regexp', '^submodule\\..*\\.path$'],
       worktreePath
     )
-    return stdout
-      .split(/\r?\n/)
-      .map((line) => {
-        const spaceIndex = line.indexOf(' ')
-        return spaceIndex === -1
-          ? ''
-          : line
-              .slice(spaceIndex + 1)
-              .trim()
-              .replace(/\/+$/, '')
-      })
-      .filter((value) => value.length > 0)
+    return parseSubmoduleConfigOutput(stdout)
   } catch {
     return []
   }
+}
+
+export async function listSubmodulePaths(git: GitExec, worktreePath: string): Promise<string[]> {
+  return (await listSubmoduleConfigEntries(git, worktreePath)).map((entry) => entry.path)
 }
 
 export function findContainingSubmodule(submodulePaths: string[], filePath: string): string | null {

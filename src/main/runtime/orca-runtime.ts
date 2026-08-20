@@ -9364,6 +9364,18 @@ export class OrcaRuntimeService {
     this.gitCommands.discardRuntimeGitSubmodulePath.bind(this.gitCommands)
   restoreRuntimeGitSubmodulePointer: RuntimeGitCommands['restoreRuntimeGitSubmodulePointer'] =
     this.gitCommands.restoreRuntimeGitSubmodulePointer.bind(this.gitCommands)
+  listRuntimeGitSubmodules: RuntimeGitCommands['listRuntimeGitSubmodules'] =
+    this.gitCommands.listRuntimeGitSubmodules.bind(this.gitCommands)
+  stageRuntimeGitSubmodulePaths: RuntimeGitCommands['stageRuntimeGitSubmodulePaths'] =
+    this.gitCommands.stageRuntimeGitSubmodulePaths.bind(this.gitCommands)
+  unstageRuntimeGitSubmodulePaths: RuntimeGitCommands['unstageRuntimeGitSubmodulePaths'] =
+    this.gitCommands.unstageRuntimeGitSubmodulePaths.bind(this.gitCommands)
+  commitRuntimeGitSubmodule: RuntimeGitCommands['commitRuntimeGitSubmodule'] =
+    this.gitCommands.commitRuntimeGitSubmodule.bind(this.gitCommands)
+  pushRuntimeGitSubmodule: RuntimeGitCommands['pushRuntimeGitSubmodule'] =
+    this.gitCommands.pushRuntimeGitSubmodule.bind(this.gitCommands)
+  pullRuntimeGitSubmodule: RuntimeGitCommands['pullRuntimeGitSubmodule'] =
+    this.gitCommands.pullRuntimeGitSubmodule.bind(this.gitCommands)
   getRuntimeGitRemoteFileUrl: RuntimeGitCommands['getRuntimeGitRemoteFileUrl'] =
     this.gitCommands.getRuntimeGitRemoteFileUrl.bind(this.gitCommands)
   getRuntimeGitRemoteCommitUrl: RuntimeGitCommands['getRuntimeGitRemoteCommitUrl'] =

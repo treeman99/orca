@@ -3,8 +3,6 @@ import { useAppStore } from '@/store'
 import { useActiveWorktree, useRepoById } from '@/store/selectors'
 import { getConnectionId } from '@/lib/connection-context'
 import { getRepoOwnerRoutedSettings } from '@/lib/repo-runtime-owner'
-import { detectLanguage } from '@/lib/language-detect'
-import { joinPath } from '@/lib/path'
 import {
   bulkStageRuntimeGitPaths,
   bulkUnstageRuntimeGitPaths,
@@ -14,6 +12,7 @@ import {
   unstageRuntimeGitPath,
   type RuntimeGitContext
 } from '@/runtime/runtime-git-client'
+import { useVscodeScmDiffOpen } from './use-vscode-scm-diff-open'
 import { refreshGitStatusForWorktree } from '../git-status-refresh'
 import { isFolderRepo } from '../../../../../shared/repo-kind'
 import type {
@@ -29,6 +28,9 @@ const EMPTY_ENTRIES: GitStatusEntry[] = []
 export type VscodeScmContext = {
   ready: boolean
   worktreeId: string | null
+  worktreePath: string | null
+  /** Repo OWNER-routed settings, so submodule status reads reach the right host. */
+  repoSettings: RuntimeGitContext['settings']
   entries: GitStatusEntry[]
   branch: string | null
   upstreamStatus: GitUpstreamStatus | null
@@ -45,6 +47,7 @@ export type VscodeScmContext = {
   publish: () => Promise<void>
   sync: () => Promise<void>
   openEntryDiff: (entry: GitStatusEntry) => void
+  openSubmoduleEntryDiff: (submodulePath: string, entry: GitStatusEntry) => void
 }
 
 function shortBranchName(branch: string | null | undefined): string | null {
@@ -74,7 +77,6 @@ export function useVscodeScmContext(): VscodeScmContext {
   const updateWorktreeGitIdentity = useAppStore((s) => s.updateWorktreeGitIdentity)
   const pushBranch = useAppStore((s) => s.pushBranch)
   const syncBranch = useAppStore((s) => s.syncBranch)
-  const openDiff = useAppStore((s) => s.openDiff)
   const entries = useAppStore((s) =>
     activeWorktreeId ? (s.gitStatusByWorktree[activeWorktreeId] ?? EMPTY_ENTRIES) : EMPTY_ENTRIES
   )
@@ -257,25 +259,13 @@ export function useVscodeScmContext(): VscodeScmContext {
     )
   }, [activeWorktreeId, gitContext, repoSettings, run, syncBranch, worktreePath])
 
-  const openEntryDiff = useCallback(
-    (entry: GitStatusEntry): void => {
-      if (!activeWorktreeId || !worktreePath) {
-        return
-      }
-      openDiff(
-        activeWorktreeId,
-        joinPath(worktreePath, entry.path),
-        entry.path,
-        detectLanguage(entry.path),
-        entry.area === 'staged'
-      )
-    },
-    [activeWorktreeId, openDiff, worktreePath]
-  )
+  const diffOpeners = useVscodeScmDiffOpen(activeWorktreeId, worktreePath)
 
   return {
     ready: gitContext !== null,
     worktreeId: activeWorktreeId,
+    worktreePath,
+    repoSettings,
     entries,
     branch: shortBranchName(activeWorktree?.branch),
     upstreamStatus,
@@ -291,6 +281,6 @@ export function useVscodeScmContext(): VscodeScmContext {
     commit,
     publish,
     sync,
-    openEntryDiff
+    ...diffOpeners
   }
 }

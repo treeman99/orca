@@ -32,6 +32,12 @@ import {
   resolveSubmoduleWorktreePath,
   type SubmodulePathsCache
 } from './git-handler-submodule-ops'
+import {
+  listSubmodulesRelay,
+  resolveSubmoduleRootRelay,
+  unstagePathspecsRelay
+} from './git-handler-submodule-write-ops'
+import type { GitSubmoduleListResult } from '../shared/git-submodule-list'
 import { commitCompare as commitCompareOp, commitDiffEntry } from './git-handler-commit-diff-ops'
 import {
   areRelayWorktreePathsEqual,
@@ -219,6 +225,12 @@ export class GitHandler {
     this.dispatcher.onRequest('git.discard', (p) => this.discard(p))
     this.dispatcher.onRequest('git.submoduleDiscard', (p, c) => this.submoduleDiscard(p, c))
     this.dispatcher.onRequest('git.submoduleRestorePointer', (p) => this.submoduleRestorePointer(p))
+    this.dispatcher.onRequest('git.submoduleList', (p) => this.submoduleList(p))
+    this.dispatcher.onRequest('git.submoduleStage', (p, c) => this.submoduleStage(p, c))
+    this.dispatcher.onRequest('git.submoduleUnstage', (p, c) => this.submoduleUnstage(p, c))
+    this.dispatcher.onRequest('git.submoduleCommit', (p, c) => this.submoduleCommit(p, c))
+    this.dispatcher.onRequest('git.submodulePush', (p, c) => this.submodulePush(p, c))
+    this.dispatcher.onRequest('git.submodulePull', (p, c) => this.submodulePull(p, c))
     this.dispatcher.onRequest('git.bulkDiscard', (p) => this.bulkDiscard(p))
     this.dispatcher.onRequest('git.conflictOperation', (p) => this.conflictOperation(p))
     this.dispatcher.onRequest('git.branchCompare', (p) => this.branchCompare(p))
@@ -504,7 +516,9 @@ export class GitHandler {
     const worktreePath = params.worktreePath as string
     const filePath = params.filePath as string
     try {
-      await this.git(['restore', '--staged', '--', this.literalPathspec(filePath)], worktreePath)
+      await unstagePathspecsRelay(this.git.bind(this), worktreePath, [
+        this.literalPathspec(filePath)
+      ])
     } finally {
       this.clearGitMutationReadCaches()
     }
@@ -534,9 +548,10 @@ export class GitHandler {
     try {
       for (let i = 0; i < filePaths.length; i += BULK_CHUNK_SIZE) {
         const chunk = filePaths.slice(i, i + BULK_CHUNK_SIZE)
-        await this.git(
-          ['restore', '--staged', '--', ...chunk.map((filePath) => this.literalPathspec(filePath))],
-          worktreePath
+        await unstagePathspecsRelay(
+          this.git.bind(this),
+          worktreePath,
+          chunk.map((filePath) => this.literalPathspec(filePath))
         )
       }
     } finally {
@@ -708,6 +723,95 @@ export class GitHandler {
     } finally {
       this.clearGitMutationReadCaches()
     }
+  }
+
+  private async submoduleList(params: Record<string, unknown>): Promise<GitSubmoduleListResult> {
+    return listSubmodulesRelay(
+      this.git.bind(this),
+      params.worktreePath as string,
+      this.submodulePathsCache
+    )
+  }
+
+  /** Every submodule write below is root-guarded; see git-handler-submodule-write-ops.ts. */
+  private async submoduleRoot(
+    params: Record<string, unknown>,
+    context: RequestContext
+  ): Promise<string> {
+    return resolveSubmoduleRootRelay(
+      (args, cwd, options) => this.git(args, cwd, { ...options, signal: context.signal }),
+      params.worktreePath as string,
+      params.submodulePath as string
+    )
+  }
+
+  private async submoduleStage(params: Record<string, unknown>, context: RequestContext) {
+    const root = await this.submoduleRoot(params, context)
+    const filePaths = params.filePaths as string[]
+    await this.runWithGitReadCacheClear(async () => {
+      for (let i = 0; i < filePaths.length; i += BULK_CHUNK_SIZE) {
+        const chunk = filePaths.slice(i, i + BULK_CHUNK_SIZE)
+        await this.git(['add', '--', ...chunk.map((p) => this.literalPathspec(p))], root)
+      }
+    })
+  }
+
+  private async submoduleUnstage(params: Record<string, unknown>, context: RequestContext) {
+    const root = await this.submoduleRoot(params, context)
+    const filePaths = params.filePaths as string[]
+    await this.runWithGitReadCacheClear(async () => {
+      for (let i = 0; i < filePaths.length; i += BULK_CHUNK_SIZE) {
+        const chunk = filePaths.slice(i, i + BULK_CHUNK_SIZE)
+        await unstagePathspecsRelay(
+          this.git.bind(this),
+          root,
+          chunk.map((p) => this.literalPathspec(p))
+        )
+      }
+    })
+  }
+
+  private async submoduleCommit(
+    params: Record<string, unknown>,
+    context: RequestContext
+  ): Promise<{ success: boolean; error?: string }> {
+    let root: string
+    try {
+      root = await this.submoduleRoot(params, context)
+    } catch (error) {
+      // Why not throw: mirrors git.commit's contract — the panel renders `error` inline.
+      return { success: false, error: error instanceof Error ? error.message : 'Commit failed' }
+    }
+    return this.runWithGitReadCacheClear(() =>
+      commitChangesRelay(this.git.bind(this), root, params.message as string)
+    )
+  }
+
+  private async submodulePush(params: Record<string, unknown>, context: RequestContext) {
+    const root = await this.submoduleRoot(params, context)
+    // Why ignored: `--set-upstream` is unconditional, so first publish and re-push are one path.
+    void params.publish
+    await this.runWithGitReadCacheClear(async () => {
+      try {
+        const target = await resolveRelayPushTarget(this.git.bind(this), root, undefined)
+        await this.git(
+          [
+            'push',
+            '--set-upstream',
+            ...(target ? [target.remote, target.refspec] : ['origin', 'HEAD'])
+          ],
+          root
+        )
+      } catch (error) {
+        throw new Error(normalizeGitErrorMessage(error, 'push'))
+      }
+    })
+  }
+
+  /** The pull half of a submodule Sync Changes; reuses the parent pull with the submodule root. */
+  private async submodulePull(params: Record<string, unknown>, context: RequestContext) {
+    const root = await this.submoduleRoot(params, context)
+    await this.pullInRepo(root, [], undefined)
   }
 
   private async bulkDiscard(params: Record<string, unknown>) {
@@ -1094,12 +1198,16 @@ export class GitHandler {
   }
 
   private async pullWithArgs(params: Record<string, unknown>, pullArgs: string[]) {
+    await this.pullInRepo(params.worktreePath as string, pullArgs, params.pushTarget)
+  }
+
+  /** `worktreePath` is any repository root — the parent worktree, or a submodule's own root. */
+  private async pullInRepo(worktreePath: string, pullArgs: string[], rawPushTarget: unknown) {
     this.clearGitMutationReadCaches()
-    const worktreePath = params.worktreePath as string
     const runPull = async (effectiveArgs: string[]): Promise<void> => {
-      if (params.pushTarget !== undefined) {
-        assertGitPushTargetShape(params.pushTarget)
-        const pushTarget = params.pushTarget as GitPushTarget
+      if (rawPushTarget !== undefined) {
+        assertGitPushTargetShape(rawPushTarget)
+        const pushTarget = rawPushTarget as GitPushTarget
         await this.git(['check-ref-format', '--branch', pushTarget.branchName], worktreePath)
         await this.git(
           ['pull', ...effectiveArgs, pushTarget.remoteName, pushTarget.branchName],

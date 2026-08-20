@@ -86,6 +86,7 @@ import type {
 } from '../shared/filesystem-entry-types'
 import type { GitForkSyncExpectedUpstream, GitForkSyncResult } from '../shared/git-fork-sync'
 import type { GitStagingArea, GitUpstreamStatus } from '../shared/git-status-types'
+import type { GitSubmoduleListResult } from '../shared/git-submodule-list'
 import type { GitHubCommentResult, GitHubReactionContent } from '../shared/github/comment-types'
 import type {
   GitHubPRRefreshCandidate,
@@ -3470,6 +3471,42 @@ const api = {
       submodulePath: string
       connectionId?: string
     }): Promise<void> => ipcRenderer.invoke('git:submoduleRestorePointer', args),
+    submoduleList: (args: {
+      worktreePath: string
+      connectionId?: string
+    }): Promise<GitSubmoduleListResult> => ipcRenderer.invoke('git:submoduleList', args),
+    submoduleStage: (args: {
+      worktreePath: string
+      submodulePath: string
+      // Relative to the SUBMODULE root, not the parent worktree.
+      filePaths: string[]
+      connectionId?: string
+    }): Promise<void> => ipcRenderer.invoke('git:submoduleStage', args),
+    submoduleUnstage: (args: {
+      worktreePath: string
+      submodulePath: string
+      // Relative to the SUBMODULE root, not the parent worktree.
+      filePaths: string[]
+      connectionId?: string
+    }): Promise<void> => ipcRenderer.invoke('git:submoduleUnstage', args),
+    submoduleCommit: (args: {
+      worktreePath: string
+      submodulePath: string
+      message: string
+      connectionId?: string
+    }): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('git:submoduleCommit', args),
+    submodulePush: (args: {
+      worktreePath: string
+      submodulePath: string
+      publish?: boolean
+      connectionId?: string
+    }): Promise<void> => ipcRenderer.invoke('git:submodulePush', args),
+    submodulePull: (args: {
+      worktreePath: string
+      submodulePath: string
+      connectionId?: string
+    }): Promise<void> => ipcRenderer.invoke('git:submodulePull', args),
     bulkDiscard: (args: {
       worktreePath: string
       filePaths: string[]

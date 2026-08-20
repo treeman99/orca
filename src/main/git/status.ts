@@ -43,6 +43,11 @@ import { StatusPorcelainParser } from '../../shared/git-status-porcelain-parser'
 import { buildGitStatusCommandArgs } from '../../shared/git-status-command-args'
 import { applySubmoduleIgnorePolicyToEntries } from '../../shared/git-submodule-ignore-policy'
 import {
+  parseSubmoduleConfigOutput,
+  type GitSubmoduleConfigEntry
+} from '../../shared/git-submodule-list'
+import { isUnbornHeadGitError } from '../../shared/git-unborn-head-error'
+import {
   clearSubmoduleIgnorePolicyCache,
   readSubmoduleIgnorePolicy
 } from './submodule-ignore-config'
@@ -89,7 +94,7 @@ type EffectiveUpstreamStatusCacheEntry = {
 
 const SUBMODULE_PATHS_CACHE_TTL_MS = 5_000
 export const MAX_SUBMODULE_PATHS_CACHE_ENTRIES = 512
-type SubmodulePathsCacheEntry = { paths: string[]; expiresAt: number }
+type SubmodulePathsCacheEntry = { entries: GitSubmoduleConfigEntry[]; expiresAt: number }
 const submodulePathsCache = new Map<string, SubmodulePathsCacheEntry>()
 let submodulePathsCacheGeneration = 0
 
@@ -173,7 +178,7 @@ function trimSubmodulePathsCache(): void {
   }
 }
 
-function getCachedSubmodulePaths(cacheKey: string, now: number): string[] | null {
+function getCachedSubmodulePaths(cacheKey: string, now: number): GitSubmoduleConfigEntry[] | null {
   const cached = submodulePathsCache.get(cacheKey)
   if (!cached) {
     return null
@@ -184,12 +189,16 @@ function getCachedSubmodulePaths(cacheKey: string, now: number): string[] | null
   }
   submodulePathsCache.delete(cacheKey)
   submodulePathsCache.set(cacheKey, cached)
-  return cached.paths
+  return cached.entries
 }
 
-function rememberSubmodulePaths(cacheKey: string, paths: string[], now: number): void {
+function rememberSubmodulePaths(
+  cacheKey: string,
+  entries: GitSubmoduleConfigEntry[],
+  now: number
+): void {
   submodulePathsCache.delete(cacheKey)
-  submodulePathsCache.set(cacheKey, { paths, expiresAt: now + SUBMODULE_PATHS_CACHE_TTL_MS })
+  submodulePathsCache.set(cacheKey, { entries, expiresAt: now + SUBMODULE_PATHS_CACHE_TTL_MS })
   trimSubmodulePathsCache()
 }
 
@@ -1065,13 +1074,13 @@ export async function resolveGitDir(worktreePath: string): Promise<string> {
 }
 
 /**
- * List configured submodule paths (relative, forward-slash) for a worktree, cached
+ * Configured submodules (name + relative forward-slash path) for a worktree, cached
  * briefly. Read from `.gitmodules` to avoid an index-wide `ls-files` scan.
  */
-export async function listSubmodulePaths(
+export async function listSubmoduleConfigEntries(
   worktreePath: string,
   options: GitRuntimeOptions = {}
-): Promise<string[]> {
+): Promise<GitSubmoduleConfigEntry[]> {
   const now = Date.now()
   const cacheKey = getSubmodulePathsCacheKey(worktreePath, options)
   const cached = getCachedSubmodulePaths(cacheKey, now)
@@ -1081,32 +1090,29 @@ export async function listSubmodulePaths(
   // Why: prune on misses so removed worktrees don't accumulate; hot hits stay O(1).
   pruneExpiredSubmodulePathsCache(now)
   const cacheGeneration = submodulePathsCacheGeneration
-  let paths: string[] = []
+  let entries: GitSubmoduleConfigEntry[] = []
   try {
     const { stdout } = await gitExecFileAsync(
       ['config', '--file', '.gitmodules', '--get-regexp', '^submodule\\..*\\.path$'],
       { ...gitOptionsForWorktree(worktreePath, options), env: gitOptionalLocksDisabledEnv() }
     )
-    paths = stdout
-      .split(/\r?\n/)
-      .map((line) => {
-        const spaceIndex = line.indexOf(' ')
-        return spaceIndex === -1
-          ? ''
-          : line
-              .slice(spaceIndex + 1)
-              .trim()
-              .replace(/\/+$/, '')
-      })
-      .filter((value) => value.length > 0)
+    entries = parseSubmoduleConfigOutput(stdout)
   } catch {
     // No .gitmodules (or git config failure) — treat as a repo without submodules.
-    paths = []
+    entries = []
   }
   if (cacheGeneration === submodulePathsCacheGeneration) {
-    rememberSubmodulePaths(cacheKey, paths, Date.now())
+    rememberSubmodulePaths(cacheKey, entries, Date.now())
   }
-  return paths
+  return entries
+}
+
+/** Configured submodule paths only (relative, forward-slash). */
+export async function listSubmodulePaths(
+  worktreePath: string,
+  options: GitRuntimeOptions = {}
+): Promise<string[]> {
+  return (await listSubmoduleConfigEntries(worktreePath, options)).map((entry) => entry.path)
 }
 
 /**
@@ -1963,11 +1969,35 @@ export async function unstageFile(
 ): Promise<void> {
   invalidateGitReadCaches()
   try {
-    await gitExecFileAsync(['restore', '--staged', '--', literalPathspec(filePath, options)], {
-      ...gitOptionsForWorktree(worktreePath, options)
-    })
+    await unstagePathspecs(worktreePath, [literalPathspec(filePath, options)], options)
   } finally {
     invalidateGitReadCaches()
+  }
+}
+
+/**
+ * `git restore --staged`, falling back to `git reset` before the first commit.
+ *
+ * Why the fallback: `restore --staged` resolves HEAD and exits 128 on an unborn branch,
+ * so a repository with no commit yet — the normal state of a freshly added submodule —
+ * could stage but never unstage. `reset` treats a missing HEAD as the empty tree.
+ */
+async function unstagePathspecs(
+  worktreePath: string,
+  pathspecs: string[],
+  options: GitRuntimeOptions
+): Promise<void> {
+  try {
+    await gitExecFileAsync(['restore', '--staged', '--', ...pathspecs], {
+      ...gitOptionsForWorktree(worktreePath, options)
+    })
+  } catch (error) {
+    if (!isUnbornHeadGitError(error)) {
+      throw error
+    }
+    await gitExecFileAsync(['reset', '-q', '--', ...pathspecs], {
+      ...gitOptionsForWorktree(worktreePath, options)
+    })
   }
 }
 
@@ -2318,16 +2348,10 @@ export async function bulkUnstageFiles(
   try {
     for (let i = 0; i < filePaths.length; i += BULK_CHUNK_SIZE) {
       const chunk = filePaths.slice(i, i + BULK_CHUNK_SIZE)
-      await gitExecFileAsync(
-        [
-          'restore',
-          '--staged',
-          '--',
-          ...chunk.map((filePath) => literalPathspec(filePath, options))
-        ],
-        {
-          ...gitOptionsForWorktree(worktreePath, options)
-        }
+      await unstagePathspecs(
+        worktreePath,
+        chunk.map((filePath) => literalPathspec(filePath, options)),
+        options
       )
     }
   } finally {

@@ -12296,7 +12296,9 @@
             "refresh": "Refresh",
             "dismissError": "Dismiss",
             "tooManyChanges": "Too many changes to list. Ignore the folder that is flooding status, then refresh.",
-            "noChanges": "No changes detected."
+            "noChanges": "No changes detected.",
+            "submoduleLoading": "Reading submodule status…",
+            "submoduleNotInitialized": "This submodule is not checked out yet. Run git submodule update --init to see its changes."
           },
           "vscodeScm": {
             "bothModified": "Both modified",
@@ -15913,7 +15915,10 @@
     "submoduleUntrackedContent": "untracked content",
     "discardFailed": "Could not discard {{path}}: {{message}}",
     "discardSubmodulePointerScope": "This restores the submodule \"{{path}}\" to the commit this repository records. The submodule ends up on a detached HEAD — the branch checked out inside it will not be kept.",
-    "discardSubmoduleFileScope": "This file belongs to the submodule \"{{path}}\" and is restored to THAT submodule's HEAD, not to the commit this repository records."
+    "discardSubmoduleFileScope": "This file belongs to the submodule \"{{path}}\" and is restored to THAT submodule's HEAD, not to the commit this repository records.",
+    "submoduleDetectionLimit": "Only the first {{count}} submodules are shown. The rest are not listed here.",
+    "submoduleWriteUnsupportedHost": "This host does not support submodule write operations. Update Orca on the remote host to stage, commit, or push inside a submodule.",
+    "submoduleUnsafePath": "Orca refused this path: it does not resolve inside the submodule."
   },
   "featureTips": {
     "voice": {
