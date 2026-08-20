@@ -45,7 +45,6 @@ export class RelaySessionBroker {
       mobileSocketWiring: options.mobileSocketWiring,
       isCurrent: () => this.isCurrent(),
       onStatus: (status) => this.publishStatus(status),
-      resolvePreferredRegion: options.resolvePreferredRegion,
       fetch: options.fetch,
       createControlSocket: options.createControlSocket,
       createDataSocket: options.createDataSocket,
@@ -198,15 +197,12 @@ export class RelaySessionBroker {
 
   private async open(accessToken: string): Promise<void> {
     this.publishStatus('connecting')
-    const [authorization, preferredRegion] = await Promise.all([
-      exchangeRelayAuthorization({
-        endpoint: this.options.authConfig.relayTokenEndpoint,
-        accessToken,
-        keypair: this.options.keypair,
-        fetch: this.options.fetch
-      }),
-      this.options.resolvePreferredRegion?.().catch(() => undefined) ?? Promise.resolve(undefined)
-    ])
+    const authorization = await exchangeRelayAuthorization({
+      endpoint: this.options.authConfig.relayTokenEndpoint,
+      accessToken,
+      keypair: this.options.keypair,
+      fetch: this.options.fetch
+    })
     this.assertCurrent()
     const assignment = await requestRelayAssignment({
       directorUrl: this.options.authConfig.relayDirectorUrl,
@@ -216,7 +212,6 @@ export class RelaySessionBroker {
       // director verifies the claim, and first-ever pairing simply falls
       // through to the placement lane.
       reconnect: true,
-      preferredRegion,
       fetch: this.options.fetch
     })
     this.assertCurrent()

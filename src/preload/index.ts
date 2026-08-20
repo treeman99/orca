@@ -4,6 +4,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 import { preloadE2EConfig } from './e2e-config'
 import { glApi } from './gitlab'
 import type { AppIdentity } from '../shared/app-identity'
+import type { MacCapturedDigitRowChord } from '../shared/macos-symbolic-hotkeys'
 import type { ComputerAwakeStatus } from '../shared/computer-awake-mode'
 import type {
   DashboardRevealAgentArgs,
@@ -534,6 +535,8 @@ const api = {
     // Why: macOS input mode (or layout ID) so keyboard workarounds can tell CJK/compose layouts from US QWERTY (issue #1205); null on non-Darwin or read failure.
     getKeyboardInputSourceId: (): Promise<string | null> =>
       ipcRenderer.invoke('app:getKeyboardInputSourceId'),
+    getMacCapturedDigitRowChords: (): Promise<MacCapturedDigitRowChord[]> =>
+      ipcRenderer.invoke('app:getMacCapturedDigitRowChords'),
     setUnreadDockBadgeCount: (count: number): Promise<void> =>
       ipcRenderer.invoke('app:setUnreadDockBadgeCount', count),
     getFloatingTerminalCwd: (args?: FloatingTerminalCwdRequest): Promise<string> =>
@@ -783,6 +786,7 @@ const api = {
 
   worktrees: {
     list: (args) => ipcRenderer.invoke('worktrees:list', args),
+    listRetiredNames: (args) => ipcRenderer.invoke('worktrees:listRetiredNames', args),
 
     listDetected: (args) => ipcRenderer.invoke('worktrees:listDetected', args),
 
@@ -2132,8 +2136,10 @@ const api = {
     list: (): Promise<unknown> => ipcRenderer.invoke('codexAccounts:list'),
     add: (args?: { runtime?: 'host' | 'wsl'; wslDistro?: string | null }): Promise<unknown> =>
       ipcRenderer.invoke('codexAccounts:add', args),
-    reauthenticate: (args: { accountId: string }): Promise<unknown> =>
-      ipcRenderer.invoke('codexAccounts:reauthenticate', args),
+    reauthenticate: (args: {
+      accountId: string
+      activateIfSelectionWasEmpty?: boolean
+    }): Promise<unknown> => ipcRenderer.invoke('codexAccounts:reauthenticate', args),
     remove: (args: { accountId: string }): Promise<unknown> =>
       ipcRenderer.invoke('codexAccounts:remove', args),
     select: (args: {
@@ -3047,6 +3053,7 @@ const api = {
     suspendWorkspace: (args) => ipcRenderer.invoke('ephemeralVm:suspendWorkspace', args),
     resumeWorkspace: (args) => ipcRenderer.invoke('ephemeralVm:resumeWorkspace', args),
     cleanup: (args) => ipcRenderer.invoke('ephemeralVm:cleanup', args),
+    stopCleanup: (args) => ipcRenderer.invoke('ephemeralVm:stopCleanup', args),
     getCleanupCommand: (args) => ipcRenderer.invoke('ephemeralVm:getCleanupCommand', args)
   } satisfies PreloadApi['ephemeralVm'],
 
@@ -4731,8 +4738,6 @@ const api = {
       | {
           available: true
           qrDataUrl: string | null
-          /** Natural bitmap width and height in pixels. */
-          qrSize: number | null
           qrError?: 'encoding_failed'
           pairingUrl: string
           /** Null when no direct address was advertised — the QR pairs over Relay alone. */

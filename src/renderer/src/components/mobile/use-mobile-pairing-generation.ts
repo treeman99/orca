@@ -23,7 +23,6 @@ export function useMobilePairingGeneration(params: {
   hasGeneratedRef: MutableRef<boolean>
   pairingRequestIdRef: MutableRef<number>
   setPairQrDataUrl: (value: string | null) => void
-  setPairQrSize: (value: number | null) => void
   setPairingUrl: (value: string | null) => void
   setPairingQrError: (value: boolean) => void
   setPairLoading: (value: boolean) => void
@@ -43,7 +42,6 @@ export function useMobilePairingGeneration(params: {
     hasGeneratedRef,
     pairingRequestIdRef,
     setPairQrDataUrl,
-    setPairQrSize,
     setPairingUrl,
     setPairingQrError,
     setPairLoading,
@@ -78,7 +76,6 @@ export function useMobilePairingGeneration(params: {
         if (result.available) {
           if (mountedRef.current) {
             setPairQrDataUrl(result.qrDataUrl)
-            setPairQrSize(result.qrSize)
             setPairingUrl(result.pairingUrl)
             setPairingQrError(result.qrDataUrl === null)
             setRelayMintFailure(null)
@@ -87,7 +84,6 @@ export function useMobilePairingGeneration(params: {
           // Why: keep hasGenerated so step-2 auto-mint does not loop on failure.
           if (mountedRef.current) {
             setPairQrDataUrl(null)
-            setPairQrSize(null)
             setPairingUrl(null)
             setPairingQrError(false)
             if (result.reason === 'relay_mint_failed' && result.relayFailure) {
@@ -110,7 +106,6 @@ export function useMobilePairingGeneration(params: {
         if (mountedRef.current && requestId === pairingRequestIdRef.current) {
           hasGeneratedRef.current = false
           setPairQrDataUrl(null)
-          setPairQrSize(null)
           setPairingUrl(null)
           setPairingQrError(false)
           setRelayMintFailure(null)
@@ -135,7 +130,6 @@ export function useMobilePairingGeneration(params: {
       selectedAddress,
       setPairLoading,
       setPairQrDataUrl,
-      setPairQrSize,
       setPairingUrl,
       setPairingQrError,
       setRelayMintFailure,

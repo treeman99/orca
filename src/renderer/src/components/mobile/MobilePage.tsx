@@ -33,7 +33,6 @@ export default function MobilePage(): React.JSX.Element {
   const [iosChannel, setIosChannel] = useState<IosChannel>('preview')
 
   const [pairQrDataUrl, setPairQrDataUrl] = useState<string | null>(null)
-  const [pairQrSize, setPairQrSize] = useState<number | null>(null)
   const [pairingUrl, setPairingUrl] = useState<string | null>(null)
   const [pairingQrError, setPairingQrError] = useState(false)
   const [relayMintFailure, setRelayMintFailure] = useState<MobileRelayMintFailure | null>(null)
@@ -86,7 +85,6 @@ export default function MobilePage(): React.JSX.Element {
     hasGeneratedRef,
     pairingRequestIdRef,
     setPairQrDataUrl,
-    setPairQrSize,
     setPairingUrl,
     setPairingQrError,
     setPairLoading,
@@ -111,7 +109,6 @@ export default function MobilePage(): React.JSX.Element {
       pairingRequestIdRef.current += 1
       hasGeneratedRef.current = false
       setPairQrDataUrl(null)
-      setPairQrSize(null)
       setPairingUrl(null)
       setPairingQrError(false)
       setRelayMintFailure(null)
@@ -174,7 +171,6 @@ export default function MobilePage(): React.JSX.Element {
     hasGeneratedRef,
     pairingRequestIdRef,
     setPairQrDataUrl,
-    setPairQrSize,
     setPairingUrl,
     setPairingQrError,
     setPairLoading,
@@ -266,7 +262,6 @@ export default function MobilePage(): React.JSX.Element {
   const enterFlow = (): void => {
     hasGeneratedRef.current = false
     setPairQrDataUrl(null)
-    setPairQrSize(null)
     setPairingUrl(null)
     setPairingQrError(false)
     setRelayMintFailure(null)
@@ -278,7 +273,6 @@ export default function MobilePage(): React.JSX.Element {
   const pairAnotherDevice = (): void => {
     hasGeneratedRef.current = false
     setPairQrDataUrl(null)
-    setPairQrSize(null)
     setPairingUrl(null)
     setPairingQrError(false)
     setRelayMintFailure(null)
@@ -334,7 +328,6 @@ export default function MobilePage(): React.JSX.Element {
       connectionMode={connectionMode}
       handleConnectionModeChange={handleConnectionModeChange}
       pairQrDataUrl={pairQrDataUrl}
-      pairQrSize={pairQrSize}
       pairingUrl={pairingUrl}
       pairingQrError={pairingQrError}
       relayMintFailure={
