@@ -15,10 +15,19 @@ export type SearchFileResult = {
   matchCount?: number
 }
 
+/** Which backend produced a result. Optional: a pre-v1.5 remote host omits it. */
+export type SearchEngine = 'ripgrep' | 'git-grep'
+
 export type SearchResult = {
   files: SearchFileResult[]
   totalMatches: number
   truncated: boolean
+  engine?: SearchEngine
+  /**
+   * Submodules the git-grep fallback left unsearched because an include/exclude
+   * glob had no submodule-relative equivalent. Parent-worktree-relative paths.
+   */
+  skippedSubmodules?: string[]
 }
 
 export type SearchOptions = {

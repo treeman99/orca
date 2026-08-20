@@ -15939,5 +15939,11 @@
       "confirmationRequiredSingle": "Pull request #{{pr}} belongs to a GitHub stack, so merging it here goes through GitHub stack merge and takes {{prCount}} pull request. Merge it from the review sidebar in Orca desktop, which shows exactly which pull requests are included before you confirm.",
       "confirmationRequiredMultiple": "Pull request #{{pr}} belongs to a GitHub stack, so merging it here would merge {{prCount}} pull requests atomically. Merge it from the review sidebar in Orca desktop, which shows exactly which pull requests are included before you confirm."
     }
+  },
+  "search": {
+    "fallbackEngine": {
+      "notice": "ripgrep is not installed, so search is using a limited git-based fallback.",
+      "skippedSubmodules": "These submodules were skipped because the file filter has no equivalent inside them: {{value0}}"
+    }
   }
 }

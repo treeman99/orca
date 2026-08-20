@@ -1050,7 +1050,7 @@ export function registerFilesystemHandlers(
           }
           resolvePromise(result)
         }
-        const resolveOnce = (): void => finish(finalize(acc))
+        const resolveOnce = (): void => finish(finalize(acc, 'ripgrep'))
         const resolveWithoutRipgrep = (): void =>
           finish(searchWithGitGrep(rootPath, args, maxResults, localGitOptions))
 

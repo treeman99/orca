@@ -2142,7 +2142,7 @@ export class RuntimeFileCommands {
         cleanupListeners()
         resolvePromise(result)
       }
-      const resolveOnce = (): void => finish(finalize(acc))
+      const resolveOnce = (): void => finish(finalize(acc, 'ripgrep'))
       const resolveWithoutRipgrep = (): void =>
         finish(searchWithGitGrep(authorizedRootPath, options, maxResults, localGitOptions))
 

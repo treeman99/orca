@@ -7,6 +7,7 @@ import type {
 } from '../../../../shared/code-search-types'
 import type { SearchRow } from './search-rows'
 import { FileResultRow, MatchResultRow } from './SearchResultItems'
+import { SearchDegradedEngineNotice } from './search-degraded-engine-notice'
 import { translate } from '@/i18n/i18n'
 
 const SEARCH_VIRTUAL_OVERSCAN = 12
@@ -66,6 +67,10 @@ export function SearchResultsPane({
 
   return (
     <>
+      {/* Why outside the summary block: the fallback notice must also show when
+         the degraded engine found nothing, which is exactly the confusing case. */}
+      <SearchDegradedEngineNotice results={results} />
+
       {/* Why: the summary is rendered outside the virtualizer so it stays
          pinned at the top while the user scrolls through results. */}
       {results && rows.length > 0 && (

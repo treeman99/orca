@@ -15,6 +15,7 @@ import { assertJsonTextStructureWithinLimits } from './json-text-structure-limit
 import { normalizeSearchResult } from './search-match-count'
 import { escapeRegex } from './string-utils'
 import type {
+  SearchEngine,
   SearchFileResult,
   SearchMatch,
   SearchOptions,
@@ -25,10 +26,12 @@ export type SearchAccumulator = {
   fileMap: Map<string, SearchFileResult>
   totalMatches: number
   truncated: boolean
+  /** Submodule paths the caller gave up on; surfaced by {@link finalize}. */
+  skippedSubmodules: string[]
 }
 
 export function createAccumulator(): SearchAccumulator {
-  return { fileMap: new Map(), totalMatches: 0, truncated: false }
+  return { fileMap: new Map(), totalMatches: 0, truncated: false, skippedSubmodules: [] }
 }
 
 function acceptMatch(fileResult: SearchFileResult): void {
@@ -374,12 +377,17 @@ export function buildSubmatchRegex(
   }
 }
 
+/**
+ * @param relPathPrefix parent-relative directory the emitting `git grep` ran in
+ * (a submodule root), so its own-root paths come back as parent-root paths.
+ */
 export function ingestGitGrepLine(
   line: string,
   rootPath: string,
   submatchRegex: RegExp | null,
   acc: SearchAccumulator,
-  maxResults: number
+  maxResults: number,
+  relPathPrefix?: string
 ): 'continue' | 'stop' {
   if (acc.totalMatches >= maxResults) {
     return 'stop'
@@ -393,7 +401,10 @@ export function ingestGitGrepLine(
   if (nullIdx === -1) {
     return 'continue'
   }
-  const relPath = normalizeRelativePath(line.substring(0, nullIdx))
+  const ownRelPath = normalizeRelativePath(line.substring(0, nullIdx))
+  const relPath = relPathPrefix
+    ? normalizeRelativePath(`${relPathPrefix}/${ownRelPath}`)
+    : ownRelPath
   const rest = line.substring(nullIdx + 1)
   const secondNullIdx = rest.indexOf('\0')
   let lineNumberText: string
@@ -459,10 +470,17 @@ export function ingestGitGrepLine(
 
 // ─── finalize ───────────────────────────────────────────────────────
 
-export function finalize(acc: SearchAccumulator): SearchResult {
-  return normalizeSearchResult({
+export function finalize(acc: SearchAccumulator, engine?: SearchEngine): SearchResult {
+  const result: SearchResult = normalizeSearchResult({
     files: Array.from(acc.fileMap.values()).filter((file) => file.matches.length > 0),
     totalMatches: acc.totalMatches,
     truncated: acc.truncated
   })
+  if (engine) {
+    result.engine = engine
+  }
+  if (acc.skippedSubmodules.length > 0) {
+    result.skippedSubmodules = [...acc.skippedSubmodules]
+  }
+  return result
 }

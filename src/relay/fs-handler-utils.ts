@@ -116,7 +116,7 @@ export function searchWithRg(
         stdio: ['ignore', 'pipe', 'pipe']
       })
     } catch {
-      resolve(finalize(acc))
+      resolve(finalize(acc, 'ripgrep'))
       return
     }
 
@@ -138,7 +138,7 @@ export function searchWithRg(
         errorObserved: processErrorObserved,
         unavailableExitObserved
       })
-      resolve(finalize(acc))
+      resolve(finalize(acc, 'ripgrep'))
     }
 
     function rejectUnavailable(): void {

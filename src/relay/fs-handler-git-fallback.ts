@@ -18,15 +18,17 @@ import {
   expandQuickOpenGitFileListing,
   parseQuickOpenGitLsFilesEntry
 } from '../shared/quick-open-readdir-walk'
+import { ingestGitGrepChild } from '../shared/git-grep-stream-ingest'
 import {
   buildGitGrepArgs,
   buildSubmatchRegex,
   createAccumulator,
   finalize,
-  ingestGitGrepLine,
   SEARCH_TIMEOUT_MS
 } from '../shared/text-search'
+import { runGitGrepSubmodulePasses } from '../shared/text-search-submodule-pass'
 import { buildRelayGitEnv } from './relay-command-env'
+import { relaySubmoduleSearchHost } from './fs-handler-git-search-submodules'
 
 /**
  * List files using `git ls-files`. Fallback when rg is not installed.
@@ -267,82 +269,43 @@ export function listFilesWithGit(
 
 /**
  * Text search using `git grep`. Fallback when rg is not installed.
+ *
+ * Two passes: the parent worktree with `--untracked --no-recurse-submodules` (git
+ * refuses to combine those two), then one pass per initialized submodule. Without
+ * the second pass a remote repo whose code lives in submodules looks empty.
  */
-export function searchWithGitGrep(
+export async function searchWithGitGrep(
   rootPath: string,
   query: string,
   opts: SearchOptions
 ): Promise<SearchResult> {
-  return new Promise((resolve) => {
-    const gitArgs = buildGitGrepArgs(query, opts)
-    const matchRegex = buildSubmatchRegex(query, opts)
-    const acc = createAccumulator()
-    let stdoutBuffer = ''
-    let done = false
+  const deadlineAt = Date.now() + SEARCH_TIMEOUT_MS
+  const acc = createAccumulator()
+  const matchRegex = buildSubmatchRegex(query, opts)
+  const host = relaySubmoduleSearchHost
 
-    const child = spawn('git', gitArgs, {
-      cwd: rootPath,
-      env: buildRelayGitEnv(),
-      stdio: ['ignore', 'pipe', 'pipe']
+  try {
+    const child = await host.spawnGitGrep(rootPath, buildGitGrepArgs(query, opts))
+    await ingestGitGrepChild(child, {
+      rootPath,
+      matchRegex,
+      acc,
+      maxResults: opts.maxResults,
+      timeoutMs: deadlineAt - Date.now()
     })
-    let killTimeout: ReturnType<typeof setTimeout>
+  } catch {
+    // A failed parent pass must not cost the submodule results.
+  }
 
-    function resolveOnce(): void {
-      if (done) {
-        return
-      }
-      done = true
-      clearTimeout(killTimeout)
-      // Why: child.kill() is advisory. If git ignores it, detach our
-      // closures so repeated relay searches do not retain old scans.
-      child.stdout!.off('data', handleStdoutData)
-      child.stderr!.off('data', handleStderrData)
-      child.off('error', handleError)
-      child.off('close', handleClose)
-      resolve(finalize(acc))
-    }
-
-    function processLine(line: string): void {
-      const verdict = ingestGitGrepLine(line, rootPath, matchRegex, acc, opts.maxResults)
-      if (verdict === 'stop') {
-        child.kill()
-      }
-    }
-
-    function handleStdoutData(chunk: string): void {
-      stdoutBuffer += chunk
-      const lines = stdoutBuffer.split('\n')
-      stdoutBuffer = lines.pop() ?? ''
-      for (const l of lines) {
-        processLine(l)
-      }
-    }
-
-    function handleStderrData(): void {
-      /* drain */
-    }
-
-    function handleError(): void {
-      resolveOnce()
-    }
-
-    function handleClose(): void {
-      if (stdoutBuffer) {
-        processLine(stdoutBuffer)
-      }
-      resolveOnce()
-    }
-
-    child.stdout!.setEncoding('utf-8')
-    child.stdout!.on('data', handleStdoutData)
-    child.stderr!.on('data', handleStderrData)
-    child.once('error', handleError)
-    child.once('close', handleClose)
-
-    killTimeout = setTimeout(() => {
-      acc.truncated = true
-      child.kill()
-      resolveOnce()
-    }, SEARCH_TIMEOUT_MS)
+  await runGitGrepSubmodulePasses({
+    rootPath,
+    query,
+    opts,
+    matchRegex,
+    acc,
+    maxResults: opts.maxResults,
+    deadlineAt,
+    host
   })
+  return finalize(acc, 'git-grep')
 }

@@ -5,7 +5,10 @@ const { spawnMock } = vi.hoisted(() => ({
 }))
 
 vi.mock('child_process', () => ({
-  spawn: spawnMock
+  spawn: spawnMock,
+  // The submodule pass reads .gitmodules through execFile; a stub keeps this
+  // suite focused on stream handling without spawning real git.
+  execFile: vi.fn()
 }))
 
 import { EventEmitter } from 'node:events'
@@ -39,6 +42,11 @@ describe('relay git grep fallback', () => {
 
       const promise = searchWithGitGrep('/remote/root', 'ok', { maxResults: 100 })
 
+      // Why waitFor: the parent pass is spawned behind an await now, so the
+      // listeners are not attached in the same tick the call returns.
+      await vi.waitFor(() =>
+        expect((proc.stdout as unknown as EventEmitter).listenerCount('data')).toBeGreaterThan(0)
+      )
       ;(proc.stdout as unknown as EventEmitter).emit('data', 'valid.ts\x001\x00ok\npartial')
 
       await vi.runOnlyPendingTimersAsync()

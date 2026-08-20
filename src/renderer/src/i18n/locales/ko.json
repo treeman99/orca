@@ -14852,5 +14852,11 @@
       "confirmationRequiredSingle": "풀 리퀘스트 #{{pr}}은(는) GitHub 스택에 속해 있어, 여기서 병합하면 GitHub 스택 병합으로 처리되어 풀 리퀘스트 {{prCount}}건이 병합됩니다. Orca 데스크톱의 리뷰 사이드바에서 병합하세요. 확인하기 전에 어떤 풀 리퀘스트가 포함되는지 정확히 보여 줍니다.",
       "confirmationRequiredMultiple": "풀 리퀘스트 #{{pr}}은(는) GitHub 스택에 속해 있어, 여기서 병합하면 풀 리퀘스트 {{prCount}}건이 원자적으로 함께 병합됩니다. Orca 데스크톱의 리뷰 사이드바에서 병합하세요. 확인하기 전에 어떤 풀 리퀘스트가 포함되는지 정확히 보여 줍니다."
     }
+  },
+  "search": {
+    "fallbackEngine": {
+      "notice": "ripgrep이 설치되어 있지 않아 기능이 제한된 git 기반 검색을 사용 중입니다.",
+      "skippedSubmodules": "파일 필터를 서브모듈 기준으로 변환할 수 없어 다음 서브모듈은 검색하지 않았습니다: {{value0}}"
+    }
   }
 }

@@ -1,17 +1,18 @@
 import type { SearchOptions, SearchResult } from '../../shared/code-search-types'
+import { ingestGitGrepChild } from '../../shared/git-grep-stream-ingest'
 import {
   buildGitGrepArgs,
   buildSubmatchRegex,
   createAccumulator,
   finalize,
-  ingestGitGrepLine,
   SEARCH_TIMEOUT_MS
 } from '../../shared/text-search'
-import { gitSpawnAfterWindowsEnvironmentReady } from '../git/runner'
+import { runGitGrepSubmodulePasses } from '../../shared/text-search-submodule-pass'
 import {
   isWslLinkedWorktreeGitRoutingCandidate,
   prepareWslLinkedWorktreeGitRouting
 } from '../git/wsl-linked-worktree-git-routing'
+import { createLocalSubmoduleSearchHost } from './filesystem-search-git-submodules'
 
 /**
  * Fallback text search using git grep. Used when rg is not available.
@@ -19,6 +20,10 @@ import {
  * Why: On Linux, rg may not be installed or may not be in PATH when the app
  * is launched from a desktop entry (which inherits a minimal system PATH).
  * git grep is always available since this is a git-focused app.
+ *
+ * Two passes: the parent worktree with `--untracked --no-recurse-submodules`
+ * (git refuses to combine those two), then one pass per initialized submodule.
+ * Without the second pass a repo whose code lives in submodules looks empty.
  */
 export async function searchWithGitGrep(
   rootPath: string,
@@ -26,79 +31,36 @@ export async function searchWithGitGrep(
   maxResults: number,
   localGitOptions: { wslDistro?: string } = {}
 ): Promise<SearchResult> {
+  const deadlineAt = Date.now() + SEARCH_TIMEOUT_MS
   if (isWslLinkedWorktreeGitRoutingCandidate(rootPath, localGitOptions.wslDistro)) {
     await prepareWslLinkedWorktreeGitRouting(rootPath, localGitOptions.wslDistro)
   }
-  const gitArgs = buildGitGrepArgs(args.query, args)
-  const child = await gitSpawnAfterWindowsEnvironmentReady(gitArgs, {
-    cwd: rootPath,
-    ...(localGitOptions.wslDistro ? { wslDistro: localGitOptions.wslDistro } : {}),
-    stdio: ['ignore', 'pipe', 'pipe']
+  const host = createLocalSubmoduleSearchHost(localGitOptions)
+  const acc = createAccumulator()
+  const matchRegex = buildSubmatchRegex(args.query, args)
+
+  try {
+    const child = await host.spawnGitGrep(rootPath, buildGitGrepArgs(args.query, args))
+    await ingestGitGrepChild(child, {
+      rootPath,
+      matchRegex,
+      acc,
+      maxResults,
+      timeoutMs: deadlineAt - Date.now()
+    })
+  } catch {
+    // A failed parent pass must not cost the submodule results.
+  }
+
+  await runGitGrepSubmodulePasses({
+    rootPath,
+    query: args.query,
+    opts: args,
+    matchRegex,
+    acc,
+    maxResults,
+    deadlineAt,
+    host
   })
-  return new Promise((resolve) => {
-    const matchRegex = buildSubmatchRegex(args.query, args)
-    const acc = createAccumulator()
-    let stdoutBuffer = ''
-    let done = false
-
-    let killTimeout: ReturnType<typeof setTimeout>
-
-    function resolveOnce(): void {
-      if (done) {
-        return
-      }
-      done = true
-      clearTimeout(killTimeout)
-      // Why: child.kill() is advisory. If git ignores it, detach our
-      // closures so repeated fallback searches do not retain old scans.
-      child.stdout!.off('data', handleStdoutData)
-      child.stderr!.off('data', handleStderrData)
-      child.off('error', handleError)
-      child.off('close', handleClose)
-      resolve(finalize(acc))
-    }
-
-    function processLine(line: string): void {
-      const verdict = ingestGitGrepLine(line, rootPath, matchRegex, acc, maxResults)
-      if (verdict === 'stop') {
-        child.kill()
-      }
-    }
-
-    function handleStdoutData(chunk: string): void {
-      stdoutBuffer += chunk
-      const lines = stdoutBuffer.split('\n')
-      stdoutBuffer = lines.pop() ?? ''
-      for (const l of lines) {
-        processLine(l)
-      }
-    }
-
-    function handleStderrData(): void {
-      /* drain */
-    }
-
-    function handleError(): void {
-      resolveOnce()
-    }
-
-    function handleClose(): void {
-      if (stdoutBuffer) {
-        processLine(stdoutBuffer)
-      }
-      resolveOnce()
-    }
-
-    child.stdout!.setEncoding('utf-8')
-    child.stdout!.on('data', handleStdoutData)
-    child.stderr!.on('data', handleStderrData)
-    child.once('error', handleError)
-    child.once('close', handleClose)
-
-    killTimeout = setTimeout(() => {
-      acc.truncated = true
-      child.kill()
-      resolveOnce()
-    }, SEARCH_TIMEOUT_MS)
-  })
+  return finalize(acc, 'git-grep')
 }
