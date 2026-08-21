@@ -1,5 +1,10 @@
 import type { RefObject } from 'react'
 
+import {
+  DEAD_TUI_SHELL_HANDOFF_RESET,
+  SAVE_GROUNDED_CURSOR
+} from '../../../../shared/terminal-mode-reset-profiles'
+
 export type RestoredViewportBlankingPanesRef = RefObject<Set<number>>
 
 /** Whether a restored pane's cursor was re-anchored by an authoritative repaint. */
@@ -32,4 +37,37 @@ export function shouldBlankRestoredViewportOnReattach(args: {
   cursorAuthority: RestoredViewportCursorAuthority
 }): boolean {
   return args.hasRestoredViewport && args.cursorAuthority === 'restored-buffer-only'
+}
+
+/**
+ * Viewport reset a pane needs before a replacement shell writes into it.
+ *
+ * Blanking alone is enough only while the pane sits on the normal buffer. A
+ * dead agent TUI leaves `?1049h` unbalanced, so the scroll runs on the
+ * alternate buffer — which has no scrollback — and the restored rows stay
+ * parked in the normal buffer with the dead run's cursor. The next `?1049l`
+ * (ConPTY's startup sync, a resumed agent, a pager) then drops the live shell
+ * straight back on top of them: the "restart draws the new prompt over the old
+ * conversation" report.
+ *
+ * The alt-screen exit is conditional because `?1049l` is not a no-op on a pane
+ * already on the normal buffer — xterm skips the swap but still runs
+ * restoreCursor(), which would fling the cursor at a stale DECSC register.
+ *
+ * `ownerProcessEnded` is the seam against a live reattach: only a pane whose
+ * process is gone may have its modes, pen and saved cursor grounded, because a
+ * reattached TUI still owns all three.
+ */
+export function buildRestoredViewportResetSequence(args: {
+  rows: number
+  paneOnAlternateScreen: boolean
+  ownerProcessEnded: boolean
+}): string {
+  const leaveAlternateScreen = args.paneOnAlternateScreen ? '\x1b[?1049l' : ''
+  const groundDeadTuiState = args.ownerProcessEnded ? DEAD_TUI_SHELL_HANDOFF_RESET : ''
+  // After the blanking homes the cursor, so a stray DECRC lands on a clean row.
+  const groundSavedCursor = args.ownerProcessEnded ? SAVE_GROUNDED_CURSOR : ''
+  return `${leaveAlternateScreen}${groundDeadTuiState}${buildFreshShellViewportBlankingSequence(
+    args.rows
+  )}${groundSavedCursor}`
 }

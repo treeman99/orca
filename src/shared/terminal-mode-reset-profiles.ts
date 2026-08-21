@@ -69,10 +69,15 @@ const REPLAY_BASELINE_TERMINAL_RESET = `${RESET_GRAPHIC_RENDITION}\x0f\x1b(B\x1b
 // them across nor clears them unless it actually swaps.
 const REPLAY_BASELINE_BUFFER_RESET = '\x1b[r'
 
+// Handing a pane from a DEAD TUI to a fresh shell: POST_REPLAY_MODE_RESET grounds
+// only what a snapshot re-asserts, so add the pen and the G0 charset the dead app
+// left designated (G1-G3 stay untouched for the `enacs` reason above).
+export const DEAD_TUI_SHELL_HANDOFF_RESET = `${RESET_GRAPHIC_RENDITION}\x0f\x1b(B${POST_REPLAY_MODE_RESET}`
+
 // Last, so the saved-cursor register holds grounded state — otherwise a stranded
 // `ESC 7` is reachable through the live TUI's next `ESC 8`. Only a floor: a
 // snapshot carrying the model's own DECSC epilogue overwrites it.
-const SAVE_GROUNDED_CURSOR = '\x1b7'
+export const SAVE_GROUNDED_CURSOR = '\x1b7'
 
 /**
  * Prologue that puts a pane on `targetAlternateScreen` and grounds it for a

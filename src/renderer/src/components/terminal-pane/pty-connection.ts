@@ -129,7 +129,7 @@ import {
   RESET_TERMINAL_CURSOR_STYLE
 } from '../../../../shared/terminal-mode-reset-profiles'
 import {
-  buildFreshShellViewportBlankingSequence,
+  buildRestoredViewportResetSequence,
   shouldBlankRestoredViewportOnReattach
 } from './terminal-restored-viewport'
 import { getSystemPrefersDark } from '@/lib/terminal-theme'
@@ -5571,8 +5571,20 @@ export function connectPanePty(
       return deps.restoredViewportBlankingPanesRef?.current.delete(pane.id) ?? false
     }
 
-    const writeFreshShellViewportBlanking = (rows = pane.terminal.rows): void => {
-      writeReplayData(buildFreshShellViewportBlankingSequence(rows))
+    // Why ownerProcessEnded is a parameter: only a pane whose process is gone may
+    // have the dead TUI's modes, pen and saved cursor grounded — a live reattach
+    // still owns all three.
+    const writeRestoredViewportReset = (args: {
+      ownerProcessEnded: boolean
+      rows?: number
+    }): void => {
+      writeReplayData(
+        buildRestoredViewportResetSequence({
+          rows: args.rows ?? pane.terminal.rows,
+          paneOnAlternateScreen: isPaneOnAlternateScreen(),
+          ownerProcessEnded: args.ownerProcessEnded
+        })
+      )
     }
 
     const prepareFreshShellViewportForSpawn = (options: FreshSpawnOptions): void => {
@@ -5582,7 +5594,7 @@ export function connectPanePty(
       }
       // Why: fresh Windows ConPTY output paints at screen coordinates, so
       // restored rows must leave the viewport before the first prompt redraw.
-      writeFreshShellViewportBlanking()
+      writeRestoredViewportReset({ ownerProcessEnded: true })
     }
 
     const sendFocusedReattachFocusInAfterReplay = (
@@ -8492,7 +8504,10 @@ export function connectPanePty(
           kittyKeyboardModes.reset()
           consumeRestoredViewportBlankingMarker()
           // Why: a taller destination fit must not pull recovered rows back into the fresh shell's viewport after source-grid replay.
-          writeFreshShellViewportBlanking(Math.max(destinationRows, pane.terminal.rows))
+          writeRestoredViewportReset({
+            ownerProcessEnded: true,
+            rows: Math.max(destinationRows, pane.terminal.rows)
+          })
           if (!isRemoteRuntimePtyId(ptyId)) {
             window.api.pty.ackColdRestore(ptyId)
           }
@@ -8521,7 +8536,9 @@ export function connectPanePty(
           })
         ) {
           consumeRestoredViewportBlankingMarker()
-          writeFreshShellViewportBlanking()
+          // Why not ownerProcessEnded: this reattach found a LIVE session; only
+          // the payload is missing, so its modes and pen are still owned.
+          writeRestoredViewportReset({ ownerProcessEnded: false })
         }
       }
 

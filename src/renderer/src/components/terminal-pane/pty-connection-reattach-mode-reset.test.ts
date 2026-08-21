@@ -468,7 +468,8 @@ describe('connectPanePty', () => {
       )
       const output = writes.join('')
       const snapshotIndex = output.indexOf('\x1b[?1003h\x1b[?1006h\x1b[?2004huser@host ~ $ ')
-      const resetIndex = output.indexOf(POST_REPLAY_MODE_RESET)
+      // lastIndexOf: the fresh spawn this answered already ground the pane for a dead session.
+      const resetIndex = output.lastIndexOf(POST_REPLAY_MODE_RESET)
       expect(snapshotIndex).toBeGreaterThanOrEqual(0)
       expect(resetIndex).toBeGreaterThan(snapshotIndex)
       expect(writes).toContain(POST_REPLAY_MODE_RESET)

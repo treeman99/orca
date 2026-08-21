@@ -2,7 +2,7 @@ import type * as React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { POST_REPLAY_MODE_RESET } from '../../../../shared/terminal-mode-reset-profiles'
 import { Terminal } from '@xterm/headless'
-import { buildFreshShellViewportBlankingSequence } from './terminal-restored-viewport'
+import { buildRestoredViewportResetSequence } from './terminal-restored-viewport'
 import {
   flushAsyncTicks,
   writeHeadlessTerminal,
@@ -259,7 +259,11 @@ describe('connectPanePty', () => {
     connectPanePty(pane as never, manager as never, deps as never)
     await flushAsyncTicks(20)
 
-    const blankViewport = buildFreshShellViewportBlankingSequence(4)
+    const blankViewport = buildRestoredViewportResetSequence({
+      rows: 4,
+      paneOnAlternateScreen: false,
+      ownerProcessEnded: true
+    })
     expect(written).toContain(blankViewport)
     expect(written.indexOf(blankViewport)).toBeLessThan(written.indexOf('PS >'))
 
@@ -352,7 +356,11 @@ describe('connectPanePty', () => {
     preResizeBarrier.release?.()
     await flushAsyncTicks(20)
 
-    const blankViewport = buildFreshShellViewportBlankingSequence(destinationRows)
+    const blankViewport = buildRestoredViewportResetSequence({
+      rows: destinationRows,
+      paneOnAlternateScreen: false,
+      ownerProcessEnded: true
+    })
     expect(pane.terminal.resize).toHaveBeenCalledWith(recoveredCols, recoveredRows)
     expect(transport.resize).not.toHaveBeenCalledWith(recoveredCols, recoveredRows)
     expect(transport.resize).toHaveBeenCalledWith(destinationCols, destinationRows)
