@@ -74,13 +74,15 @@ macOS/Linux에서 개발한다면 마지막 두 줄만 동일하게 실행하면
 | `userData` | `%APPDATA%\orca-dev` (`src/main/startup/configure-process.ts`). `ORCA_DEV_USER_DATA_PATH`로 더 격리 가능 | `%APPDATA%\Orca` |
 | 정책 환경변수 | `ORCA_ENTERPRISE_POLICY`가 **1순위**, 무력화 값으로 탐색 전체를 끌 수 있음 | 후보 **추가**만 가능(`enterprise-policy-file.ts`) |
 | `[enterprise-policy]` / `[enterprise-network]` stderr | **터미널에 그대로 보임** | 콘솔 없는 GUI 프로세스라 소실(`enterprise-policy-file.ts`) |
-| 자동 업데이트 | 양쪽 모두 **소스에 없음** — 업데이터·넛지·릴리스 채널 모듈이 삭제됐습니다([감사 문서 §3](./external-integrations-audit.md)). `disableAutoUpdate`는 아무도 읽지 않는 dead switch입니다(`src/shared/enterprise-policy.ts`) | 동일 |
+| 자동 업데이트 | 양쪽 모두 **벤더 업데이터는 소스에 없음** — electron-updater 피드·넛지·changelog·릴리스 채널·자동 설치 모듈이 삭제된 상태 그대로입니다([감사 문서 §3](./external-integrations-audit.md)). 대신 **사내 GHES 릴리스 태그 조회 + "새 버전" 팝업** 레인 하나가 있고(감사 §3.0), `disableAutoUpdate`가 그 레인을 끕니다 — **dead switch가 아닙니다** | 동일 |
 | 텔레메트리 전송 | 키가 컴파일 상수라 dev 빌드는 **전송 자체가 불가**(`CLAUDE.md`) | 정책·동의에 따름 |
 | 트레이스 로그 | `%APPDATA%\orca-dev\logs\main.trace.ndjson` | `%APPDATA%\Orca\logs\main.trace.ndjson` |
 
 정리하면 **`disableTelemetry`의 "실제로 나가지 않는다"는 개발 인스턴스로 증명할 수 없습니다.** 정책이 그 값으로 해석됐다는 것까지만 §5로 확인하고, 게이트 동작 자체는 §8이나 설치본에서 보세요.
 
-`disableAutoUpdate`는 다릅니다 — 게이트를 시험할 대상 코드 자체가 없습니다. 키가 `LOCKDOWN_INHERITING_KEYS`에 남아 있는 이유는 **업스트림 리베이스가 업데이터를 되살렸을 때 기본값으로 다시 잠기게 하려는 것**이며, 배포된 정책 파일이 이 키를 계속 쓰더라도 경고 없이 파싱되도록 하기 위함입니다. 리베이스 후에는 이 스위치가 아니라 업데이터 모듈이 되돌아왔는지를 봐야 합니다([감사 문서 §3](./external-integrations-audit.md)의 탐지 명령).
+`disableAutoUpdate`는 dev 인스턴스에서 **직접 시험할 수 있습니다** (2026-08-21~). 앱을 켜 두고 2분 기다리면(첫 조회는 60초 뒤) 사내 GHES의 릴리스 태그를 읽어 현재 빌드보다 높은 stable 태그가 있을 때 팝업이 뜹니다. `true`면 팝업도 `gh` 스폰도 없습니다. 조회가 실패하면(gh 미인증·네트워크 없음·태그 없음) **아무 알림도 뜨지 않는 것이 정상**이므로, "팝업이 안 뜬다"만으로 게이트가 걸렸다고 판정하지 마십시오 — `gh api --hostname <ghes> repos/DPI/Orcads/releases`를 손으로 한 번 돌려 조회 자체가 되는지부터 확인하세요.
+
+⚠️ 이 키가 `false`라도 **벤더 인앱 업데이터가 살아나지는 않습니다** — 다운로드·설치·자가교체 코드는 저장소에 없습니다. 리베이스 후에는 이 스위치와 별개로 업데이터 모듈이 되돌아왔는지를 봐야 합니다([감사 문서 §3](./external-integrations-audit.md)의 탐지 명령).
 
 ---
 
@@ -179,7 +181,7 @@ Select-String -Path "$env:APPDATA\orca-dev\logs\main.trace.ndjson" -Pattern "ent
 
 ### 6-6. 나머지 스위치
 
-[레퍼런스 §7-1](./enterprise-policy.md)의 동작 확인 표를 그대로 쓰되, §4 표의 제약(텔레메트리는 dev에서 증명 불가, `disableAutoUpdate`는 대상 코드 자체가 없음)을 감안하세요.
+[레퍼런스 §7-1](./enterprise-policy.md)의 동작 확인 표를 그대로 쓰되, §4 표의 제약(텔레메트리는 dev에서 증명 불가)을 감안하세요. `disableAutoUpdate`는 §4에 적은 대로 dev에서도 확인할 수 있습니다.
 
 ---
 

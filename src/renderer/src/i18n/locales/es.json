@@ -841,6 +841,13 @@
       }
     },
     "components": {
+      "AppUpdateAvailableDialog": {
+        "title": "Hay una versión más reciente de Orca",
+        "description": "Estás usando {{value0}}. La página de versiones de la empresa muestra {{value1}}. Orca no instala actualizaciones por ti: abre la página de versiones para obtener la nueva compilación.",
+        "skip": "Omitir esta versión",
+        "later": "Más tarde",
+        "openReleasePage": "Abrir página de versiones"
+      },
       "CodexRestartChip": {
         "c72a5fb234": "Reiniciar",
         "9263e75f49": "Codex está usando la cuenta anterior.",

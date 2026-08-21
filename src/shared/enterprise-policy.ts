@@ -15,10 +15,17 @@ export type EnterprisePolicy = {
   lockdown: boolean
   /** Suppress PostHog telemetry and the diagnostics/crash bundle upload lane. */
   disableTelemetry: boolean
-  /** Fork: dead switch. The in-app updater was removed from this build's source,
-   *  so nothing reads this. Kept in LOCKDOWN_INHERITING_KEYS so an upstream rebase
-   *  that restores the updater is locked down again by default, and so policy
-   *  files already deployed with this key keep parsing without a warning. */
+  /**
+   * Suppress the update-availability check against the corporate GitHub Enterprise
+   * host, and with it the "a newer release exists" dialog.
+   *
+   * Fork: this build has no in-app updater — nothing downloads, installs, or
+   * replaces the app, and `electron-updater` is not a dependency. The only thing
+   * this switch turns off is a `gh api` read of the release tags in
+   * `updateReleaseRepository` plus the notification it feeds. Off by default under
+   * `lockdown` because a fleet on staged corporate software distribution should not
+   * be told to go fetch a build itself.
+   */
   disableAutoUpdate: boolean
   /** Suppress the "star stablyai/orca" check/write that hits github.com SaaS. */
   disableStarNag: boolean
@@ -126,6 +133,16 @@ export type EnterprisePolicy = {
   /** Private GitHub Enterprise host, e.g. "github.samsungds.net". */
   githubEnterpriseHost: string | null
   /**
+   * `OWNER/REPO` on `githubEnterpriseHost` whose release tags say what the newest
+   * build is. `null` means "use the build's own default" — this is not a switch, so
+   * it does not inherit `lockdown`; `disableAutoUpdate` is what turns the lane off.
+   *
+   * A key rather than a source constant because the host beside it is already one:
+   * a fleet that moves or renames the release repository would otherwise need a new
+   * build to keep the check working.
+   */
+  updateReleaseRepository: string | null
+  /**
    * Agent CLIs a user may select (by TuiAgent id, e.g. "claude"). `null` means no
    * restriction (upstream behavior); a list confines every picker to those ids so a
    * Bedrock-only fleet can hide OpenAI/Gemini/etc. The self-hosted models are not
@@ -169,6 +186,7 @@ const KNOWN_KEYS: ReadonlySet<string> = new Set<string>([
   '$schema',
   'lockdown',
   'githubEnterpriseHost',
+  'updateReleaseRepository',
   'allowedAgents',
   'allowedNetworkHosts',
   // Retired: the self-hosted model lane was removed. Still accepted so a deployed
@@ -248,6 +266,25 @@ function readHost(
     warnings.push(`"${key}" is blank; ignoring it.`)
   }
   return host
+}
+
+// `OWNER/REPO` only: never a URL and never a host, so a pasted release-page link
+// cannot redirect the lookup off `githubEnterpriseHost`. An unusable value warns and
+// returns null, which leaves the build's own default coordinate in force.
+function readRepositoryCoordinate(
+  document: EnterprisePolicyDocument,
+  key: string,
+  warnings: string[]
+): string | null {
+  const raw = document[key]
+  if (raw === undefined) {
+    return null
+  }
+  if (typeof raw !== 'string' || !/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(raw.trim())) {
+    warnings.push(`"${key}" must be "OWNER/REPO"; ignoring ${JSON.stringify(raw)}.`)
+    return null
+  }
+  return raw.trim()
 }
 
 // Returns null (no restriction) for an absent list, and — deliberately — also for
@@ -369,6 +406,11 @@ export function resolveEnterprisePolicy(
     enforceNetworkAllowlist: readBoolean(effective, 'enforceNetworkAllowlist', warnings) ?? false,
     allowedNetworkHosts: [...allowed],
     githubEnterpriseHost,
+    updateReleaseRepository: readRepositoryCoordinate(
+      effective,
+      'updateReleaseRepository',
+      warnings
+    ),
     allowedAgents,
     sourcePath,
     warnings

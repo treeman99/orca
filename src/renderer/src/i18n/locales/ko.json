@@ -841,6 +841,13 @@
       }
     },
     "components": {
+      "AppUpdateAvailableDialog": {
+        "title": "Orca 새 버전이 있습니다",
+        "description": "현재 {{value0}}을(를) 쓰고 있습니다. 사내 릴리스 페이지에는 {{value1}}이(가) 올라와 있습니다. Orca는 업데이트를 대신 설치하지 않습니다 — 릴리스 페이지를 열어 새 빌드를 받으세요.",
+        "skip": "이 버전은 건너뛰기",
+        "later": "나중에",
+        "openReleasePage": "릴리스 페이지 열기"
+      },
       "CodexRestartChip": {
         "c72a5fb234": "다시 시작",
         "9263e75f49": "Codex는 이전 계정을 사용하고 있습니다",

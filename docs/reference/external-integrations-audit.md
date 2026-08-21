@@ -44,7 +44,7 @@
 | **정책 적용 자체 (배포 형태)** | 설치 프로그램이 기본 정책을 **내장**하므로 설치만으로 잠김 (§0.1) | ✅ 번들 정책 (`resources/enterprise-policy.json` → `<resourcesPath>`), `%ProgramData%` 배치는 이제 선택 | 🔴 per-user 설치라 설치 폴더가 사용자 소유 — 표준 사용자가 번들 파일을 지우면 그 PC는 풀립니다 (§0.2 #21) |
 | **프록시 / 사설 CA** | Orca가 지원 (Electron 세션 한정) | — | 🔴 Node `fetch`/`node:https` 경로는 프록시를 안 탐 (§5) |
 | **텔레메트리 / 진단 / 크래시** | opt-in(기본 꺼짐) + 공식 빌드에서만 전송 | ✅ `disableTelemetry` | 없음 (로컬 NDJSON 로깅은 유지, 망 밖으로 안 나감) |
-| **자동 업데이트 / 넛지 (onorca.dev, github.com)** | 로그인 무관하게 나감 | 🚫 **코드에서 제거됨** | 없음 (정책이 아니라 소스에서 삭제, §3) |
+| **자동 업데이트 / 넛지 (onorca.dev, github.com)** | 로그인 무관하게 나감 | 🚫 **코드에서 제거됨** | 없음 (정책이 아니라 소스에서 삭제, §3). ⚠️ 대신 **사내 GHES 릴리스 태그 조회 1건**이 새로 있습니다 — 알림 전용, 다운로드·설치 없음, `disableAutoUpdate`로 차단(§3.0) |
 | **star-nag (github.com SaaS 고정)** | 랜딩·설정 화면 진입, 에이전트 완료, 온보딩 완료, 스폰 임계치에서 발동 | ✅ `disableStarNag` | 없음 (`gh` 호출 함수 자체에서 차단, §1) |
 | **Orca Cloud 로그인 / 모바일 페어링 릴레이** | 로그인 안 하면 안 나감 | 🚫 **코드에서 제거됨** (v1.4.178~, §3.1) | 없음. LAN/Tailscale 페어링 QR은 **여전히 발급됩니다** — 릴레이가 아니라 모바일 자체를 닫는 건 `disableMobilePairing`입니다 |
 | **Artifacts 공유 (v1.4.178 신규)** — HTML/Markdown 파일 본문을 벤더 호스트로 발행 | 업스트림 기본값은 사용자 설정으로 꺼져 있으나 UI에서 두 번 클릭이면 켜짐 | 🚫 **코드에서 제거됨** (§3.1) | 없음 (정책이 아니라 소스에서 차단) |
@@ -123,18 +123,19 @@
 | `lockdown` | boolean | `false` | 마스터 스위치. 아래 `disable*` 상속 스위치들(`LOCKDOWN_INHERITING_KEYS`)의 기본값이 됩니다 (`src/shared/enterprise-policy.ts:157-175`, `:358-362`) |
 | `githubEnterpriseHost` | string | `GH_HOST` → `gh` 자체 설정의 기본 호스트(`src/main/github/gh-config-host.ts`) → `null` | 허용목록 자동 추가(`src/shared/enterprise-policy.ts:370-371`) · 설정 → GitHub Enterprise 팬의 로그인 대상 기본값(`src/main/ipc/github-enterprise.ts:83-86`, 사용자가 저장한 호스트가 없을 때) · GHES 퍼머링크(blob/commit URL) 인식(`src/main/git/hosted-remote-url.ts:38-42`) · `disableVendorLinks`의 GHES 예외(`src/main/enterprise/enterprise-vendor-link-guard.ts:80-83`). 예전의 "Gitea 폴백 후보에서 제외" 역할은 Gitea 연동 자체가 제거되어(커밋 `4d58e5f21c`) 사라졌습니다. **`gh`의 대상 호스트는 바꾸지 않습니다** (§7 레벨 2) |
 | `disableTelemetry` | boolean | = `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88`) **및** 진단/크래시 번들 업로드 (`src/main/observability/index.ts:103,120-133`). 로컬 NDJSON 로깅은 유지(`localFileEnabled: true`, `:130`) |
-| `disableAutoUpdate` | boolean | = `lockdown` | 🔴 **죽은 스위치.** 인앱 업데이터가 코드에서 제거되어(§3) 이 키를 읽는 게이트가 저장소에 없습니다. 리베이스 안전판 겸 기존 정책 파일 호환을 위해 키만 유지합니다 |
+| `disableAutoUpdate` | boolean | = `lockdown` | ✅ **살아 있는 스위치 (2026-08-21~).** 사내 GHES 릴리스 태그 조회와 "새 버전 있음" 팝업을 끕니다(§3.0). 초크포인트는 `AppUpdateCheckService.check()` 하나. 벤더 업데이터를 되살리는 키가 **아닙니다** — `false`여도 다운로드·설치 코드는 저장소에 없습니다. 리베이스가 업스트림 업데이터를 되살려도 `lockdown`이 이 키로 다시 덮습니다 |
 | `disableStarNag` | boolean | = `lockdown` | `checkOrcaStarred()` (`src/main/github/client.ts:341`) / `starOrca()` (`:527`) |
-| `disableCloudRelay` | boolean | = `lockdown` | 🔴 **사실상 죽은 스위치 (v1.4.178~).** 같은 함수 `getOrcaCloudAuthConfig()`에서 **정책 검사보다 앞에** 무조건 차단이 들어갔으므로(§3.1), 이 키가 무엇이든 클라우드는 미구성입니다. `disableAutoUpdate`와 같은 이유로 키만 유지합니다 — 리베이스 안전판 겸 기존 정책 파일 호환. ⚠️ 예전에도 지금도 **LAN 전용 페어링은 계속 동작합니다** — 모바일 자체를 막는 건 `disableMobilePairing`입니다 |
+| `disableCloudRelay` | boolean | = `lockdown` | 🔴 **사실상 죽은 스위치 (v1.4.178~).** 같은 함수 `getOrcaCloudAuthConfig()`에서 **정책 검사보다 앞에** 무조건 차단이 들어갔으므로(§3.1), 이 키가 무엇이든 클라우드는 미구성입니다. 예전 `disableAutoUpdate`와 같은 이유로 키만 유지합니다 — 리베이스 안전판 겸 기존 정책 파일 호환. (`disableAutoUpdate` 쪽은 §3.0으로 다시 살아났습니다.) ⚠️ 예전에도 지금도 **LAN 전용 페어링은 계속 동작합니다** — 모바일 자체를 막는 건 `disableMobilePairing`입니다 |
 | `disableUsagePolling` | boolean | = `lockdown` | `src/main/rate-limits/service.ts:824`의 술어를 `start()`(`:353`), `fetchAll`/`fetchCodexOnly`/`fetchClaudeOnly`/`fetchGrokOnly`(`:998,1063,1125,1190`), 계정 스위처 프리뷰 2종(`:572,652`), Codex 리셋 크레딧 POST(`:478`)에서 검사 |
 | `disableManagedClaudeAccounts` | boolean | = `lockdown` | Orca 관리형 Claude 계정. 게이트 3곳: `platform.claude.com` 회전 함수 진입부(`src/main/claude-accounts/oauth-refresh.ts:131-133`), 인증 준비에서 활성 계정을 `null`로 고정(`src/main/claude-accounts/runtime-auth-service.ts:613-616`), 환경 스트립 최후 방어선(`src/main/claude-accounts/environment.ts:22`) (§4) |
 | `disableSpellcheck` | boolean | = `lockdown` | `webPreferences.spellcheck`를 끄는 지점 **5곳**: 메인 창(`src/main/window/createMainWindow.ts:306`), `will-attach-webview` 게스트(`:494`), 대시보드 팝아웃 창(`src/main/window/dashboard-popout-window.ts:181`), 오프스크린 브라우저 백엔드(`src/main/browser/offscreen-browser-backend.ts:45`), PDF 내보내기 WebContents(`src/main/lib/html-to-pdf.ts:46`) |
 | `enforceNetworkAllowlist` | boolean | **`false`** (lockdown이어도) | 호스트 허용목록 하드 게이트 (`src/main/enterprise/enterprise-network-guard.ts`) |
 | `allowedNetworkHosts` | string[] | `[]` + GHES 호스트 | 위 게이트가 켜졌을 때만 의미 있음 (`src/shared/enterprise-policy.ts:369-372`) |
+| `updateReleaseRepository` | string | `null` → 빌드 상수 `DPI/Orcads` | §3.0의 릴리스 조회 대상 `OWNER/REPO`. `lockdown`을 상속하지 않습니다(스위치가 아니라 값). URL이나 호스트는 받지 않습니다 — 붙여 넣은 릴리스 페이지 링크가 조회 대상을 `githubEnterpriseHost` 밖으로 돌리지 못하게 `OWNER/REPO` 형식만 통과시키고, 형식이 어긋나면 경고 후 빌드 기본값이 그대로 섭니다 (`src/shared/enterprise-policy.ts`의 `readRepositoryCoordinate`) |
 
 동작 규칙:
 
-- **개별 스위치가 마스터보다 우선합니다.** `"lockdown": true` + `"disableStarNag": false` 조합으로 한 기능만 되살릴 수 있습니다. (`disableAutoUpdate`는 예외 — 되살릴 코드가 없습니다, §3)
+- **개별 스위치가 마스터보다 우선합니다.** `"lockdown": true` + `"disableStarNag": false` 조합으로 한 기능만 되살릴 수 있습니다. (`disableAutoUpdate: false`는 사내 GHES 릴리스 조회만 되살립니다 — 벤더 업데이터는 코드에 없습니다, §3·§3.0)
 - **인식할 수 없는 값은 “없음”으로 취급**되어 `lockdown`을 상속하며, 절대 “꺼짐”으로 읽지 않습니다 — 관리자 오타가 머신을 조용히 풀어버리는 것을 막기 위함입니다 (`src/shared/enterprise-policy.ts:200-223`). stderr에 경고를 냅니다.
 - **모르는 키도 경고**를 냅니다 (`:352-356`).
 - `enforceNetworkAllowlist`만 `lockdown` 상속에서 제외됩니다 (`:386-388`). 하드 허용목록은 기능 스위치와 달리 배포를 통째로 망가뜨릴 수 있어 관리자가 명시적으로 켜야 합니다.
@@ -147,7 +148,7 @@
 {
   "lockdown": true,
   "githubEnterpriseHost": "github.samsungds.net",
-  // 개별 스위치만 예외로 되살릴 수 있음 (disableAutoUpdate는 제외 — §3)
+  // 개별 스위치만 예외로 되살릴 수 있음 (disableAutoUpdate: false는 사내 GHES 릴리스 조회만 되살림 — §3.0)
   // "disableStarNag": false,
   "enforceNetworkAllowlist": false,
   "allowedNetworkHosts": ["github.samsungds.net"]
@@ -195,7 +196,7 @@
 | 18 | **렌더러 게이트가 보이지 않는 클라이언트** | — (도달 범위 문제) | `pnpm dev:web`, `orca serve`의 브라우저 클라이언트 | 웹 preload에는 `enterprisePolicy` API가 **없어서** 정책 뷰가 항상 "제한 없음"으로 떨어집니다. `disableVoice`·`disableMobilePairing`·`disableRemoteOrcaServer`·`disableUsagePolling` 등 **표시 게이트 전부**가 그 클라이언트에서는 무효입니다 — 그래서 메인 쪽 거부(에이전트 탐지 필터, 에뮬레이터 RPC 거부, 외부 자동화 거부)가 belt-and-braces가 아니라 **유일한 방어선**입니다 | `src/renderer/src/web/web-preload-api.ts`(해당 키 없음), `src/renderer/src/enterprise/enterprise-policy-access.ts` |
 | 19 | **플러그인 시스템** — 벤더 마켓플레이스 인덱스 `git clone` / 벤더 kill-list `fetch` / 플러그인 워커의 자체 트래픽 | `github.com/stablyai/orca-plugins.git`, `onorca.dev/plugins/kill-list.json`, 사용자가 등록한 임의 Git URL, 워커 코드가 여는 임의 목적지 | 사용자가 설정 → 플러그인을 켠 순간(첫 활성화 시 clone + fetch, 이후 패키지 빌드 매 시작마다 kill-list 갱신). 주기 폴링은 없음 | ✅ **해소됨**: `disablePlugins`가 네 겹으로 덮습니다 — 기능 플래그 대체(`isPluginSystemAllowed`), egress 초크포인트 `runPluginGit()`, `fetchPluginKillList()`, IPC/RPC 미등록. **egress 게이트가 별도로 필요한 이유**: `plugins:install`과 `plugins:refreshMarketplaces`는 기능 플래그를 보지 않고 Git에 도달하고, 그 clone은 자식 프로세스라 #1과 같은 사각지대에 있습니다. 🔴 **잔여**: `disablePlugins: false`로 되돌린 플릿에서는 플러그인 워커(평범한 자식 프로세스)의 트래픽을 어떤 Orca 측 스위치로도 못 막습니다 — 동의 다이얼로그가 이 사실을 사용자에게 명시합니다. 반면 **플러그인 패널은 CSP로 봉인**돼 있습니다(`default-src 'none'; connect-src 'none'; img-src data:`, `src/shared/plugins/plugin-panel-shell.ts:21-22`) 그리고 워커 환경변수는 화이트리스트 17개로 토큰을 상속하지 않습니다(`plugin-worker-env.ts`) | 게이트 `src/main/plugins/plugin-system-policy.ts`, `plugin-git-repository.ts:16`, `plugin-kill-list-service.ts:104`, `src/main/ipc/register-core-handlers.ts:201`, `src/main/index.ts:2703` |
 
-| 20 | **벤더 커뮤니티·문서 링크** (`?` 메뉴의 Discord/X/Docs/Changelog/GitHub, 터미널 에러 토스트의 "file an issue", 프로젝트 뷰의 기능 요청, 첫 실행 배너의 개인정보 처리방침, 피처월 문서 링크) | `discord.gg`, `x.com/orca_build`, `x.com/intent/*`, `github.com/stablyai/*`, `onorca.dev` — 전부 사용자의 **기본 브라우저**로 열림 | 사용자가 해당 항목을 클릭할 때 | ✅ `disableVendorLinks`. 표시 게이트(JSX)와 **메인 프로세스 초크포인트 2곳**(`shell:openUrl` IPC 전체 + `setWindowOpenHandler`/`will-navigate`)을 함께 둡니다 — 후자가 없으면 #18의 웹 클라이언트에서 아무 방어가 없고, 생 `<a href>`는 IPC를 타지 않기 때문입니다. **그 2곳은 "OS 브라우저로 나가는" 레인만 덮습니다** — 판정 함수 `isEnterpriseBlockedVendorLink`의 호출부는 저장소 전체에서 정확히 그 둘입니다. **이것은 egress 차단이 아니라 유출·오지시 차단입니다**: 목적지가 OS 브라우저라 `enforceNetworkAllowlist`가 원리적으로 볼 수 없고, 위험은 트래픽 자체가 아니라 사용자가 공개 채널에 사내 맥락을 적는 것과 이 플릿에 맞지 않는 문서를 읽는 것입니다. 🔴 **잔여 4건**: ① **설정 → Privacy의 "Privacy policy"와 설정 → 일반의 GitHub 링크는 화면에 그대로 남습니다** — 초크포인트가 막으므로 눌러도 아무 일도 일어나지 않지만, 무반응 링크는 그 자체로 결함입니다(표시 게이트 미적용). ② **웹 필터가 아닙니다 — 의도된 범위입니다**(가드 헤더와 정책 타입 주석이 "Not a web filter"라고 못 박습니다). 내장 브라우저 주소창 직접 입력과 PR 본문 링크뿐 아니라, **사용자 설정 `openLinksInApp`이 켜진 플릿에서는 터미널 출력·마크다운 프리뷰·체크 패널에서 클릭한 벤더 링크도 `shell:openUrl` 대신 인앱 브라우저 탭으로 열려 두 초크포인트를 지나지 않습니다.** 기본값은 `false`이지만 첫 터미널 링크 클릭 시 뜨는 라우팅 다이얼로그의 autoFocus 기본 버튼이 "Open in Orca"라 사용자의 한 번의 선택으로 영구 전환됩니다. 목적지가 임베디드 브라우저라 #12의 의도된 예외와 같은 자리이지만, **이 스위치의 실효 범위가 정책 파일이 아니라 사용자 설정에 좌우된다**는 사실은 적어 둘 값이 있습니다. ③ 예전에는 업데이터가 `net.fetch`로 `github.com/stablyai/orca/releases`와 `onorca.dev` 넛지에 나갔고 그것은 이 스위치가 아니라 `disableAutoUpdate`의 몫이었습니다 — 지금은 **그 코드 자체가 없습니다**(§3). ④ **정책을 보지 않는 세 번째 `shell.openExternal`이 있습니다** — 내장 브라우저 게스트의 `setWindowOpenHandler`(`browser-manager.ts:749`). 사용자가 이미 연 페이지의 **스크립트 팝업**(클릭 앵커가 아닌 `window.open`)이, 그 게스트가 브라우저 탭에 아직 또는 더 이상 등록되지 않은 좁은 상태(`browserTabId === null`)에서만 이 분기로 떨어집니다. 정상 등록 상태에서는 같은 URL이 OS 브라우저가 아니라 Orca 내부 origin-bar 팝업 창으로 열립니다. **Orca가 스스로 광고하는 벤더 링크는 이 레인을 하나도 지나가지 않으므로 통제 실패가 아니라 레인 일관성 문제**이지만, `grep shell.openExternal`을 돌리는 검토자가 반드시 마주치므로 "초크포인트 2곳"이라는 표현과 함께 여기 적어 둡니다(닫으려면 1줄 — 그 파일은 이미 `getEnterprisePolicy`를 import합니다) | 규칙표 `src/main/enterprise/enterprise-vendor-link-guard.ts`, 초크포인트 `src/main/ipc/shell-open-url.ts:28`·`src/main/window/privileged-window-navigation.ts:9`, 잔여 ① `settings/PrivacyPane.tsx:107`·`settings/GeneralSupportSection.tsx:49`, ② `src/renderer/src/lib/http-link-routing.ts:115-145`·`src/shared/constants.ts:263`·`link-routing-preference-dialog.tsx:234`, ④ `src/main/browser/browser-manager.ts:744-788` |
+| 20 | **벤더 커뮤니티·문서 링크** (`?` 메뉴의 Discord/X/Docs/Changelog/GitHub, 터미널 에러 토스트의 "file an issue", 프로젝트 뷰의 기능 요청, 첫 실행 배너의 개인정보 처리방침, 피처월 문서 링크) | `discord.gg`, `x.com/orca_build`, `x.com/intent/*`, `github.com/stablyai/*`, `onorca.dev` — 전부 사용자의 **기본 브라우저**로 열림 | 사용자가 해당 항목을 클릭할 때 | ✅ `disableVendorLinks`. 표시 게이트(JSX)와 **메인 프로세스 초크포인트 2곳**(`shell:openUrl` IPC 전체 + `setWindowOpenHandler`/`will-navigate`)을 함께 둡니다 — 후자가 없으면 #18의 웹 클라이언트에서 아무 방어가 없고, 생 `<a href>`는 IPC를 타지 않기 때문입니다. **그 2곳은 "OS 브라우저로 나가는" 레인만 덮습니다** — 판정 함수 `isEnterpriseBlockedVendorLink`의 호출부는 저장소 전체에서 정확히 그 둘입니다. **이것은 egress 차단이 아니라 유출·오지시 차단입니다**: 목적지가 OS 브라우저라 `enforceNetworkAllowlist`가 원리적으로 볼 수 없고, 위험은 트래픽 자체가 아니라 사용자가 공개 채널에 사내 맥락을 적는 것과 이 플릿에 맞지 않는 문서를 읽는 것입니다. 🔴 **잔여 4건**: ① **설정 → Privacy의 "Privacy policy"와 설정 → 일반의 GitHub 링크는 화면에 그대로 남습니다** — 초크포인트가 막으므로 눌러도 아무 일도 일어나지 않지만, 무반응 링크는 그 자체로 결함입니다(표시 게이트 미적용). ② **웹 필터가 아닙니다 — 의도된 범위입니다**(가드 헤더와 정책 타입 주석이 "Not a web filter"라고 못 박습니다). 내장 브라우저 주소창 직접 입력과 PR 본문 링크뿐 아니라, **사용자 설정 `openLinksInApp`이 켜진 플릿에서는 터미널 출력·마크다운 프리뷰·체크 패널에서 클릭한 벤더 링크도 `shell:openUrl` 대신 인앱 브라우저 탭으로 열려 두 초크포인트를 지나지 않습니다.** 기본값은 `false`이지만 첫 터미널 링크 클릭 시 뜨는 라우팅 다이얼로그의 autoFocus 기본 버튼이 "Open in Orca"라 사용자의 한 번의 선택으로 영구 전환됩니다. 목적지가 임베디드 브라우저라 #12의 의도된 예외와 같은 자리이지만, **이 스위치의 실효 범위가 정책 파일이 아니라 사용자 설정에 좌우된다**는 사실은 적어 둘 값이 있습니다. ③ 예전에는 업데이터가 `net.fetch`로 `github.com/stablyai/orca/releases`와 `onorca.dev` 넛지에 나갔고 그것은 이 스위치가 아니라 `disableAutoUpdate`의 몫이었습니다 — 지금은 **그 코드 자체가 없습니다**(§3). 새로 생긴 §3.0 레인이 여는 링크는 **사내 GHES 릴리스 페이지 하나뿐**이고 이 초크포인트를 정상적으로 지나가며, 벤더 규칙표에 없으므로 통과합니다. ④ **정책을 보지 않는 세 번째 `shell.openExternal`이 있습니다** — 내장 브라우저 게스트의 `setWindowOpenHandler`(`browser-manager.ts:749`). 사용자가 이미 연 페이지의 **스크립트 팝업**(클릭 앵커가 아닌 `window.open`)이, 그 게스트가 브라우저 탭에 아직 또는 더 이상 등록되지 않은 좁은 상태(`browserTabId === null`)에서만 이 분기로 떨어집니다. 정상 등록 상태에서는 같은 URL이 OS 브라우저가 아니라 Orca 내부 origin-bar 팝업 창으로 열립니다. **Orca가 스스로 광고하는 벤더 링크는 이 레인을 하나도 지나가지 않으므로 통제 실패가 아니라 레인 일관성 문제**이지만, `grep shell.openExternal`을 돌리는 검토자가 반드시 마주치므로 "초크포인트 2곳"이라는 표현과 함께 여기 적어 둡니다(닫으려면 1줄 — 그 파일은 이미 `getEnterprisePolicy`를 import합니다) | 규칙표 `src/main/enterprise/enterprise-vendor-link-guard.ts`, 초크포인트 `src/main/ipc/shell-open-url.ts:28`·`src/main/window/privileged-window-navigation.ts:9`, 잔여 ① `settings/PrivacyPane.tsx:107`·`settings/GeneralSupportSection.tsx:49`, ② `src/renderer/src/lib/http-link-routing.ts:115-145`·`src/shared/constants.ts:263`·`link-routing-preference-dialog.tsx:234`, ④ `src/main/browser/browser-manager.ts:744-788` |
 
 | 21 | **번들 정책 파일 자체의 변조·삭제** (egress가 아니라 **잠금의 무결성** 항목입니다) | — (로컬 파일) | 사용자가 설치 폴더의 `enterprise-policy.json`을 지우거나 내용을 바꿀 때 | 🔴 **막지 못합니다.** `nsis` 블록이 `perMachine`을 설정하지 않아 electron-builder 기본값인 **per-user 원클릭 설치**가 적용되고, 설치 위치가 `%LOCALAPPDATA%\Programs\…` — 즉 **그 사용자가 소유한 폴더**입니다. 표준 사용자가 관리자 권한 없이 그 안의 번들 정책을 삭제하거나 `{}`로 덮어쓸 수 있고, 그러면 그 PC는 다음 후보로 내려가 (`%ProgramData%` 파일도 없다면) **업스트림 그대로** 동작합니다. 코드로 닫을 수 있는 구멍이 아닙니다 — 정책 파일을 읽는 프로세스가 그 파일과 같은 신뢰 경계 안에 있기 때문입니다. **대응은 둘뿐입니다**: ① `%ProgramData%\Orca\enterprise-policy.json`에 ACL을 건 파일을 배포하면(§0.1 1순위) 번들이 지워져도 잠금이 남습니다 — 이 경우 GPO 배치는 여전히 필요합니다. ② `nsis.perMachine: true`로 전환해 설치 폴더를 관리자 소유로 만듭니다(설치에 관리자 권한이 필요해지므로 배포 채널이 바뀝니다). **탐지**: 잠긴 플릿의 `main.trace.ndjson`에서 `enterprise.policy.source_path`가 `(none found)`인 PC | `config/electron-builder.config.cjs`의 `nsis` 블록(`perMachine` 미설정), 후보 순서 `enterprise-policy-file.ts:110-113` |
 
@@ -304,9 +305,11 @@ PostHog 레인 (`src/main/telemetry/consent.ts:77-96`):
 
 ---
 
-## 3. 자동 업데이트 / 넛지 (🚫 코드에서 제거됨)
+## 3. 자동 업데이트 / 넛지 (🚫 벤더 레인은 코드에서 제거됨 · ✅ 사내 GHES 릴리스 조회 1건 신설)
 
-**이 포크에는 인앱 업데이터가 없습니다.** 정책으로 막는 것이 아니라 소스에서 삭제했으므로, 정책 파일이 없거나 파싱에 실패해도 아래 레인은 되살아나지 않습니다.
+**이 포크에는 인앱 업데이터가 없습니다.** 정책으로 막는 것이 아니라 소스에서 삭제했으므로, 정책 파일이 없거나 파싱에 실패해도 아래 벤더 레인은 되살아나지 않습니다.
+
+**대신 §3.0의 사내 전용 레인 하나가 새로 생겼습니다** — 사내 GHES의 릴리스 태그를 읽어 "새 버전이 있다"고 알리기만 하는 레인입니다. 다운로드도 설치도 자가교체도 없고 `electron-updater`도 되살아나지 않았습니다. 아래 표의 벤더 목적지는 여전히 전부 삭제 상태입니다.
 
 | 예전 기능 | 예전 호스트 | 지금 상태 |
 | --- | --- | --- |
@@ -320,10 +323,10 @@ PostHog 레인 (`src/main/telemetry/consent.ts:77-96`):
 
 UI 표면도 함께 사라졌습니다 — 앱/Help 메뉴, 트레이, 사이드바 `?` 메뉴, 설정 → 일반, 상태바 업데이트 칩, 업데이트 카드, `window.api.updater.*` preload 계약.
 
-**검증**: `rg -n "electron-updater|updater\.(check|download|install)" src` 가 비어 있어야 합니다. 회귀 방지 테스트는 `src/main/menu/register-app-menu.test.ts`(메뉴에 업데이트 항목 없음), `src/main/runtime/mobile-rpc-allowlist.test.ts`(`updater.*` RPC 자체가 없음), `src/main/startup/serve-desktop-activation-wiring.test.ts`(설치 정책 배선 없음), `src/preload/renderer-restart-wiring.test.ts`(`updater:status` 릴레이 없음)입니다.
+**검증**: `rg -n "electron-updater" package.json pnpm-lock.yaml config/packaged-runtime-node-modules.cjs` 와 `rg -n "from 'electron-updater'|autoUpdater|autoUpdater\.(check|download|install)" src` 가 둘 다 비어 있어야 합니다. (`electron-updater`라는 **문자열** 자체는 §3.0 레인과 정책 타입의 주석에 "여전히 의존성이 아니다"라는 설명으로 남아 있으므로, `src` 전체를 그 단어로 grep하면 주석이 잡힙니다 — 판정은 위 두 명령으로 하십시오.) 회귀 방지 테스트는 `src/main/menu/register-app-menu.test.ts`(메뉴에 업데이트 항목 없음), `src/main/runtime/mobile-rpc-allowlist.test.ts`(`updater.*` RPC 자체가 없음), `src/main/startup/serve-desktop-activation-wiring.test.ts`(설치 정책 배선 없음), `src/preload/renderer-restart-wiring.test.ts`(`updater:status` 릴레이 없음)입니다.
 
 **남은 관련 사항 2건**:
-1. `disableAutoUpdate` 정책 키는 **죽은 스위치로 유지**됩니다. 지우지 않은 이유는 ① 업스트림 리베이스가 업데이터를 되살렸을 때 `lockdown`이 자동으로 다시 덮게 하기 위해서, ② 이미 배포된 정책 파일이 이 키를 담고 있어도 경고 없이 파싱되게 하기 위해서입니다.
+1. `disableAutoUpdate` 정책 키는 **다시 살아 있는 스위치**입니다(2026-08-21~). 예전 판에서 "죽은 스위치"였던 서술은 더는 맞지 않습니다 — §3.0의 사내 릴리스 조회 레인이 이 키를 읽습니다. 벤더 업데이터를 되살리는 키가 아니라는 점은 그대로입니다: 이 키가 `false`여도 다운로드·설치 코드는 저장소에 존재하지 않습니다.
 2. `config/electron-builder.config.cjs`의 `publish` 설정은 그대로입니다. 이것은 **런타임 조회가 아니라 릴리스 업로드 대상**이고, 빌드 셸의 `ORCA_DISABLE_PUBLISH_TARGET=1`로 끕니다. 런타임에 이 값을 읽는 코드는 더 이상 없습니다.
 
 **⚠️ 업데이터 표면은 리베이스마다 새로 들어옵니다.** 삭제는 일회성 작업이 아니라 **머지마다 반복해야 하는 작업**입니다. v1.4.167 → v1.4.176 한 구간에서만 업스트림이 Linux 패키지 설치/복구 업데이터 표면 파일 8종을 새로 들여왔고(`linux-package-install-diagnostic.ts`, `linux-package-update-recovery.ts`, `linux-update-package-type.ts`, `linux-package-install-command.ts`, `updater-linux-package-recovery-actions.test.ts`, `window/updater-package-recovery-ipc.test.ts`, `components/LinuxPackageInstallRecoveryCard.tsx`, `components/UpdateErrorCardContent.tsx`), 그 안에 `github.com/stablyai/orca/releases/tag/…`를 여는 코드가 포함돼 있었습니다. 이 포크는 머지 커밋 `e25a3f0f93`에서 전부 삭제했습니다. **머지 후에는 위 검증 명령에 더해 `git diff --diff-filter=A --name-only <이전태그> <새태그> -- src/ | grep -iE 'updater|update-recovery|release-channel'`도 돌리십시오** — 충돌 없이 조용히 들어오므로 테스트도 타입체크도 잡지 못합니다.
@@ -340,6 +343,33 @@ UI 표면도 함께 사라졌습니다 — 앱/Help 메뉴, 트레이, 사이드
 | v1.4.184 → v1.4.185 | 🔴 **신규 파일 2종 유입** — `src/preload/api/updater-api.ts`(preload 47분할 과정에서 되살아난 `UpdaterApi` 타입 껍데기)와 `src/shared/update-status-types.ts`(`types.ts` 해체로 분리된 `UpdateStatus`/`UpdateCheckOptions`/`LinuxPackageInstallRecovery`). **머지 커밋 `cf73207b45`에서 둘 다 제외**했고, `api-types.ts`의 `updater: UpdaterApi` 키와 도달 불가해진 e2e 스펙(`tests/e2e/update-install-renderer-checkpoint-recovery.spec.ts`)도 같이 지웠습니다. 머지 트리에 남은 매치는 `SkillUpdateRow.tsx`(스킬 업데이트 UI, 앱 업데이터 무관) 하나뿐이고 `electron-updater`/`autoUpdater`/`checkForUpdates` grep은 0건입니다 |
 
 빌드 단계의 phone-home(electron-builder가 github에 업로드 시도)은 [윈도우 빌드 가이드 §5](./windows-corporate-build.md)에서 `--publish never`로 이미 다룹니다.
+
+---
+
+## 3.0 사내 GHES 릴리스 조회 (✅ 신설 — 나가는 목적지 1건 증가)
+
+**2026-08-21에 추가된 유일한 신규 egress입니다.** 사내 요구사항은 "업데이트 팝업을 다시 보되, 버전은 사내 GHES의 태그에서 읽는다"였습니다. 아래가 그 레인의 전부입니다 — 과장 없이 읽으십시오.
+
+| 항목 | 사실 |
+| --- | --- |
+| **목적지** | `https://<githubEnterpriseHost>/api/v3/repos/<updateReleaseRepository>/releases?per_page=30`, 그리고 비어 있거나 404일 때만 `…/tags?per_page=30`. 기본 좌표는 `DPI/Orcads`, 기본 호스트는 정책의 `githubEnterpriseHost`. **벤더 호스트는 코드에서 거부합니다** — 해석 결과가 `github.com`/`api.github.com`이면 조회 자체를 하지 않습니다(`resolveEnterpriseReleaseHost()`의 `isVendorGitHubHost` 검사) |
+| **누가 소켓을 여는가** | Orca가 아니라 **`gh` 자식 프로세스**입니다(`ghExecFileAsync(['api', …], { host })`). 새 HTTP 클라이언트도 새 토큰 저장소도 만들지 않았고, 자격증명은 `gh` 자신의 키링에 있는 기존 GHES 토큰입니다 |
+| **나가는 내용** | 인증된 GET 두 종뿐입니다. 요청 본문 없음, 쿼리에 실리는 사용자·머신·워크스페이스 정보 없음, 실행 중인 버전을 서버에 알리지 않습니다(비교는 전부 로컬) |
+| **주기** | 핸들러 등록 60초 뒤 1회, 이후 6시간 간격. 렌더러가 `appUpdate:check`로 즉시 확인을 요청할 수도 있습니다 |
+| **하지 않는 것** | 다운로드 없음, 설치 없음, 앱 자가교체 없음, 재시작 없음, 릴리스 채널 선택 없음, changelog fetch 없음. `electron-updater`는 **여전히 의존성이 아닙니다**(`package.json`·`pnpm-lock.yaml`·`config/packaged-runtime-node-modules.cjs` 0건). UI가 제공하는 유일한 동작은 사내 릴리스 페이지를 OS 브라우저로 여는 것입니다 |
+| **정책 게이트** | `disableAutoUpdate`. 초크포인트는 `AppUpdateCheckService.check()` 하나이고, 스케줄러·IPC·수동 확인이 전부 그리로 들어갑니다. `lockdown: true`면 기본으로 켜지므로(=레인 차단) 조회 자체가 일어나지 않습니다 |
+| **릴리스 페이지 열기** | `openExternalUrlUnderPolicy()`를 그대로 지납니다 — 즉 §0.2 #20의 `disableVendorLinks` 초크포인트를 통과합니다. 사내 GHES 호스트는 벤더 규칙표에 없으므로 열립니다. 렌더러가 URL을 넘기지 못하게 IPC는 **인자를 받지 않고** 메인이 해석해 둔 URL만 엽니다 |
+| **URL 검증** | API가 준 `html_url`은 우리가 물어본 호스트와 origin이 같을 때만 씁니다. 다르면 `https://<host>/<owner>/<repo>/releases/tag/<tag>`로 직접 조립합니다 |
+| **실패 시** | 조용합니다. `gh` 없음 / 미인증(401) / 네트워크 없음 / 빈 목록 / 파싱 불가한 태그 — 전부 알림 없이 끝나고 사용자에게 오류를 띄우지 않습니다. **파싱 불가한 태그가 "새 버전 있음"으로 읽히지 않는다**는 것을 테스트로 고정했습니다 |
+| **드래프트·프리릴리스** | 둘 다 제외합니다. 릴리스 채널 선택기가 없어 이 플릿의 사용자는 프리릴리스를 고를 수 없고, 태그 폴백에는 플래그가 없으므로 태그의 semver 프리릴리스 suffix(`-rc.1` 등)로도 한 번 더 거릅니다 |
+| **저장하는 것** | "이 버전은 다시 알리지 않음" 한 줄뿐입니다 — `<userData>/app-update-dismissed.json`. 사용자 프로파일이고 정책 파일이 아닙니다 |
+
+**코드 위치**: `src/main/app-update/`(`enterprise-release-lookup.ts` 조회·호스트 해석, `release-tag-selection.ts` 순수 태그 판정, `app-update-check-service.ts` 게이트·스케줄, `update-notice-dismissals.ts` 무시 기록), IPC `src/main/ipc/app-update.ts`, UI `src/renderer/src/components/AppUpdateAvailableDialog.tsx`.
+
+🔴 **잔여 위험 2건** (§0.2와 같은 등급으로 읽으십시오):
+
+1. **`enforceNetworkAllowlist`가 이 레인을 보지 못합니다.** 소켓을 여는 것은 `gh` 자식 프로세스이므로 §0.2 #1의 사각지대와 정확히 같습니다. 목적지가 사내 GHES 하나뿐이고 그 호스트는 어차피 허용목록에 자동 포함되므로 실질 위험은 낮지만, "허용목록이 막아 준다"고 말할 수 있는 항목은 **아닙니다**.
+2. **`disableAutoUpdate`를 `false`로 되돌린 플릿에서는 6시간마다 GHES에 요청이 나갑니다.** 사내 호스트 한 곳이고 인증된 읽기지만, 조회 빈도와 대상 저장소는 `updateReleaseRepository`로 관리자가 지정하는 값이므로 배포 전에 확인하십시오.
 
 ---
 

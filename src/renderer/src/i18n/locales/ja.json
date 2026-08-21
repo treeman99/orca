@@ -841,6 +841,13 @@
       }
     },
     "components": {
+      "AppUpdateAvailableDialog": {
+        "title": "Orca の新しいバージョンがあります",
+        "description": "現在 {{value0}} を使用しています。社内リリースページには {{value1}} が公開されています。Orca は更新を自動でインストールしません — リリースページを開いて新しいビルドを入手してください。",
+        "skip": "このバージョンをスキップ",
+        "later": "後で",
+        "openReleasePage": "リリースページを開く"
+      },
       "CodexRestartChip": {
         "c72a5fb234": "再起動",
         "9263e75f49": "Codex は前のアカウントを使用しています",

@@ -955,6 +955,13 @@
         "title": "Google logins aren't imported",
         "description": "Sign in to Google directly in Orca."
       },
+      "AppUpdateAvailableDialog": {
+        "title": "A newer version of Orca is available",
+        "description": "You are running {{value0}}. The company release page lists {{value1}}. Orca does not install updates for you — open the release page to get the new build.",
+        "skip": "Skip this version",
+        "later": "Later",
+        "openReleasePage": "Open release page"
+      },
       "CodexRestartChip": {
         "a4c8e1b2f7": "Codex is still signed in as {{value0}}",
         "c72a5fb234": "Restart",

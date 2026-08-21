@@ -841,6 +841,13 @@
       }
     },
     "components": {
+      "AppUpdateAvailableDialog": {
+        "title": "Orca 有新版本",
+        "description": "你正在使用 {{value0}}。公司发布页面上是 {{value1}}。Orca 不会替你安装更新 — 请打开发布页面获取新版本。",
+        "skip": "跳过此版本",
+        "later": "稍后",
+        "openReleasePage": "打开发布页面"
+      },
       "CodexRestartChip": {
         "c72a5fb234": "重新启动",
         "9263e75f49": "Codex 正在使用之前的账户",

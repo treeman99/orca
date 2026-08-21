@@ -141,9 +141,9 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 | `lockdown` | boolean | `false` | 마스터 스위치. 아래 상속 스위치 전부(`LOCKDOWN_INHERITING_KEYS`, 현재 17개)의 **기본값**이 됩니다 (`src/shared/enterprise-policy.ts:157-175`, `:358-362`). 그 자체로 직접 끄는 기능은 없습니다 |
 | `githubEnterpriseHost` | string | `GH_HOST` → `gh`의 `hosts.yml` → 없으면 `null` | 사내 GHES 호스트명. 하는 일: 허용목록 자동 추가(`src/shared/enterprise-policy.ts:370-371`) · 설정 → GitHub Enterprise 팬의 로그인 대상 기본값(`src/main/ipc/github-enterprise.ts:83-86`, 사용자가 저장한 호스트가 없을 때) · GHES 퍼머링크(blob/commit URL) 인식(`src/main/git/hosted-remote-url.ts:38-42`) · `disableVendorLinks`의 GHES 예외(`src/main/enterprise/enterprise-vendor-link-guard.ts:80-83`). **호스트를 GitHub로 인식시키는 기능은 아닙니다**(그건 `gh auth status`) — 예전 문서가 적었던 "Gitea 오폴백 차단"은 Gitea 연동이 코드에서 제거돼(커밋 `4d58e5f21c`) 더는 해당하지 않습니다. **폴백 3순위가 `gh` 자신의 설정 파일입니다** — `gh auth login --hostname <ghes>`는 환경변수가 아니라 `hosts.yml`에 쓰므로, GUI로 실행된 앱이 셸 rc의 `GH_HOST`를 못 보는 흔한 상황에서 이 경로가 유일한 단서입니다 (`src/main/github/gh-config-host.ts`). 로그인된 호스트가 **정확히 하나일 때만** 채택합니다(gh의 `DefaultHost()`와 동일) |
 | `disableTelemetry` | boolean | `lockdown` | PostHog 레인 (`src/main/telemetry/consent.ts:88-90`) **및** 진단 번들 업로드 — 컨센트 계산은 `src/main/observability/index.ts:103, 120-134`이고 실제 거부는 메인의 IPC 게이트(`src/main/ipc/diagnostics.ts:221`(수집), `:253`·`:263`(업로드))에서 일어납니다. ℹ️ **제품 피드백·크래시 리포트 전송 경로(`onorca.dev/v1/feedback`)는 이 포크에서 코드째 삭제**되었으므로 이 스위치가 덮던 그 레인은 더 이상 존재하지 않습니다(§3-0). **로컬 NDJSON 로깅은 그대로 유지됩니다** (`observability/index.ts:129-133`) |
-| `disableAutoUpdate` | boolean | `lockdown` | 🔴 **죽은 스위치입니다.** 이 포크는 인앱 업데이터를 코드에서 통째로 제거했으므로(§3-0) 이 키를 읽는 게이트가 저장소에 하나도 없습니다. 키 자체는 `LOCKDOWN_INHERITING_KEYS`에 남겨 둡니다 — 업스트림 리베이스로 업데이터가 되살아났을 때 잠금이 자동으로 다시 걸리게 하기 위한 안전판이고, 이미 배포된 정책 파일이 이 키를 담고 있어도 경고 없이 계속 파싱되게 하기 위해서입니다 |
+| `disableAutoUpdate` | boolean | `lockdown` | ✅ **다시 살아 있는 스위치입니다 (2026-08-21~).** 끄는 대상은 **사내 GHES 릴리스 태그 조회와 “새 버전이 있습니다” 팝업**입니다(§3-2). 초크포인트는 `AppUpdateCheckService.check()` 한 곳이고 스케줄러·`appUpdate:check` IPC·수동 확인이 전부 그리로 들어갑니다 (`src/main/app-update/app-update-check-service.ts`). ⚠️ **벤더 인앱 업데이터를 되살리는 키가 아닙니다** — `false`로 두어도 다운로드·설치·자가교체 코드는 저장소에 존재하지 않고 `electron-updater`도 의존성이 아닙니다(§3-0). 리베이스가 업스트림 업데이터를 되살리면 이 키가 그대로 그 잠금 역할도 겸합니다 |
 | `disableStarNag` | boolean | `lockdown` | `checkOrcaStarred()`는 "이미 star함"으로 응답(`src/main/github/client.ts:341-343`), `starOrca()`는 실패로 응답(`:527-529`). 도달 경로 4개를 모두 덮습니다 — `star-nag/service.ts:121`, `star-nag/agent-value-moment.ts:46`, `star-nag/direct-star-attempt.ts:9`, `ipc/github.ts:1210-1211`(랜딩/설정 화면) |
-| `disableCloudRelay` | boolean | `lockdown` | 🔴 **사실상 죽은 스위치 (v1.4.178~).** 같은 함수 `getOrcaCloudAuthConfig()`에서 **이 정책 검사보다 앞에** 무조건 차단이 들어갔습니다 — Orca Cloud 로그인과 모바일 페어링 릴레이는 정책이 아니라 소스에서 제거되었습니다([외부 연동 감사 §3.1](./external-integrations-audit.md)). 이 키가 무엇이든 클라우드는 미구성이며, 결과(로그인·릴레이 미기동·`orcaProfiles:*` IPC 3종 `unconfigured`)는 동일합니다. `disableAutoUpdate`와 같은 이유로 키만 유지합니다 — 리베이스 안전판 겸 기존 정책 파일 호환. ⚠️ 예전에도 지금도 **모바일 페어링을 막지 않습니다** — LAN/Tailscale 페어링은 그대로 동작합니다. 모바일을 막으려면 `disableMobilePairing`을 쓰세요 |
+| `disableCloudRelay` | boolean | `lockdown` | 🔴 **사실상 죽은 스위치 (v1.4.178~).** 같은 함수 `getOrcaCloudAuthConfig()`에서 **이 정책 검사보다 앞에** 무조건 차단이 들어갔습니다 — Orca Cloud 로그인과 모바일 페어링 릴레이는 정책이 아니라 소스에서 제거되었습니다([외부 연동 감사 §3.1](./external-integrations-audit.md)). 이 키가 무엇이든 클라우드는 미구성이며, 결과(로그인·릴레이 미기동·`orcaProfiles:*` IPC 3종 `unconfigured`)는 동일합니다. 예전의 `disableAutoUpdate`와 같은 이유로 키만 유지합니다 — 리베이스 안전판 겸 기존 정책 파일 호환. (`disableAutoUpdate` 쪽은 §3-2로 다시 살아났으니 그 서술을 이 키에 옮겨 읽지 마십시오.) ⚠️ 예전에도 지금도 **모바일 페어링을 막지 않습니다** — LAN/Tailscale 페어링은 그대로 동작합니다. 모바일을 막으려면 `disableMobilePairing`을 쓰세요 |
 | `disableUsagePolling` | boolean | `lockdown` | AI 벤더 사용량/rate-limit 폴링 **및 그 데이터를 보여주는 UI**. 폴링 게이트 1곳(`src/main/rate-limits/service.ts:824-825`)을 진입점 전부에서 호출 — `start()`(`:353`), `fetchAll()`(`:998`), `fetchCodexOnly()`(`:1063`), `fetchClaudeOnly()`(`:1125`), `fetchGrokOnly()`(`:1190`), 계정 스위처 프리뷰 2개(`fetchInactiveClaudeAccountsOnOpen` `:572`, `fetchInactiveCodexAccountsOnOpen` `:652`), Codex 리셋 크레딧 POST(`:478`, 에러 throw), 상태칩은 `unavailable`로 고정(`:1614`). **UI**: 설정 → **통계 및 사용량** 팬이 사이드바·Cmd+J 팔레트·설정 검색에서 함께 사라지고(`useSettingsNavigationMetadata.ts`의 `stats` 항목 + `Settings.tsx`의 섹션 + 딥링크 가드 `settings-pane-policy-visibility.ts`), 상태바 팝오버의 "Usage details & history" 항목도 없어집니다(`UsageRosterPanel.tsx`). ⚠️ 이 팬에는 **Orca 자체 로컬 통계**(에이전트 실행 수·작업 시간·PR 수, 네트워크 없음)도 들어 있어 함께 사라집니다 — 그것만 남기고 싶다면 이 스위치를 `false`로 두고 §7-1의 확인 절차로 폴링만 끄는 조합을 검토하세요. 이 팬 안에만 있던 `x.com/intent/post` 사용량 공유 버튼도 함께 도달 불가가 됩니다 |
 | `disableManagedClaudeAccounts` | boolean | `lockdown` | 관리형 Claude 계정의 **런타임 효과 전체** — `platform.claude.com` 토큰 회전, 활성 계정 선택, 에이전트 환경변수 재작성. 설정 UI에서 계정을 추가·선택하는 것 자체는 막지 않습니다 — 그건 `disableVendorProviderAccounts`의 역할이고, 둘은 중복이 아니라 상보 관계입니다(전자는 런타임, 후자는 등록 표면). §3-1 참고 |
 | `disableSpellcheck` | boolean | `lockdown` | Chromium 맞춤법 검사기. Electron 기본값이 on이라 Windows/Linux에서 Google CDN으로 hunspell 사전을 받습니다. 메인 윈도(`src/main/window/createMainWindow.ts:306`)와 `will-attach-webview` 게스트 하드닝(`:494`) 양쪽 |
@@ -160,6 +160,7 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 | `enforceNetworkAllowlist` | boolean | **`false`** (lockdown을 상속하지 **않음**) | §5 참고. `src/shared/enterprise-policy.ts:386-388`에 이유가 주석으로 박혀 있습니다 |
 | `allowedNetworkHosts` | string[] | `[]` (+ `githubEnterpriseHost` 자동 포함) | `enforceNetworkAllowlist: true`일 때만 의미가 있습니다 |
 | `allowedAgents` | string[] | `null` (제한 없음) | 사용자가 **쓸 수 있는 에이전트 CLI id 목록** (예: `"claude"`). ⚠️ **UI 필터가 아니라 하드 거부입니다** — 예전 판의 "고를 수 있는 목록"이라는 설명은 부족했습니다. 두 축으로 동작합니다: ① **표시** — 에이전트/모델 피커·계정 설정·하단 사용량 미터가 이 목록으로만 좁혀지고, 나머지 벤더(codex/gpt, gemini, opencode, grok 등)는 UI에서 사라지고 사용량 폴링(예: Codex → chatgpt.com)도 하지 않습니다. ② **스폰 거부** — 목록 밖 에이전트는 **실제로 실행되지 않습니다**. 표시 게이트만으로 부족한 이유는 렌더러를 거치지 않는 경로가 여럿이기 때문입니다: 정책 배포 전에 바인딩된 키보드 코드, `orca` CLI, 페어링된 모바일/웹 클라이언트, 오케스트레이션 디스패치. 초크포인트 2곳 — `pty:spawn` IPC(`src/main/ipc/pty.ts`)와 `runtime.setPtyController({spawn})`(`src/main/runtime/orca-runtime.ts`, CLI·모바일·자동화·오케스트레이션이 지나는 레인). 거부는 `agent_blocked_by_enterprise_policy` 오류로 사용자 토스트에 표시됩니다 (`src/main/enterprise/agent-allowlist-guard.ts`). 빈 배열/오타는 피커를 완전히 막지 않도록 "제한 없음"으로 처리됩니다. 사내 self-hosted 모델은 에이전트가 아니라 허용된 에이전트의 모델 피커에 얹히므로 여기 적을 필요가 없습니다. §3-3 참고 |
+| `updateReleaseRepository` | string | `null` → 빌드 상수 `DPI/Orcads` | §3-2의 릴리스 조회가 볼 저장소를 `OWNER/REPO`로 지정합니다. **`lockdown`을 상속하지 않습니다** — 스위치가 아니라 값이라, `githubEnterpriseHost`·`allowedNetworkHosts`와 같은 취급입니다. 조회를 끄는 것은 `disableAutoUpdate`이지 이 키가 아닙니다. **URL도 호스트도 받지 않습니다**: 릴리스 페이지 링크를 통째로 붙여 넣어도 형식 검사에서 걸러져 경고가 나고 빌드 기본값이 그대로 섭니다 — 조회 대상 호스트는 언제나 `githubEnterpriseHost`이고 이 키가 그것을 바꿀 수는 없습니다 (`readRepositoryCoordinate`, `src/shared/enterprise-policy.ts`) |
 | `$schema` | string | — | 알려진 키라 경고가 나지 않습니다. 에디터 편의용 (`enterprise-policy.ts:180`) |
 
 ### 3-0. 정책이 아니라 코드에서 제거된 것
@@ -169,8 +170,8 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 | 제거된 표면 | 예전에 덮던 스위치 | 지금 상태 |
 | --- | --- | --- |
 | 사이드바 `?` 메뉴의 **피드백 보내기**와 크래시 리포트 다이얼로그 (`onorca.dev/v1/feedback` POST) | `disableTelemetry`(첨부만), `disableVendorLinks`(링크만) | 다이얼로그·`feedback:submit` IPC·preload 계약이 전부 삭제됨. 크래시 **기록**은 로컬에 그대로 남습니다(브레드크럼·렌더러 오류 기록) |
-| 앱 메뉴 **도움말** 하위의 크래시 리포트 / Explore Orca / Getting Started / 업데이트 확인 | `disableAutoUpdate`(업데이트 항목만) | 도움말에는 **About Orca 하나만** 남습니다 (macOS/Windows/Linux 공통) |
-| **인앱 업데이터 전체** — electron-updater 피드, `onorca.dev` 넛지 폴링, 릴리스 채널 빌드 선택기, 원격 서버 업데이트, 트레이/설정/상태바의 업데이트 표면 | `disableAutoUpdate` | 코드·IPC·preload·`electron-updater` 의존성까지 제거. `disableAutoUpdate`는 죽은 스위치입니다 |
+| 앱 메뉴 **도움말** 하위의 크래시 리포트 / Explore Orca / Getting Started / 업데이트 확인 | `disableAutoUpdate`(업데이트 항목만) | 도움말에는 **About Orca 하나만** 남습니다 (macOS/Windows/Linux 공통). §3-2의 사내 레인은 메뉴 항목을 되살리지 않았습니다 — 알림은 팝업으로만 옵니다 |
+| **인앱 업데이터 전체** — electron-updater 피드, `onorca.dev` 넛지 폴링, changelog fetch, 릴리스 채널 빌드 선택기, 로컬 빌드 교체, 원격 서버 업데이트, 트레이/설정/상태바의 업데이트 표면 | `disableAutoUpdate` | 코드·IPC·preload·`electron-updater` 의존성까지 제거 — **여전히 제거 상태입니다**. `disableAutoUpdate`가 지금 덮는 것은 이 표가 아니라 §3-2의 사내 GHES 조회 레인입니다 |
 
 회귀 방지는 정책 테스트가 아니라 **"이 표면이 더 이상 없다"를 주장하는 테스트**가 담당합니다 — `src/main/menu/register-app-menu.test.ts`, `src/renderer/src/components/sidebar/SidebarSettingsHelpMenu.test.tsx`, `src/renderer/src/app-startup-routing.test.ts`, `src/main/ipc/crash-reporting.test.ts`, `src/main/serve-update-handoff.test.ts`, `src/main/startup/serve-desktop-activation-wiring.test.ts`, `src/main/runtime/mobile-rpc-allowlist.test.ts`, `src/preload/renderer-restart-wiring.test.ts`.
 
@@ -206,6 +207,29 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 **따라서 Bedrock 플릿에서 이 값은 사실상 필수입니다 — `true`(= `lockdown: true`면 자동).** 권장이 아니라 필수인 이유는 위 두 번째 항목입니다: 이 스위치가 없으면 WSL 런타임을 고른 세션은 관리형 계정을 하나도 등록하지 않아도 스트립이 켜지고, 런치 환경에 Bedrock 계열 변수가 하나라도 있으면 PTY 스폰이 하드 실패합니다. Bedrock 인증은 Claude Code CLI가 자격증명 체인으로 처리하고 그 자격증명은 사내 게이트웨이(`gateway-cli login`)가 소유하므로 관리형 계정은 필요가 없고, 켜 두면 egress 한 줄과 WSL 스폰 실패 한 줄을 동시에 없앱니다. 반대로 이 기능을 실제로 쓰는 배포라면 `"disableManagedClaudeAccounts": false`로 명시해 되살리세요.
 
 > ⚠️ **이 스위치가 WSL 게스트에 자격증명을 넣어 주지는 않습니다.** 이 스위치가 없애는 것은 "지우는 동작"뿐입니다. `wsl.exe`는 `WSLENV`에 등록된 변수만 게스트로 넘기는데, Orca가 등록하는 것은 `ORCA_*`와 워크트리 경로 변수(`src/main/pty/wsl-orca-env.ts:77-102` → `:44-54`의 `CONDUCTOR_ROOT_PATH`/`GHOSTX_ROOT_PATH` 포함), 그리고 에이전트 홈 경로(`CODEX_HOME`·`CLAUDE_CONFIG_DIR` — `src/main/providers/local-pty-provider.ts:748`, `:769`)뿐입니다. **어느 등록 지점에도 `AWS_*`는 없습니다** (배경은 `src/main/rate-limits/claude-pty.ts:273-274` 주석). WSL 안에서 Bedrock을 쓰려면 **게스트 배포판 안에서 `gateway-cli login`을 따로 실행**하고 리전 설정도 게스트에 두어야 합니다 — 호스트의 로그인은 게스트에 보이지 않습니다([README §3.4](../../README.md)).
+
+### 3-2. `disableAutoUpdate` — 사내 GHES 릴리스 태그로 새 버전 알리기
+
+**무엇을 하는가.** 사내 GHES(`githubEnterpriseHost`)의 `updateReleaseRepository` 릴리스 태그를 읽어, 실행 중인 빌드보다 높은 stable 태그가 있으면 팝업 하나를 띄웁니다. 팝업이 제공하는 동작은 **[릴리스 페이지 열기] · [나중에] · [이 버전은 건너뛰기]** 뿐입니다.
+
+**무엇을 하지 않는가** (이 목록이 스위치 설명보다 중요합니다):
+
+- 다운로드하지 않습니다. 설치하지 않습니다. 앱을 교체하거나 재시작하지 않습니다.
+- `electron-updater`를 되살리지 않았습니다 — `package.json`·`pnpm-lock.yaml`·`config/packaged-runtime-node-modules.cjs` 어디에도 없습니다.
+- 벤더 호스트(`github.com`/`api.github.com`)를 절대 부르지 않습니다. 호스트 해석 결과가 벤더면 **조회 자체를 하지 않습니다**.
+- 릴리스 채널 선택, changelog 조회, 프리릴리스 피드, 원격 서버 업데이트 — 전부 §3-0 그대로 없는 상태입니다.
+
+**어떤 경로로 나가는가.** 새 HTTP 클라이언트도 새 토큰 저장소도 만들지 않았습니다. `gh` 자식 프로세스가 `gh api --hostname <ghes> repos/<OWNER>/<REPO>/releases` 를 실행하고, 자격증명은 `gh auth login --hostname <ghes>`로 이미 들어가 있는 `gh` 자신의 키링 토큰입니다(§3-4). 릴리스가 비어 있거나 404면 `…/tags`로 한 번 폴백합니다.
+
+**태그 판정 규칙.** 드래프트·프리릴리스는 제외합니다(이 플릿에는 릴리스 채널 선택기가 없어 프리릴리스를 고를 방법이 없고, 태그 폴백에는 플래그가 없으므로 `v2.0.0-rc.1` 같은 semver 프리릴리스 suffix로도 한 번 더 거릅니다). **파싱할 수 없는 태그(`nightly`, `release-2026Q3` …)는 무시합니다** — 파싱 실패가 "새 버전 있음"으로 읽히지 않도록 단위 테스트로 고정했습니다.
+
+**조용한 실패가 정상입니다.** `gh` 미설치·미인증(401)·네트워크 없음·빈 목록·전부 파싱 불가 — 어느 경우에도 오류 창을 띄우지 않고 아무 알림 없이 끝납니다.
+
+**주기와 상태.** 첫 조회는 IPC 등록 60초 뒤, 이후 6시간 간격입니다. "이 버전은 건너뛰기"는 `<userData>/app-update-dismissed.json`에 버전 한 줄로 남습니다 — 사용자 프로파일이지 정책 파일이 아니며, 그보다 높은 태그가 나오면 다시 알립니다.
+
+**게이트 위치.** `AppUpdateCheckService.check()` — 스케줄러·`appUpdate:check` IPC·수동 확인이 전부 지나는 유일한 지점입니다 (`src/main/app-update/app-update-check-service.ts`). 회귀 방지는 `src/main/app-update/app-update-check-service.test.ts`의 lockdown 행위 테스트입니다.
+
+⚠️ **`enforceNetworkAllowlist`는 이 레인을 보지 못합니다** — 소켓을 여는 것이 `gh` 자식 프로세스이기 때문입니다(§8의 서브프로세스 사각지대와 같은 자리). 목적지가 사내 GHES 한 곳이고 그 호스트는 허용목록에 자동 포함되므로 실질 위험은 낮지만, "허용목록이 막아 준다"고 말할 수 있는 항목은 아닙니다.
 
 ### 3-3. `allowedAgents` — Bedrock 에이전트만 남기기
 
@@ -261,9 +285,13 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
   "lockdown": true,
   "githubEnterpriseHost": "github.samsungds.net",
 
+  // 새 버전 알림이 볼 저장소. 생략하면 빌드 상수 "DPI/Orcads"가 그대로 쓰입니다 (§3-2).
+  // 알림 자체를 켜려면 아래 disableAutoUpdate를 false로 두십시오.
+  // "updateReleaseRepository": "DPI/Orcads",
+
   // lockdown에서 상속되는 값들 — 감사를 위해 명시
   "disableTelemetry": true,    // PostHog + 진단/크래시 번들 업로드 (로컬 로그는 유지)
-  "disableAutoUpdate": true,   // 죽은 스위치 — 업데이터는 코드에서 제거됨 (호환용으로만 유지)
+  "disableAutoUpdate": true,   // 사내 GHES 릴리스 조회 + "새 버전" 팝업 (벤더 업데이터는 여전히 코드에 없음, §3-2)
   "disableStarNag": true,      // github.com SaaS로 나가는 star 조회/쓰기
   "disableCloudRelay": true,   // 죽은 스위치 — 클라우드 로그인·릴레이도 코드에서 제거됨 (호환용으로만 유지)
   "disableUsagePolling": true, // AI 벤더 사용량/rate-limit 폴링
@@ -313,7 +341,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 }
 ```
 
-⚠️ `disableAutoUpdate: false`는 예외로 쓸 수 없습니다 — 이 포크는 인앱 업데이터를 코드에서 제거했으므로(§3-0) 그 키를 되돌려도 살아날 코드가 없습니다. 업데이트 배포는 정책이 아니라 사내 재배포로 처리하십시오.
+ℹ️ `disableAutoUpdate: false`는 이제 **의미 있는 예외**입니다 — 사내 GHES 릴리스 태그를 읽어 "새 버전이 있습니다" 팝업을 띄우는 레인이 켜집니다(§3-2). 그래도 **설치는 여전히 사내 재배포의 몫**입니다: 이 빌드에는 다운로드·설치 코드가 없고, 팝업이 제공하는 유일한 동작은 사내 릴리스 페이지를 브라우저로 여는 것입니다.
 
 ## 5. `enforceNetworkAllowlist` — 옵트인 하드 허용목록
 
@@ -456,7 +484,7 @@ Ansible/Puppet/Salt의 file 리소스로 관리하거나, 사내 `.deb`/`.rpm`�
 | 확인 대상 | 방법 | 기대 결과 |
 | --- | --- | --- |
 | `disableCloudRelay` | 설정에서 Orca Cloud 프로필 연결 시도 | 정책과 무관하게 항상 실패합니다(v1.4.178~). 토스트 `Orca Cloud sign-in is not configured` + 설명 **`Orca Cloud sign-in is removed in this build. …`** — 문구가 "disabled by an enterprise policy"로 나오면 제거 가드가 리베이스에서 사라졌다는 뜻이므로 [감사 §3.1](./external-integrations-audit.md)의 검증 명령을 돌리십시오 |
-| `disableAutoUpdate` | — | 확인할 것이 없습니다. 업데이트 표면은 정책과 무관하게 코드에 존재하지 않습니다 — 앱/Help 메뉴, 트레이, 사이드바 `?` 메뉴, 설정 → 일반 어디에도 "업데이트 확인" 항목이 없습니다 |
+| `disableAutoUpdate` | 앱을 켜 두고 2분 기다린 뒤(첫 조회는 60초 뒤) 사내 릴리스 페이지에 현재 빌드보다 높은 태그가 있는지 확인 | **`true`일 때**: 팝업이 뜨지 않고 `gh` 자식 프로세스도 스폰되지 않습니다. **`false`일 때**: 더 높은 태그가 있으면 "Orca 새 버전이 있습니다" 팝업이 뜨고 [릴리스 페이지 열기]가 사내 GHES 주소를 엽니다. 어느 쪽이든 앱/Help 메뉴·트레이·상태바에는 여전히 "업데이트 확인" 항목이 없습니다(벤더 업데이터는 제거 상태 유지). 조회가 실패하면(gh 미인증·네트워크 없음·태그 없음) **아무 알림도 뜨지 않는 것이 정상**입니다 |
 | `disableMobilePairing` | 사이드바·설정 → 모바일, Cmd+J에 `mobile` | 진입점이 전부 사라집니다. 이미 페어링된 폰은 RPC가 `forbidden`으로 거부됩니다 |
 | `disableVendorProviderAccounts` | 설정 → AI 제공업체 계정 | Claude 구독/Codex/Gemini/OpenCode/MiniMax/Grok 섹션이 사라지고 **사내 게이트웨이 로그인만** 남습니다. 이미 등록된 계정의 제거는 계속 가능합니다 |
 | `disableRemoteOrcaServer` | 설정 → 원격 Orca 서버, 새 워크스페이스의 실행 대상 피커 | 섹션과 "Add Remote Orca Server" 항목이 사라집니다. **설정 → SSH 호스트는 그대로 남아야 정상입니다**. v1.4.162가 피커를 `components/new-workspace/RunTargetCombobox.tsx`로 추출한 뒤로 이 행의 게이트는 **부모가 `onAddRemoteServer`를 넘기지 않는 것**입니다 (`NewWorkspaceComposerCard.tsx`) — 자식 컴포넌트에는 정책 임포트가 없으니 그쪽만 grep하면 게이트가 없어 보입니다. 회귀 방지는 `NewWorkspaceComposerCard.policy.test.tsx` |

@@ -17,6 +17,7 @@ describe('resolveEnterprisePolicy', () => {
       enforceNetworkAllowlist: false,
       allowedNetworkHosts: [],
       githubEnterpriseHost: null,
+      updateReleaseRepository: null,
       allowedAgents: null,
       sourcePath: null,
       warnings: []
@@ -150,6 +151,40 @@ describe('resolveEnterprisePolicy — GitHub Enterprise host', () => {
     expect(
       resolveEnterprisePolicy({ githubEnterpriseHost: 'github.samsungds.net' }).allowedNetworkHosts
     ).toEqual(['github.samsungds.net'])
+  })
+})
+
+describe('resolveEnterprisePolicy — updateReleaseRepository', () => {
+  it("is null when absent, so the build's own coordinate stands", () => {
+    expect(resolveEnterprisePolicy({}).updateReleaseRepository).toBeNull()
+  })
+
+  it('reads an OWNER/REPO coordinate', () => {
+    expect(
+      resolveEnterprisePolicy({ updateReleaseRepository: 'DPI/Orcads' }).updateReleaseRepository
+    ).toBe('DPI/Orcads')
+  })
+
+  it('refuses anything that is not OWNER/REPO', () => {
+    for (const raw of [
+      'https://github.samsungds.net/DPI/Orcads',
+      'DPI',
+      'DPI/Orcads/extra',
+      'DPI /Orcads',
+      42
+    ]) {
+      const policy = resolveEnterprisePolicy({ updateReleaseRepository: raw })
+      expect(policy.updateReleaseRepository, JSON.stringify(raw)).toBeNull()
+      expect(policy.warnings.join(' ')).toContain('updateReleaseRepository')
+    }
+  })
+
+  it('does not inherit lockdown — it is a coordinate, not a switch', () => {
+    expect(resolveEnterprisePolicy({ lockdown: true }).updateReleaseRepository).toBeNull()
+  })
+
+  it('is a known key, so a deployed file carrying it warns about nothing', () => {
+    expect(resolveEnterprisePolicy({ updateReleaseRepository: 'DPI/Orcads' }).warnings).toEqual([])
   })
 })
 

@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { preloadE2EConfig } from './e2e-config'
 import { glApi } from './gitlab'
+import { APP_UPDATE_STATUS_EVENT, type AppUpdateCheckStatus } from '../shared/app-update-check'
 import type { AppIdentity } from '../shared/app-identity'
 import type { MacCapturedDigitRowChord } from '../shared/macos-symbolic-hotkeys'
 import type { ComputerAwakeStatus } from '../shared/computer-awake-mode'
@@ -4521,6 +4522,20 @@ const api = {
       return () => ipcRenderer.removeListener('githubEnterprise:loginProgress', listener)
     }
   } satisfies PreloadApi['githubEnterprise'],
+
+  appUpdate: {
+    getStatus: (): Promise<AppUpdateCheckStatus> => ipcRenderer.invoke('appUpdate:getStatus'),
+    check: (): Promise<AppUpdateCheckStatus> => ipcRenderer.invoke('appUpdate:check'),
+    dismissVersion: (args: { version: string }): Promise<AppUpdateCheckStatus> =>
+      ipcRenderer.invoke('appUpdate:dismissVersion', args),
+    openReleasePage: (): Promise<void> => ipcRenderer.invoke('appUpdate:openReleasePage'),
+    onStatus: (callback: (status: AppUpdateCheckStatus) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, status: AppUpdateCheckStatus) =>
+        callback(status)
+      ipcRenderer.on(APP_UPDATE_STATUS_EVENT, listener)
+      return () => ipcRenderer.removeListener(APP_UPDATE_STATUS_EVENT, listener)
+    }
+  } satisfies PreloadApi['appUpdate'],
 
   grokAccounts: {
     getStatus: (): Promise<GrokAccountStatus> => ipcRenderer.invoke('grokAccounts:getStatus')

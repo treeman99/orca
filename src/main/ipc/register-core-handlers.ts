@@ -66,6 +66,7 @@ import { registerMiniMaxCredentialsHandlers } from './minimax-credentials'
 import { registerEnterprisePolicyHandlers } from './enterprise-policy'
 import { registerGatewayHandlers } from './gateway'
 import { registerGithubEnterpriseHandlers } from './github-enterprise'
+import { registerAppUpdateHandlers } from './app-update'
 import { registerGrokAccountHandlers } from './grok-accounts'
 import {
   registerClipboardHandlers,
@@ -153,6 +154,7 @@ export function registerCoreHandlers(
   registerEnterprisePolicyHandlers()
   registerGatewayHandlers()
   registerGithubEnterpriseHandlers()
+  registerAppUpdateHandlers()
   registerGrokAccountHandlers()
   registerRateLimitHandlers(rateLimits, codexAccounts)
   registerGitHubHandlers(store, stats)
