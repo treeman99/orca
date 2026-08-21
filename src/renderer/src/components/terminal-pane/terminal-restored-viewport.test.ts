@@ -1,7 +1,10 @@
 import { Terminal } from '@xterm/headless'
 import { describe, expect, it } from 'vitest'
 
-import { buildFreshShellViewportBlankingSequence } from './terminal-restored-viewport'
+import {
+  buildFreshShellViewportBlankingSequence,
+  shouldBlankRestoredViewportOnReattach
+} from './terminal-restored-viewport'
 
 function writeTerminal(term: Terminal, data: string): Promise<void> {
   return new Promise((resolve) => term.write(data, resolve))
@@ -33,5 +36,28 @@ describe('buildFreshShellViewportBlankingSequence', () => {
     } finally {
       term.dispose()
     }
+  })
+})
+
+describe('shouldBlankRestoredViewportOnReattach', () => {
+  it('blanks only a restored pane that no payload repainted', () => {
+    expect(
+      shouldBlankRestoredViewportOnReattach({
+        hasRestoredViewport: true,
+        cursorAuthority: 'restored-buffer-only'
+      })
+    ).toBe(true)
+    expect(
+      shouldBlankRestoredViewportOnReattach({
+        hasRestoredViewport: true,
+        cursorAuthority: 'repainted'
+      })
+    ).toBe(false)
+    expect(
+      shouldBlankRestoredViewportOnReattach({
+        hasRestoredViewport: false,
+        cursorAuthority: 'restored-buffer-only'
+      })
+    ).toBe(false)
   })
 })

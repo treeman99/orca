@@ -128,7 +128,10 @@ import {
   RESET_KITTY_KEYBOARD_PROTOCOL,
   RESET_TERMINAL_CURSOR_STYLE
 } from '../../../../shared/terminal-mode-reset-profiles'
-import { buildFreshShellViewportBlankingSequence } from './terminal-restored-viewport'
+import {
+  buildFreshShellViewportBlankingSequence,
+  shouldBlankRestoredViewportOnReattach
+} from './terminal-restored-viewport'
 import { getSystemPrefersDark } from '@/lib/terminal-theme'
 import {
   INITIAL_MODE_2031_REPLY_SCAN_STATE,
@@ -5560,6 +5563,10 @@ export function connectPanePty(
         : POST_REPLAY_REATTACH_RESET
     }
 
+    const hasRestoredViewportBlankingMarker = (): boolean => {
+      return deps.restoredViewportBlankingPanesRef?.current.has(pane.id) ?? false
+    }
+
     const consumeRestoredViewportBlankingMarker = (): boolean => {
       return deps.restoredViewportBlankingPanesRef?.current.delete(pane.id) ?? false
     }
@@ -8499,6 +8506,22 @@ export function connectPanePty(
             return
           }
           reattachPayloadApplied = true
+        }
+        // Why: a payload-less reattach leaves the layout-restored rows on screen with the
+        // PREVIOUS run's cursor, so the live session overwrites them (every payload branch
+        // above clears first, which is what re-anchors those panes). The marker survives a
+        // repaint so a later fresh spawn in this pane still blanks what the payload painted.
+        if (
+          shouldBlankRestoredViewportOnReattach({
+            hasRestoredViewport: hasRestoredViewportBlankingMarker(),
+            cursorAuthority:
+              hasStructuralReplay || prefetchedParkModelSnapshot
+                ? 'repainted'
+                : 'restored-buffer-only'
+          })
+        ) {
+          consumeRestoredViewportBlankingMarker()
+          writeFreshShellViewportBlanking()
         }
       }
 
