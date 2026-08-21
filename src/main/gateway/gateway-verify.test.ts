@@ -37,6 +37,7 @@ describe('runGatewayVerify', () => {
   it('returns what the parser made of a successful probe', async () => {
     await expect(runGatewayVerify()).resolves.toEqual({
       signedIn: true,
+      evidence: 'json',
       expiresAt: null,
       identity: 'dev@corp.example',
       detail: null
@@ -56,6 +57,7 @@ describe('runGatewayVerify', () => {
     respond(Object.assign(new Error('spawn gateway-cli ENOENT'), { code: 'ENOENT' }))
     await expect(runGatewayVerify()).resolves.toEqual({
       signedIn: false,
+      evidence: 'none',
       expiresAt: null,
       identity: null,
       detail: 'spawn gateway-cli ENOENT'

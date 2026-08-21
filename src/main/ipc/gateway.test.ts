@@ -23,6 +23,7 @@ import type { GatewayLoginResult, GatewayStatus } from '../../shared/gateway-aut
 
 const SIGNED_IN = {
   signedIn: true,
+  evidence: 'json' as const,
   expiresAt: '2026-08-16T09:00:00Z',
   identity: 'daegun@corp',
   detail: 'session active'
@@ -78,6 +79,7 @@ describe('registerGatewayHandlers', () => {
       gatewayAvailable: false,
       version: null,
       signedIn: false,
+      evidence: 'none',
       expiresAt: null,
       identity: null,
       detail: null
@@ -99,6 +101,7 @@ describe('registerGatewayHandlers', () => {
         available: async () => ({ available: true, version: null }),
         verify: async () => ({
           signedIn: false,
+          evidence: 'text' as const,
           expiresAt: null,
           identity: null,
           detail: 'not logged in'

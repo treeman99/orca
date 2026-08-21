@@ -10794,6 +10794,7 @@
           "signedIn": "Signed in",
           "signedInUntil": "Signed in — valid until {{value0}}",
           "expired": "Session expired",
+          "sessionUnknown": "Session status unknown",
           "notSignedIn": "Not signed in",
           "signIn": "Sign in with browser",
           "signInAgain": "Sign in again",

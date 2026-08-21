@@ -9,6 +9,13 @@
 /** The CLI this lane drives. Not configurable — resolved from PATH. */
 export const GATEWAY_CLI_BINARY = 'gateway-cli'
 
+/**
+ * Which signal decided `signedIn`. `none` means verify gave nothing to go on, so the UI
+ * must not state a session verdict as fact. Optional on the wire: an older main process
+ * simply omits it.
+ */
+export type GatewaySignedInEvidence = 'json' | 'text' | 'exit-code' | 'none'
+
 export type GatewayStatus = {
   /** False when the gateway CLI is not installed / not on PATH. */
   gatewayAvailable: boolean
@@ -16,6 +23,8 @@ export type GatewayStatus = {
   version: string | null
   /** True when `gateway-cli verify` reports a usable session. */
   signedIn: boolean
+  /** What `signedIn` rests on, so the UI can stay vague when nothing was parsed. */
+  evidence?: GatewaySignedInEvidence
   /** ISO expiry when verify reported one. Null means "verify did not say". */
   expiresAt: string | null
   /** Identity/account label verify reported, so the user can see who is signed in. */

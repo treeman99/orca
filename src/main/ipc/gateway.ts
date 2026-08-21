@@ -46,6 +46,7 @@ async function getStatus(dependencies: GatewayDependencies): Promise<GatewayStat
       gatewayAvailable: false,
       version: null,
       signedIn: false,
+      evidence: 'none',
       expiresAt: null,
       identity: null,
       detail: null

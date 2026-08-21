@@ -10229,6 +10229,7 @@
           "signedIn": "已登录",
           "signedInUntil": "已登录 — 有效期至 {{value0}}",
           "expired": "会话已过期",
+          "sessionUnknown": "会话状态未知",
           "notSignedIn": "未登录",
           "signIn": "使用浏览器登录",
           "signInAgain": "重新登录",

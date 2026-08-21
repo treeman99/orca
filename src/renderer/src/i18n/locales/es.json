@@ -10209,6 +10209,7 @@
           "signedIn": "Sesión iniciada",
           "signedInUntil": "Sesión iniciada — válida hasta {{value0}}",
           "expired": "Sesión caducada",
+          "sessionUnknown": "Estado de la sesión desconocido",
           "notSignedIn": "Sin sesión iniciada",
           "signIn": "Iniciar sesión con el navegador",
           "signInAgain": "Volver a iniciar sesión",

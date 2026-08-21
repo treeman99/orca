@@ -27,7 +27,8 @@ vi.mock('@/i18n/i18n', () => ({
 
 import { GatewaySection } from './GatewaySection'
 
-const FUTURE = '2026-07-27T20:00:00Z'
+const FUTURE = new Date(Date.now() + 86_400_000).toISOString()
+const PAST = new Date(Date.now() - 86_400_000).toISOString()
 
 function makeStatus(overrides: Partial<GatewayStatus> = {}): GatewayStatus {
   return {
@@ -90,10 +91,44 @@ describe('GatewaySection', () => {
   })
 
   it('reports a session that expired without a live one', async () => {
-    mocks.getStatus.mockResolvedValue(makeStatus({ expiresAt: FUTURE }))
+    mocks.getStatus.mockResolvedValue(makeStatus({ expiresAt: PAST, evidence: 'json' }))
     render(<GatewaySection />)
 
     expect(await screen.findByText('Session expired')).toBeInTheDocument()
+  })
+
+  // The reported bug: verify said "not signed in" and printed a stamp that had not passed.
+  it('does not claim expiry when the parsed expiry is still in the future', async () => {
+    mocks.getStatus.mockResolvedValue(makeStatus({ expiresAt: FUTURE, evidence: 'json' }))
+    render(<GatewaySection />)
+
+    expect(await screen.findByText('Not signed in')).toBeInTheDocument()
+    expect(screen.queryByText('Session expired')).not.toBeInTheDocument()
+  })
+
+  // What a verify timeout or a missing binary produces: no stamp, no verdict, no claim.
+  it('does not claim expiry when verify gave no usable signal', async () => {
+    mocks.getStatus.mockResolvedValue(makeStatus({ expiresAt: null, evidence: 'none' }))
+    render(<GatewaySection />)
+
+    expect(await screen.findByText('Session status unknown')).toBeInTheDocument()
+    expect(screen.queryByText('Session expired')).not.toBeInTheDocument()
+  })
+
+  it('says only "not signed in" when the exit code was the sole signal', async () => {
+    mocks.getStatus.mockResolvedValue(makeStatus({ evidence: 'exit-code' }))
+    render(<GatewaySection />)
+
+    expect(await screen.findByText('Not signed in')).toBeInTheDocument()
+  })
+
+  it('drops the "valid until" clause when a signed-in session carries a stale stamp', async () => {
+    mocks.getStatus.mockResolvedValue(
+      makeStatus({ signedIn: true, expiresAt: PAST, evidence: 'json' })
+    )
+    render(<GatewaySection />)
+
+    expect(await screen.findByText('Signed in')).toBeInTheDocument()
   })
 
   it('runs the login with no arguments — there is no profile to pass', async () => {

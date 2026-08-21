@@ -3,13 +3,25 @@
 //
 // Unlike the AWS SSO lane this replaced, we have not seen `gateway-cli verify`'s real
 // output yet, so the verify parser is defensive by design: JSON first, then text
-// heuristics, then the exit code. Guessing a format and failing closed would report
-// "signed out" to a user who is signed in.
+// heuristics, then the exit code. It records which of those decided the verdict, because
+// "signed out with no evidence" must not reach the user as "your session expired" — see
+// gateway-verify-session-state for the fail-open rules the text scanning follows.
 
 import { stripAnsiControlSequences } from './commit-message-agent-output'
+import type { GatewaySignedInEvidence } from './gateway-auth'
+import {
+  findLabelledExpiry,
+  normalizeGatewayExpiry,
+  readTextSignedInSignal
+} from './gateway-verify-session-state'
+
+// Lives next door now, but every caller still imports the expiry helpers from here.
+export { normalizeGatewayExpiry } from './gateway-verify-session-state'
 
 export type GatewayVerification = {
   signedIn: boolean
+  /** Which signal decided `signedIn` — `none` when even the exit code was missing. */
+  evidence: GatewaySignedInEvidence
   expiresAt: string | null
   identity: string | null
   detail: string | null
@@ -22,17 +34,13 @@ const TRAILING_PUNCTUATION_RE = /[.,;:)\]}'"]+$/
 const ERROR_LINE_RE =
   /(an error occurred|^error[:\s]|invalid|unauthorized|access denied|accessdenied|forbidden|expired|failed|refused|timed out)/i
 
-const SIGNED_OUT_RE =
-  /not logged in|not signed in|unauthenticated|no valid|expired|login required|please log ?in/i
-const SIGNED_IN_RE = /logged in|signed in|authenticated|session (?:is )?(?:valid|active)/i
 // `:` and `.` stay out of the run so timestamps and dotted hostnames are never masked.
 const OPAQUE_RUN_RE = /[A-Za-z0-9+/_=-]{20,}/g
 const SECRET_ASSIGNMENT_RE =
   /([A-Za-z_.-]*(?:key|token|secret|password|authorization|credential)[A-Za-z_.-]*"?\s*[:=]\s*"?)([^\s,"}]+)/gi
 const SECRET_KEY_RE = /key|token|secret|password|authorization|credential/i
-const TIMESTAMP_RE =
-  /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2}|\s*UTC)?/
 const DETAIL_MAX_LENGTH = 200
+const MAX_JSON_DEPTH = 3
 
 const SIGNED_IN_KEYS = ['signedin', 'valid', 'active', 'authenticated', 'loggedin', 'ok']
 const EXPIRES_KEYS = ['expiresat', 'expiration', 'expiry', 'validuntil', 'notafter']
@@ -92,45 +100,66 @@ export function parseGatewayCliErrorMessage(output: string): string | null {
   return safeText(lines.at(-1) ?? null)
 }
 
+type ScalarField = { value: unknown; depth: number }
+
 /**
- * Normalizes an expiry stamp to something `Date` parses. The AWS CLI wrote
- * `2026-07-27T04:05:45UTC`, which is not ISO 8601 and parses as Invalid Date; assume
- * gateway-cli can fall into the same trap.
+ * Every scalar in the document, keyed by a case/underscore-insensitive name and walked
+ * breadth-first: a nested `valid` must not shadow the top-level one it collides with.
  */
-export function normalizeGatewayExpiry(raw: string): string | null {
-  const trimmed = raw.trim()
-  if (!trimmed) {
-    return null
+function flattenScalars(root: unknown): Map<string, ScalarField> {
+  const into = new Map<string, ScalarField>()
+  let level: unknown[] = [root]
+  for (let depth = 0; depth <= MAX_JSON_DEPTH && level.length > 0; depth += 1) {
+    const next: unknown[] = []
+    for (const node of level) {
+      if (typeof node !== 'object' || node === null) {
+        continue
+      }
+      for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+        if (SECRET_KEY_RE.test(key)) {
+          continue
+        }
+        if (value !== null && typeof value === 'object') {
+          next.push(value)
+          continue
+        }
+        const normalized = key.toLowerCase().replace(/[_-]/g, '')
+        if (!into.has(normalized)) {
+          into.set(normalized, { value, depth })
+        }
+      }
+    }
+    level = next
   }
-  const iso = trimmed.replace(/\s*UTC$/i, 'Z')
-  return Number.isNaN(Date.parse(iso)) ? null : iso
+  return into
 }
 
-/** Every scalar in the document, keyed by a case/underscore-insensitive name. */
-function flattenScalars(node: unknown, into: Map<string, unknown>, depth = 0): void {
-  if (depth > 3 || typeof node !== 'object' || node === null) {
-    return
-  }
-  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
-    if (SECRET_KEY_RE.test(key)) {
-      continue
-    }
-    const normalized = key.toLowerCase().replace(/[_-]/g, '')
-    if (value !== null && typeof value === 'object') {
-      flattenScalars(value, into, depth + 1)
-    } else if (!into.has(normalized)) {
-      into.set(normalized, value)
-    }
-  }
-}
-
-function firstOf(fields: Map<string, unknown>, keys: string[]): unknown {
+function firstOf(fields: Map<string, ScalarField>, keys: string[]): unknown {
   for (const key of keys) {
-    if (fields.has(key)) {
-      return fields.get(key)
+    const field = fields.get(key)
+    if (field) {
+      return field.value
     }
   }
   return undefined
+}
+
+/**
+ * The verdict from JSON, read only at the shallowest depth that carries one. Same-depth
+ * fields that disagree leave it undecided rather than guessing "signed out".
+ */
+function readSignedInField(fields: Map<string, ScalarField>): boolean | null {
+  const found = SIGNED_IN_KEYS.map((key) => fields.get(key)).filter(
+    (field): field is ScalarField => field !== undefined && coerceBoolean(field.value) !== null
+  )
+  if (found.length === 0) {
+    return null
+  }
+  const shallowest = Math.min(...found.map((field) => field.depth))
+  const [first, ...rest] = found
+    .filter((field) => field.depth === shallowest)
+    .map((field) => coerceBoolean(field.value))
+  return first !== undefined && rest.every((verdict) => verdict === first) ? first : null
 }
 
 function coerceBoolean(value: unknown): boolean | null {
@@ -155,7 +184,7 @@ function coerceString(value: unknown): string | null {
 }
 
 /** The JSON document verify printed, if it printed one. */
-function parseEmbeddedJson(stdout: string): Map<string, unknown> | null {
+function parseEmbeddedJson(stdout: string): Map<string, ScalarField> | null {
   const start = stdout.indexOf('{')
   const end = stdout.lastIndexOf('}')
   if (start === -1 || end <= start) {
@@ -167,8 +196,7 @@ function parseEmbeddedJson(stdout: string): Map<string, unknown> | null {
   } catch {
     return null
   }
-  const fields = new Map<string, unknown>()
-  flattenScalars(document, fields)
+  const fields = flattenScalars(document)
   return fields.size > 0 ? fields : null
 }
 
@@ -190,27 +218,28 @@ export function parseGatewayVerifyOutput(input: {
   const text = `${stdout}\n${stripAnsi(input.stderr)}`
   const fields = parseEmbeddedJson(stdout)
 
-  let signedIn = fields ? coerceBoolean(firstOf(fields, SIGNED_IN_KEYS)) : null
-  let expiresAt = fields
-    ? normalizeGatewayExpiry(coerceString(firstOf(fields, EXPIRES_KEYS)) ?? '')
-    : null
   const identity = fields ? safeText(coerceString(firstOf(fields, IDENTITY_KEYS))) : null
   // Once the output is JSON, the "first line" is the document itself — noise, not detail.
   const detail = fields ? coerceString(firstOf(fields, DETAIL_KEYS)) : firstMeaningfulLine(text)
+  const expiresAt =
+    (fields ? normalizeGatewayExpiry(coerceString(firstOf(fields, EXPIRES_KEYS)) ?? '') : null) ??
+    findLabelledExpiry(text)
 
-  if (signedIn === null && SIGNED_OUT_RE.test(text)) {
-    // Negative wording wins: "session expired, please log in" carries both vocabularies.
-    signedIn = false
-  } else if (signedIn === null && SIGNED_IN_RE.test(text)) {
-    signedIn = true
+  let evidence: GatewaySignedInEvidence = 'json'
+  let signedIn = fields ? readSignedInField(fields) : null
+  if (signedIn === null) {
+    evidence = 'text'
+    signedIn = readTextSignedInSignal(text)
   }
-  if (!expiresAt) {
-    expiresAt = normalizeGatewayExpiry(text.match(TIMESTAMP_RE)?.[0] ?? '')
+  if (signedIn === null) {
+    // Nothing parsed: the exit code is the only signal left, and a missing one is none.
+    evidence = input.exitCode === null ? 'none' : 'exit-code'
+    signedIn = input.exitCode === 0
   }
 
   return {
-    // Nothing parsed: the exit code is the only signal the CLI definitely gives us.
-    signedIn: signedIn ?? input.exitCode === 0,
+    signedIn,
+    evidence,
     expiresAt,
     identity,
     detail: safeText(detail?.slice(0, DETAIL_MAX_LENGTH) ?? null)

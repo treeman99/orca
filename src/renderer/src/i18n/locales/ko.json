@@ -10209,6 +10209,7 @@
           "signedIn": "로그인됨",
           "signedInUntil": "로그인됨 — {{value0}}까지 유효",
           "expired": "세션이 만료되었습니다",
+          "sessionUnknown": "세션 상태를 확인할 수 없음",
           "notSignedIn": "로그인되지 않음",
           "signIn": "브라우저로 로그인",
           "signInAgain": "다시 로그인",

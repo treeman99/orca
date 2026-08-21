@@ -126,6 +126,7 @@ describe('parseGatewayVerifyOutput — JSON path', () => {
       verify('{"signedIn":true,"expiresAt":"2026-07-27T04:05:45Z","identity":"dev@corp.example"}')
     ).toEqual({
       signedIn: true,
+      evidence: 'json',
       expiresAt: '2026-07-27T04:05:45Z',
       identity: 'dev@corp.example',
       detail: null
@@ -230,5 +231,152 @@ describe('parseGatewayVerifyOutput — secret redaction', () => {
     expect(verify('AuthenticationSucceededCompletely for dev@corp.example\n').detail).toBe(
       'AuthenticationSucceededCompletely for dev@corp.example'
     )
+  })
+})
+
+// Every case below is a live session the old parser reported as signed-out or expired.
+describe('parseGatewayVerifyOutput — regressions behind the false "session expired" badge', () => {
+  it('does not promote a log-line timestamp to the expiry', () => {
+    const result = verify(
+      '2026-08-21 09:00:01 INFO checking gateway session\nNot logged in.\n',
+      '',
+      1
+    )
+    expect(result.signedIn).toBe(false)
+    expect(result.expiresAt).toBeNull()
+  })
+
+  it('does not promote an issued-at stamp to the expiry', () => {
+    expect(
+      verify('Signed in as dev@corp.example\nIssued at 2026-08-01T00:00:00Z\n').expiresAt
+    ).toBe(null)
+  })
+
+  it('keeps a session that the CLI says is NOT expired', () => {
+    const result = verify('Session active. Token is not expired.\nExpires 2026-07-27T04:05:45Z\n')
+    expect(result.signedIn).toBe(true)
+    expect(result.expiresAt).toBe('2026-07-27T04:05:45Z')
+  })
+
+  it('keeps a session described as never expired', () => {
+    expect(verify('Service account session; never expired.').signedIn).toBe(true)
+  })
+
+  it('does not read "unexpired" as an expiry verdict', () => {
+    expect(verify('Credential state: unexpired').signedIn).toBe(true)
+  })
+
+  it('does not let a nested scalar shadow the top-level verdict', () => {
+    expect(verify('{"proxy":{"valid":false},"valid":true}').signedIn).toBe(true)
+  })
+
+  it('leaves the verdict undecided when same-depth JSON fields disagree', () => {
+    const result = verify('{"proxy":{"valid":false},"session":{"active":true}}', '', 0)
+    expect(result.signedIn).toBe(true)
+    expect(result.evidence).toBe('exit-code')
+  })
+
+  it('records which signal decided signedIn', () => {
+    expect(verify('{"signedIn":true}').evidence).toBe('json')
+    expect(verify('Not logged in.\n', '', 1).evidence).toBe('text')
+    expect(verify('hmm\n', '', 7).evidence).toBe('exit-code')
+    expect(verify('', '', null).evidence).toBe('none')
+  })
+})
+
+// gateway-cli's real output is still unseen, so pin every plausible shape instead. Each
+// block is a signed-in session: none of them may come back "expired" or "signed out".
+describe('parseGatewayVerifyOutput — plausible verify shapes stay signed in', () => {
+  it('reads a pretty-printed JSON document wrapped in log lines', () => {
+    const result = verify(
+      [
+        '2026-08-21T09:00:00.123Z [info] gateway-cli 1.4.0',
+        '{',
+        '  "session": {',
+        '    "active": true,',
+        '    "expiresAt": "2026-08-28T09:00:00Z",',
+        '    "principal": "dev@corp.example"',
+        '  }',
+        '}',
+        ''
+      ].join('\n')
+    )
+    expect(result).toMatchObject({
+      signedIn: true,
+      evidence: 'json',
+      expiresAt: '2026-08-28T09:00:00Z',
+      identity: 'dev@corp.example'
+    })
+  })
+
+  it('reads a human-readable field block with a non-ISO zone suffix', () => {
+    const result = verify(
+      [
+        'Gateway:   gateway.corp.example.com',
+        'Status:    active',
+        'Identity:  dev@corp.example',
+        'Expires:   2026-07-27 04:05:45 UTC',
+        ''
+      ].join('\n')
+    )
+    expect(result.signedIn).toBe(true)
+    expect(result.expiresAt).toBe('2026-07-27 04:05:45Z')
+    expect(Number.isNaN(Date.parse(result.expiresAt ?? ''))).toBe(false)
+  })
+
+  it('reads a label whose value sits on the next line', () => {
+    expect(
+      verify('Signed in as dev@corp.example\nExpires:\n  2026-08-28T09:00:00Z\n').expiresAt
+    ).toBe('2026-08-28T09:00:00Z')
+  })
+
+  it('takes the expiry from the label, not from the log prefix on the same line', () => {
+    const result = verify(
+      [
+        '2026-08-21T09:00:00.123Z [info] contacting gateway.corp.example.com',
+        '2026-08-21T09:00:00.456Z [info] session is valid until 2026-08-28T09:00:00Z',
+        ''
+      ].join('\n')
+    )
+    expect(result.signedIn).toBe(true)
+    expect(result.evidence).toBe('text')
+    expect(result.expiresAt).toBe('2026-08-28T09:00:00Z')
+  })
+
+  it('keeps an offset-zone expiry as written', () => {
+    expect(verify('Authenticated. Expires at 2026-07-27T13:05:45+09:00\r\n').expiresAt).toBe(
+      '2026-07-27T13:05:45+09:00'
+    )
+  })
+
+  it('reports no expiry rather than a wrong one for an unparseable date format', () => {
+    const result = verify('Signed in.\nExpires: Mon Jul 27 2026 04:05:45 GMT+0900\n')
+    expect(result.signedIn).toBe(true)
+    expect(result.expiresAt).toBeNull()
+  })
+
+  it('does not read a countdown phrasing as a verdict or an expiry', () => {
+    const result = verify('Your token expires in 6 days.\n')
+    expect(result.signedIn).toBe(true)
+    expect(result.expiresAt).toBeNull()
+  })
+
+  it('does not read an expiration policy line as a verdict', () => {
+    expect(verify('Key expiration policy: 30 days\n').signedIn).toBe(true)
+  })
+
+  it('does not read a housekeeping note about expired sessions as a verdict', () => {
+    expect(verify('Expired sessions are pruned hourly.\n').signedIn).toBe(true)
+  })
+
+  it('still reports a session the CLI says is over', () => {
+    const result = verify('Session expired at 2026-07-26T10:00:00Z. Please log in again.\n', '', 1)
+    expect(result.signedIn).toBe(false)
+    expect(result.evidence).toBe('text')
+    expect(result.expiresAt).toBe('2026-07-26T10:00:00Z')
+  })
+
+  it('still reports a bare expired status line', () => {
+    expect(verify('expired\n', '', 1).signedIn).toBe(false)
   })
 })

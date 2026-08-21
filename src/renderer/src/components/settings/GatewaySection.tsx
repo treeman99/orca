@@ -55,19 +55,56 @@ function formatExpiry(expiresAt: string): string {
   return Number.isNaN(parsed.getTime()) ? expiresAt : parsed.toLocaleString()
 }
 
-function SessionStateBadge({ status }: { status: GatewayStatus }): React.JSX.Element {
+function hasPassed(expiresAt: string | null): boolean {
+  const parsed = expiresAt ? Date.parse(expiresAt) : Number.NaN
+  return !Number.isNaN(parsed) && parsed <= Date.now()
+}
+
+type SessionState = 'signed-in' | 'expired' | 'signed-out' | 'unknown'
+
+/**
+ * "Expired" is an instruction to sign in again, so it needs a stamp that has actually
+ * passed — verify reporting a future expiry, or nothing it could read, is not one.
+ */
+function readSessionState(status: GatewayStatus): SessionState {
   if (status.signedIn) {
+    return 'signed-in'
+  }
+  if (hasPassed(status.expiresAt)) {
+    return 'expired'
+  }
+  return status.evidence === 'none' ? 'unknown' : 'signed-out'
+}
+
+function signedOutLabel(state: Exclude<SessionState, 'signed-in'>): string {
+  switch (state) {
+    case 'expired':
+      return translate('auto.components.settings.GatewaySection.expired', 'Session expired')
+    case 'unknown':
+      return translate(
+        'auto.components.settings.GatewaySection.sessionUnknown',
+        'Session status unknown'
+      )
+    case 'signed-out':
+      return translate('auto.components.settings.GatewaySection.notSignedIn', 'Not signed in')
+  }
+}
+
+function SessionStateBadge({ status }: { status: GatewayStatus }): React.JSX.Element {
+  const state = readSessionState(status)
+  if (state === 'signed-in') {
+    const validUntil = hasPassed(status.expiresAt) ? null : status.expiresAt
     return (
       <Badge
         variant="secondary"
         className="h-5 shrink-0 gap-1 rounded-full px-2 text-[10px] font-medium"
       >
         <CheckCircle2 className="size-3" />
-        {status.expiresAt
+        {validUntil
           ? translate(
               'auto.components.settings.GatewaySection.signedInUntil',
               'Signed in — valid until {{value0}}',
-              { value0: formatExpiry(status.expiresAt) }
+              { value0: formatExpiry(validUntil) }
             )
           : translate('auto.components.settings.GatewaySection.signedIn', 'Signed in')}
       </Badge>
@@ -78,9 +115,7 @@ function SessionStateBadge({ status }: { status: GatewayStatus }): React.JSX.Ele
       variant="outline"
       className="h-5 shrink-0 rounded-full px-2 text-[10px] font-medium text-muted-foreground"
     >
-      {status.expiresAt
-        ? translate('auto.components.settings.GatewaySection.expired', 'Session expired')
-        : translate('auto.components.settings.GatewaySection.notSignedIn', 'Not signed in')}
+      {signedOutLabel(state)}
     </Badge>
   )
 }

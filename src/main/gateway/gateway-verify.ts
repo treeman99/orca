@@ -33,7 +33,14 @@ export async function runGatewayVerify(): Promise<GatewayVerification> {
         // A non-zero exit is a normal "not signed in" answer, so it still gets parsed;
         // only a child that never ran (or was killed on timeout) has nothing to read.
         if (error && !didProduceOutput(error)) {
-          resolve({ signedIn: false, expiresAt: null, identity: null, detail: error.message })
+          // Never ran, or killed on timeout: no evidence at all, so the UI stays vague.
+          resolve({
+            signedIn: false,
+            evidence: 'none',
+            expiresAt: null,
+            identity: null,
+            detail: error.message
+          })
           return
         }
         const exitCode = typeof error?.code === 'number' ? error.code : 0

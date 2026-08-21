@@ -10209,6 +10209,7 @@
           "signedIn": "サインイン済み",
           "signedInUntil": "サインイン済み — {{value0}} まで有効",
           "expired": "セッションの有効期限が切れています",
+          "sessionUnknown": "セッション状態を確認できません",
           "notSignedIn": "サインインしていません",
           "signIn": "ブラウザでサインイン",
           "signInAgain": "サインインし直す",
