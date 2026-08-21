@@ -32,6 +32,7 @@ import type {
 import type { AgentHookInstallStatus } from '../shared/agent-hook-types'
 import type { CodexConfigSyncStatus } from '../shared/codex-config-sync-types'
 import type { TerminalPaneSplitSource } from '../shared/feature-education-telemetry'
+import type { TerminalPaneGroupPlacement } from '../shared/terminal-pane-placement'
 import type { TerminalTabCreateReply } from '../shared/terminal-reveal-identity'
 import type { ProjectExecutionRuntimeResolution } from '../shared/project-execution-runtime'
 import type { StartupCommandDelivery } from '../shared/codex-startup-delivery'
@@ -3873,6 +3874,7 @@ const api = {
         splitFromLeafId?: string
         splitDirection?: 'horizontal' | 'vertical'
         splitTelemetrySource?: TerminalPaneSplitSource
+        paneGroupPlacement?: TerminalPaneGroupPlacement
       }) => void
     ): (() => void) => {
       const listener = (
@@ -3899,6 +3901,7 @@ const api = {
           splitFromLeafId?: string
           splitDirection?: 'horizontal' | 'vertical'
           splitTelemetrySource?: TerminalPaneSplitSource
+          paneGroupPlacement?: TerminalPaneGroupPlacement
         }
       ) => callback(data)
       ipcRenderer.on('ui:createTerminal', listener)

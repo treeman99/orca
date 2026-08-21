@@ -154,7 +154,9 @@ export type TabsSlice = {
   createEmptySplitGroup: (
     worktreeId: string,
     sourceGroupId: string,
-    direction: TabSplitDirection
+    direction: TabSplitDirection,
+    /** Automatic splits pass both false: they must not move focus or count as the user discovering panes. */
+    opts?: { activate?: boolean; recordInteraction?: boolean }
   ) => string | null
   moveUnifiedTabToGroup: (
     tabId: string,
@@ -1636,7 +1638,7 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
     return true
   },
 
-  createEmptySplitGroup: (worktreeId, sourceGroupId, direction) => {
+  createEmptySplitGroup: (worktreeId, sourceGroupId, direction, opts) => {
     const newGroupId = createBrowserUuid()
     const newGroup: TabGroup = {
       id: newGroupId,
@@ -1660,10 +1662,15 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
           ...state.layoutByWorktree,
           [worktreeId]: replaceLeaf(currentLayout, sourceGroupId, replacement)
         },
-        activeGroupIdByWorktree: { ...state.activeGroupIdByWorktree, [worktreeId]: newGroupId }
+        activeGroupIdByWorktree:
+          opts?.activate === false
+            ? state.activeGroupIdByWorktree
+            : { ...state.activeGroupIdByWorktree, [worktreeId]: newGroupId }
       }
     })
-    get().recordFeatureInteraction?.('terminal-panes')
+    if (opts?.recordInteraction !== false) {
+      get().recordFeatureInteraction?.('terminal-panes')
+    }
     return newGroupId
   },
 

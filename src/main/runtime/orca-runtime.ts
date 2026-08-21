@@ -417,6 +417,7 @@ import {
 import { isLinearUuid } from '../../shared/linear/uuid'
 import type { FeatureInteractionId } from '../../shared/feature-interactions'
 import type { TerminalPaneSplitSource } from '../../shared/feature-education-telemetry'
+import type { TerminalPaneGroupPlacement } from '../../shared/terminal-pane-placement'
 import {
   FOLDER_WORKSPACE_INSTANCE_SEPARATOR,
   WORKTREE_ID_SEPARATOR,
@@ -1467,6 +1468,10 @@ type TerminalCreateOptions = {
   // intermediate pty-backed publish so the new tab doesn't briefly flash in
   // the wrong (active) group before the corrected snapshot lands.
   deferMobileSessionPublish?: boolean
+  // Why: main owns no group ids, so it names the anchor pane and lets the
+  // renderer resolve the group. Advisory — the renderer drops it when the
+  // anchor is gone or the user has the layout preference off.
+  paneGroupPlacement?: TerminalPaneGroupPlacement
 }
 
 function mergeTerminalEnvDeletionKeys(
@@ -1977,6 +1982,7 @@ type RuntimeNotifier = {
       splitFromLeafId?: string
       splitDirection?: 'horizontal' | 'vertical'
       splitTelemetrySource?: TerminalPaneSplitSource
+      paneGroupPlacement?: TerminalPaneGroupPlacement
       focus?: boolean
       expectedProcessIdentity?: {
         terminalHandle: string
@@ -26600,6 +26606,7 @@ export class OrcaRuntimeService {
               activate: presentation === 'focused',
               ...(presentation ? { presentation } : {}),
               ...ownerSurfacing(opts.surfaceOwner !== false),
+              ...(opts.paneGroupPlacement ? { paneGroupPlacement: opts.paneGroupPlacement } : {}),
               tabId,
               leafId
             })

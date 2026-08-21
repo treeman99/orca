@@ -60,6 +60,8 @@ export async function createExistingWorktreeWorkerTerminal(args: {
   launchPreferences?: AgentLaunchPreferences
   taskId: string
   effects: WorkerEffect[]
+  /** Coordinator tab the renderer may anchor a worker column to. Same-worktree dispatches only. */
+  coordinatorTabId?: string
 }): Promise<{ handle: string; warning?: string }> {
   const terminal = await args.runtime.createTerminal(`id:${args.worktreeId}`, {
     // Why: the agent id is not a shell command — `cursor` resolves to the Cursor
@@ -70,7 +72,15 @@ export async function createExistingWorktreeWorkerTerminal(args: {
     title: `worker-${args.taskId}`,
     // Why: dispatching a worker is background work; it must not pull the sidebar
     // to the worker's workspace while the user is reading somewhere else.
-    surfaceOwner: false
+    surfaceOwner: false,
+    ...(args.coordinatorTabId
+      ? {
+          paneGroupPlacement: {
+            kind: 'orchestration-worker' as const,
+            coordinatorTabId: args.coordinatorTabId
+          }
+        }
+      : {})
   })
   args.effects.push({
     kind: 'terminal',

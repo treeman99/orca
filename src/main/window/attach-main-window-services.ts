@@ -361,6 +361,9 @@ function registerRuntimeWindowLifecycle(
           ...(opts.splitTelemetrySource !== undefined
             ? { splitTelemetrySource: opts.splitTelemetrySource }
             : {}),
+          ...(opts.paneGroupPlacement !== undefined
+            ? { paneGroupPlacement: opts.paneGroupPlacement }
+            : {}),
           ...(opts.focus !== undefined ? { focus: opts.focus } : {})
         })
         if (!sent) {

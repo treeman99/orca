@@ -156,6 +156,10 @@ import { isDecorativeAgentTitleFrameChange } from '../../../shared/agent-decorat
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { resolveTerminalWorktreeRoute } from '@/lib/terminal-worktree-route'
 import { resolveAgentPaneAuthorityKey } from '@/store/slices/agent-pane-authority'
+import {
+  claimOrchestrationWorkerPaneGroup,
+  recordOrchestrationWorkerTab
+} from '@/store/slices/orchestration-worker-pane-column'
 import type {
   AgentStatusBatchTransaction,
   AgentStatusBatchUpdate,
@@ -1485,7 +1489,8 @@ export function useIpcEvents(): void {
           leafId,
           splitFromLeafId,
           splitDirection,
-          splitTelemetrySource
+          splitTelemetrySource,
+          paneGroupPlacement
         }) => {
           try {
             const store = useAppStore.getState()
@@ -1523,10 +1528,16 @@ export function useIpcEvents(): void {
               throw new Error(`Terminal tab ${tabId} not found`)
             }
             const reusedTab = existingTab ?? splitTargetTab
+            // Why: an orchestration worker opens beside its coordinator instead of in the
+            // active group. Undefined (preference off, foreign worktree) keeps the old path.
+            const workerPaneGroupId =
+              !reusedTab && paneGroupPlacement
+                ? claimOrchestrationWorkerPaneGroup(useAppStore, { worktreeId, paneGroupPlacement })
+                : undefined
             const tab =
               reusedTab ??
               (ptyId
-                ? store.createTab(worktreeId, undefined, undefined, {
+                ? store.createTab(worktreeId, workerPaneGroupId, undefined, {
                     initialPtyId: ptyId,
                     activate: shouldActivate,
                     ...(launchAgent
@@ -1550,7 +1561,7 @@ export function useIpcEvents(): void {
                   })
                 : store.createTab(
                     worktreeId,
-                    undefined,
+                    workerPaneGroupId,
                     undefined,
                     shouldActivate
                       ? cwd
@@ -1567,6 +1578,9 @@ export function useIpcEvents(): void {
               console.warn(
                 `[onCreateTerminal] tabId hint ${tabId} ignored for ptyId ${ptyId}; existing tab ${tab.id} adopted instead (hook attribution will degrade for this terminal)`
               )
+            }
+            if (workerPaneGroupId && paneGroupPlacement) {
+              recordOrchestrationWorkerTab(paneGroupPlacement.coordinatorTabId, tab.id)
             }
             if (shouldActivate) {
               store.setActiveTabType('terminal')

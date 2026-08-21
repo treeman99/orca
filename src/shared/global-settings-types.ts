@@ -203,6 +203,8 @@ export type GlobalSettings = {
   terminalLinkActionPopoverEnabled?: boolean
   /** Opt-in: open new coding-agent tabs in native chat instead of the raw terminal; optional for legacy settings. */
   openAgentTabsInChatByDefault?: boolean
+  /** Opt-in: orchestration workers started in the coordinator's own worktree open in a split column beside it instead of as tabs in the active group. */
+  autoSplitOrchestrationWorkerPanes?: boolean
   /** Experimental native chat surface for Claude/Codex sessions; off by default. */
   experimentalNativeChat?: boolean
   /** Last explicit native-chat model + option selections; live panes need an applied/dispatched record before showing a value. */

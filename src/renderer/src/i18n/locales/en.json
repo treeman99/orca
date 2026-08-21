@@ -9050,6 +9050,14 @@
             "a7f76b4ca7": "orchestration",
             "e05ff36753": "Coordinate multiple coding agents via messaging, task DAGs, dispatch, and decision gates.",
             "c34045764e": "Agent Orchestration"
+          },
+          "worker": {
+            "pane": {
+              "search": {
+                "title": "Split worker panes automatically",
+                "description": "Open orchestration workers in a split column beside their coordinator terminal."
+              }
+            }
           }
         },
         "privacy": {
@@ -10836,6 +10844,11 @@
           "sourceDefault": "the gh default — no corporate host is configured",
           "label": "GitHub requests go to",
           "remoteNote": "A workspace whose git remote points at another host uses that host instead."
+        },
+        "OrchestrationWorkerPaneLayoutSetting": {
+          "title": "Split worker panes automatically",
+          "description": "Lay dispatched workers out beside the coordinator instead of stacking them as tabs.",
+          "rowDescription": "Workers started in the coordinator’s own worktree open in a column to its right, stacking downward for up to three panes; later workers become tabs in the last one. Workers dispatched to another worktree are unaffected."
         }
       },
       "right": {

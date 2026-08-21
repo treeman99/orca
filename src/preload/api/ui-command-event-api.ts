@@ -13,6 +13,7 @@ import type {
   SleepingAgentLaunchConfig
 } from '../../shared/agent-session-resume'
 import type { TerminalPaneSplitSource } from '../../shared/feature-education-telemetry'
+import type { TerminalPaneGroupPlacement } from '../../shared/terminal-pane-placement'
 import type {
   RuntimeMobileSessionTabMove,
   RuntimeTerminalCreateRequestPayload,
@@ -138,6 +139,7 @@ export type UiCommandEventApi = {
       splitFromLeafId?: string
       splitDirection?: 'horizontal' | 'vertical'
       splitTelemetrySource?: TerminalPaneSplitSource
+      paneGroupPlacement?: TerminalPaneGroupPlacement
     }) => void
   ) => () => void
   onRequestTerminalCreate: (

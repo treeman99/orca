@@ -96,7 +96,10 @@ describe('orchestration RPC methods', () => {
       expect(runtime.createTerminal).toHaveBeenCalledWith('id:repo::worktree', {
         startupAgent: 'codex',
         title: `worker-${task.id}`,
-        surfaceOwner: false
+        surfaceOwner: false,
+        // Why: same-worktree dispatch, so the renderer may open the worker beside
+        // the coordinator instead of as another tab in the active group.
+        paneGroupPlacement: { kind: 'orchestration-worker', coordinatorTabId: 'tab_coord' }
       })
       expect(runtime.sendTerminalAgentPrompt).toHaveBeenCalledWith(
         'term_worker',
@@ -284,6 +287,11 @@ describe('orchestration RPC methods', () => {
         // Why: starting a worker in an existing worktree must not pull the sidebar
         // away from whatever the user is looking at.
         expect.objectContaining({ startupAgent: 'codex', surfaceOwner: false })
+      )
+      // Why: the worker lands in another worktree, whose layout can never render the
+      // coordinator alongside it — no pane placement may be advertised.
+      expect(vi.mocked(runtime.createTerminal).mock.calls[0]?.[1]).not.toHaveProperty(
+        'paneGroupPlacement'
       )
       expect(createWorktree).not.toHaveBeenCalled()
       expect(runtime.showTerminal).toHaveBeenCalledWith('term_coord')

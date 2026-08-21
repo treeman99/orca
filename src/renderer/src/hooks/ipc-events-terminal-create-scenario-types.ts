@@ -111,10 +111,21 @@ export type TerminalCreateSurfacingStore = {
   enqueueSshCredentialRequest: SpyMock
   removeSshCredentialRequest: SpyMock
   clearTabPtyId: SpyMock
+  unifiedTabsByWorktree: Record<
+    string,
+    { id: string; entityId: string; groupId: string; contentType: string }[]
+  >
+  groupsByWorktree: Record<string, { id: string; tabOrder: string[] }[]>
+  layoutByWorktree: Record<string, unknown>
+  createEmptySplitGroup: Mock<
+    (worktreeId: string, sourceGroupId: string, direction: string, opts?: unknown) => string | null
+  >
+  setTabGroupSplitRatio: SpyMock
   settings: {
     terminalFontSize: number
     experimentalNativeChat: boolean
     openAgentTabsInChatByDefault: boolean
+    autoSplitOrchestrationWorkerPanes?: boolean
     activeRuntimeEnvironmentId: string | undefined
   }
 }
@@ -134,6 +145,7 @@ export type TerminalCreateSurfacingScenario = Pick<
   | 'registerAgentLaunchConfig'
   | 'updateTabPtyId'
   | 'setTabLayout'
+  | 'createEmptySplitGroup'
 > & {
   replyTerminalCreate: SpyMock
   dispatchEvent: SpyMock

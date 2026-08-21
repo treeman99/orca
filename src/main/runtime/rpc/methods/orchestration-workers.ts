@@ -1,4 +1,5 @@
 import type { TuiAgent } from '../../../../shared/tui-agent'
+import { parsePaneKey } from '../../../../shared/stable-pane-id'
 import { buildDispatchPreamble } from '../../orchestration/preamble'
 import { OrchestrationError } from '../../orchestration/orchestration-error'
 import { defineMethod, type RpcMethod } from '../core'
@@ -61,6 +62,7 @@ export const ORCHESTRATION_WORKER_START_METHODS: RpcMethod[] = [
       const { agent, launch } = prepareLocalWorkerStart({ params, createsWorktree, runtime })
 
       const coordinatorTerminal = await runtime.showTerminal(params.from)
+      const coordinatorTabId = coordinatorPane ? parsePaneKey(coordinatorPane)?.tabId : undefined
       const creationWorktree = createsWorktree
         ? await runtime.showManagedWorktree(`id:${coordinatorTerminal.worktreeId}`)
         : undefined
@@ -165,7 +167,12 @@ export const ORCHESTRATION_WORKER_START_METHODS: RpcMethod[] = [
             agent: agent as TuiAgent,
             launchPreferences: launch.preferences,
             taskId: task.id,
-            effects
+            effects,
+            // Why: a worker column can only be drawn next to the coordinator when both
+            // panes live in the same workspace surface — layouts are per worktree.
+            ...(resolvedWorktree!.id === coordinatorTerminal.worktreeId && coordinatorTabId
+              ? { coordinatorTabId }
+              : {})
           })
           terminalHandle = terminal.handle
           terminalRevealWarning = terminal.warning

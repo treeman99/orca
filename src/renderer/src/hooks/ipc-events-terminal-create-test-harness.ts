@@ -43,6 +43,20 @@ export async function setupTerminalCreateSurfacing(
   })
   const focusRuntimeTerminalSurface = vi.fn(() => false)
   const focusTerminalTabSurface = vi.fn()
+  let splitGroupCounter = 0
+  // Why: the placement path only needs a group id and a live group row; the real
+  // layout tree is asserted in the store-level worker-pane-column tests.
+  const createEmptySplitGroup = vi.fn(
+    (worktreeId: string, _sourceGroupId: string, _direction: string, _opts?: unknown) => {
+      splitGroupCounter += 1
+      const id = `g-split-${splitGroupCounter}`
+      storeState.groupsByWorktree[worktreeId] = [
+        ...(storeState.groupsByWorktree[worktreeId] ?? []),
+        { id, tabOrder: [] }
+      ]
+      return id
+    }
+  )
   const storeState: TerminalCreateSurfacingStore = {
     setUpdateStatus: vi.fn(),
     createTab,
@@ -98,6 +112,14 @@ export async function setupTerminalCreateSurfacing(
     enqueueSshCredentialRequest: vi.fn(),
     removeSshCredentialRequest: vi.fn(),
     clearTabPtyId: vi.fn(),
+    unifiedTabsByWorktree: {} as Record<
+      string,
+      { id: string; entityId: string; groupId: string; contentType: string }[]
+    >,
+    groupsByWorktree: {} as Record<string, { id: string; tabOrder: string[] }[]>,
+    layoutByWorktree: {} as Record<string, unknown>,
+    createEmptySplitGroup,
+    setTabGroupSplitRatio: vi.fn(),
     settings: {
       terminalFontSize: 13,
       experimentalNativeChat: false,
@@ -217,6 +239,7 @@ export async function setupTerminalCreateSurfacing(
   }
   return {
     createTab,
+    createEmptySplitGroup,
     setActiveView,
     setActiveWorktree,
     markWorktreeVisited,

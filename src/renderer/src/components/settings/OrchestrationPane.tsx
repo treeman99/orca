@@ -20,6 +20,8 @@ import { SearchableSetting } from './SearchableSetting'
 import { matchesSettingsSearch } from './settings-search'
 import { useAppStore } from '../../store'
 import { getOrchestrationPaneSearchEntries } from './orchestration-search'
+import { getOrchestrationWorkerPaneLayoutSearchEntries } from './orchestration-worker-pane-layout-search'
+import { OrchestrationWorkerPaneLayoutSetting } from './OrchestrationWorkerPaneLayoutSetting'
 import { AgentSkillSetupPanel } from './AgentSkillSetupPanel'
 import {
   buildSkillCommandForRuntime,
@@ -46,6 +48,10 @@ function resolveOrchestrationExampleIcon(example: SkillUsageExample): LucideIcon
 export function OrchestrationPane(): React.JSX.Element {
   const searchQuery = useAppStore((s) => s.settingsSearchQuery)
   const showOrchestration = matchesSettingsSearch(searchQuery, getOrchestrationPaneSearchEntries())
+  const showWorkerPaneLayout = matchesSettingsSearch(
+    searchQuery,
+    getOrchestrationWorkerPaneLayoutSearchEntries()
+  )
   const [skillPromptOpen, setSkillPromptOpen] = useState(false)
   const activeSkillRuntime = useActiveProjectSkillRuntime()
   const orchestrationInstallCommand = !activeSkillRuntime.installDisabledReason
@@ -73,114 +79,117 @@ export function OrchestrationPane(): React.JSX.Element {
     sourceKinds: GLOBAL_AGENT_SKILL_SOURCE_KINDS
   })
 
-  if (!showOrchestration) {
+  if (!showOrchestration && !showWorkerPaneLayout) {
     return <div />
   }
 
   return (
-    <SearchableSetting
-      title={translate(
-        'auto.components.settings.OrchestrationPane.191ac34567',
-        'Agent Orchestration'
-      )}
-      description={translate(
-        'auto.components.settings.OrchestrationPane.2aacdb0517',
-        'Coordinate coding agents across handoffs, worktree handovers, and child-agent work.'
-      )}
-      keywords={getOrchestrationPaneSearchEntries()[0].keywords}
-      className="space-y-5 py-2"
-    >
-      <AgentSkillSetupPanel
+    <div className="space-y-4">
+      <SearchableSetting
         title={translate(
-          'auto.components.settings.OrchestrationPane.07641b9768',
-          'Orchestration skill'
+          'auto.components.settings.OrchestrationPane.191ac34567',
+          'Agent Orchestration'
         )}
         description={translate(
-          'auto.components.settings.OrchestrationPane.9bedd2a6e5',
-          'Enables agents to hand off context and coordinate work through Orca.'
+          'auto.components.settings.OrchestrationPane.2aacdb0517',
+          'Coordinate coding agents across handoffs, worktree handovers, and child-agent work.'
         )}
-        command={orchestrationInstallCommand}
-        installedCommand={orchestrationUpdateCommand}
-        terminalTitle="Orchestration setup"
-        terminalAriaLabel="Orchestration skill install terminal"
-        terminalWorktreeId="settings-orchestration-skill-terminal"
-        terminalShellOverride={activeSkillRuntime.terminalShellOverride}
-        terminalRuntime={activeSkillRuntime.agentRuntime}
-        installed={orchestrationSkillDetected}
-        loading={orchestrationSkillLoading}
-        error={activeSkillRuntime.installDisabledReason ?? orchestrationSkillError}
-        installDisabled={Boolean(activeSkillRuntime.installDisabledReason)}
-        icon={<Workflow className="size-5" />}
-        preInstallNotice={AGENT_SKILL_CLI_PREREQUISITE_NOTICE}
-        getPrerequisiteStatus={() =>
-          activeSkillRuntime.agentRuntime?.runtime === 'wsl'
-            ? window.api.cli.getWslInstallStatus(
-                getWslCliDistroRequest(activeSkillRuntime.agentRuntime)
-              )
-            : window.api.cli.getInstallStatus()
-        }
-        onBeforeOpenTerminal={async () => {
-          useAppStore.getState().recordFeatureInteraction('agent-orchestration-setup')
-          await (activeSkillRuntime.agentRuntime?.runtime === 'wsl'
-            ? ensureWslCliAvailableForAgentSkillTerminal(activeSkillRuntime.agentRuntime)
-            : ensureOrcaCliAvailableForAgentSkillTerminal())
-        }}
-        actionHint={
-          // Installed updates stay on the primary panel so there is only one update path.
-          activeSkillRuntime.installDisabledReason || orchestrationSkillDetected ? null : (
-            <p className="text-[12px] leading-snug text-muted-foreground">
-              {translate(
-                'auto.components.settings.OrchestrationPane.832f1f3ee6',
-                'Prefer your own terminal?'
-              )}{' '}
-              <button
-                type="button"
-                className="font-medium text-foreground underline-offset-2 hover:underline"
-                onClick={() => {
-                  setSkillPromptOpen(true)
-                }}
-              >
+        keywords={getOrchestrationPaneSearchEntries()[0].keywords}
+        className="space-y-5 py-2"
+      >
+        <AgentSkillSetupPanel
+          title={translate(
+            'auto.components.settings.OrchestrationPane.07641b9768',
+            'Orchestration skill'
+          )}
+          description={translate(
+            'auto.components.settings.OrchestrationPane.9bedd2a6e5',
+            'Enables agents to hand off context and coordinate work through Orca.'
+          )}
+          command={orchestrationInstallCommand}
+          installedCommand={orchestrationUpdateCommand}
+          terminalTitle="Orchestration setup"
+          terminalAriaLabel="Orchestration skill install terminal"
+          terminalWorktreeId="settings-orchestration-skill-terminal"
+          terminalShellOverride={activeSkillRuntime.terminalShellOverride}
+          terminalRuntime={activeSkillRuntime.agentRuntime}
+          installed={orchestrationSkillDetected}
+          loading={orchestrationSkillLoading}
+          error={activeSkillRuntime.installDisabledReason ?? orchestrationSkillError}
+          installDisabled={Boolean(activeSkillRuntime.installDisabledReason)}
+          icon={<Workflow className="size-5" />}
+          preInstallNotice={AGENT_SKILL_CLI_PREREQUISITE_NOTICE}
+          getPrerequisiteStatus={() =>
+            activeSkillRuntime.agentRuntime?.runtime === 'wsl'
+              ? window.api.cli.getWslInstallStatus(
+                  getWslCliDistroRequest(activeSkillRuntime.agentRuntime)
+                )
+              : window.api.cli.getInstallStatus()
+          }
+          onBeforeOpenTerminal={async () => {
+            useAppStore.getState().recordFeatureInteraction('agent-orchestration-setup')
+            await (activeSkillRuntime.agentRuntime?.runtime === 'wsl'
+              ? ensureWslCliAvailableForAgentSkillTerminal(activeSkillRuntime.agentRuntime)
+              : ensureOrcaCliAvailableForAgentSkillTerminal())
+          }}
+          actionHint={
+            // Installed updates stay on the primary panel so there is only one update path.
+            activeSkillRuntime.installDisabledReason || orchestrationSkillDetected ? null : (
+              <p className="text-[12px] leading-snug text-muted-foreground">
                 {translate(
-                  'auto.components.settings.OrchestrationPane.7bc082f4de',
-                  'Copy install command'
-                )}
-              </button>
-            </p>
-          )
-        }
-        footer={
-          <OrchestrationSkillAgentCoverage
-            embedded
-            skills={discoveredSkills}
-            sources={discoveredSkillSources}
-            loading={orchestrationSkillLoading}
-          />
-        }
-        onRecheck={refreshOrchestrationSkill}
-        freshnessSkillName={
-          activeSkillRuntime.canUseLocalSkillFreshness ? ORCHESTRATION_SKILL_NAME : undefined
-        }
-      />
+                  'auto.components.settings.OrchestrationPane.832f1f3ee6',
+                  'Prefer your own terminal?'
+                )}{' '}
+                <button
+                  type="button"
+                  className="font-medium text-foreground underline-offset-2 hover:underline"
+                  onClick={() => {
+                    setSkillPromptOpen(true)
+                  }}
+                >
+                  {translate(
+                    'auto.components.settings.OrchestrationPane.7bc082f4de',
+                    'Copy install command'
+                  )}
+                </button>
+              </p>
+            )
+          }
+          footer={
+            <OrchestrationSkillAgentCoverage
+              embedded
+              skills={discoveredSkills}
+              sources={discoveredSkillSources}
+              loading={orchestrationSkillLoading}
+            />
+          }
+          onRecheck={refreshOrchestrationSkill}
+          freshnessSkillName={
+            activeSkillRuntime.canUseLocalSkillFreshness ? ORCHESTRATION_SKILL_NAME : undefined
+          }
+        />
 
-      <OrchestrationSkillPromptDialog
-        command={orchestrationInstallCommand}
-        open={skillPromptOpen}
-        onOpenChange={setSkillPromptOpen}
-      />
+        <OrchestrationSkillPromptDialog
+          command={orchestrationInstallCommand}
+          open={skillPromptOpen}
+          onOpenChange={setSkillPromptOpen}
+        />
 
-      <SkillUsageExamplesSection
-        heading={translate(
-          'auto.components.settings.OrchestrationPane.ae79504732',
-          'How to use it'
-        )}
-        description={translate(
-          'auto.components.settings.OrchestrationPane.52e0634e2c',
-          'Ask a coordinator agent to use orchestration for handoffs, worktree handovers, and sequential or parallel child agents.'
-        )}
-        examples={getOrchestrationUsageExamples()}
-        resolveIcon={resolveOrchestrationExampleIcon}
-        slashCommand={`/${ORCHESTRATION_SKILL_NAME}`}
-      />
-    </SearchableSetting>
+        <SkillUsageExamplesSection
+          heading={translate(
+            'auto.components.settings.OrchestrationPane.ae79504732',
+            'How to use it'
+          )}
+          description={translate(
+            'auto.components.settings.OrchestrationPane.52e0634e2c',
+            'Ask a coordinator agent to use orchestration for handoffs, worktree handovers, and sequential or parallel child agents.'
+          )}
+          examples={getOrchestrationUsageExamples()}
+          resolveIcon={resolveOrchestrationExampleIcon}
+          slashCommand={`/${ORCHESTRATION_SKILL_NAME}`}
+        />
+      </SearchableSetting>
+      <OrchestrationWorkerPaneLayoutSetting />
+    </div>
   )
 }
