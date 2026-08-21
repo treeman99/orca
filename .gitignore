@@ -111,6 +111,7 @@ docs/**
 !docs/reference/enterprise-policy.md
 !docs/reference/macos-dev-ui-check.md
 !docs/reference/local-dev-run.md
+!docs/reference/windows-daemon-session-survival.md
 
 # Stably CLI (only docs/ are tracked)
 .stably/*

@@ -160,6 +160,9 @@ Get-Item dist\orca-windows-setup.exe, dist\orca-windows-setup.exe.blockmap, dist
 
 `publish`를 껐다면(§5-1) `latest.yml`은 생성되지 않으므로 마지막 줄에서 제외하세요.
 
+설치본에서 **앱을 껐다 켜면 터미널의 claude가 죽어 있는** 경우의 판정 절차는
+[`windows-daemon-session-survival.md`](./windows-daemon-session-survival.md)에 있습니다.
+
 ---
 
 ## 5. 절대 하지 말아야 할 것

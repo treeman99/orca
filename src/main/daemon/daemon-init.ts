@@ -37,11 +37,9 @@ import {
   parseDaemonPidFile,
   type MacDaemonTccAttributionHealth
 } from './daemon-health'
-import {
-  collectPinnedDaemonVersions,
-  materializeRelocatedDaemonHost,
-  pruneOldDaemonHosts
-} from './daemon-host-relocation'
+import { collectPinnedDaemonVersions, pruneOldDaemonHosts } from './daemon-host-relocation'
+import { resolveDaemonLaunchHosts, type DaemonLaunchHost } from './daemon-launch-hosts'
+import { classifyDaemonLaunchFailure, logDaemonLaunch } from './daemon-launch-log'
 import { DegradedDaemonPtyProvider } from './degraded-daemon-pty-provider'
 import { trackDaemonReplaced, trackDaemonRetired } from './daemon-lifecycle-event'
 import type { DaemonReplaceReason } from '../../shared/daemon-lifecycle-telemetry'
@@ -478,6 +476,8 @@ function createOutOfProcessLauncher(
     const preserveDaemon = async (
       mode?: 'degraded-new-pty-fallback'
     ): Promise<DaemonProcessHandle> => {
+      // The one line that separates "warm reattach worked" from "fresh terminals die on quit".
+      logDaemonLaunch('adopted', { mode: mode ?? 'daemon-backed' })
       const connectedClient = adoptionClient ?? undefined
       adoptionClient = null
       return holdDaemonAdoptionLease(
@@ -491,6 +491,7 @@ function createOutOfProcessLauncher(
     }
     try {
       const health = await checkDaemonHealth(socketPath, tokenPath)
+      logDaemonLaunch('endpoint-health', { health })
       if (health === 'healthy') {
         const resolverHealth = await getMacDaemonSystemResolverHealth(socketPath, tokenPath)
         if (resolverHealth === 'unhealthy') {
@@ -663,237 +664,283 @@ function createOutOfProcessLauncher(
       }
 
       const userDataPath = app.getPath('userData')
-      // Why: on win32 packaged, stage a daemon-host copy in userData so its image escapes the NSIS updater's kill zone; lazy so it's off first-paint. Fail-open: null → in-dir host.
-      const relocatedHost = materializeRelocatedDaemonHost()
-      // Fork the relocated entry when available; otherwise the install-dir entry.
-      const forkEntryPath = relocatedHost ? relocatedHost.entryPath : entryPath
-      const child = fork(
-        forkEntryPath,
-        [
-          '--socket',
-          socketPath,
-          '--token',
-          tokenPath,
-          '--pid-record',
-          pidPath,
-          '--launch-nonce',
-          launchNonce,
-          '--entry-path',
-          entryPath,
-          '--app-version',
-          app.getVersion(),
-          '--spawner-exec-path',
-          process.execPath,
-          ...(macosLoginSessionWatch ? ['--login-session-watch'] : []),
-          ...daemonLogArgs()
-        ],
-        {
-          // Why: detached daemons outlive dev worktrees; userData keeps process.cwd() valid after a repo/worktree is deleted.
-          cwd: userDataPath,
-          // Why: detached+unref outlives Electron; stdout 'ignore' (else blocks exit), stderr 'pipe' captures startup crashes lost in v1.4.129-rc.1.
-          detached: true,
-          stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
-          // Why: run the byte-identical relocated Orca.exe so the image path sits outside the updater's kill zone.
-          ...(relocatedHost ? { execPath: relocatedHost.execPath } : {}),
-          // Why: run the fork as plain Node so Electron's GPU/display init can't interfere with node-pty's posix_spawn of the spawn-helper.
-          env: {
-            ...process.env,
-            ELECTRON_RUN_AS_NODE: '1',
-            // Why: the detached plain-Node daemon can't call app.getPath(), but shell rcfiles must live outside swept tmp.
-            ORCA_USER_DATA_PATH: userDataPath
+      // Why: relocation fails open on the copy but used to fail closed on the launch — a host the
+      // machine refuses to execute cost the whole daemon lane, and every terminal then ran on the
+      // LocalPtyProvider, which killAllPty() kills on quit. See resolveDaemonLaunchHosts.
+      const launchHosts = resolveDaemonLaunchHosts(entryPath)
+      const launchOnHost = async (host: DaemonLaunchHost): Promise<DaemonProcessHandle> => {
+        const child = fork(
+          host.entryPath,
+          [
+            '--socket',
+            socketPath,
+            '--token',
+            tokenPath,
+            '--pid-record',
+            pidPath,
+            '--launch-nonce',
+            launchNonce,
+            '--entry-path',
+            entryPath,
+            '--app-version',
+            app.getVersion(),
+            '--spawner-exec-path',
+            process.execPath,
+            ...(macosLoginSessionWatch ? ['--login-session-watch'] : []),
+            ...daemonLogArgs()
+          ],
+          {
+            // Why: detached daemons outlive dev worktrees; userData keeps process.cwd() valid after a repo/worktree is deleted.
+            cwd: userDataPath,
+            // Why: detached+unref outlives Electron; stdout 'ignore' (else blocks exit), stderr 'pipe' captures startup crashes lost in v1.4.129-rc.1.
+            detached: true,
+            stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
+            // Why: run the byte-identical relocated Orca.exe so the image path sits outside the updater's kill zone.
+            ...(host.execPath ? { execPath: host.execPath } : {}),
+            // Why: run the fork as plain Node so Electron's GPU/display init can't interfere with node-pty's posix_spawn of the spawn-helper.
+            env: {
+              ...process.env,
+              ELECTRON_RUN_AS_NODE: '1',
+              // Why: the detached plain-Node daemon can't call app.getPath(), but shell rcfiles must live outside swept tmp.
+              ORCA_USER_DATA_PATH: userDataPath
+            }
           }
-        }
-      )
+        )
 
-      // Why: keep only the startup-window stderr tail so a crash cause is visible without unbounded memory.
-      const STARTUP_STDERR_MAX_BYTES = 8192
-      let startupStderr = ''
-      let collectingStderr = true
-      const onStartupStderr = (chunk: Buffer): void => {
-        if (!collectingStderr) {
-          return
+        // Why: keep only the startup-window stderr tail so a crash cause is visible without unbounded memory.
+        const STARTUP_STDERR_MAX_BYTES = 8192
+        let startupStderr = ''
+        let collectingStderr = true
+        const onStartupStderr = (chunk: Buffer): void => {
+          if (!collectingStderr) {
+            return
+          }
+          startupStderr += chunk.toString('utf8')
+          if (startupStderr.length > STARTUP_STDERR_MAX_BYTES) {
+            startupStderr = startupStderr.slice(-STARTUP_STDERR_MAX_BYTES)
+          }
         }
-        startupStderr += chunk.toString('utf8')
-        if (startupStderr.length > STARTUP_STDERR_MAX_BYTES) {
-          startupStderr = startupStderr.slice(-STARTUP_STDERR_MAX_BYTES)
+        child.stderr?.on('data', onStartupStderr)
+        // Why: release the detached daemon's stderr once up/failed — a live piped stream refs the parent loop and blocks Electron exit.
+        const releaseStderr = (): void => {
+          collectingStderr = false
+          child.stderr?.off('data', onStartupStderr)
+          child.stderr?.destroy()
         }
-      }
-      child.stderr?.on('data', onStartupStderr)
-      // Why: release the detached daemon's stderr once up/failed — a live piped stream refs the parent loop and blocks Electron exit.
-      const releaseStderr = (): void => {
-        collectingStderr = false
-        child.stderr?.off('data', onStartupStderr)
-        child.stderr?.destroy()
-      }
 
-      // Wait for the daemon to signal readiness via IPC
-      let launchedIdentity: DaemonEndpointIdentity | null = null
-      let endpointUnavailableReason: string | null = null
-      const startupSignal = new Promise<void>((resolve, reject) => {
-        let timer: ReturnType<typeof setTimeout> | undefined
-        let settled = false
-        function cleanupStartupListeners(): void {
-          if (timer) {
-            clearTimeout(timer)
+        // Wait for the daemon to signal readiness via IPC
+        let launchedIdentity: DaemonEndpointIdentity | null = null
+        let endpointUnavailableReason: string | null = null
+        const startupSignal = new Promise<void>((resolve, reject) => {
+          let timer: ReturnType<typeof setTimeout> | undefined
+          let settled = false
+          function cleanupStartupListeners(): void {
+            if (timer) {
+              clearTimeout(timer)
+            }
+            child.off('message', onReadyMessage)
+            child.off('error', onStartupError)
+            child.off('exit', onStartupExit)
           }
-          child.off('message', onReadyMessage)
-          child.off('error', onStartupError)
-          child.off('exit', onStartupExit)
-        }
-        async function fail(error: Error): Promise<void> {
-          if (settled) {
-            return
-          }
-          settled = true
-          cleanupStartupListeners()
-          // Why: attach the captured stderr tail to the thrown error and log it so a startup crash isn't just "exited with code 1".
-          const stderrTail = startupStderr.trim()
-          if (stderrTail) {
-            console.warn(`[daemon] startup failed; captured stderr tail:\n${stderrTail}`)
-          }
-          releaseStderr()
-          const startupError = stderrTail
-            ? new Error(`${error.message}\nDaemon stderr (tail):\n${stderrTail}`)
-            : error
-          try {
-            await terminateLaunchedDaemonChild(child)
-          } catch (cleanupError) {
-            reject(
-              new AggregateError(
-                [startupError, cleanupError],
-                'Daemon startup and child cleanup both failed'
-              )
-            )
-            return
-          }
-          if (Number.isSafeInteger(child.pid) && (child.pid as number) > 0) {
-            unlinkOwnedDaemonPidFile(pidPath, child.pid as number, launchNonce)
-          }
-          reject(startupError)
-        }
-        function onReadyMessage(msg: unknown): void {
-          if (
-            msg &&
-            typeof msg === 'object' &&
-            (msg as { type?: string }).type === 'endpoint-unavailable'
-          ) {
-            // Why: the child lost the endpoint race rather than crashing. Record it so the
-            // launcher can adopt the winner instead of reporting a generic startup failure.
-            endpointUnavailableReason = (msg as { reason?: string }).reason ?? 'occupied'
-            void fail(new Error(`Daemon could not take the endpoint: ${endpointUnavailableReason}`))
-            return
-          }
-          if (msg && typeof msg === 'object' && (msg as { type?: string }).type === 'ready') {
+          async function fail(error: Error): Promise<void> {
             if (settled) {
               return
             }
-            const readyIdentity = parseDaemonReadyIdentity(msg)
-            if (!Number.isSafeInteger(child.pid) || (child.pid as number) <= 0 || !readyIdentity) {
-              void fail(new Error('Daemon readiness identity is incomplete'))
+            settled = true
+            cleanupStartupListeners()
+            // Why: attach the captured stderr tail to the thrown error and log it so a startup crash isn't just "exited with code 1".
+            const stderrTail = startupStderr.trim()
+            if (stderrTail) {
+              console.warn(`[daemon] startup failed; captured stderr tail:\n${stderrTail}`)
+            }
+            releaseStderr()
+            const startupError = stderrTail
+              ? new Error(`${error.message}\nDaemon stderr (tail):\n${stderrTail}`)
+              : error
+            try {
+              await terminateLaunchedDaemonChild(child)
+            } catch (cleanupError) {
+              reject(
+                new AggregateError(
+                  [startupError, cleanupError],
+                  'Daemon startup and child cleanup both failed'
+                )
+              )
               return
             }
-            launchedIdentity = {
-              pid: child.pid as number,
-              ...readyIdentity,
-              launchNonce
+            if (Number.isSafeInteger(child.pid) && (child.pid as number) > 0) {
+              unlinkOwnedDaemonPidFile(pidPath, child.pid as number, launchNonce)
             }
-            settled = true
-            // Why: daemon is detached after readiness; detach startup listeners so the launch promise closure isn't retained.
-            cleanupStartupListeners()
-            // Why: release IPC/stderr and unref so Electron can exit without waiting; the daemon keeps running detached.
-            releaseStderr()
-            child.disconnect()
-            child.unref()
-            resolve()
+            reject(startupError)
           }
-        }
-
-        function onStartupError(err: Error): void {
-          void fail(err)
-        }
-
-        function onStartupExit(code: number | null): void {
-          if (code === DAEMON_EXIT_ENDPOINT_OCCUPIED) {
-            // Why here and not only on the IPC message: the exit is the event this wait settles
-            // on, so keying off it cannot lose to a notification still in the channel.
-            endpointUnavailableReason = 'occupied'
+          function onReadyMessage(msg: unknown): void {
+            if (
+              msg &&
+              typeof msg === 'object' &&
+              (msg as { type?: string }).type === 'endpoint-unavailable'
+            ) {
+              // Why: the child lost the endpoint race rather than crashing. Record it so the
+              // launcher can adopt the winner instead of reporting a generic startup failure.
+              endpointUnavailableReason = (msg as { reason?: string }).reason ?? 'occupied'
+              void fail(
+                new Error(`Daemon could not take the endpoint: ${endpointUnavailableReason}`)
+              )
+              return
+            }
+            if (msg && typeof msg === 'object' && (msg as { type?: string }).type === 'ready') {
+              if (settled) {
+                return
+              }
+              const readyIdentity = parseDaemonReadyIdentity(msg)
+              if (
+                !Number.isSafeInteger(child.pid) ||
+                (child.pid as number) <= 0 ||
+                !readyIdentity
+              ) {
+                void fail(new Error('Daemon readiness identity is incomplete'))
+                return
+              }
+              launchedIdentity = {
+                pid: child.pid as number,
+                ...readyIdentity,
+                launchNonce
+              }
+              settled = true
+              logDaemonLaunch('launch-ready', { host: host.kind })
+              // Why: daemon is detached after readiness; detach startup listeners so the launch promise closure isn't retained.
+              cleanupStartupListeners()
+              // Why: release IPC/stderr and unref so Electron can exit without waiting; the daemon keeps running detached.
+              releaseStderr()
+              child.disconnect()
+              child.unref()
+              resolve()
+            }
           }
-          void fail(new Error(`Daemon exited during startup with code ${code}`))
+
+          function onStartupError(err: Error): void {
+            void fail(err)
+          }
+
+          function onStartupExit(code: number | null): void {
+            if (code === DAEMON_EXIT_ENDPOINT_OCCUPIED) {
+              // Why here and not only on the IPC message: the exit is the event this wait settles
+              // on, so keying off it cannot lose to a notification still in the channel.
+              endpointUnavailableReason = 'occupied'
+            }
+            void fail(new Error(`Daemon exited during startup with code ${code}`))
+          }
+
+          timer = setTimeout(() => {
+            void fail(new Error('Daemon startup timed out'))
+          }, 10000)
+
+          child.on('message', onReadyMessage)
+          child.on('error', onStartupError)
+          child.on('exit', onStartupExit)
+        })
+
+        try {
+          await startupSignal
+        } catch (error) {
+          if (endpointUnavailableReason !== 'occupied') {
+            throw error
+          }
+          // Why adopt rather than retry: another daemon proved it owns the endpoint and is
+          // answering on it. Forking again would lose the same race, and reporting a startup
+          // failure strands this app on local non-persistent PTYs beside a healthy daemon.
+          console.warn(
+            '[daemon] Endpoint was taken by another daemon during startup — adopting it instead'
+          )
+          // Why pidPath: adopting reconciles the PID record against the identity the daemon
+          // reports over hello, repairing a record that names the wrong incarnation. Every other
+          // adoption path passes it; this one skipped it, so the incumbent we adopt here was the
+          // only one whose record never got that repair.
+          return await holdDaemonAdoptionLease(
+            createPreservedDaemonHandle(runtimeDir),
+            socketPath,
+            tokenPath,
+            undefined,
+            undefined,
+            pidPath
+          )
         }
 
-        timer = setTimeout(() => {
-          void fail(new Error('Daemon startup timed out'))
-        }, 10000)
-
-        child.on('message', onReadyMessage)
-        child.on('error', onStartupError)
-        child.on('exit', onStartupExit)
-      })
-
-      try {
-        await startupSignal
-      } catch (error) {
-        if (endpointUnavailableReason !== 'occupied') {
+        try {
+          if (!launchedIdentity) {
+            throw new Error('Daemon readiness identity is incomplete')
+          }
+          return await holdDaemonAdoptionLease(
+            {
+              shutdown: () => terminateLaunchedDaemonChild(child)
+            },
+            socketPath,
+            tokenPath,
+            undefined,
+            launchedIdentity,
+            pidPath
+          )
+        } catch (error) {
+          if (error instanceof DaemonEndpointOwnershipError) {
+            await terminateLaunchedDaemonChild(child)
+            unlinkOwnedDaemonPidFile(pidPath, child.pid as number, launchNonce)
+            throw error
+          }
+          // Why: another client may have adopted this live process; keep its pid record until exit, but remove one published after an early exit.
+          let pidRecordRemoved = false
+          const removeExitedPidRecord = (): void => {
+            if (pidRecordRemoved) {
+              return
+            }
+            pidRecordRemoved = true
+            unlinkOwnedDaemonPidFile(pidPath, child.pid as number, launchNonce)
+          }
+          child.once('exit', removeExitedPidRecord)
+          if (
+            (child.exitCode !== null && child.exitCode !== undefined) ||
+            (child.signalCode !== null && child.signalCode !== undefined)
+          ) {
+            child.off('exit', removeExitedPidRecord)
+            removeExitedPidRecord()
+          }
           throw error
         }
-        // Why adopt rather than retry: another daemon proved it owns the endpoint and is
-        // answering on it. Forking again would lose the same race, and reporting a startup
-        // failure strands this app on local non-persistent PTYs beside a healthy daemon.
-        console.warn(
-          '[daemon] Endpoint was taken by another daemon during startup — adopting it instead'
-        )
-        // Why pidPath: adopting reconciles the PID record against the identity the daemon
-        // reports over hello, repairing a record that names the wrong incarnation. Every other
-        // adoption path passes it; this one skipped it, so the incumbent we adopt here was the
-        // only one whose record never got that repair.
-        return await holdDaemonAdoptionLease(
-          createPreservedDaemonHandle(runtimeDir),
-          socketPath,
-          tokenPath,
-          undefined,
-          undefined,
-          pidPath
-        )
       }
 
+      logDaemonLaunch('launch-attempt', { host: launchHosts.primary.kind })
       try {
-        if (!launchedIdentity) {
-          throw new Error('Daemon readiness identity is incomplete')
-        }
-        return await holdDaemonAdoptionLease(
-          {
-            shutdown: () => terminateLaunchedDaemonChild(child)
-          },
-          socketPath,
-          tokenPath,
-          undefined,
-          launchedIdentity,
-          pidPath
-        )
+        return await launchOnHost(launchHosts.primary)
       } catch (error) {
-        if (error instanceof DaemonEndpointOwnershipError) {
-          await terminateLaunchedDaemonChild(child)
-          unlinkOwnedDaemonPidFile(pidPath, child.pid as number, launchNonce)
+        const { fallback } = launchHosts
+        // Why not on an ownership error: the endpoint changed hands, so a second fork would race
+        // the winner rather than route around a dead image. The outer catch adopts it instead.
+        if (!fallback || error instanceof DaemonEndpointOwnershipError) {
+          logDaemonLaunch('launch-failed', {
+            host: launchHosts.primary.kind,
+            ...(error instanceof DaemonEndpointOwnershipError
+              ? { stage: 'endpoint-ownership' }
+              : classifyDaemonLaunchFailure(error))
+          })
           throw error
         }
-        // Why: another client may have adopted this live process; keep its pid record until exit, but remove one published after an early exit.
-        let pidRecordRemoved = false
-        const removeExitedPidRecord = (): void => {
-          if (pidRecordRemoved) {
-            return
-          }
-          pidRecordRemoved = true
-          unlinkOwnedDaemonPidFile(pidPath, child.pid as number, launchNonce)
+        console.warn(
+          `[daemon] The ${launchHosts.primary.kind} daemon host did not start; retrying from the ${fallback.kind} host`
+        )
+        logDaemonLaunch('launch-host-fallback', {
+          from: launchHosts.primary.kind,
+          to: fallback.kind,
+          ...classifyDaemonLaunchFailure(error)
+        })
+        try {
+          return await launchOnHost(fallback)
+        } catch (fallbackError) {
+          logDaemonLaunch('launch-failed', {
+            host: fallback.kind,
+            ...(fallbackError instanceof DaemonEndpointOwnershipError
+              ? { stage: 'endpoint-ownership' }
+              : classifyDaemonLaunchFailure(fallbackError))
+          })
+          throw fallbackError
         }
-        child.once('exit', removeExitedPidRecord)
-        if (
-          (child.exitCode !== null && child.exitCode !== undefined) ||
-          (child.signalCode !== null && child.signalCode !== undefined)
-        ) {
-          child.off('exit', removeExitedPidRecord)
-          removeExitedPidRecord()
-        }
-        throw error
       }
     } catch (error) {
       adoptionClient?.disconnect()
@@ -914,6 +961,8 @@ function createOutOfProcessLauncher(
           // It stopped answering between the probe and the adoption; report the launch failure.
         }
       }
+      // Terminals now run on the LocalPtyProvider, which killAllPty() kills on quit (#5232).
+      logDaemonLaunch('lane-unavailable', classifyDaemonLaunchFailure(error))
       throw error
     }
   }

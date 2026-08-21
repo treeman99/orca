@@ -35,6 +35,17 @@ describe('createDaemonFileLog', () => {
     expect(lines[1]).toMatchObject({ event: 'session-created', sessionId: 'abc', pid: 42 })
   })
 
+  it("tags the writer so a main-process line is not read as the daemon's own", () => {
+    const filePath = join(dir, 'daemon.log')
+    createDaemonFileLog(filePath, { src: 'main' }).log('launch-attempt', { host: 'relocated' })
+
+    expect(readLines(filePath)[0]).toMatchObject({
+      src: 'main',
+      event: 'launch-attempt',
+      host: 'relocated'
+    })
+  })
+
   it('rotates at the byte cap and keeps only the configured rotated files', () => {
     const filePath = join(dir, 'daemon.log')
     const log = createDaemonFileLog(filePath, { maxBytes: 150, maxRotatedFiles: 2 })
