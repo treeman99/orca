@@ -96,7 +96,7 @@ Rules when you touch this:
 
 ### Terminal state is main-owned
 
-Main ingests PTY bytes into a bounded headless xterm model *before* forwarding to the renderer; the renderer is a view with a capped hidden-output queue that marks itself stale and re-syncs from a serialized snapshot on reveal. Read `docs/terminal-main-owned-state.md` before touching terminal output, visibility, or scrollback.
+Main ingests PTY bytes into a bounded headless xterm model *before* forwarding to the renderer; the renderer is a view with a capped hidden-output queue that marks itself stale and re-syncs from a serialized snapshot on reveal. Before touching terminal output, visibility, or scrollback, read the modules themselves — `src/main/terminal-scrollback-snapshots.ts`, `src/main/daemon/`, and `src/renderer/src/components/terminal-pane/` (upstream deleted the `docs/terminal-main-owned-state.md` this used to point at).
 
 ### Renderer state
 
