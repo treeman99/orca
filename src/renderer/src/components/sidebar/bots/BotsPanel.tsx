@@ -5,10 +5,12 @@ import { useAppStore } from '@/store'
 import { useConfirmationDialog } from '@/components/confirmation-dialog-context'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import type { AutomationCreateInput } from '../../../../../shared/automations-types'
+import { getBotRoutineEligibility } from '../../../../../shared/bot-types'
 import BotDetail from './BotDetail'
 import BotEditorDialog from './BotEditorDialog'
 import BotRoster from './BotRoster'
 import BotRoutineDialog from './BotRoutineDialog'
+import { findLiveBotChatSession, getBotActivityState, getBotLatestReply } from './bot-chat-session'
 import { buildBotWorkspaceOptions, findBotWorkspaceOption } from './bot-workspace-options'
 
 function reportRoutineFailure(message: string, error: unknown): void {
@@ -21,12 +23,25 @@ export function BotsPanel(): React.JSX.Element {
   const selectedBotId = useAppStore((s) => s.selectedBotId)
   const botRoutines = useAppStore((s) => s.botRoutines)
   const botRoutineRuns = useAppStore((s) => s.botRoutineRuns)
+  const botChatLog = useAppStore((s) => s.botChatLog)
+  const botSendInFlight = useAppStore((s) => s.botSendInFlight)
+  const unreadBotIds = useAppStore((s) => s.unreadBotIds)
+  // Selected reactively (not read through getState) so the activity dot and the "session is
+  // gone" verdict follow the pane instead of freezing at selection time.
+  const agentStatusByPaneKey = useAppStore((s) => s.agentStatusByPaneKey)
+  const ptyIdsByTabId = useAppStore((s) => s.ptyIdsByTabId)
+  const terminalLayoutsByTabId = useAppStore((s) => s.terminalLayoutsByTabId)
+  const unifiedTabsByWorktree = useAppStore((s) => s.unifiedTabsByWorktree)
   const fetchBots = useAppStore((s) => s.fetchBots)
   const fetchBotRoutines = useAppStore((s) => s.fetchBotRoutines)
   const createBot = useAppStore((s) => s.createBot)
   const updateBot = useAppStore((s) => s.updateBot)
   const deleteBot = useAppStore((s) => s.deleteBot)
   const setSelectedBotId = useAppStore((s) => s.setSelectedBotId)
+  const sendBotMessage = useAppStore((s) => s.sendBotMessage)
+  const markBotChatRead = useAppStore((s) => s.markBotChatRead)
+  const setActiveWorktree = useAppStore((s) => s.setActiveWorktree)
+  const setActiveTabForWorktree = useAppStore((s) => s.setActiveTabForWorktree)
   const repos = useAppStore((s) => s.repos)
   const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
   const folderWorkspaces = useAppStore((s) => s.folderWorkspaces)
@@ -43,6 +58,12 @@ export function BotsPanel(): React.JSX.Element {
     }
     void fetchBotRoutines()
   }, [botsLoaded, fetchBots, fetchBotRoutines])
+
+  useEffect(() => {
+    if (selectedBotId) {
+      markBotChatRead(selectedBotId)
+    }
+  }, [selectedBotId, markBotChatRead, botChatLog])
 
   const workspaceOptions = useMemo(
     () => buildBotWorkspaceOptions({ repos, worktreesByRepo, folderWorkspaces }),
@@ -62,6 +83,35 @@ export function BotsPanel(): React.JSX.Element {
   const selectedBot = bots.find((bot) => bot.id === selectedBotId) ?? null
   const editingBot = bots.find((bot) => bot.id === editingBotId) ?? null
 
+  // Recomputed from live pane state rather than stored: a pane the daemon could not keep
+  // alive must read as "no session", not as a session that silently swallows messages.
+  const selectedSession = useMemo(() => {
+    if (!selectedBot) {
+      return null
+    }
+    const eligibility = getBotRoutineEligibility(selectedBot)
+    if (!eligibility.ok) {
+      return null
+    }
+    return findLiveBotChatSession({
+      chatPaneKey: selectedBot.chatPaneKey,
+      worktreeId: eligibility.worktreeId,
+      agentId: selectedBot.agentId,
+      state: {
+        agentStatusByPaneKey,
+        ptyIdsByTabId,
+        terminalLayoutsByTabId,
+        unifiedTabsByWorktree
+      }
+    })
+  }, [
+    selectedBot,
+    agentStatusByPaneKey,
+    ptyIdsByTabId,
+    terminalLayoutsByTabId,
+    unifiedTabsByWorktree
+  ])
+
   const handleDelete = async (): Promise<void> => {
     if (!selectedBot) {
       return
@@ -79,6 +129,62 @@ export function BotsPanel(): React.JSX.Element {
       await deleteBot(selectedBot.id)
     }
   }
+
+  const handleSendMessage = async (text: string): Promise<void> => {
+    if (!selectedBot) {
+      return
+    }
+    const outcome = await sendBotMessage({ botId: selectedBot.id, text })
+    if (!outcome) {
+      return
+    }
+    if (outcome.status === 'unknown-handle') {
+      toast.error(
+        translate(
+          'auto.components.sidebar.bots.BotsPanel.7b0e34a1c9',
+          'No bot named @{{value0}}.',
+          {
+            value0: outcome.handle
+          }
+        )
+      )
+      return
+    }
+    if (outcome.status === 'failed') {
+      toast.error(
+        outcome.reason === 'folder_workspace'
+          ? translate(
+              'auto.components.sidebar.bots.BotsPanel.c62f019b4e',
+              'That bot is bound to a folder workspace, which cannot run an agent.'
+            )
+          : outcome.reason === 'unbound'
+            ? translate(
+                'auto.components.sidebar.bots.BotsPanel.19d0b7e3ca',
+                'That bot has no workspace yet.'
+              )
+            : translate(
+                'auto.components.sidebar.bots.BotsPanel.4a8c17f0d3',
+                'Could not reach that bot’s session.'
+              )
+      )
+    }
+  }
+
+  const openSelectedSession = useMemo(() => {
+    if (!selectedBot || !selectedSession) {
+      return null
+    }
+    const eligibility = getBotRoutineEligibility(selectedBot)
+    if (!eligibility.ok) {
+      return null
+    }
+    const { worktreeId } = eligibility
+    const { tabId } = selectedSession
+    return () => {
+      setActiveWorktree(worktreeId)
+      setActiveTabForWorktree(worktreeId, tabId)
+    }
+  }, [selectedBot, selectedSession, setActiveWorktree, setActiveTabForWorktree])
 
   const handleCreateRoutine = async (input: AutomationCreateInput): Promise<unknown> => {
     try {
@@ -134,9 +240,17 @@ export function BotsPanel(): React.JSX.Element {
       {selectedBot ? (
         <BotDetail
           bot={selectedBot}
+          teammates={bots.filter((bot) => bot.id !== selectedBot.id)}
           routines={botRoutines.filter((routine) => routine.botId === selectedBot.id)}
           runs={botRoutineRuns}
           workspaceOption={findBotWorkspaceOption(workspaceOptions, selectedBot.workspaceKey)}
+          chatEntries={botChatLog[selectedBot.id] ?? []}
+          latestReply={getBotLatestReply(
+            { agentStatusByPaneKey },
+            selectedSession?.paneKey ?? null
+          )}
+          activity={getBotActivityState(selectedSession)}
+          sending={botSendInFlight.includes(selectedBot.id)}
           unattendedRunsDisabled={disableUnattendedAgentRuns}
           onBack={() => setSelectedBotId(null)}
           onEdit={() => {
@@ -144,6 +258,8 @@ export function BotsPanel(): React.JSX.Element {
             setEditorOpen(true)
           }}
           onDelete={() => void handleDelete()}
+          onSendMessage={handleSendMessage}
+          onOpenSession={openSelectedSession}
           onAddRoutine={() => setRoutineDialogOpen(true)}
           onToggleRoutine={(routineId, enabled) => void handleToggleRoutine(routineId, enabled)}
           onRunRoutine={(routineId) => void handleRunRoutine(routineId)}
@@ -152,6 +268,7 @@ export function BotsPanel(): React.JSX.Element {
         <BotRoster
           bots={bots}
           routineCountByBotId={routineCountByBotId}
+          unreadBotIds={unreadBotIds}
           onSelectBot={setSelectedBotId}
           onCreateBot={() => {
             setEditingBotId(null)

@@ -49,6 +49,7 @@ import { createNewIssueDraftSlice } from './new-issue-draft'
 import { createTaskCreationDraftsSlice } from './task-creation-drafts'
 import { createTerminalQuickCommandHostsSlice } from './terminal-quick-command-hosts'
 import { createBotsSlice } from './bots'
+import { createBotChatSlice } from './bot-chat'
 import { createLeftSidebarLaneSlice } from './left-sidebar-lane'
 import { translate } from '@/i18n/i18n'
 
@@ -105,6 +106,7 @@ export function createTestStore() {
     ...createTaskCreationDraftsSlice(...a),
     ...createTerminalQuickCommandHostsSlice(...a),
     ...createBotsSlice(...a),
+    ...createBotChatSlice(...a),
     ...createLeftSidebarLaneSlice(...a)
   }))
 }

@@ -5695,7 +5695,13 @@
             "3a90c47e12": "Routines",
             "d61b8e0f47": "New routine",
             "85f2c603ea": "Scheduled runs are turned off by your organization’s Orca policy. Existing routines stay listed but will not start.",
-            "f04a1c7b58": "No routines yet."
+            "f04a1c7b58": "No routines yet.",
+            "1d7f0c34ba": "Working",
+            "a0c5e18f27": "Ready",
+            "e3b04c9a15": "No session yet",
+            "72c0b19e4d": "Open this bot’s session",
+            "40b7e1c9d2": "Chat",
+            "2f81b06cae": "Bind this bot to a git workspace before messaging it."
           },
           "BotEditorDialog": {
             "4c1e90ab77": "Edit bot",
@@ -5720,7 +5726,8 @@
           "BotRoster": {
             "5c81e0a72f": "Bots",
             "b09d3f61ca": "New bot",
-            "e47a2c9018": "No bots yet. A bot is a named agent that runs its routines on a schedule."
+            "e47a2c9018": "No bots yet. A bot is a named agent that runs its routines on a schedule.",
+            "d19c0f4a83": "Unread message"
           },
           "BotRoutineDialog": {
             "1a5f0b73e2": "Every hour",
@@ -5748,7 +5755,25 @@
             "0b6c8f34e1": "Delete",
             "c47d0e6b13": "Could not create the routine.",
             "9f04c1b673": "Could not change the routine.",
-            "2e81a5d0f4": "Could not run the routine."
+            "2e81a5d0f4": "Could not run the routine.",
+            "7b0e34a1c9": "No bot named @{{value0}}.",
+            "c62f019b4e": "That bot is bound to a folder workspace, which cannot run an agent.",
+            "19d0b7e3ca": "That bot has no workspace yet.",
+            "4a8c17f0d3": "Could not reach that bot’s session."
+          },
+          "BotChatThread": {
+            "4d0a71e3b9": "Handed to {{value0}}",
+            "b2e61c0da7": "From {{value0}}",
+            "7c31e08fa4": "Not delivered.",
+            "90fb4a2c16": "{{value0}} is working…",
+            "5a90c7e412": "{{value0}} replied"
+          },
+          "BotComposer": {
+            "6a1f03c9d8": "Tell {{value0}} what to do…",
+            "d70b28c145": "Message this bot",
+            "3e0c95b1af": "Start with @{{value0}} to hand the work to another bot",
+            "0f4b7ac621": "Enter to send, Shift+Enter for a new line",
+            "b81e2f5093": "Send"
           }
         }
       },

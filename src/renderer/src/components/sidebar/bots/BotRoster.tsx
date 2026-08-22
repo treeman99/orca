@@ -9,6 +9,8 @@ import type { Bot } from '../../../../../shared/bot-types'
 export type BotRosterProps = {
   bots: readonly Bot[]
   routineCountByBotId: Readonly<Record<string, number>>
+  /** Bots another bot messaged while the user was elsewhere. */
+  unreadBotIds: readonly string[]
   onSelectBot: (botId: string) => void
   onCreateBot: () => void
 }
@@ -16,6 +18,7 @@ export type BotRosterProps = {
 export function BotRoster({
   bots,
   routineCountByBotId,
+  unreadBotIds,
   onSelectBot,
   onCreateBot
 }: BotRosterProps): React.JSX.Element {
@@ -55,6 +58,7 @@ export function BotRoster({
           <ul className="flex flex-col gap-0.5 px-2 pb-2">
             {bots.map((bot) => {
               const routineCount = routineCountByBotId[bot.id] ?? 0
+              const unread = unreadBotIds.includes(bot.id)
               return (
                 <li key={bot.id}>
                   <button
@@ -69,7 +73,18 @@ export function BotRoster({
                       {bot.avatarEmoji}
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-[13px] font-medium">{bot.name}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-[13px] font-medium">{bot.name}</span>
+                        {unread ? (
+                          <span
+                            className="size-1.5 shrink-0 rounded-full bg-primary"
+                            aria-label={translate(
+                              'auto.components.sidebar.bots.BotRoster.d19c0f4a83',
+                              'Unread message'
+                            )}
+                          />
+                        ) : null}
+                      </span>
                       {bot.title ? (
                         <span className="truncate text-[11px] text-muted-foreground">
                           {bot.title}

@@ -16,6 +16,7 @@ Hermes Bot Mode가 "no core patches, no background daemons, no extra storage"로
 봇 = 이름 + 아바타 + 역할 설명
     + 에이전트 선택 (TuiAgent)
     + 워크스페이스 바인딩 (WorkspaceKey)
+    + 고정된 대화 페인 1개 (PaneKey)          ← 봇 챗
     + 그 봇에 귀속된 자동화 N개 (= 루틴)
 ```
 
@@ -34,7 +35,9 @@ Hermes Bot Mode가 "no core patches, no background daemons, no extra storage"로
 | Store 메서드 | `src/main/persistence/loading-store/store.ts`의 `// ── Bots ──` 절 | upstream 파일에 절 1개 |
 | IPC | `src/main/ipc/bots.ts` + `register-core-handlers.ts` 1줄 | 신규 + 등록 1줄 |
 | preload | `src/preload/api/bot-api.ts` + `index.ts`의 `bots:` 블록 | 신규 + 블록 1개 |
-| 렌더러 상태 | `store/slices/bots.ts`, `store/slices/left-sidebar-lane.ts` | 신규 슬라이스 2개 |
+| 렌더러 상태 | `store/slices/bots.ts`, `store/slices/bot-chat.ts`, `store/slices/left-sidebar-lane.ts` | 신규 슬라이스 3개 |
+| 대화 해석·전달 | `components/sidebar/bots/bot-chat-session.ts`, `bot-chat-delivery.ts` | 신규 |
+| 봇 간 라우팅 | `components/sidebar/bots/bot-message-routing.ts` | 신규 |
 | 사이드바 탭 | `components/sidebar/SidebarLaneSwitch.tsx`, `components/sidebar/index.tsx` | 신규 + 조립 1곳 |
 | 봇 UI | `components/sidebar/bots/**` | 신규 |
 | 정책 게이트 | `src/main/enterprise/unattended-agent-run-guard.ts` | 신규 가드 모듈 |
@@ -49,7 +52,7 @@ fork sync 원칙대로 **로직은 전부 신규 파일**이고, upstream 파일
 - 봇 상세의 "새 루틴"은 `automations:create`를 그대로 호출합니다 (`bot-routine-draft.ts`가 입력을 조립).
 - `reuseSession: true`가 기본입니다. 루틴은 매일 새 대화가 아니라 그 봇과의 한 대화라는 의미입니다.
   ⚠️ 다만 세션 재사용 판정은 현재 **렌더러에만** 있고 "그 pane이 아직 살아 있는가"로 판단합니다 —
-  헤드리스(`orca serve`) 실행과 앱 재시작을 넘기지 못합니다. 정본 대화(봇 챗)는 이 브랜치의 범위 밖입니다.
+  헤드리스(`orca serve`) 실행과 앱 재시작을 넘기지 못합니다(§5의 봇 챗도 같은 한계를 공유합니다).
 - 봇을 삭제해도 **루틴은 지워지지 않습니다.** `botId`만 `null`로 떨어지고 자동화 페이지에 남습니다.
   예약된 에이전트 실행을 로스터 정리 때문에 조용히 취소하면 안 되기 때문입니다.
 
@@ -71,23 +74,77 @@ fork sync 원칙대로 **로직은 전부 신규 파일**이고, upstream 파일
 - **"지금 실행"은 막지 않습니다.** 이 스위치의 축은 "사람 없이 시작되는가"입니다.
 - 봇 루틴과 일반 자동화가 같은 서비스를 타므로 스위치 하나가 둘 다 덮습니다.
 
-## 5. 의도적으로 만들지 않은 것
+## 5. 봇 챗 — 봇에게 말 걸기
 
-Hermes Bot Mode에는 있지만 이 브랜치에 **없는** 것과 그 이유입니다. 나중에 추가한다면 각각 독립 안건입니다.
+봇 상세의 **대화** 절에서 봇에게 직접 지시합니다. Enter로 전송, Shift+Enter로 줄바꿈.
+
+Hermes는 프로필마다 갈라지지 않는 정본 대화를 고정합니다. Orca에는 대화 저장소가 없으므로
+(전사의 저자는 에이전트 CLI다) 등가 프리미티브를 **고정된 페인**으로 잡았습니다.
+
+- `Bot.chatPaneKey`가 그 봇의 대화 페인을 `tabId:leafId`로 붙듭니다. PTY id가 아니라 **페인 키**라서
+  PTY가 재시작돼도 같은 대화로 되돌아옵니다.
+- 첫 메시지는 `launchAgentBackgroundSession`으로 **백그라운드 탭**을 띄웁니다 — 봇이 답하느라
+  사용자의 현재 탭을 빼앗으면 안 됩니다. 세션 제목은 `bot:<handle>`입니다(§6의 발견 수단).
+- 이후 메시지는 `submitPromptToAgentPty`로 같은 페인에 들어갑니다.
+- 봇이 작업 중이어도 보낼 수 있습니다. 사람이 턴 중간에 후속 지시를 넣는 것은 정상입니다 —
+  예약 실행과 달리 채팅은 그 판정을 막지 않고 상태만 표시합니다.
+- 헤더의 ↗ 버튼이 그 페인을 본 화면에 띄웁니다. 전체 대화는 거기(에이전트 자신의 화면)에 있습니다.
+
+사이드바가 보여 주는 것은 **Orca가 라우팅한 것**(내가 보낸 것, 다른 봇이 넘긴 것)과
+에이전트 상태에서 읽은 **가장 최근 답변 한 개**입니다. 이건 대화의 사본이 아니라 인덱스입니다 —
+사본을 두면 에이전트의 전사와 어긋납니다.
+
+⚠️ **앱을 재시작하면 대화가 끊길 수 있습니다.** 데몬이 PTY를 살려 두면 이어지고, 아니면 다음
+메시지가 새 세션을 엽니다. 사이드바의 라우팅 로그는 세션 한정이라 재시작 시 사라집니다.
+
+## 6. 봇 ↔ 봇 — 일 넘기기
+
+두 갈래입니다. 둘 다 이미 존재하는 경로 위에 있고, 새 RPC도 와이어 변경도 없습니다.
+
+**(a) 사용자가 넘기기 — `@handle`**
+
+봇 A의 입력창에 `@code-reviewer PR 3 좀 봐줘`처럼 **맨 앞에** 멘션을 두면 그 메시지는 봇 B의
+대화로 갑니다. 보낸 쪽 정보가 앞에 붙습니다:
+
+```
+Message from 🤖 Release Checker (@release-checker):
+
+PR 3 좀 봐줘
+```
+
+- 이 attribution은 장식이 아닙니다. 없으면 받는 에이전트가 사용자가 쓴 것으로 읽고 엉뚱한 쪽에 답합니다.
+- **맨 앞의 멘션만** 라우팅합니다. 문장 중간의 `@이름`은 지금 보고 있는 봇에게 읽히라고 쓴 산문입니다.
+- 없는 핸들이면 보내지 않고 그렇게 말합니다 — 산문으로 흘려보내면 메시지가 사라집니다.
+- 받은 봇은 로스터에 **읽지 않음 점**이 붙고, `Sessions | Bots` 탭에도 개수가 뜹니다.
+
+**(b) 봇이 스스로 넘기기 — 팀메이트 명부**
+
+봇의 대화가 처음 열릴 때 팀메이트 명부가 프리앰블로 주입됩니다. 각 봇 세션의 터미널 제목이
+`bot:<handle>`이라, 에이전트는 이미 있는 CLI만으로 팀메이트를 찾아 보낼 수 있습니다:
+
+```bash
+orca terminal list --json                 # 팀메이트는 bot:<handle> 제목으로 떠 있습니다
+orca terminal send --terminal <handle> --text "<메시지>" --enter --json
+```
+
+새 RPC를 만들지 않은 이유가 여기 있습니다 — 새 메서드는 capability 협상 없이는 페어링된
+구버전 클라이언트에 닿지 않습니다([remote-wire-compatibility.md](./remote-wire-compatibility.md)).
+
+⚠️ 이건 **Hermes의 `message_agent` 툴이 아닙니다.** 에이전트가 명부를 읽고 스스로 명령을 실행할
+때만 동작하며, 강제되지 않습니다. 확실한 인계는 (a) 쪽입니다.
+
+## 7. 의도적으로 만들지 않은 것
 
 | 기능 | 왜 없나 |
 | --- | --- |
 | 메신저 게이트웨이 (Telegram/Slack/Discord) | 사내 소스가 사외로 나가는 레인이고, 자식 프로세스로 붙이면 `enforceNetworkAllowlist`가 구조적으로 보지 못합니다. 감사 등록부 #28 참고 |
-| 봇↔봇 메시징 (`@mention`, `message_agent`) | orchestration `messages` 테이블에 저장·스레드·팬아웃은 이미 있으나 주소가 터미널 핸들입니다. `bot:<id>` 의사 핸들과 **꺼진 봇을 깨우는 트리거**가 필요하고, 후자는 `live`/`unverifiable`/`exited` 판정 문제를 그대로 안고 있습니다 |
-| 그룹챗 | 현재 그룹 주소는 send 시점에 살아 있는 터미널에서 파생됩니다. 멤버 명부를 가진 영속 방이 아닙니다 |
-| 정본 봇 챗 (분기 불가 대화) | Orca가 소유하는 대화 저장소가 없습니다 — native-chat은 에이전트 CLI가 쓴 전사를 읽기만 합니다 |
+| 그룹챗 (여러 봇이 한 방에서 토론) | 현재 그룹 주소는 send 시점에 살아 있는 터미널에서 파생됩니다. 멤버 명부를 가진 영속 방이 아닙니다. Hermes의 3라운드·10메시지 상한 같은 폭주 방지도 함께 설계해야 합니다 |
+| 재시작을 넘기는 정본 대화 | 대화의 저자가 에이전트 CLI라 Orca에 쓰기 경로가 없습니다. 페인이 죽으면 새 세션입니다 |
 | 봇별 자격증명 | 계정 자격증명이 "전역 활성 슬롯 → `~/.claude`로 materialize" 구조라 봇마다 다른 계정으로 동시 실행할 수 없습니다 |
 | 봇의 원격(SSH) 상시 실행 | SSH 모델의 오케스트레이션 제어평면은 클라이언트에 거주합니다. 노트북을 닫으면 원격 봇이 보고할 통로가 없습니다 — `orca serve` peer 모델이 맞습니다 |
+| 폴더 워크스페이스 봇의 대화·루틴 | 실행 대상 해석이 워크트리 id 전제입니다. 앞단에서 명시적으로 거부합니다 |
 
-`@handle`은 이미 표시됩니다(`botHandle()`). 주소 체계를 붙일 때 이름을 다시 정하지 않아도 되도록 미리 노출해 둔 것이고,
-현재는 **표시 전용**입니다. 핸들 충돌은 해소하지 않습니다.
-
-## 6. Windows에서 상시성을 약속하지 마세요
+## 8. Windows에서 상시성을 약속하지 마세요
 
 봇은 "항상 켜져 있는 것"이 아니라 **"예정대로 실행하고 결과를 남기는 것"**입니다.
 
@@ -95,7 +152,7 @@ Hermes Bot Mode에는 있지만 이 브랜치에 **없는** 것과 그 이유입
 앱 종료 시 함께 죽습니다. 이 폴백은 **사용자에게 아무것도 보여 주지 않습니다.**
 사내 배포가 Windows이므로 봇 UI는 이 사실과 모순되는 표현("항상 대기 중", "24시간")을 쓰지 않습니다.
 
-## 7. 확인 방법
+## 9. 확인 방법
 
 ```bash
 pnpm test src/shared/bot-types.test.ts
@@ -103,6 +160,7 @@ pnpm test src/main/persistence-bots.test.ts
 pnpm test src/main/automations/service-enterprise-policy.test.ts
 pnpm test src/renderer/src/components/sidebar/bots
 pnpm test src/renderer/src/components/sidebar/Sidebar.test.tsx
+pnpm test src/renderer/src/store/slices/bot-chat.test.ts
 ```
 
 수동 확인(개발 실행):
@@ -110,7 +168,11 @@ pnpm test src/renderer/src/components/sidebar/Sidebar.test.tsx
 1. `pnpm dev` → 좌측 사이드바 상단에 `Sessions | Bots` 스트립이 보입니다.
 2. `Sessions`가 기본이고, 워크스페이스 목록은 **이전과 동일**해야 합니다.
 3. `Bots` → `+` → 이름/역할/에이전트/워크스페이스를 채워 저장.
-4. 봇을 열고 `Routines`의 `+`로 루틴을 만든 뒤, 자동화 페이지에 같은 항목이 보이는지 확인합니다 (같은 레코드입니다).
-5. 정책 확인: `ORCA_ENTERPRISE_POLICY`로 `{"lockdown": true}` 파일을 가리키고 재기동하면
+4. 봇을 열고 **대화** 입력창에 지시를 보냅니다 → 백그라운드 탭이 뜨고 상태 점이 "작업 중"으로 바뀝니다.
+   헤더 ↗ 로 그 세션을 본 화면에서 확인합니다. 같은 봇에 다시 보내면 **같은 세션**으로 들어가야 합니다.
+5. 봇을 하나 더 만들고, 첫 봇의 입력창에 `@<두번째-핸들> 확인해줘`를 보냅니다 → 두 번째 봇의 세션이 뜨고,
+   첫 봇 스레드에는 "…에게 넘김", 두 번째 봇 스레드에는 "…에게서"가 남습니다. 로스터에 읽지 않음 점이 붙습니다.
+6. 봇을 열고 `Routines`의 `+`로 루틴을 만든 뒤, 자동화 페이지에 같은 항목이 보이는지 확인합니다 (같은 레코드입니다).
+7. 정책 확인: `ORCA_ENTERPRISE_POLICY`로 `{"lockdown": true}` 파일을 가리키고 재기동하면
    봇 상세의 `+`가 사라지고 정책 안내가 뜹니다. 예약된 루틴은 목록에 남되 실행되지 않고,
    실행 기록에 `Blocked by policy`가 남습니다.

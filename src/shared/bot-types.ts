@@ -26,6 +26,15 @@ export type Bot = {
   workspaceKey: string | null
   /** Repo id the routines are created against; null while unbound. */
   projectId: string | null
+  /**
+   * Pane that holds this bot's one conversation, as `tabId:leafId`.
+   *
+   * Durable on purpose — the PTY id is not. A pane key survives a PTY restart, so the bot
+   * re-attaches to the same conversation whenever the daemon kept it alive, and a dead
+   * pane simply re-launches under the same binding. This is Orca's stand-in for Hermes's
+   * canonical Bot Chat: one pinned session per bot, never forked.
+   */
+  chatPaneKey: string | null
   createdAt: number
   updatedAt: number
 }
@@ -43,7 +52,14 @@ export type BotCreateInput = {
 export type BotUpdateInput = Partial<
   Pick<
     Bot,
-    'name' | 'title' | 'description' | 'avatarEmoji' | 'agentId' | 'workspaceKey' | 'projectId'
+    | 'name'
+    | 'title'
+    | 'description'
+    | 'avatarEmoji'
+    | 'agentId'
+    | 'workspaceKey'
+    | 'projectId'
+    | 'chatPaneKey'
   >
 >
 

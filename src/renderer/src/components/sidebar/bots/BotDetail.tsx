@@ -1,29 +1,44 @@
 import type React from 'react'
-import { ChevronLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { getAgentLabel } from '@/lib/agent-catalog'
+import { cn } from '@/lib/utils'
 import type { Automation, AutomationRun } from '../../../../../shared/automations-types'
 import { getBotRoutineEligibility, botHandle, type Bot } from '../../../../../shared/bot-types'
+import type { BotChatEntry } from '@/store/slices/bot-chat'
+import BotChatThread from './BotChatThread'
+import BotComposer from './BotComposer'
 import BotRoutineList from './BotRoutineList'
+import type { BotActivityState } from './bot-chat-session'
 import type { BotWorkspaceOption } from './bot-workspace-options'
 
 export type BotDetailProps = {
   bot: Bot
+  teammates: readonly Bot[]
   routines: readonly Automation[]
   runs: readonly AutomationRun[]
   workspaceOption: BotWorkspaceOption | null
+  chatEntries: readonly BotChatEntry[]
+  latestReply: string | null
+  activity: BotActivityState
+  sending: boolean
   /** True when the enterprise policy refuses unattended runs; routines stay visible so a
    *  user can see what exists, but nothing offers to schedule more. */
   unattendedRunsDisabled: boolean
   onBack: () => void
   onEdit: () => void
   onDelete: () => void
+  onSendMessage: (text: string) => Promise<void>
+  onOpenSession: (() => void) | null
   onAddRoutine: () => void
   onToggleRoutine: (routineId: string, enabled: boolean) => void
   onRunRoutine: (routineId: string) => void
 }
+
+const SECTION_LABEL_CLASS =
+  'text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase'
 
 function SummaryRow({ label, value }: { label: string; value: string }): React.JSX.Element {
   return (
@@ -34,21 +49,44 @@ function SummaryRow({ label, value }: { label: string; value: string }): React.J
   )
 }
 
+function ActivityDot({ activity }: { activity: BotActivityState }): React.JSX.Element {
+  return (
+    <span
+      className={cn(
+        'size-1.5 shrink-0 rounded-full',
+        activity === 'working'
+          ? 'bg-primary animate-pulse'
+          : activity === 'idle'
+            ? 'bg-emerald-500'
+            : 'bg-muted-foreground/40'
+      )}
+      aria-hidden="true"
+    />
+  )
+}
+
 export function BotDetail({
   bot,
+  teammates,
   routines,
   runs,
   workspaceOption,
+  chatEntries,
+  latestReply,
+  activity,
+  sending,
   unattendedRunsDisabled,
   onBack,
   onEdit,
   onDelete,
+  onSendMessage,
+  onOpenSession,
   onAddRoutine,
   onToggleRoutine,
   onRunRoutine
 }: BotDetailProps): React.JSX.Element {
   const eligibility = getBotRoutineEligibility(bot)
-  const routineBlockedReason = eligibility.ok
+  const blockedReason = eligibility.ok
     ? null
     : eligibility.reason === 'folder_workspace'
       ? translate(
@@ -59,6 +97,12 @@ export function BotDetail({
           'auto.components.sidebar.bots.BotDetail.9b41f0d2c6',
           'Bind this bot to a workspace before adding a routine.'
         )
+  const activityLabel =
+    activity === 'working'
+      ? translate('auto.components.sidebar.bots.BotDetail.1d7f0c34ba', 'Working')
+      : activity === 'idle'
+        ? translate('auto.components.sidebar.bots.BotDetail.a0c5e18f27', 'Ready')
+        : translate('auto.components.sidebar.bots.BotDetail.e3b04c9a15', 'No session yet')
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -77,6 +121,19 @@ export function BotDetail({
         <span className="min-w-0 flex-1 truncate text-xs font-semibold text-muted-foreground/80">
           {bot.name}
         </span>
+        {onOpenSession ? (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={onOpenSession}
+            aria-label={translate(
+              'auto.components.sidebar.bots.BotDetail.72c0b19e4d',
+              'Open this bot’s session'
+            )}
+          >
+            <ExternalLink className="size-3.5" strokeWidth={2.25} />
+          </Button>
+        ) : null}
         <Button
           variant="ghost"
           size="icon-xs"
@@ -103,8 +160,11 @@ export function BotDetail({
             </span>
             <div className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-sm font-medium">{bot.name}</span>
-              <span className="truncate text-[11px] text-muted-foreground">
-                @{botHandle(bot.name)}
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <ActivityDot activity={activity} />
+                <span className="truncate">
+                  @{botHandle(bot.name)} · {activityLabel}
+                </span>
               </span>
             </div>
           </div>
@@ -131,8 +191,36 @@ export function BotDetail({
           </div>
 
           <div className="flex flex-col gap-2">
+            <span className={SECTION_LABEL_CLASS}>
+              {translate('auto.components.sidebar.bots.BotDetail.40b7e1c9d2', 'Chat')}
+            </span>
+            {chatEntries.length > 0 || latestReply ? (
+              <BotChatThread
+                entries={chatEntries}
+                latestReply={latestReply}
+                botName={bot.name}
+                working={activity === 'working'}
+              />
+            ) : null}
+            <BotComposer
+              bot={bot}
+              teammates={teammates}
+              sending={sending}
+              disabledReason={
+                eligibility.ok
+                  ? null
+                  : translate(
+                      'auto.components.sidebar.bots.BotDetail.2f81b06cae',
+                      'Bind this bot to a git workspace before messaging it.'
+                    )
+              }
+              onSend={onSendMessage}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
+              <span className={SECTION_LABEL_CLASS}>
                 {translate('auto.components.sidebar.bots.BotDetail.3a90c47e12', 'Routines')}
               </span>
               {eligibility.ok && !unattendedRunsDisabled ? (
@@ -157,9 +245,9 @@ export function BotDetail({
                   'Scheduled runs are turned off by your organization’s Orca policy. Existing routines stay listed but will not start.'
                 )}
               </p>
-            ) : routineBlockedReason ? (
+            ) : blockedReason ? (
               <p className="rounded-md border border-border bg-muted/40 px-2.5 py-2 text-[11px] text-muted-foreground">
-                {routineBlockedReason}
+                {blockedReason}
               </p>
             ) : null}
 

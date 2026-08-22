@@ -15,6 +15,7 @@ const makeBot = (overrides: Partial<Bot> = {}): Bot => ({
   agentId: 'claude',
   workspaceKey: 'worktree:r1::/wt',
   projectId: 'r1',
+  chatPaneKey: null,
   createdAt: 0,
   updatedAt: 0,
   ...overrides

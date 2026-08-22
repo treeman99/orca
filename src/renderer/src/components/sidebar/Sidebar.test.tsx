@@ -112,6 +112,7 @@ function setSidebarState(settings: GlobalSettings, statusBarVisible = true): voi
     sidebarWidth: 320,
     statusBarVisible,
     bots: [],
+    unreadBotIds: [],
     leftSidebarLane: 'sessions',
     setLeftSidebarLane: vi.fn()
   }

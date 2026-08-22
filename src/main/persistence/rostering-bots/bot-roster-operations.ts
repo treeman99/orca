@@ -48,6 +48,7 @@ export function createBot(operations: BotRosterOperations, input: BotCreateInput
     // A project without a workspace is meaningless to the routine lane, and a workspace
     // without a project cannot create one; keep the pair consistent at the door.
     projectId: workspaceKey ? (input.projectId ?? null) : null,
+    chatPaneKey: null,
     createdAt: now,
     updatedAt: now
   }
@@ -76,6 +77,14 @@ export function updateBot(
     ? normalizeWorkspaceKey(defined.workspaceKey)
     : current.workspaceKey
   const projectId = Object.hasOwn(defined, 'projectId') ? defined.projectId : current.projectId
+  // Rebinding the workspace strands the old pane: it lives in a checkout this bot no longer
+  // works in, so the next message must open a fresh conversation rather than resume there.
+  const workspaceChanged = workspaceKey !== current.workspaceKey
+  const chatPaneKey = workspaceChanged
+    ? null
+    : Object.hasOwn(defined, 'chatPaneKey')
+      ? (defined.chatPaneKey ?? null)
+      : (current.chatPaneKey ?? null)
   const updated: Bot = {
     ...current,
     ...defined,
@@ -88,6 +97,7 @@ export function updateBot(
     avatarEmoji: defined.avatarEmoji?.trim() || current.avatarEmoji,
     workspaceKey,
     projectId: workspaceKey ? (projectId ?? null) : null,
+    chatPaneKey,
     updatedAt: Date.now()
   }
   const next = [...bots]

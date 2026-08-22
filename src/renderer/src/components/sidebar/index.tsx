@@ -50,6 +50,7 @@ function Sidebar({
   const leftSidebarLane = useAppStore((s) => s.leftSidebarLane)
   const setLeftSidebarLane = useAppStore((s) => s.setLeftSidebarLane)
   const botCount = useAppStore((s) => s.bots.length)
+  const unreadBotCount = useAppStore((s) => s.unreadBotIds.length)
   // The bot roster is desktop-only: the web preload has no `bots` namespace, so the lane
   // would render an empty roster whose New bot button silently fails. Hide it there
   // instead, and pin the lane so a desktop-set preference cannot strand a web session.
@@ -131,6 +132,7 @@ function Sidebar({
               <SidebarLaneSwitch
                 lane={activeLane}
                 botCount={botCount}
+                unreadBotCount={unreadBotCount}
                 onSelectLane={setLeftSidebarLane}
               />
             ) : null}
