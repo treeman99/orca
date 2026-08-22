@@ -94,3 +94,15 @@ describe('deep-link guard agrees with the settings nav registry', () => {
     expect(isSettingsPaneHiddenByPolicy(pane, policy)).toBe(true)
   })
 })
+
+// Source removals, not policy switches: no administrator can turn these panes back on, so the
+// assertion is unconditional rather than parameterised by a policy.
+describe('removed vendor sharing panes', () => {
+  it.each(['artifacts', 'share-skills'])(
+    'keeps %s out of the registry and refuses a settings deep link to it',
+    (pane) => {
+      expect(navIds(UNRESTRICTED)).not.toContain(pane)
+      expect(isSettingsPaneHiddenByPolicy(pane, UNRESTRICTED)).toBe(true)
+    }
+  )
+})

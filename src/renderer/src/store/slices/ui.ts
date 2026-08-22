@@ -791,13 +791,6 @@ export type UISlice = {
   closeSpacePage: () => void
   openSkillsPage: () => void
   closeSkillsPage: () => void
-  pendingSkillShareId: string | null
-  openSkillShare: (shareId: string) => void
-  clearPendingSkillShare: () => void
-  /** Set when another surface links straight to the page's shared-links view. */
-  pendingSkillsSharedView: boolean
-  openSkillsSharedLinks: () => void
-  clearPendingSkillsSharedView: () => void
   openArtifactsPage: () => void
   closeArtifactsPage: () => void
   openMobilePage: () => void
@@ -1278,8 +1271,6 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
   previousViewBeforeAutomations: 'terminal',
   previousViewBeforeSpace: 'terminal',
   previousViewBeforeSkills: 'terminal',
-  pendingSkillShareId: null,
-  pendingSkillsSharedView: false,
   previousViewBeforeMobile: 'terminal',
   previousViewBeforeArtifacts: 'terminal',
   // The third writer of `activeView`; a rebase that routes a menu or palette through
@@ -1531,22 +1522,6 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     set((state) => ({
       activeView: state.previousViewBeforeSkills
     })),
-  openSkillShare: (shareId) =>
-    set((state) => ({
-      activeView: 'skills',
-      previousViewBeforeSkills:
-        state.activeView === 'skills' ? state.previousViewBeforeSkills : state.activeView,
-      pendingSkillShareId: shareId
-    })),
-  clearPendingSkillShare: () => set({ pendingSkillShareId: null }),
-  openSkillsSharedLinks: () =>
-    set((state) => ({
-      activeView: 'skills',
-      previousViewBeforeSkills:
-        state.activeView === 'skills' ? state.previousViewBeforeSkills : state.activeView,
-      pendingSkillsSharedView: true
-    })),
-  clearPendingSkillsSharedView: () => set({ pendingSkillsSharedView: false }),
   openArtifactsPage: () =>
     set((state) =>
       // The door the sidebar button and the Settings pane's "Open Artifacts" both use.

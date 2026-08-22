@@ -15,7 +15,6 @@ import { I18nProvider } from './i18n/I18nProvider'
 import { translate } from './i18n/i18n'
 import { startEnterprisePolicySync } from './enterprise/enterprise-policy-access'
 import { getOrCreateRendererRoot } from './lib/react-renderer-root'
-import { SkillWarningPreviewLauncher } from './components/skills/SkillWarningPreviewLauncher'
 
 recordRendererCrashBreadcrumb('renderer_bootstrap_started', { dev: import.meta.env.DEV })
 installRendererCrashDiagnostics()
@@ -54,7 +53,6 @@ function RendererRoot(): React.JSX.Element {
       )}
     >
       <App />
-      <SkillWarningPreviewLauncher />
     </RecoverableRenderErrorBoundary>
   )
 }

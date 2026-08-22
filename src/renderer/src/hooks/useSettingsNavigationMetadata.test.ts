@@ -79,7 +79,7 @@ describe('settings navigation metadata', () => {
     expect(sections.find((section) => section.id === 'mobile')?.group).toBe('setup')
   })
 
-  it('places Automations and Share Skills first under Workflows and omits the removed Artifacts pane', () => {
+  it('places Automations first under Workflows and omits both removed vendor sharing panes', () => {
     const sections = buildSettingsNavigationMetadata({
       isMac: false,
       isWindows: false,
@@ -87,18 +87,19 @@ describe('settings navigation metadata', () => {
       repos: [repo]
     })
     const automations = sections.find((section) => section.id === 'automations')
-    const shareSkills = sections.find((section) => section.id === 'share-skills')
     const workflowIds = sections
       .filter((section) => section.group === 'workflows')
       .map((section) => section.id)
 
     expect(automations?.group).toBe('workflows')
     expect(automations?.searchEntries[0]?.title).toBe('Show Automations Button')
-    // Dropping it here is what also keeps it out of settings search and the Cmd+J palette.
+    // Dropping them here is what also keeps them out of settings search and the Cmd+J palette.
     expect(sections.find((section) => section.id === 'artifacts')).toBeUndefined()
-    expect(shareSkills).toMatchObject({ group: 'workflows', badge: 'Beta' })
-    expect(shareSkills?.searchEntries[0]?.title).toBe('Unlisted skill links')
-    expect(workflowIds.slice(0, 2)).toEqual(['automations', 'share-skills'])
+    expect(sections.find((section) => section.id === 'share-skills')).toBeUndefined()
+    expect(workflowIds[0]).toBe('automations')
+    expect(
+      sections.flatMap((section) => section.searchEntries).map((entry) => entry.title)
+    ).not.toContain('Unlisted skill links')
   })
 
   it('places the Orca account in Set Up on desktop only', () => {

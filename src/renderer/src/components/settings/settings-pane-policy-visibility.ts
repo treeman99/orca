@@ -13,6 +13,7 @@
 import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import type { EnterprisePolicyView } from '../../../../shared/enterprise-policy-view'
 import { ARTIFACT_SHARING_REMOVED } from '../../../../shared/artifact-sharing-removal'
+import { SKILL_SHARING_REMOVED } from '../../../../shared/skill-sharing-removal'
 
 const PANE_POLICY_KEYS: Readonly<Record<string, keyof EnterprisePolicyView>> = {
   stats: 'disableUsagePolling',
@@ -23,11 +24,14 @@ const PANE_POLICY_KEYS: Readonly<Record<string, keyof EnterprisePolicyView>> = {
   plugins: 'disablePlugins'
 }
 
-// Removed outright rather than policy-keyed, so it is not in the table above: the Artifacts pane
-// only configures uploads to a vendor host this build never contacts.
-const REMOVED_PANE_IDS: ReadonlySet<string> = new Set(
-  ARTIFACT_SHARING_REMOVED ? ['artifacts'] : []
-)
+// Removed outright rather than policy-keyed, so they are not in the table above: both panes only
+// configure traffic to a vendor host this build never contacts. Share Skills is the worse of the
+// two — its install lane needs no sign-in, so a deep link to the pane is a live door, not a dead
+// settings row.
+const REMOVED_PANE_IDS: ReadonlySet<string> = new Set([
+  ...(ARTIFACT_SHARING_REMOVED ? ['artifacts'] : []),
+  ...(SKILL_SHARING_REMOVED ? ['share-skills'] : [])
+])
 
 export function isSettingsPaneHiddenByPolicy(
   sectionId: string,

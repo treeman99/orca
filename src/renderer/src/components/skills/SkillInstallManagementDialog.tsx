@@ -361,10 +361,6 @@ export function SkillInstallManagementDialog({
                 onVersionChange={setVersionId}
                 onInstall={(discardLocal) => void installVersion(discardLocal)}
                 onCancelInstall={() => void cancelInstall()}
-                onSendToMachine={(shareId) => {
-                  close()
-                  useAppStore.getState().openSkillShare(shareId)
-                }}
                 onRemove={(discardLocal) => void remove(discardLocal)}
               />
             ))}

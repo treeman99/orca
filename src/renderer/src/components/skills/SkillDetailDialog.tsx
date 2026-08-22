@@ -1,4 +1,4 @@
-import { ClipboardCopy, FolderOpen, Share2 } from 'lucide-react'
+import { ClipboardCopy, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -53,15 +53,11 @@ function agentNames(
 export function SkillDetailDialog({
   skill,
   agentByRootPath,
-  shareable,
-  onOpenChange,
-  onShare
+  onOpenChange
 }: {
   skill: DiscoveredSkill | null
   agentByRootPath: ReadonlyMap<string, string>
-  shareable: boolean
   onOpenChange: (open: boolean) => void
-  onShare: () => void
 }): React.JSX.Element | null {
   if (!skill) {
     return null
@@ -147,10 +143,6 @@ export function SkillDetailDialog({
           <Button type="button" variant="ghost" size="sm" onClick={() => void revealSkill()}>
             <FolderOpen className="size-3.5" />
             {translate('auto.components.skills.SkillsPage.dc4c3328ee', 'Reveal file')}
-          </Button>
-          <Button type="button" size="sm" disabled={!shareable} onClick={onShare}>
-            <Share2 className="size-3.5" />
-            {translate('auto.components.skills.SkillCard.d25a1b8ae6', 'Share skill')}
           </Button>
         </DialogFooter>
       </DialogContent>

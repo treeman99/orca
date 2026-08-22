@@ -1,4 +1,4 @@
-import { ChevronRight, Loader2, MonitorUp, RotateCcw, Trash2 } from 'lucide-react'
+import { ChevronRight, Loader2, RotateCcw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
@@ -54,7 +54,6 @@ export function SkillManagedInstallRow({
   onVersionChange,
   onInstall,
   onCancelInstall,
-  onSendToMachine,
   onRemove
 }: {
   group: SkillManagedInstallGroup
@@ -71,12 +70,10 @@ export function SkillManagedInstallRow({
   onVersionChange: (versionId: string) => void
   onInstall: (discardLocal?: boolean) => void
   onCancelInstall: () => void
-  onSendToMachine: (shareId: string) => void
   onRemove: (discardLocal?: boolean) => void
 }): React.JSX.Element {
   const stateNote = managedInstallStateNote(group)
   const installedOn = managedInstalledOnLabel(group)
-  const activeShare = details?.management?.shares[0]
   const switching = Boolean(versionId) && versionId !== group.versionId
   const retrying = result?.status === 'partial' || bundleResult?.status === 'partial'
 
@@ -153,20 +150,6 @@ export function SkillManagedInstallRow({
             {installActive ? (
               <Button variant="secondary" size="sm" onClick={onCancelInstall}>
                 {translate('auto.components.skills.managedInstall.cancel', 'Cancel')}
-              </Button>
-            ) : null}
-            {activeShare ? (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={busy}
-                onClick={() => onSendToMachine(activeShare.id)}
-              >
-                <MonitorUp className="size-3.5" />
-                {translate(
-                  'auto.components.skills.managedInstall.installElsewhere',
-                  'Install elsewhere…'
-                )}
               </Button>
             ) : null}
             <Button

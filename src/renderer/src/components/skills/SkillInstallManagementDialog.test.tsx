@@ -174,8 +174,7 @@ beforeEach(() => {
   useAppStore.setState({
     runtimeEnvironments: [],
     sshConnectionStates: new Map(),
-    sshTargetLabels: new Map(),
-    pendingSkillShareId: null
+    sshTargetLabels: new Map()
   })
 })
 
@@ -459,7 +458,9 @@ describe('SkillInstallManagementDialog', () => {
     expect(skills.installPackageVersion).not.toHaveBeenCalled()
   })
 
-  it('opens an active bundle link in the existing machine installer', async () => {
+  // The share-link hand-off this row used to offer is gone with the vendor lane; only the
+  // local remove/reinstall controls are left.
+  it('offers no share hand-off for a bundle that still reports an active vendor link', async () => {
     const installed = [bundleInstall('alpha-skill'), bundleInstall('beta-skill')]
     const versions = [bundleVersion('ver_1', ['alpha-skill', 'beta-skill'])]
     const details = {
@@ -468,7 +469,7 @@ describe('SkillInstallManagementDialog', () => {
         shares: [
           {
             id: 'share_bundle',
-            url: 'https://app.orca.dev/skills/share/share_bundle',
+            url: 'https://example.invalid/skills/share/share_bundle',
             createdAt: '2026-08-12T00:00:00.000Z'
           }
         ]
@@ -480,10 +481,10 @@ describe('SkillInstallManagementDialog', () => {
     render(<SkillInstallManagementDialog open onOpenChange={onOpenChange} />)
 
     fireEvent.click(await screen.findByRole('button', { name: /alpha-skill \+1/ }))
-    fireEvent.click(await screen.findByRole('button', { name: /Install elsewhere/ }))
+    await screen.findByRole('button', { name: ROW_ACTION })
 
-    expect(onOpenChange).toHaveBeenCalledWith(false)
-    expect(useAppStore.getState().pendingSkillShareId).toBe('share_bundle')
+    expect(screen.queryByRole('button', { name: /Install elsewhere/ })).toBeNull()
+    expect(onOpenChange).not.toHaveBeenCalled()
   })
 
   it('removes a bundle with one confirmation and preserves modified skills', async () => {

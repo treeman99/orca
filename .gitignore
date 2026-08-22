@@ -94,8 +94,6 @@ docs/**
 !docs/readme/
 !docs/readme/**
 !docs/STYLEGUIDE.md
-!docs/agent-skill-sharing-implementation-checklist.md
-!docs/agent-skill-sharing-installation-plan.md
 !docs/ai-vault-process-isolation-plan.md
 !docs/mobile-terminal-shortcut-bar.md
 !docs/source-control-submodules-as-repositories.md
@@ -114,6 +112,7 @@ docs/**
 !docs/reference/windows-corporate-build.md
 !docs/reference/external-integrations-audit.md
 !docs/reference/enterprise-policy.md
+!docs/reference/agent-skill-provider-paths.md
 !docs/reference/macos-dev-ui-check.md
 !docs/reference/local-dev-run.md
 !docs/reference/windows-daemon-session-survival.md

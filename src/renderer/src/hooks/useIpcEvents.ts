@@ -1205,13 +1205,6 @@ export function useIpcEvents(): void {
       })
     )
 
-    const unsubscribeOpenSkillShare = window.api.ui.onOpenSkillShare?.((shareId) => {
-      useAppStore.getState().openSkillShare(shareId)
-    })
-    if (unsubscribeOpenSkillShare) {
-      unsubs.push(unsubscribeOpenSkillShare)
-    }
-
     // Why: a tray "Settings…" click can fire before this attaches; consume any queued intent (?. guards stale preload).
     void window.api.ui
       .consumePendingOpenSettings?.()
@@ -1221,17 +1214,6 @@ export function useIpcEvents(): void {
         }
       })
       .catch(() => {})
-
-    const pendingSkillShare = window.api.ui.consumePendingSkillShare?.()
-    if (pendingSkillShare && typeof pendingSkillShare.then === 'function') {
-      void pendingSkillShare
-        .then((shareId) => {
-          if (shareId) {
-            useAppStore.getState().openSkillShare(shareId)
-          }
-        })
-        .catch(() => {})
-    }
 
     // Why: a phone stuck in a silent 4001 auth loop (lost device registry) reads as
     // "phone won't connect" with no clue on either end; main throttles to once per session.

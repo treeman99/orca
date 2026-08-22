@@ -33,6 +33,14 @@
 >
 > ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다. 특히 `relay-region-preference`의 도달 불가는 호출 그래프 추적으로 판정한 것이지 실행으로 확인한 것이 아닙니다. `.github/`는 판정 범위 밖이었고, 새 Docker 스텝의 CI 실행 여부를 확인하기 위해서만 `pr.yml`을 열었습니다.
 >
+> **v1.4.188 갱신 (2026-08-22).** 이 판에서 재검증한 것은 **v1.4.186 → v1.4.188 구간의 델타**이며, 판정 기준은 태그 델타가 아니라 **포크 유입 델타**(fork tip → v1.4.188)입니다 — 태그는 릴리스 브랜치에서 잘리는데 포크는 `upstream/main`을 머지하므로 태그에는 "신규"로 보이는 것이 이미 우리 트리에 있는 경우가 있습니다(실례: `relay-region-preference.ts`는 태그 diff에서 A로 잡히지만 blob이 fork tip과 동일합니다).
+>
+> **Artifacts는 이번 릴리스에서 커지지 않았습니다** — `src/main/artifacts/` 트리는 v1.4.186과 바이트 동일하고 CLI·RPC도 같습니다. 신규 11파일은 전부 `ArtifactListPane.tsx` 하나를 쪼갠 렌더러 분해라 포크의 기존 제거가 표면 전부를 계속 덮습니다. **반면 upstream은 "에이전트 스킬 공유"라는 기능 도메인을 통째로 들여왔습니다** — `src/main/skills` 43 → 165 파일, `src/renderer/src/components/skills` 16 → 101, IPC +21, RPC +13, 릴레이 핸들러 +1, CLI 서브커맨드 +2. **실질 신규 목적지는 `storage.googleapis.com` 1건**이고, 여기에 더해 기존 호스트 `share.onorca.dev`로 가는 **새로운 무인증 경로**가 1건 생겼습니다. 그 무인증 경로는 포크의 기존 제거장치(`ORCA_CLOUD_REMOVED`, `ARTIFACT_SHARING_REMOVED`, `disableCloudRelay`) 중 **어느 것으로도 막히지 않았습니다** — 전부 인증 초크포인트에 걸려 있고 이 경로는 인증을 지나지 않기 때문입니다. §3.1에서 소스 제거로 닫았습니다. 그 밖에 신규 에이전트 CLI 0건, 신규 런타임 의존성 0건, 벤더 호스트를 때리는 신규 쉘아웃 0건, 새 벤더 목적지를 여는 `openExternal` 0건입니다.
+>
+> ⚠️ **호출지점 계수법의 사각지대를 하나 고쳐야 합니다.** 표준 정규식(`fetch(`/`net.fetch`/`https?.get|request`/`new WebSocket`/`axios`)은 **주입형 fetcher 패턴을 놓칩니다.** v1.4.188의 신규 스킬 레인은 세 곳 전부가 이 형태입니다 — `(input.fetcher ?? fetch)(url, …)`, `input.fetcher!(url, …)`(`skill-cloud-request.ts:36`, `skill-cloud-direct-upload.ts:101`, `skill-package-download.ts:84`). 다음 동기화부터 `\?\? *fetch|\?\?= *fetch|fetcher!\(`를 정규식에 넣으십시오. 넣지 않으면 이번 릴리스에서 가장 중요한 세 호출지점이 통째로 보이지 않습니다.
+>
+> ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다. `share.onorca.dev`/`storage.googleapis.com`의 서버측 로깅은 소스로 알 수 없고, 업로드 방향의 서명 POST 정책 URL은 **오리진 허용목록이 없습니다**(`https:`와 자격증명 부재만 검사) — 그 경로는 `withAuth` 아래라 이 빌드에서 도달하지 않지만, "업로드는 오리진 고정이 아니다"는 사실 자체는 적어 둡니다.
+
 > **⚠️ 델타 판정의 기준은 `git log`가 아니라 트리 diff입니다.** 업스트림은 릴리스 브랜치에 태그를 달고 그 태그들은 서로의 자손이 아닙니다. 같은 변경이 main과 릴리스 브랜치에 다른 SHA로 존재하면 `git log <old>..<new>`에는 나타나되 트리에는 차이가 없으므로, **로그는 델타를 과대 계상합니다.** 실례: `git log v1.4.178..v1.4.180`에는 Artifacts 관련 커밋 3건(`24c68087bd` 수동 공유 #13369, `05160cd08e` 능력 게이팅 #13368, `2f221bdbfe` 관리 UI #13356)이 보이지만 `git diff --name-only v1.4.178 v1.4.180 -- '*artifact*' '*Artifact*'`는 **비어 있습니다** — 두 태그의 artifact 트리는 동일하며 그 기능들은 이미 v1.4.178 트리에 있었습니다(§3.1). 그러므로 델타 감사는 `git diff --name-status <old> <new>` 기준으로 하고 로그는 맥락 파악에만 쓰십시오. **함정은 양방향입니다** — 로그만 보고 "이번에 새로 들어왔다"고 오판하는 것과, 트리가 같은 것을 보고 "업스트림이 이 레인을 접었다"고 안심하는 것 둘 다 틀립니다(후자의 경우 업스트림은 계속 개발 중이며, 다만 그 작업이 더 이른 태그에 이미 들어와 있었을 뿐입니다).
 
 ---
@@ -48,6 +56,7 @@
 | **star-nag (github.com SaaS 고정)** | 랜딩·설정 화면 진입, 에이전트 완료, 온보딩 완료, 스폰 임계치에서 발동 | ✅ `disableStarNag` | 없음 (`gh` 호출 함수 자체에서 차단, §1) |
 | **Orca Cloud 로그인 / 모바일 페어링 릴레이** | 로그인 안 하면 안 나감 | 🚫 **코드에서 제거됨** (v1.4.178~, §3.1) | 없음. LAN/Tailscale 페어링 QR은 **여전히 발급됩니다** — 릴레이가 아니라 모바일 자체를 닫는 건 `disableMobilePairing`입니다 |
 | **Artifacts 공유 (v1.4.178 신규)** — HTML/Markdown 파일 본문을 벤더 호스트로 발행 | 업스트림 기본값은 사용자 설정으로 꺼져 있으나 UI에서 두 번 클릭이면 켜짐 | 🚫 **코드에서 제거됨** (§3.1) | 없음 (정책이 아니라 소스에서 차단) |
+| **에이전트 스킬 공유 (v1.4.188 신규)** — 선택한 스킬 디렉터리를 tar.gz으로 벤더 호스트에 발행하고, 공유 링크로 다시 내려받아 설치 | 🔴 **발행만 사용자 설정(`agentSkillSharingEnabled`, 기본 꺼짐)에 걸려 있고 설치·조회 레인은 로그인조차 필요 없음** | 🚫 **코드에서 제거됨** (§3.1) | 없음. 단 **로컬 레인은 의도적으로 살려 두었습니다** — 스킬 탐색, 프레시니스 갱신, 관리형 설치 조회·제거 (§0.2 #26) |
 | **에이전트 스킬 설치·업데이트 (npmjs + github.com)** | 설정/온보딩이 `npx skills add <업스트림 저장소>`를 인쇄·실행 | 🚫 **코드에서 제거됨** (§3.2) — 스킬 바이트가 패키지에 동봉되고 설치는 로컬 복사 | 없음 (사용자가 커뮤니티 CLI를 직접 쓰는 것은 #1과 같은 사각지대) |
 | **AI 벤더 사용량 폴링 (Claude/Codex/Grok/…)** | 🔴 **Orca 계정 연동과 무관 — 로컬 벤더 CLI 자격증명만 있으면 15분마다 폴링** | ✅ `disableUsagePolling` | 없음 (§4) |
 | **Claude OAuth 토큰 회전 (platform.claude.com)** | Orca 관리 Claude 계정을 쓸 때만 | ✅ `disableManagedClaudeAccounts` | egress는 없음. 단 이 스위치는 **Bedrock 플릿에서 선택이 아니라 필수**입니다 — 끄면 WSL 세션이 관리형 계정 없이도 인증 env를 스트립하고, 런치 env에 `AWS_BEARER_TOKEN_BEDROCK` 등이 있으면 스폰이 하드 실패합니다 (§4) |
@@ -207,6 +216,7 @@
 | ~~24~~ | ~~**GitHub 스택 PR 병합의 쓰기 증폭**~~ (egress가 아니라 **의도보다 넓은 파괴적 쓰기** 항목입니다) | ~~사내 GHES — origin에서 유도~~ | ~~`github.mergePR`(IPC/RPC 공용) 호출 시 대상 PR이 스택에 속하면 자동 승격~~ | **v1.4.180에서 발견 → 이 포크가 `d02dd048a1`에서 닫았습니다.** **무엇이었나**: 메인 프로세스의 `mergePR()`이 대상 PR의 스택 메타데이터를 읽어 스택이면 **묻지도 알리지도 않고** 단일 PR 병합 요청을 스택 전체 병합(`PUT …/pulls/N/merge-async` — GitHub이 그 PR과 **그 아래 모든 PR을 원자적으로** 병합하는 엔드포인트)으로 교체했습니다. 확인 다이얼로그는 **렌더러 전용**이었고 `github.mergePR`은 `MOBILE_RPC_METHOD_ALLOWLIST`에 등재돼 모바일 앱이 실제로 호출하므로, 이 델타에서 갱신되지 않은 모바일 UI는 **단일 PR 병합처럼 보이면서 스택 전체를 병합**할 수 있었습니다. **모바일만의 문제가 아니었습니다** — 데스크톱 표면 셋(`PullRequestPage`·`GitHubItemDialog`·`TaskPage`)도 `"This will update the pull request on GitHub."`이라는 일반 확인만 띄운 채 같은 승격을 겪었고, 그 셋이 다루는 work item 타입에는 `stack` 필드 자체가 없어 **무엇이 병합되는지 보여줄 방법이 없었습니다.** 어떤 관리자 스위치도 이 경로를 보지 않았습니다(`LOCKDOWN_INHERITING_KEYS` 17개 중 없음). **어떻게 닫았나**: 정책 스위치가 아니라 코드로 닫았습니다 — 승격을 명시적 옵트인(`stackMergeIntent`)으로 바꾸고, 게이트를 `mergeGitHubPRStack`의 **유일한 호출부**인 `client.ts`의 `mergePR()`에 두었습니다. 옵트인은 스택 범위를 실제로 고지하는 리뷰 사이드바 확인 직후에만 전달되고, 나머지 경로(모바일·구버전 클라이언트·고지할 수 없는 데스크톱 표면 셋)는 **fail-closed**로 거부되며 몇 건짜리 스택인지와 어디서 범위를 볼 수 있는지를 오류로 안내합니다. 조용한 단일 PR 강등은 **의도적으로 하지 않습니다** — 호출자가 자기 요청과 실제 쓰기의 차이를 알아야 하기 때문입니다. **왜 스위치가 아닌가**: "허용"이 기본인 스위치를 만들면 구멍이 기본으로 열린 채 남습니다. 이것은 정책 선택이 아니라 안전성 수정입니다. **#18과 같은 구조의 문제였습니다**(렌더러 게이트가 보이지 않는 클라이언트) — 그래서 방어선을 렌더러가 아니라 메인으로 옮긴 것이 수정의 핵심입니다. **`disableMobilePairing`으로는 닫히지 않았습니다** — #22가 기록한 대로 runtime-scope 페어링 토큰은 잠금에서도 계속 발급되고 그 스코프는 모바일 허용목록이 아니라 전체 RPC 표면을 엽니다 | 게이트 `src/main/github/client.ts`의 `mergePR()`(스택 분기), 의도 타입·오류 문구 `src/main/github/github-pr-stack-merge-gate.ts`, 엔드포인트 `github-pr-stack-async-merge.ts`, 옵트인 전달 `src/renderer/src/components/right-sidebar/use-hosted-review-actions.ts`. 회귀 방지 `src/main/github/github-pr-stack-merge-optin.test.ts` — **옵트인 없이는 `mergeGitHubPRStack`에도 `merge-async` 엔드포인트에도 도달하지 않는다**를 네거티브로 고정하므로, 업스트림 동기화가 자동 승격을 되살리면 red가 됩니다(§3·§3.1의 소스 감사 테스트와 같은 목적) |
 
 | 25 | **사내 게이트웨이 CLI의 egress** (`gateway-cli login` / `gateway-cli verify` — AWS SSO 레인을 대체) | **사내 OIDC IdP**와 **사내 게이트웨이** 두 곳. 실제 호스트명은 `gateway-cli` 자신의 설정이 정하며 **Orca는 목적지를 알지 못합니다** | ① 설정 → AI 제공업체 계정에서 "사내 게이트웨이 로그인"을 눌렀을 때(`gateway-cli login`, 인자 없음), ② **상태 배지를 새로 고칠 때마다**(`gateway-cli verify`) — ②는 사용자가 로그인을 누르지 않아도 발생하는 자동 경로입니다 | 🔴 **#1과 같은 사각지대입니다.** Orca가 **자식 프로세스로 스폰**하므로 `enforceNetworkAllowlist`(`session.defaultSession` + 메인 프로세스 global `fetch`)가 그 소켓을 **구조적으로 볼 수 없습니다.** AWS CLI 시절과 성격이 같은 잔여 위험이지만 **목적지가 하나에서 둘로 늘었습니다**(IdP + 게이트웨이). ⚠️ **미확인 항목이 많습니다**: `verify`가 매번 실제로 네트워크를 타는지(로컬 캐시만 읽을 수도 있습니다), 호출 빈도, virtual key의 저장 위치와 수명, `gateway-cli`의 프록시·사설 CA 처리, WSL 게스트·SSH 원격에서의 동작. **권고**: 사내 IdP·게이트웨이 호스트를 이 표에 **실명으로 적어 두고**, 통제는 망 계층(프록시 강제·방화벽·TLS 검사)에서 하십시오 — `allowedNetworkHosts`에 넣어도 자식 프로세스에는 아무 효과가 없습니다(#1). **Orca 쪽 경계는 확인됐습니다**: 토큰·virtual key를 읽지도 저장하지도 않고, 에이전트 환경에 자격증명 변수를 주입하지도 않으며, CLI는 PATH에서만 해석합니다. 로그아웃 레인은 존재하지 않습니다 | 계약 `src/shared/gateway-auth.ts`, 실행 `src/main/gateway/gateway-cli-command.ts`(`resolveGatewayCommand`)·`gateway-login.ts`(`runGatewayLogin`)·`gateway-verify.ts`(`runGatewayVerify`)·`gateway-cli-availability.ts`(`detectGatewayCli`), 출력 파서 `src/shared/gateway-cli-output.ts`, IPC `src/main/ipc/gateway.ts`(`gateway:getStatus`·`gateway:login`·`gateway:cancelLogin` + 이벤트 `gateway:loginProgress`), 화면 `settings/GatewaySection.tsx` |
+| 26 | **에이전트 스킬의 로컬 레인 — 의도적으로 차단하지 않음** (egress가 아니라 **제거 범위의 경계선** 항목입니다) | — (전부 로컬 파일시스템. 이 레인들은 소켓을 열지 않습니다) | 스킬 페이지를 열 때(탐색), 번들 스킬 갱신 넛지(프레시니스), 설치 관리 다이얼로그(조회·제거) | ✅ **막지 않는 것이 의도입니다.** §3.1의 제거는 **벤더 레인만** 잘라냅니다. 계속 사는 것: ① 스킬 탐색(`skills:discover` / RPC `skills.discover` — 호스트·WSL·SSH의 `~/.agents/skills`·`~/.claude/skills` … 스캔), ② 프레시니스 인벤토리와 업데이트 실행(§3.2의 오프라인 번들 복사 레인), ③ 관리형 설치 조회·미리보기·제거(`skills:listManagedInstalls`/`previewInstall`/`removeInstall`/`listWslDistros` — `src/main/ipc/skill-install-management-ipc-handlers.ts`, 네트워크 없음). **같이 죽이면 이 머신에 무엇이 설치돼 있는지 보는 화면과, 이미 들어온 것을 지우는 유일한 수단이 함께 사라집니다** — Artifacts에서 `list`/`unshare`/`delete`를 남긴 업스트림 판단과 같은 자리입니다. 🔴 **잔여 두 가지**: ① 설치 관리 다이얼로그의 버전 선택·재설치 버튼은 `skills:getPackage`(벤더)가 상세를 돌려줄 때만 렌더되는데 그 호출이 가드에 막히므로 **화면에 나타나지 않습니다** — 즉 도달 불가 코드로 남아 있고, 리베이스가 가드를 풀면 UI가 함께 되살아납니다. ② 사용자가 **직접** 스킬 디렉터리에 파일을 넣는 것은 Orca가 막지 않습니다(#1과 같은 사각지대). 이 항목이 보장하는 것은 **Orca가 스스로 벤더 호스트에서 스킬을 받아 오지 않는다**는 것입니다 | 남긴 레인 `src/main/skills/discovery.ts`·`skill-freshness-inventory.ts`·`skill-update-run.ts`·`src/main/ipc/skill-install-management-ipc-handlers.ts`, 남긴 UI `src/renderer/src/components/skills/SkillsPage.tsx`·`SkillInstallManagementDialog.tsx`·`SkillFreshness*` |
 
 **#2~#6b는 `enforceNetworkAllowlist: true`로 닫을 수 있습니다** — 메인 창은 파티션을 지정하지 않아 `session.defaultSession`을 쓰므로 렌더러 `<img>` 요청이 가드의 `onBeforeRequest`를 지나갑니다 (`createMainWindow.ts:302-308`에 `partition` 없음). **#6c는 예외입니다** — 로드하는 주체가 데스크톱 렌더러가 아니라 페어링된 모바일 앱이고 그 앱은 이 Electron 세션 밖에 있으므로, 허용목록으로 닫히지 않습니다(데스크톱은 애초에 URL을 로드하지 않습니다). #1, #7, #23, #25는 어떤 Orca 측 스위치로도 닫히지 않으며 망 계층에서만 통제됩니다 — #23은 `gh` 자식 프로세스라 #1과 같은 사각지대이고, 유일한 코드 통제는 `fetchRateLimitSnapshot()` 한 곳에 게이트를 다는 것입니다. #22는 나가는 트래픽이 아니라 **들어오는 접속**을 여는 항목이라 허용목록의 대상이 아니며, 이 레인을 소유하는 스위치가 없으므로 통제는 망 계층(`6768`/dev `6769` 및 폴백 포트의 인바운드 차단)뿐입니다. #21은 네트워크 항목이 아니라 잠금 자체의 무결성 항목이며, 코드가 아니라 배포 형태(ACL 또는 perMachine 설치)로만 닫힙니다. #10은 Electron `net.request`를 쓰므로 허용목록이 덮는지 여부가 §7 레벨 3의 미검증 항목과 같습니다.
 
@@ -373,7 +383,19 @@ UI 표면도 함께 사라졌습니다 — 앱/Help 메뉴, 트레이, 사이드
 
 ---
 
-## 3.2 스킬 설치·업데이트 (🚫 코드에서 제거됨)
+## 3.2 스킬 설치·업데이트 — **번들 스킬 레인** (🚫 코드에서 제거됨)
+
+> **⚠️ 이 절과 §3.1의 스킬 레인은 서로 다른 두 개입니다. 혼동하면 이 문서가 실제보다 안전하게 읽힙니다.**
+>
+> | | **이 절 (§3.2)** | **§3.1의 스킬 공유 레인** |
+> | --- | --- | --- |
+> | 무엇 | Orca **자신의** 번들 스킬(`orca-cli`, `computer-use`, …)을 에이전트 홈에 설치·갱신 | **임의의 제3자**가 만든 스킬 패키지를 공유 링크로 받아 설치 |
+> | 언제 들어왔나 | v1.4.178 이전부터 | **v1.4.188 신규** |
+> | 옛 목적지 | `registry.npmjs.org` + `github.com/stablyai/orca` | `share.onorca.dev` + `storage.googleapis.com` |
+> | 어떻게 처리했나 | **대체** — 같은 바이트를 패키지에 동봉하고 로컬 복사로 설치 | **제거** — 대체할 오프라인 경로가 없습니다(패키지 자체가 벤더 호스트에만 존재) |
+> | 초크포인트 | `src/shared/agent-feature-install-commands.ts` | `skillCloudRequest()` + `downloadSkillPackageGrant()` (§3.1) |
+>
+> **이 절이 v1.4.188의 설치 레인을 덮는다고 읽지 마십시오.** 두 레인은 코드도, 목적지도, 처리 방식도 공유하지 않습니다.
 
 Orca 자신의 에이전트 스킬(`orca-cli`, `computer-use`, `orchestration`, …)을 설치·갱신하는 레인입니다. §3·§3.1과 같은 성격 — 정책이 아니라 소스에서 바꿨습니다.
 
@@ -410,13 +432,14 @@ git grep -n "from: 'skills'" -- config/electron-builder.config.cjs
 
 ---
 
-## 3.1 벤더 클라우드 레인 3종 (🚫 코드에서 제거됨, v1.4.178~)
+## 3.1 벤더 클라우드 레인 4종 (🚫 코드에서 제거됨, v1.4.178~)
 
 §3과 같은 성격입니다 — 정책이 아니라 소스에서 차단했으므로, 정책 파일이 없거나 파싱에 실패해도 되살아나지 않습니다.
 
 | 기능 | 목적지 | 나가던 것 | 차단 지점 |
 | --- | --- | --- | --- |
 | **Artifacts 공유** (v1.4.178 신규) | `share.onorca.dev` (인증 갱신은 벤더 로그인 호스트) | **파일 본문 전체**(최대 800KB), 파일 basename, 선택적 제목, `Bearer` 토큰(계정 신원). 절대경로·워크트리명·텔레메트리는 아님 | `ArtifactCloudService.withAuth` (`src/main/artifacts/artifact-cloud-service.ts`) |
+| **에이전트 스킬 공유** (v1.4.188 신규) | **양방향 두 호스트** — 메타데이터는 `share.onorca.dev`(`/v1/skill-shares/…`), 아카이브 자체는 `storage.googleapis.com`(**업로드·다운로드 모두**) | **선택한 스킬 디렉터리 전체를 tar.gz으로 압축한 바이트**(상한 `SKILL_PACKAGE_MAX_COMPRESSED_BYTES`) — SKILL.md 본문, 딸린 스크립트·참조 파일이 그대로 포함됩니다. 메타 레인으로는 공유 id, 선택적 버전 id, `installTarget`(`local`/`remote`), 그리고 요청이 드러내는 소스 IP·TLS SNI. **발행 방향에만 `Bearer` 토큰이 붙고 설치 방향에는 붙지 않습니다** | 요청 함수 `skillCloudRequest()` (`src/main/skills/skill-cloud-request.ts`) + 다운로드 `downloadSkillPackageGrant()` (`src/main/skills/skill-package-download.ts`) + 링크 파서 `parseSkillShareId()` (`src/shared/skill-share-link.ts`) |
 | **Orca Cloud 로그인** | 벤더 로그인 호스트 `/v1/desktop/auth/{authorize,session,refresh,capabilities,profile,org,logout,relay-token}` | OAuth 세션·프로필·조직 정보 | `getOrcaCloudAuthConfig()` (`src/main/orca-profiles/profile-cloud-auth-config.ts`) |
 | **모바일 페어링 릴레이 디렉터** | 벤더 릴레이 호스트 | 릴레이 초대 토큰, 릴레이 경유 터미널 브리지, **(v1.4.185~) 리전 카탈로그 조회 `GET {director}/v1/regions`와 셀 origin별 지연 프로브 `GET {origin}/health`**(3샘플 × 최대 2 origin × 2 리전, 24h 캐시 — `src/main/runtime/relay/relay-region-preference.ts:182,218`) | 동일 — `DesktopRelayService`는 이 호출이 `configured`일 때만 생성됩니다 (`src/main/index.ts`). 리전 프로브도 그 생성자 안에서 배선되므로 같은 초크포인트가 덮습니다 |
 
@@ -425,9 +448,20 @@ git grep -n "from: 'skills'" -- config/electron-builder.config.cjs
 **왜 정책 스위치가 아니라 제거인가.**
 
 - **Artifacts**: API 클라이언트가 목적지를 `onorca.dev` 호스트로 **잠가 둡니다**(`artifact-cloud-config.ts`). 사내 호스트로 돌릴 수 없으므로, 사내 소스를 사내 인프라에 두면서 이 기능을 켜는 설정 조합이 존재하지 않습니다. 업스트림의 off-by-default(`artifactSharingEnabled`)는 **에이전트가 공개 링크를 만들지 못하게 하는 사용자 설정**이지 배포 통제 수단이 아닙니다 — UI에서 두 번 클릭이면 켜집니다.
+- **에이전트 스킬 공유**: 세 가지가 겹칩니다. ① 목적지 잠금은 Artifacts와 **같은 코드**입니다 — `skill-cloud-request.ts`가 `resolveArtifactCloudApiUrl()`을 재사용하므로 사내 호스트로 돌릴 수 없고, 아카이브는 `storage.googleapis.com`에서만 받습니다. ② 업스트림의 `agentSkillSharingEnabled`는 **발행 방향만** 보는 사용자 설정이고, 설치 방향에는 검사 자체가 없습니다. ③ **결정적인 이유는 릴레이입니다** — `getEnterprisePolicy()`는 `electron`을 import하므로 릴레이 esbuild 번들에 들어갈 수 없고, 정책 파일은 원격 SSH 호스트에 배포되지도 않습니다(그 호스트에서는 `lockdown: false`로 해석됩니다). 반면 `src/shared`의 컴파일타임 상수는 **가드하는 코드와 함께 릴레이 번들에 실립니다.** 즉 이 레인에서는 **정책 스위치라는 선택지가 물리적으로 존재하지 않습니다.** 같은 이유로 `enforceNetworkAllowlist`도 답이 아닙니다 — 그 가드는 `session.defaultSession`과 **메인 프로세스의** global `fetch`만 감싸므로(§0.2 #1) 원격 호스트에서 릴레이 자신이 여는 소켓을 **구조적으로 볼 수 없습니다.**
 - **클라우드/릴레이**: `disableCloudRelay`로 이미 덮여 있었지만, 그건 관리자의 선택입니다. **모바일 페어링을 쓰려고 그 스위치를 끄는 것은 정당한 구성인데, 그러면 벤더 로그인과 릴레이가 같이 되살아납니다.** 이 빌드는 둘 다 쓰지 않으므로 정책 한 줄 뒤에 두지 않습니다.
 
 **초크포인트 선택이 중요했습니다.** Artifacts는 `share`/`publish`/`update`만 업스트림 capability 게이트를 통과하고 `list`/`getPublishedLink`/`unshare`/`delete` 4종은 **의도적으로 무게이트**입니다(옛 링크를 감사·회수할 수 있어야 한다는 이유). 7개 RPC가 전부 지나가는 `withAuth`에 걸어야 다 막힙니다. 특히 dev 빌드의 `authToken` 우회는 인증 설정 검사를 건너뛰므로 **그 분기보다 앞**에 두어야 합니다.
+
+**스킬 공유는 그보다 나쁩니다 — `withAuth`에 걸었다면 설치 레인이 통째로 살아 있었을 것입니다.** Artifacts는 게이트가 없는 4종도 최소한 **인증 클래스 안에** 있었습니다. 스킬 공유에서는 `SkillCloudService`가 `withAuth` 말고 **`withoutAuth`라는 두 번째 진입로**를 갖고 있고, 그 경로는 `getOrcaCloudAuthConfig()`를 아예 부르지 않습니다. 그 위에 올라탄 두 메서드가 하필 설치 레인의 전부입니다 — `resolveShare`(공유 링크 해석)와 `createDownloadGrant`(다운로드 그랜트 발급). **업스트림은 이것을 의도로 문서화합니다**: 링크를 받은 사람이 로그인 없이 설치할 수 있어야 한다는 것이 이 기능의 설계 목표입니다. 따라서 이 포크에서 그것은 곧 **로그인하지 않은 사내 PC가 링크 하나로 제3자 코드를 받아 `~/.agents/skills`에 푸는 경로**를 뜻하고, 포크의 기존 방어(`ORCA_CLOUD_REMOVED`)는 인증 초크포인트에 걸려 있어 이 경로를 **하나도 보지 못했습니다**. 그래서 가드를 인증 계층이 아니라 **요청 함수 `skillCloudRequest()` 본문 첫 줄**에 두었습니다 — 12개 호출자가 전부 이 함수를 지나므로 `withAuth`와 `withoutAuth`를 한 번에 덮고, dev 빌드의 `authToken` 우회 분기(그 분기는 인증 설정 검사를 건너뜁니다)도 실제 소켓을 열려면 여기를 지나야 하므로 순서 문제가 소멸합니다.
+
+**두 번째 가드가 따로 필요했던 이유**는 그랜트 URL이 **호출자 제공**이기 때문입니다. RPC `skills.install`/`skills.installBundle`과 릴레이의 설치 핸들러는 `ingress: { kind: 'download-grant', url, … }`를 그대로 받고 업스트림 게이트가 없습니다. 즉 메타 레인을 막아도 **URL을 이미 들고 있는 호출자**(페어링된 클라이언트, 릴레이 호출자)는 그대로 내려받습니다. 데스크톱·릴레이·헤드리스 `orca serve` 세 실행 형태가 공유하는 단 하나의 함수가 `downloadSkillPackageGrant()`이므로 거기에 두 번째 가드를 두었습니다. 호출자 4곳에 각각 두는 안은 **"초크포인트가 아니라 호출자"** 규칙 위반이라 채택하지 않았습니다.
+
+**세 번째 가드는 딥링크 파서입니다.** `parseSkillShareId()`가 항상 `null`을 반환하므로 `orca://skills/share/<id>`와 `https://app.orca.dev/skills/share/<id>`가 argv나 `open-url`로 들어와도 해석되지 않습니다 — 호출자 3곳(초기 argv 캡처, 두 번째 인스턴스의 argv, 렌더러의 붙여넣기 검증)이 한 번에 죽습니다. 이 가드가 없으면 **사용자 클릭 없이** 앱 기동만으로 `share.onorca.dev`에 요청이 나갔습니다.
+
+**⚠️ 목적지 리터럴은 남아 있습니다.** `src/shared/skill-share-link.ts`의 `PRODUCTION_HOSTS`(`app.orca.dev`, `share.onorca.dev`)는 매처이지 목적지가 아니며, 파서가 그 앞에서 반환하므로 도달하지 않습니다. Artifacts에서 하드코딩 상수를 **삭제**한 것과 달리 여기서는 남겨 두었습니다 — 이 파일은 업스트림이 계속 손대는 곳이라 다음 동기화의 충돌 표면을 늘리지 않는 쪽을 택했습니다. 대신 아래 grep 검증에 두 호스트를 넣었습니다.
+
+**UI 표면도 함께 제거**했습니다: 발행 다이얼로그, 링크 붙여넣기 설치 다이얼로그, 번들 설치 플로, "내 공유 링크" 뷰, 설정 → Share Skills 페인(레지스트리 + 딥링크 + 검색 인덱스), 스킬 행·상세 다이얼로그의 "Share skill", 공유 선택 모드 전체, 그리고 딥링크를 받던 스토어 액션(`openSkillShare`/`openSkillsSharedLinks`)과 `useIpcEvents`의 `ui:openSkillShare`/`ui:consumePendingSkillShare` 처리. **Artifacts와 달리 영속 뷰 복원(`activeView: 'skills'`)은 건드리지 않았습니다** — Skills 페이지 자체는 로컬 인벤토리로 남기 때문입니다(§0.2 #26). 번역 카탈로그에서도 286개 키를 지웠는데, 그중 하나(`auto.components.skills.SkillInstallReviewContent.66cff7a804`)는 값이 `https://app.orca.dev/skills/share/…` 리터럴이라 **출하되는 번역 파일 안에 벤더 호스트가 들어 있었습니다.**
 
 **하드코딩 상수도 삭제했습니다.** 벤더 로그인 호스트, `orca-desktop` OAuth client id, 릴레이 디렉터 origin의 패키지 빌드용 폴백을 지웠습니다. 번들에서 문자열 자체가 사라져 검토자가 grep할 대상이 없고, 가드가 리베이스로 사라지더라도 폴백할 엔드포인트가 없습니다. 환경변수(`ORCA_CLOUD_API_URL`, `ORCA_RELAY_URL`)로도 복구되지 않습니다 — env var는 Orca가 스폰하는 모든 프로세스에 상속되므로(§0.1) 그걸 존중하는 빌드는 `export` 한 번이면 뚫립니다.
 
@@ -443,11 +477,21 @@ git grep -n "from: 'skills'" -- config/electron-builder.config.cjs
 git grep -n 'login\.onorca\.dev\|relay\.onorca\.dev' -- src/ \
   | grep -v 'shared/orca-cloud-removal.ts\|orca-cloud-host-absence.test.ts'
 
+# 스킬 공유의 두 목적지. 여기서 나오는 것은 **매처와 허용목록뿐**이어야 하고,
+# `fetch(`/`fetcher` 호출부에 이 호스트가 있으면 가드가 풀린 것입니다.
+git grep -n 'app\.orca\.dev\|share\.onorca\.dev\|storage\.googleapis\.com' -- src/ \
+  | grep -v 'skill-sharing-removal\.ts\|-removed\.test\.'
+
 # 제거 가드가 제자리에 있는지 (없으면 정책만 남았다는 뜻)
-git grep -n 'ARTIFACT_SHARING_REMOVED\|ORCA_CLOUD_REMOVED' -- src/
+git grep -n 'ARTIFACT_SHARING_REMOVED\|ORCA_CLOUD_REMOVED\|SKILL_SHARING_REMOVED' -- src/
+
+# 벤더 호스트가 출하되는 번역 카탈로그에 되살아났는지
+git grep -n 'orca\.dev' -- src/renderer/src/i18n/locales/
 ```
 
-회귀 방지 테스트는 `src/main/artifacts/artifact-sharing-removed.test.ts`(7개 메서드 전부 `fetch` 미호출 — 사용자 토글이 켜진 경우와 호출자가 직접 loopback URL+토큰을 넘긴 경우 포함), `src/main/orca-profiles/profile-cloud-auth-config.test.ts`(환경변수·정책 조합 전수 거부, `disableCloudRelay: false` 포함), `src/main/orca-profiles/orca-cloud-host-absence.test.ts`(소스 감사)입니다.
+**`SKILL_SHARING_REMOVED`의 기대 소비처(9곳)**: `src/main/skills/skill-cloud-request.ts`(가드 A), `src/main/skills/skill-package-download.ts`(가드 B), `src/shared/skill-share-link.ts`(딥링크 파서), `src/renderer/src/components/settings/settings-pane-policy-visibility.ts`(설정 딥링크), 그리고 회귀 테스트. 이보다 적으면 리베이스가 가드를 하나 삼킨 것입니다.
+
+스킬 공유의 회귀 방지 테스트는 `src/main/skills/skill-sharing-removed.test.ts`(`SkillCloudService` 전 메서드가 `fetch`에 도달하지 않음 — 사용자 토글이 켜진 경우와 `authToken`을 직접 넘긴 dev 우회 포함, `downloadSkillPackageGrant`가 유효한 GCS URL·정상 그랜트에도 받지 않음, `parseSkillShareId`가 프로덕션 링크에 `null`), 렌더러 쪽은 `src/renderer/src/components/settings/settings-pane-policy-visibility.test.ts`(`share-skills`가 레지스트리에 없고 설정 딥링크도 거부됨 — 레지스트리에서 빠지는 것이 곧 설정 검색과 Cmd+J에서 빠지는 것입니다)와 `src/renderer/src/components/skills/SkillsPage.test.tsx`(로컬 인벤토리는 계속 렌더되지만 발행·링크설치 진입점은 없음)입니다. Artifacts 쪽 회귀 방지 테스트는 `src/main/artifacts/artifact-sharing-removed.test.ts`(7개 메서드 전부 `fetch` 미호출 — 사용자 토글이 켜진 경우와 호출자가 직접 loopback URL+토큰을 넘긴 경우 포함), `src/main/orca-profiles/profile-cloud-auth-config.test.ts`(환경변수·정책 조합 전수 거부, `disableCloudRelay: false` 포함), `src/main/orca-profiles/orca-cloud-host-absence.test.ts`(소스 감사)입니다.
 
 **⚠️ 마지막 것이 소스 감사인 이유**: 가드가 엔드포인트 해석 **전에** 반환하므로, 벤더 호스트 상수가 트리에 되살아나도 **동작 테스트로는 관측할 수 없습니다.** 업스트림 머지가 상수만 복원하고 가드를 건드리지 않으면 나머지 스위트는 전부 초록입니다. §3의 업데이터와 같은 함정입니다.
 
@@ -717,11 +761,13 @@ Electron의 `configureHostResolver`는 `secureDnsMode`가 기본 `'automatic'`�
 
 ## 부록: 확정 44건 요약
 
+> **v1.4.188 갱신**: upstream이 들여온 **에이전트 스킬 공유** 도메인(IPC 21개, RPC 13개, CLI 서브커맨드 2개, 프로덕션 네트워크 호출지점 3개, `GlobalSettings` 키 2개)은 §3.1에서 소스 제거했으므로 **이 44건에 더해지지 않습니다.** 실질 신규 목적지는 `storage.googleapis.com` 1건이었고, 기존 호스트 `share.onorca.dev`로 가는 **무인증 경로**가 1건 늘었던 것이 이번 릴리스의 최대 델타입니다. 남은 스킬 표면은 전부 로컬이며 §0.2 #26에 범위를 적었습니다.
+
 전체 원자료(호스트·파일·라인·차단 평가)는 조사 산출물에 있습니다. 여기서는 실제 외부 호출로 **확정된** 기능만 나열합니다.
 
 git: GitHub REST/GraphQL·PR 백그라운드 폴링·아바타·star-nag / GitLab / 일반 git fetch·push·clone. (Bitbucket·Azure DevOps·Gitea 폴백은 포크가 코드에서 제거했고, attribution 푸터는 upstream이 v1.4.184에서 제거해 목록에서 빠졌습니다.)
 이슈: Linear GraphQL·에이전트 write·첨부 signed URL / Jira REST / GitHub·GitLab 이슈 소스 / 본문 마크다운의 인라인 이미지·벤더 아바타. v1.4.184부터 Cmd+J 팔레트의 Linear/GitHub URL 붙여넣기도 같은 레인의 트리거입니다(신규 목적지 아님).
 AI: Claude 사용량(`api.anthropic.com`)·OAuth갱신(`platform.claude.com`) / Codex / Gemini / MiniMax / OpenCode / Grok / Kimi / 받아쓰기(OpenAI).
 인증: 사내 게이트웨이 CLI(`gateway-cli login`/`verify` → 사내 OIDC IdP + 게이트웨이). **자식 프로세스라 Orca가 소켓을 열지 않으므로 위 44건에 포함되지 않습니다** — §0.2 #25의 잔여 위험 항목입니다.
-클라우드: PostHog / 진단 번들(`onorca.dev`). (업데이터·넛지·changelog, 피드백/크래시 제출, 그리고 Orca Cloud 로그인·모바일 페어링 릴레이·Artifacts 공유는 코드에서 제거되어 목록에 없습니다 — §3, §3.1.)
+클라우드: PostHog / 진단 번들(`onorca.dev`). (업데이터·넛지·changelog, 피드백/크래시 제출, 그리고 Orca Cloud 로그인·모바일 페어링 릴레이·Artifacts 공유·**에이전트 스킬 공유**는 코드에서 제거되어 목록에 없습니다 — §3, §3.1.)
 에셋: STT 모델(sherpa-onnx)·scrcpy(에뮬레이터) GitHub Releases 다운로드 / Google favicon·아바타 이미지 / SSH 릴레이의 원격 npm install.

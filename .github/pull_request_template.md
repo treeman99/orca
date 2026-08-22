@@ -36,9 +36,9 @@ Fixes #
 
 ## Review
 
-## Agent skill upstream boundary
+## Agent skill sharing
 
-- [ ] Not applicable, or this change follows `docs/reference/agent-skill-sharing-upstream-boundary.md` and copies or mechanically translates no upstream skill-installer source, tests, fixtures, registry entries, path tables, comments, or documentation.
+- [ ] Not applicable, or this change does not reintroduce agent skill sharing. This fork removed the vendor publish/install lanes at the source (`SKILL_SHARING_REMOVED`); see [external integrations audit §3.1](../docs/reference/external-integrations-audit.md). Local skill discovery, freshness updates, and managed-install removal stay.
 
 ## Notes
 
