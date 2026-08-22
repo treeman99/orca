@@ -55,6 +55,10 @@ vi.mock('@/store', () => ({
         setRuntimeEnvironmentStatus: vi.fn(),
         activeModal: 'none',
         settings: { defaultTuiAgent: null, disabledTuiAgents: [] },
+        // v1.4.188 added resolveProjectCloneUrlPrefill, which reads both collections
+        // unguarded; without them the card throws before any policy assertion runs.
+        projects: [],
+        repos: [],
         updateSettings: vi.fn()
       }),
     { getState: () => ({ setRuntimeEnvironmentStatus: vi.fn() }) }

@@ -142,11 +142,11 @@ describe('tab bar + menu launch list', () => {
   })
 
   it('lists every detected agent when nothing is restricted', () => {
-    expect(orderTabLaunchAgents(null, DETECTED, null)).toContain('codex')
+    expect(orderTabLaunchAgents(null, DETECTED, null, null)).toContain('codex')
   })
 
   it('drops a detected agent the policy does not list', () => {
-    expect(orderTabLaunchAgents(null, DETECTED, ['claude', 'opencode'])).toEqual([
+    expect(orderTabLaunchAgents(null, DETECTED, null, ['claude', 'opencode'])).toEqual([
       'claude',
       'opencode'
     ])
@@ -155,7 +155,7 @@ describe('tab bar + menu launch list', () => {
   // The default is pinned to the head of the list, so a blocked default must not sneak
   // back in that way.
   it('does not promote a blocked default agent to the front', () => {
-    expect(orderTabLaunchAgents('codex', DETECTED, ['claude', 'opencode'])).toEqual([
+    expect(orderTabLaunchAgents('codex', DETECTED, null, ['claude', 'opencode'])).toEqual([
       'claude',
       'opencode'
     ])

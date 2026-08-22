@@ -230,7 +230,9 @@ describe('connectPanePty payload-less reattach over a restored viewport', () => 
     connectPanePty(pane as never, manager as never, deps as never)
     await flushAsyncTicks(20)
 
-    expect(written).toContain('snapshot-payload')
+    // Substring, not array membership: v1.4.188 prefixes every replay write with
+    // RESET_GRAPHIC_RENDITION, so the snapshot no longer arrives as its own bare entry.
+    expect(written.some((chunk) => chunk.includes('snapshot-payload'))).toBe(true)
     // The snapshot's own clear re-anchored the pane, so blanking would wipe it.
     expect(written).not.toContain(buildFreshShellViewportBlankingSequence(4))
     expect(blankingPanes.has(1)).toBe(true)

@@ -26,6 +26,16 @@ import {
 import { getDefaultSettings } from '../../../shared/constants'
 import type { TuiAgent } from '../../../shared/tui-agent'
 
+// Why: v1.4.188 moved the automation prompt field onto Monaco, which reads
+// `webkitBackingStorePixelRatio` off a 2D context jsdom/happy-dom does not provide. The throw
+// escapes into the React tree and unmounts the whole dialog, so the agent picker this file is
+// actually about never renders. Stubbed at the same seam the editor's own test uses.
+vi.mock('@monaco-editor/react', () => ({
+  default: () => <div data-testid="monaco-editor-stub" />,
+  loader: { config: vi.fn() }
+}))
+vi.mock('@/lib/monaco-setup', () => ({ monaco: {} }))
+
 const ALLOWED = ['claude', 'opencode'] as const
 // Ids the corporate policy does NOT list, one per catalog neighbourhood the pickers order by.
 const BLOCKED: readonly TuiAgent[] = ['codex', 'gemini', 'grok', 'copilot', 'cursor']
@@ -232,7 +242,7 @@ describe('Tab bar → + → agent menu under allowedAgents', () => {
   // per detection change), so the ordering helper is gated on the live policy too.
   it('drops the blocked agents from the typed-query list', async () => {
     await deliverCorporatePolicy()
-    expect(orderTabLaunchAgents(null, detection.ids, getPolicyAllowedAgents())).toEqual([
+    expect(orderTabLaunchAgents(null, detection.ids, null, getPolicyAllowedAgents())).toEqual([
       'claude',
       'opencode'
     ])
