@@ -39,7 +39,14 @@ export const AGENT_SKILL_INSTALL_ROOTS: readonly AgentSkillInstallRoot[] = [
     segments: ['.gemini', 'antigravity', 'skills'],
     agentKey: 'antigravity'
   },
-  { rootId: 'home-cursor', segments: ['.cursor', 'skills'], agentKey: 'cursor' }
+  { rootId: 'home-cursor', segments: ['.cursor', 'skills'], agentKey: 'cursor' },
+  // v1.4.188 added four provider homes to discovery; the parity test below is what caught
+  // them missing here, which would have left an offline install unable to reach them.
+  { rootId: 'home-droid', segments: ['.factory', 'skills'], agentKey: 'droid' },
+  { rootId: 'home-continue', segments: ['.continue', 'skills'], agentKey: 'continue' },
+  // Why '.trae-cn': Orca detects trae by `traecli`, an alias only TRAE CN ships.
+  { rootId: 'home-trae', segments: ['.trae-cn', 'skills'], agentKey: 'trae-cn' },
+  { rootId: 'home-aug', segments: ['.augment', 'skills'], agentKey: 'augment' }
 ]
 
 export function agentSkillInstallRootPath(homeDir: string, root: AgentSkillInstallRoot): string {
