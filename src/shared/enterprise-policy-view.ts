@@ -13,12 +13,18 @@ export type EnterprisePolicyView = {
   lockdown: boolean
   /** Hide every update affordance: menu items, settings rows, the update card. */
   disableAutoUpdate: boolean
+  /** Hide Settings → Orca Account: the pane exists to configure Orca Cloud sign-in and the
+   *  vendor mobile relay, which this switch already turns off. */
+  disableCloudRelay: boolean
   /** Hide the Mobile pane, its sidebar entry, and the pairing QR. */
   disableMobilePairing: boolean
   /** Hide the Mobile Emulator pane, the New Mobile Emulator tab action, and the pane itself. */
   disableMobileEmulator: boolean
   /** Hide the external (hermes/openclaw) automation sources and their create targets. */
   disableExternalAutomations: boolean
+  /** Hide the schedule affordances that would create an unattended run: automation
+   *  schedules and bot routines. Run now stays; the switch is about the timer. */
+  disableUnattendedAgentRuns: boolean
   /** Hide the "Available to install" agent list and the onboarding install banner. */
   disableAgentInstallSuggestions: boolean
   /** Hide Settings → Stats & Usage — the pane whose data this policy refuses to fetch. */
@@ -42,9 +48,11 @@ export const ENTERPRISE_POLICY_VIEW_KEYS = [
   'allowedAgents',
   'lockdown',
   'disableAutoUpdate',
+  'disableCloudRelay',
   'disableMobilePairing',
   'disableMobileEmulator',
   'disableExternalAutomations',
+  'disableUnattendedAgentRuns',
   'disableAgentInstallSuggestions',
   'disableUsagePolling',
   'disableVendorProviderAccounts',
@@ -71,9 +79,11 @@ export function toEnterprisePolicyView(
     allowedAgents: policy.allowedAgents,
     lockdown: policy.lockdown,
     disableAutoUpdate: policy.disableAutoUpdate,
+    disableCloudRelay: policy.disableCloudRelay,
     disableMobilePairing: policy.disableMobilePairing,
     disableMobileEmulator: policy.disableMobileEmulator,
     disableExternalAutomations: policy.disableExternalAutomations,
+    disableUnattendedAgentRuns: policy.disableUnattendedAgentRuns,
     disableAgentInstallSuggestions: policy.disableAgentInstallSuggestions,
     disableUsagePolling: policy.disableUsagePolling,
     disableVendorProviderAccounts: policy.disableVendorProviderAccounts,

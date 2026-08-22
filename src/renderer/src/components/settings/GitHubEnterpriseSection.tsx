@@ -52,7 +52,6 @@ function describeLoginFailure(result: Extract<GithubEnterpriseLoginResult, { ok:
 export function GitHubEnterpriseSection(): React.JSX.Element {
   const [status, setStatus] = useState<GithubEnterpriseAuthStatus | null>(null)
   const [hostDraft, setHostDraft] = useState('')
-  const [savingHost, setSavingHost] = useState(false)
   const [signingIn, setSigningIn] = useState(false)
   const [tokenDraft, setTokenDraft] = useState('')
   const [progress, setProgress] = useState<GithubEnterpriseLoginProgress | null>(null)
@@ -75,26 +74,6 @@ export function GitHubEnterpriseSection(): React.JSX.Element {
   useEffect(() => {
     void refreshStatus()
   }, [refreshStatus])
-
-  const handleSaveHost = async (): Promise<void> => {
-    setSavingHost(true)
-    setError(null)
-    try {
-      const next = await window.api.githubEnterprise.setHost({ host: hostDraft.trim() })
-      setStatus(next)
-      await refreshStatus()
-    } catch (saveError) {
-      toast.error(
-        translate(
-          'auto.components.settings.GitHubEnterpriseSection.hostSaveFailed',
-          'Could not save the host.'
-        ),
-        { description: String((saveError as Error)?.message ?? saveError) }
-      )
-    } finally {
-      setSavingHost(false)
-    }
-  }
 
   const handleLogin = async (): Promise<void> => {
     setSigningIn(true)
@@ -157,8 +136,8 @@ export function GitHubEnterpriseSection(): React.JSX.Element {
     }
   }
 
-  const trimmedHost = hostDraft.trim()
-  const hostChanged = trimmedHost !== (status?.host ?? '')
+  // The effective host now comes from the policy-resolved status, not a text box.
+  const effectiveHost = (status?.host ?? '').trim()
   const ghUnavailable = status?.ghAvailable === false
 
   return (
@@ -193,41 +172,11 @@ export function GitHubEnterpriseSection(): React.JSX.Element {
         </div>
       ) : null}
 
+      {/* The host input is gone in this fork: `githubEnterpriseHost` is an administrator key in
+          the policy file, so a per-user text box either disagrees with the fleet or edits a
+          value the policy overrides on the next launch. The readout above still says which
+          host is in effect; this block keeps only the sign-in it takes to use it. */}
       <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
-        <label
-          className="text-xs font-medium text-muted-foreground"
-          htmlFor="github-enterprise-host"
-        >
-          {translate('auto.components.settings.GitHubEnterpriseSection.hostLabel', 'GitHub host')}
-        </label>
-        <div className="flex gap-2">
-          <Input
-            id="github-enterprise-host"
-            value={hostDraft}
-            onChange={(event) => {
-              hostTouchedRef.current = true
-              setHostDraft(event.target.value)
-            }}
-            placeholder={translate(
-              'auto.components.settings.GitHubEnterpriseSection.hostPlaceholder',
-              'github.your-company.com'
-            )}
-            autoComplete="off"
-            spellCheck={false}
-            className="flex-1 font-mono text-xs"
-          />
-          <Button
-            size="xs"
-            variant="secondary"
-            onClick={() => void handleSaveHost()}
-            disabled={savingHost || !hostChanged}
-            className="h-7 shrink-0 text-xs"
-          >
-            {savingHost ? <Loader2 className="size-3 animate-spin" /> : null}
-            {translate('auto.components.settings.GitHubEnterpriseSection.saveHost', 'Save')}
-          </Button>
-        </div>
-
         <div className="flex flex-wrap items-center gap-2 pt-1">
           {status?.authenticated ? (
             <Badge
@@ -261,7 +210,7 @@ export function GitHubEnterpriseSection(): React.JSX.Element {
           <Button
             size="xs"
             onClick={() => void handleLogin()}
-            disabled={signingIn || !trimmedHost}
+            disabled={signingIn || !effectiveHost}
             className="h-7 shrink-0 text-xs"
           >
             {signingIn ? <Loader2 className="size-3 animate-spin" /> : null}
@@ -318,7 +267,7 @@ export function GitHubEnterpriseSection(): React.JSX.Element {
               size="xs"
               variant="secondary"
               onClick={() => void handleTokenLogin()}
-              disabled={signingIn || !trimmedHost || !tokenDraft.trim()}
+              disabled={signingIn || !effectiveHost || !tokenDraft.trim()}
               className="h-7 shrink-0 text-xs"
             >
               {translate(

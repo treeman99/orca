@@ -11,6 +11,142 @@
   },
   "gates": [
     {
+      "id": "bot-lane.unattended-run-policy-gate",
+      "title": "A policy-locked host starts no scheduled agent run",
+      "maturity": "experimental",
+      "protection": "partial",
+      "owner": "enterprise-policy",
+      "layer": "desktop-main-automations",
+      "surfaces": [
+        "bot routines",
+        "Orca automation scheduler",
+        "headless orca serve dispatcher",
+        "bot roster persistence"
+      ],
+      "platforms": ["macos", "linux", "windows"],
+      "providers": ["local-host", "orca-server"],
+      "coveredPlatforms": ["macos"],
+      "coveredProviders": ["local-host", "orca-server"],
+      "coverageNotes": "The gate sits in AutomationService.requestDispatch, which is process-local and platform-neutral: both the 60s tick and the headless serve dispatcher funnel through it, and neither path touches a filesystem or PTY before the refusal. Linux and Windows share that code with no platform branch, so the macOS evidence run is representative; SSH is out of scope because the scheduler owner for a remote host is the remote service, not this client.",
+      "motivatingLinks": [
+        "https://github.com/stablyai/orca/blob/HEAD/docs/reference/bot-lane.md",
+        "https://github.com/stablyai/orca/blob/HEAD/docs/reference/enterprise-policy.md",
+        "https://github.com/stablyai/orca/blob/HEAD/docs/reference/external-integrations-audit.md"
+      ],
+      "invariant": "When disableUnattendedAgentRuns is on, no scheduled automation or bot routine spawns an agent: the renderer dispatch IPC is not sent, the headless dispatcher is not called, and the run is recorded as skipped_policy with the refusal text. The refusal happens before run-target resolution, so a refused occurrence leaves no trace of having inspected the workspace. The schedule still advances so a refused occurrence does not re-fire every tick. A manual Run now is deliberately unaffected. Deleting a bot detaches its routines instead of cancelling them, and a folder-bound bot is refused a routine at creation rather than failing at run time.",
+      "oracle": "Drive a real Store plus AutomationService with an injected lockdown policy and a due daily automation. Require that the renderer send mock is never called, that the headless dispatcher mock is never called, that the single recorded run is skipped_policy with a policy message, and that nextRunAt advanced by one day. Then require the same automation to dispatch under an unlocked policy, and require runNow to dispatch even under lockdown. Separately, create a bot with a routine, delete the bot, and require the routine to survive with botId null and enabled true; and require the routine input builder to return null for a folder-bound or unbound bot.",
+      "commands": [
+        "pnpm exec vitest run --config config/vitest.config.ts src/main/automations/service-enterprise-policy.test.ts src/main/persistence-bots.test.ts src/shared/bot-types.test.ts src/renderer/src/components/sidebar/bots/bot-routine-draft.test.ts src/renderer/src/components/sidebar/bots/bot-project-options.test.ts src/renderer/src/components/sidebar/Sidebar.test.tsx src/renderer/src/components/sidebar/bots/bot-chat-session.test.ts src/renderer/src/components/sidebar/bots/bot-message-routing.test.ts src/renderer/src/store/slices/bot-chat.test.ts src/renderer/src/components/sidebar/bots/bot-roster-groups.test.ts src/renderer/src/components/sidebar/bots/bot-roster-activity.test.ts"
+      ],
+      "testFiles": [
+        "src/main/automations/service-enterprise-policy.test.ts",
+        "src/main/persistence-bots.test.ts",
+        "src/shared/bot-types.test.ts",
+        "src/renderer/src/components/sidebar/bots/bot-routine-draft.test.ts",
+        "src/renderer/src/components/sidebar/bots/bot-project-options.test.ts",
+        "src/renderer/src/components/sidebar/bots/bot-chat-session.test.ts",
+        "src/renderer/src/components/sidebar/bots/bot-message-routing.test.ts",
+        "src/renderer/src/components/sidebar/bots/bot-roster-groups.test.ts",
+        "src/renderer/src/components/sidebar/bots/bot-roster-activity.test.ts",
+        "src/renderer/src/store/slices/bot-chat.test.ts",
+        "src/renderer/src/components/sidebar/Sidebar.test.tsx"
+      ],
+      "assertionRefs": [
+        {
+          "file": "src/main/automations/service-enterprise-policy.test.ts",
+          "assertions": [
+            "refuses a due scheduled run under lockdown and records it as skipped_policy",
+            "never reaches the headless dispatcher under lockdown",
+            "still dispatches a manual run under lockdown",
+            "dispatches the same scheduled run when the policy is unlocked"
+          ]
+        },
+        {
+          "file": "src/main/persistence-bots.test.ts",
+          "assertions": [
+            "detaches routines on delete instead of deleting them",
+            "keeps projectId and workspaceKey consistent through an update"
+          ]
+        },
+        {
+          "file": "src/renderer/src/components/sidebar/bots/bot-routine-draft.test.ts",
+          "assertions": [
+            "refuses a folder-bound bot",
+            "produces an ordinary automation tagged with the bot"
+          ]
+        },
+        {
+          "file": "src/renderer/src/components/sidebar/bots/bot-chat-session.test.ts",
+          "assertions": [
+            "returns null when the pty is no longer registered on the tab",
+            "still resolves a working session, flagged as not idle"
+          ]
+        },
+        {
+          "file": "src/renderer/src/store/slices/bot-chat.test.ts",
+          "assertions": [
+            "relays a leading @mention to the other bot with attribution",
+            "records the pane binding on the recipient, not the sender",
+            "refuses an unknown handle instead of sending it as prose",
+            "brings up same-project teammates before delivering, and records their panes"
+          ]
+        },
+        {
+          "file": "src/renderer/src/components/sidebar/bots/bot-roster-activity.test.ts",
+          "assertions": [
+            "marks a bot waiting when the teammate it handed work to is still running",
+            "keeps a busy bot on working rather than waiting",
+            "ignores a handoff that is no longer the latest entry"
+          ]
+        },
+        {
+          "file": "src/renderer/src/components/sidebar/Sidebar.test.tsx",
+          "assertions": [
+            "swaps the workspace list for the bot roster without unmounting the sidebar chrome"
+          ]
+        }
+      ],
+      "evidenceRuns": [
+        {
+          "date": "2026-08-22",
+          "runner": "local",
+          "platform": "macos",
+          "command": "pnpm exec vitest run --config config/vitest.config.ts src/main/automations/service-enterprise-policy.test.ts src/main/persistence-bots.test.ts src/shared/bot-types.test.ts src/renderer/src/components/sidebar/bots/bot-routine-draft.test.ts src/renderer/src/components/sidebar/bots/bot-project-options.test.ts src/renderer/src/components/sidebar/Sidebar.test.tsx src/renderer/src/components/sidebar/bots/bot-chat-session.test.ts src/renderer/src/components/sidebar/bots/bot-message-routing.test.ts src/renderer/src/store/slices/bot-chat.test.ts src/renderer/src/components/sidebar/bots/bot-roster-groups.test.ts src/renderer/src/components/sidebar/bots/bot-roster-activity.test.ts",
+          "result": "passed",
+          "durationSeconds": 7,
+          "summary": "The locked scheduler recorded skipped_policy without sending the renderer dispatch or calling the headless dispatcher, the manual run still dispatched, the unlocked control dispatched, bot deletion detached its routine, and the folder-bound routine builder refused, a live chat pane resolved while a dead one read as no session, an @mention relayed to the other bot with the sender attributed, same-project teammates were brought up before delivery, and the roster reported a bot as waiting only while the teammate it handed work to was still running."
+        }
+      ],
+      "runtimeBudget": {
+        "p95Seconds": 60,
+        "scope": "focused in-process automation, persistence, and renderer contract tests; no Electron journey"
+      },
+      "flakeHistory": {
+        "status": "unknown",
+        "evidence": "Deterministic in-process tests with fake timers and an injected policy; no CI soak history yet."
+      },
+      "redGreenEvidence": {
+        "status": "complete",
+        "evidence": "The lockdown cases fail against the pre-gate service (the renderer send mock is called and the run reaches dispatching), and the unlocked control plus the manual-run case fail if the gate is widened to cover every trigger."
+      },
+      "performanceBudget": {
+        "required": false,
+        "evidence": "The gate is one policy read per dispatch attempt, on a path that already reads the store and resolves a run target."
+      },
+      "promotionCriteria": [
+        "Keep the locked, unlocked, manual, and headless cases green in CI.",
+        "Add a Windows or Linux evidence run once the fork's CI matrix runs this suite there.",
+        "Collect soak history without unexplained flakes in the fake-timer scheduler cases."
+      ],
+      "knownGaps": [
+        "No packaged-build journey: the policy is injected in-process rather than discovered from %ProgramData% or the bundled resources file.",
+        "No coverage for a remote-host scheduler owner; remote scheduling is refused earlier by run-target resolution and is not part of this gate.",
+        "The renderer surfaces (hidden New routine control, policy notice, chat composer) are asserted through the pure helpers and the store slice, not a rendered bot detail.",
+        "Bot-to-bot messaging is covered for the user-initiated @mention path only; the agent-initiated path is a preamble the agent may ignore and is not asserted."
+      ],
+      "demotionRule": "Demote if a scheduled run reaches an agent while disableUnattendedAgentRuns is on, if a refused run stops being recorded, or if a manual run starts being refused."
+    },
+    {
       "id": "ephemeral-vm-runtime.rollback-readable-sidecar",
       "title": "VM lifecycle stays rollback-readable and cleanup-retryable",
       "maturity": "experimental",
@@ -363,7 +499,7 @@
           "platform": "macos",
           "command": "pnpm exec vitest run --config config/vitest.config.ts src/main/daemon/repro-13767-shell-ready-marker-lost-to-exec.test.ts src/main/line-editor-ready-output-scanner.test.ts src/main/shell-startup-identity-scanner.test.ts src/main/shell-startup-output-scanner.test.ts src/main/shell-prompt-readiness-probe.test.ts src/shared/pty-slave-line-discipline-echo.test.ts src/shared/shell-process-readiness.test.ts src/main/daemon/session.test.ts src/main/daemon/shell-ready.test.ts src/main/providers/local-pty-shell-ready-marker-scan.test.ts src/main/providers/local-pty-shell-ready-startup-command.test.ts src/main/providers/local-pty-shell-ready-wrapper-generation.test.ts src/main/providers/local-pty-provider-shell-readiness.test.ts src/relay/pty-shell-launch.test.ts src/relay/pty-handler-startup-command-delivery.test.ts",
           "result": "passed",
-          "durationSeconds": 6,
+          "durationSeconds": 7,
           "summary": "473 tests passed with one local Fish skip, including every-boundary scanner composition, real exec, silent-read, line-init-hook, renamed-image, disabled-bracketed-paste, and relay-owner oracles."
         },
         {
@@ -372,7 +508,7 @@
           "platform": "macos",
           "command": "pnpm exec vitest run --config config/vitest.config.ts src/main/daemon/repro-13767-shell-ready-marker-lost-to-exec.test.ts src/main/daemon/bash-prompt-command-composition.test.ts src/main/line-editor-ready-output-scanner.test.ts src/main/shell-startup-identity-scanner.test.ts src/main/shell-startup-output-scanner.test.ts src/main/shell-prompt-readiness-probe.test.ts src/shared/pty-slave-line-discipline-echo.test.ts src/shared/shell-process-readiness.test.ts src/main/daemon/session.test.ts src/main/daemon/shell-ready.test.ts src/main/providers/local-pty-shell-ready-marker-scan.test.ts src/main/providers/local-pty-shell-ready-startup-command.test.ts src/main/providers/local-pty-shell-ready-wrapper-generation.test.ts src/main/providers/local-pty-provider-shell-readiness.test.ts src/relay/pty-shell-launch.test.ts src/relay/pty-handler-startup-command-delivery.test.ts",
           "result": "passed",
-          "durationSeconds": 6,
+          "durationSeconds": 7,
           "summary": "233 tests passed with one local Fish skip, including exact Bash PROMPT_COMMAND byte/status/lifecycle composition across daemon, local, and relay owners."
         },
         {
@@ -1627,7 +1763,7 @@
           "platform": "macos",
           "command": "pnpm exec vitest run --config config/vitest.config.ts src/main/runtime/multi-client-navigation-isolation.integration.test.ts src/main/runtime/rpc/methods/worktree-create-navigation.test.ts",
           "result": "passed",
-          "durationSeconds": 6,
+          "durationSeconds": 7,
           "summary": "Eleven paired-runtime contracts pass, including the headless orca-serve shape, the in-process reveal non-regression, and the CLI-shaped explicit all-surface reveal. With the caller scoping removed the observer's stream carried activateWorktree instead of the fence."
         },
         {
@@ -13202,7 +13338,7 @@
           "platform": "macos",
           "result": "passed",
           "command": "pnpm exec vitest run --config config/vitest.config.ts tests/e2e/cross-version-wire/cross-version-terminal-wire.unit.test.ts",
-          "durationSeconds": 6,
+          "durationSeconds": 7,
           "summary": "v1.4.169 against working tree c4d5a535f2; all three pairings produced the identical 16-frame journey with zero rejected frames."
         }
       ],

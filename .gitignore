@@ -118,6 +118,7 @@ docs/**
 !docs/reference/windows-daemon-session-survival.md
 !docs/reference/wsl-command-execution.md
 !docs/reference/xterm-patch-regeneration.md
+!docs/reference/bot-lane.md
 
 # Stably CLI (only docs/ are tracked)
 .stably/*

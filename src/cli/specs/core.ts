@@ -240,10 +240,11 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     path: ['terminal', 'create'],
     summary: 'Create a terminal session in the current worktree',
     usage:
-      'orca terminal create [--worktree <selector>] [--title <name>] [--command <text>] [--focus] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'command', 'title', 'focus'],
+      'orca terminal create [--worktree <selector>] [--title <name>] [--command <text>] [--focus|--background] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'command', 'title', 'focus', 'background'],
     notes: [
       'Creates a visible terminal tab without switching focus when possible; falls back to a background handle if the UI cannot adopt it. Pass --focus to switch to it.',
+      "Without --focus the tab is still surfaced: the worktree is revealed and the tab is pulled into view. Pass --background when spawning a terminal on someone else's behalf so the user's current tab is left alone.",
       'Use this, not worktree create, for a fresh agent in the current checkout.'
     ],
     examples: [

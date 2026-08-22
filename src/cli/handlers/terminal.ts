@@ -160,6 +160,11 @@ export const TERMINAL_HANDLERS: Record<string, CommandHandler> = {
     const useRendererBackedInteractiveTerminal =
       !client.isRemote && shouldUseRendererBackedInteractiveTerminal(command)
     const focus = flags.get('focus') === true
+    // Why a third state rather than just !focus: without `--focus` the create still SURFACES
+    // its owner — it reveals the worktree and pulls the tab into view — because the renderer
+    // only skips that for an explicit 'background' presentation. A caller spawning a terminal
+    // on someone else's behalf (a bot starting a teammate) must not yank the user's tab.
+    const background = flags.get('background') === true
     const result = await client.call<{ terminal: RuntimeTerminalCreate }>('terminal.create', {
       worktree: await getBrowserWorktreeSelector(flags, cwd, client),
       command,
@@ -167,9 +172,12 @@ export const TERMINAL_HANDLERS: Record<string, CommandHandler> = {
       // Why: interactive local agent TUIs need the renderer-backed terminal
       // path for browser-side features, but CLI creates must stay backgrounded
       // unless the caller explicitly asks for focus.
-      focus,
-      ...(focus ? { presentation: 'focused' } : {}),
-      ...(useRendererBackedInteractiveTerminal ? { rendererBacked: true, activate: focus } : {})
+      focus: focus && !background,
+      ...(focus && !background ? { presentation: 'focused' } : {}),
+      ...(background ? { presentation: 'background' } : {}),
+      ...(useRendererBackedInteractiveTerminal
+        ? { rendererBacked: true, activate: focus && !background }
+        : {})
     })
     printResult(result, json, formatTerminalCreate)
   },

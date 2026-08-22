@@ -86,6 +86,8 @@ export function getAutomationRunStatusLabel(status: AutomationRun['status']): st
       return 'Unavailable'
     case 'skipped_needs_interactive_auth':
       return 'Needs credentials'
+    case 'skipped_policy':
+      return 'Blocked by policy'
     case 'dispatch_failed':
       return 'Failed'
   }

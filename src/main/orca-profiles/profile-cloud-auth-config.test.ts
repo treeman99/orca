@@ -69,10 +69,7 @@ describe('Orca cloud auth config', () => {
     // Behavioural coverage stops at the guard, so assert the deletion at the source: if an
     // upstream merge restores the packaged fallbacks, the guard is one edit from being the only
     // thing standing between this build and the vendor.
-    const source = readFileSync(
-      new URL('./profile-cloud-auth-config.ts', import.meta.url),
-      'utf8'
-    )
+    const source = readFileSync(new URL('./profile-cloud-auth-config.ts', import.meta.url), 'utf8')
 
     expect(source).not.toContain('onorca.dev')
   })

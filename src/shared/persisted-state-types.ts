@@ -6,6 +6,7 @@ import type {
   SshTarget
 } from './ssh-types'
 import type { Automation, AutomationRun } from './automations-types'
+import type { Bot } from './bot-types'
 import type { MigrationUnsupportedPtyEntry } from './agent-status-types'
 import type { FeatureInteractionTelemetryBucketState } from './feature-interactions'
 import type { CodexResetCreditAttemptLedger } from './codex-reset-credit-attempt-ledger'
@@ -103,6 +104,8 @@ export type PersistedState = {
   legacyPaneKeyAliasEntries: LegacyPaneKeyAliasEntry[]
   automations: Automation[]
   automationRuns: AutomationRun[]
+  /** Bot roster. Optional so a state file written before the bot lane existed still loads. */
+  bots?: Bot[]
   onboarding: OnboardingState
   /** Main-owned telemetry de-dupe marker; never exposed through PersistedUIState. */
   featureInteractionTelemetryBuckets?: FeatureInteractionTelemetryBucketState

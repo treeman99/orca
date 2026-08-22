@@ -317,7 +317,10 @@ export function EditorPanelHeader({
           </Tooltip>
         </TooltipProvider>
       )}
-      {!ARTIFACT_SHARING_REMOVED && isMarkdown && !isDiffSurface && createMarkdownArtifactRequest ? (
+      {!ARTIFACT_SHARING_REMOVED &&
+      isMarkdown &&
+      !isDiffSurface &&
+      createMarkdownArtifactRequest ? (
         <ArtifactPublishButton
           sourceKey={markdownArtifactSourceKey(activeFile)}
           className="size-6 [&_svg]:size-3.5!"

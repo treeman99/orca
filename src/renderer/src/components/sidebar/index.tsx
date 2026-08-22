@@ -7,6 +7,7 @@ import SidebarNav from './SidebarNav'
 import SetupScriptPromptCard from './SetupScriptPromptCard'
 import WorktreeList from './WorktreeList'
 import SidebarToolbar from './SidebarToolbar'
+import SidebarLaneSwitch from './SidebarLaneSwitch'
 import WorkspaceKanbanDrawer from './WorkspaceKanbanDrawer'
 import type { VirtualizedScrollAnchor } from '@/hooks/useVirtualizedScrollAnchor'
 import { cn } from '@/lib/utils'
@@ -16,6 +17,7 @@ import { useWorkspaceBoardPanel } from './useWorkspaceBoardPanel'
 import { resolveLeftSidebarStyleVariables } from '@/lib/left-sidebar-appearance'
 import { useSystemPrefersDark } from '@/components/terminal-pane/use-system-prefers-dark'
 import { lazyWithRetry } from '@/lib/lazy-with-retry'
+import { isWebClientLocation } from '@/lib/web-client-location'
 
 const WorktreeMetaDialog = lazyWithRetry(() => import('./WorktreeMetaDialog'))
 const RemoveFolderDialog = lazyWithRetry(() => import('./RemoveFolderDialog'))
@@ -23,6 +25,8 @@ const WorktreeVisibilityDialog = lazyWithRetry(() => import('./WorktreeVisibilit
 const OrcaYamlTrustDialog = lazyWithRetry(() => import('./OrcaYamlTrustDialog'))
 const ForgetSshWorkspaceDialog = lazyWithRetry(() => import('./ForgetSshWorkspaceDialog'))
 const AgentDashboardSidebarHost = lazyWithRetry(() => import('./AgentDashboardSidebarHost'))
+// Lazy: the bot lane and its dialogs never load for a user who stays on Sessions.
+const BotsPanel = lazyWithRetry(() => import('./bots/BotsPanel'))
 
 const MIN_WIDTH = 220
 const MAX_WIDTH = 500
@@ -43,6 +47,15 @@ function Sidebar({
   worktreeScrollAnchorRef
 }: SidebarProps): React.JSX.Element {
   const sidebarOpen = useAppStore((s) => s.sidebarOpen)
+  const leftSidebarLane = useAppStore((s) => s.leftSidebarLane)
+  const setLeftSidebarLane = useAppStore((s) => s.setLeftSidebarLane)
+  const botCount = useAppStore((s) => s.bots.length)
+  const unreadBotCount = useAppStore((s) => s.unreadBotIds.length)
+  // The bot roster is desktop-only: the web preload has no `bots` namespace, so the lane
+  // would render an empty roster whose New bot button silently fails. Hide it there
+  // instead, and pin the lane so a desktop-set preference cannot strand a web session.
+  const botLaneAvailable = !isWebClientLocation()
+  const activeLane = botLaneAvailable ? leftSidebarLane : 'sessions'
   const sidebarWidth = useAppStore((s) => s.sidebarWidth)
   const setSidebarWidth = useAppStore((s) => s.setSidebarWidth)
   const repos = useAppStore((s) => s.repos)
@@ -115,16 +128,35 @@ function Sidebar({
           <>
             {/* Fixed controls */}
             <SidebarNav />
-            <SidebarHeader onWorkspaceBoardMenuOpenChange={setWorkspaceBoardMenuOpen} />
+            {botLaneAvailable ? (
+              <SidebarLaneSwitch
+                lane={activeLane}
+                botCount={botCount}
+                unreadBotCount={unreadBotCount}
+                onSelectLane={setLeftSidebarLane}
+              />
+            ) : null}
 
-            <WorktreeList
-              scrollOffsetRef={worktreeScrollOffsetRef}
-              scrollAnchorRef={worktreeScrollAnchorRef}
-              workspaceBoardOpen={workspaceBoardOpen}
-              onWorkspaceBoardDragPreviewStart={previewWorkspaceBoardFromDrag}
-              onWorkspaceBoardDragPreviewCommit={solidifyWorkspaceBoardFromDrag}
-              onWorkspaceBoardDragPreviewCancel={cancelWorkspaceBoardDragPreview}
-            />
+            {/* The session lane is untouched by the bot lane: the workspace list keeps its
+                own scroll refs, which live above this component and survive the swap. */}
+            {activeLane === 'sessions' ? (
+              <>
+                <SidebarHeader onWorkspaceBoardMenuOpenChange={setWorkspaceBoardMenuOpen} />
+
+                <WorktreeList
+                  scrollOffsetRef={worktreeScrollOffsetRef}
+                  scrollAnchorRef={worktreeScrollAnchorRef}
+                  workspaceBoardOpen={workspaceBoardOpen}
+                  onWorkspaceBoardDragPreviewStart={previewWorkspaceBoardFromDrag}
+                  onWorkspaceBoardDragPreviewCommit={solidifyWorkspaceBoardFromDrag}
+                  onWorkspaceBoardDragPreviewCancel={cancelWorkspaceBoardDragPreview}
+                />
+              </>
+            ) : (
+              <React.Suspense fallback={null}>
+                <BotsPanel />
+              </React.Suspense>
+            )}
 
             <div className="relative shrink-0">
               <SetupScriptPromptCard />

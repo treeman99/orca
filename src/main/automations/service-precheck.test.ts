@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { Repo } from '../../shared/repo-types'
 import { AutomationService } from './service'
+import { requestHeadlessAutomationDispatch } from './headless-dispatch-request'
 
 const runAutomationPrecheckMock = vi.hoisted(() => vi.fn())
 const testState = { dir: '' }
@@ -204,21 +205,18 @@ describe('AutomationService prechecks', () => {
       headlessDispatcher
     })
     const run = store.createAutomationRun(automation, Date.now(), 'scheduled')
-    const requestHeadlessDispatch = (
-      service as unknown as {
-        requestHeadlessDispatch: (
-          automationArg: typeof automation,
-          runArg: typeof run,
-          targetArg: { ok: true; cwd: string; repo: Repo }
-        ) => Promise<unknown>
-      }
-    ).requestHeadlessDispatch.bind(service)
 
-    await requestHeadlessDispatch(automation, run, {
-      ok: true,
-      cwd: '/repo',
-      repo: store.getRepo('r1')!
-    })
+    // Calls the extracted headless path directly rather than reaching into a private
+    // method: the same code the service delegates to, with its two service deps named.
+    await requestHeadlessAutomationDispatch(
+      {
+        store,
+        dispatcher: headlessDispatcher,
+        runPrecheck: (automationId, runId) => service.runPrecheck(automationId, runId),
+        markDispatchResult: (result) => service.markDispatchResult(result)
+      },
+      { automation, run, target: { ok: true, cwd: '/repo', repo: store.getRepo('r1')! } }
+    )
 
     expect(headlessDispatcher).not.toHaveBeenCalled()
     expect(store.listAutomationRuns(automation.id)[0]).toMatchObject({

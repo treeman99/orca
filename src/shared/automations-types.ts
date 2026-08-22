@@ -15,6 +15,9 @@ export type AutomationRunStatus =
   | 'skipped_missed'
   | 'skipped_unavailable'
   | 'skipped_needs_interactive_auth'
+  /** Refused before dispatch by `disableUnattendedAgentRuns`. Recorded rather than
+   *  silently dropped so an administrator can verify the policy from run history. */
+  | 'skipped_policy'
   | 'dispatch_failed'
 export type AutomationRunTrigger = 'scheduled' | 'manual'
 
@@ -26,7 +29,8 @@ export function isFinalAutomationRunStatus(status: AutomationRunStatus): boolean
     status === 'skipped_precheck' ||
     status === 'skipped_missed' ||
     status === 'skipped_unavailable' ||
-    status === 'skipped_needs_interactive_auth'
+    status === 'skipped_needs_interactive_auth' ||
+    status === 'skipped_policy'
   )
 }
 
@@ -90,6 +94,9 @@ export type AutomationPrecheckResult = {
 
 export type Automation = {
   id: string
+  /** Bot this routine belongs to, or null for a standalone automation. The bot is a label
+   *  on top of this record; the scheduler never reads it. */
+  botId?: string | null
   name: string
   prompt: string
   precheck: AutomationPrecheck | null
@@ -159,6 +166,7 @@ export type AutomationRun = {
 }
 
 export type AutomationCreateInput = {
+  botId?: string | null
   name: string
   prompt: string
   precheck?: AutomationPrecheck | null
@@ -183,6 +191,7 @@ export type AutomationCreateInput = {
 export type AutomationUpdateInput = Partial<
   Pick<
     Automation,
+    | 'botId'
     | 'name'
     | 'prompt'
     | 'precheck'

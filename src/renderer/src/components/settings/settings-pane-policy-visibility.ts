@@ -21,7 +21,12 @@ const PANE_POLICY_KEYS: Readonly<Record<string, keyof EnterprisePolicyView>> = {
   mobile: 'disableMobilePairing',
   voice: 'disableVoice',
   servers: 'disableRemoteOrcaServer',
-  plugins: 'disablePlugins'
+  plugins: 'disablePlugins',
+  // Orca Cloud sign-in and the vendor mobile relay are exactly what this pane configures,
+  // and disableCloudRelay already turns both off — the pane was a dead row on a locked fleet.
+  'orca-account': 'disableCloudRelay',
+  // Not an egress lane — a review of the corporate UI should not show a Dev Tools row.
+  dev: 'lockdown'
 }
 
 // Removed outright rather than policy-keyed, so they are not in the table above: both panes only

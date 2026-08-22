@@ -341,6 +341,17 @@ export type GlobalSettings = {
   defaultLinearTeamSelection: string[] | null
   /** Session cookie for OpenCode Go rate-limit fetching. Stored encrypted. */
   opencodeSessionCookie: string
+  /**
+   * Self-hosted Confluence (Server / Data Center) base URL, e.g.
+   * `https://confluence-mirror.samsungds.net`. Empty means not configured.
+   *
+   * Fork-only. Atlassian Cloud is deliberately not an option: this fleet's wiki is a
+   * self-hosted mirror, and Cloud would need a different API path and a different auth
+   * header — offering both would be two code paths for a host nobody here uses.
+   */
+  confluenceBaseUrl?: string
+  /** Confluence personal access token, sent as `Authorization: Bearer`. Encrypted at rest. */
+  confluenceApiToken?: string
   /** Optional OpenCode Go workspace ID override; when set, skips the workspaces lookup and fetches usage directly. */
   opencodeWorkspaceId: string
   /** Optional MiniMax group id. When empty, the usage fetcher extracts minimax_group_id_v2 from the cookie. */

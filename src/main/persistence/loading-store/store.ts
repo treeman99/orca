@@ -27,6 +27,7 @@ import type {
   AutomationRunTrigger,
   AutomationUpdateInput
 } from '../../../shared/automations-types'
+import type { Bot, BotCreateInput, BotUpdateInput } from '../../../shared/bot-types'
 import { normalizeProxyUrl } from '../../../shared/network-proxy'
 import { normalizeKagiSessionLink } from '../../../shared/browser-url'
 import type { FolderWorkspace, WorkspaceKey } from '../../../shared/folder-workspace-types'
@@ -321,6 +322,13 @@ import {
   workspaceSessionPartitionIdsForHost
 } from '../restoring-sessions/session-owner-removal'
 import { backfillFolderScopeConnectionIds } from '../restoring-sessions/folder-scope-migration'
+import {
+  createBot as createBotOperation,
+  deleteBot as deleteBotOperation,
+  listBots as listBotsOperation,
+  updateBot as updateBotOperation,
+  type BotRosterOperations
+} from '../rostering-bots/bot-roster-operations'
 import {
   createAutomation as createAutomationOperation,
   deleteAutomation as deleteAutomationOperation,
@@ -826,6 +834,12 @@ export class Store {
         logPersistenceStartupMilestone('persistence-json-parse-done')
 
         // Why: secrets are stored encrypted via safeStorage; decrypt at the load boundary so the app sees plaintext.
+        if (parsed.settings?.confluenceApiToken) {
+          parsed.settings.confluenceApiToken = this.protectedSecrets.decrypt(
+            PROTECTED_SECRET_SLOT.confluenceApiToken,
+            parsed.settings.confluenceApiToken
+          )
+        }
         if (parsed.settings?.opencodeSessionCookie) {
           parsed.settings.opencodeSessionCookie = this.protectedSecrets.decrypt(
             PROTECTED_SECRET_SLOT.opencodeSessionCookie,
@@ -1832,6 +1846,10 @@ export class Store {
         httpProxyUrl: encryptToSentinel(
           PROTECTED_SECRET_SLOT.httpProxyUrl,
           this.state.settings.httpProxyUrl ?? ''
+        ),
+        confluenceApiToken: encryptToSentinel(
+          PROTECTED_SECRET_SLOT.confluenceApiToken,
+          this.state.settings.confluenceApiToken ?? ''
         )
       },
       ui: {
@@ -2396,6 +2414,36 @@ export class Store {
     const existing = this.state.sparsePresetsByRepo[repoId] ?? []
     this.state.sparsePresetsByRepo[repoId] = existing.filter((entry) => entry.id !== presetId)
     this.scheduleSave()
+  }
+
+  // ── Bots ──────────────────────────────────────────────────────────
+
+  private getBotRosterOperations(): BotRosterOperations {
+    return {
+      state: this.state,
+      flush: () => this.flush(),
+      detachBotRoutines: (botId) => {
+        this.state.automations = (this.state.automations ?? []).map((entry) =>
+          entry.botId === botId ? { ...entry, botId: null } : entry
+        )
+      }
+    }
+  }
+
+  listBots(): Bot[] {
+    return listBotsOperation(this.state)
+  }
+
+  createBot(input: BotCreateInput): Bot {
+    return createBotOperation(this.getBotRosterOperations(), input)
+  }
+
+  updateBot(id: string, updates: BotUpdateInput): Bot {
+    return updateBotOperation(this.getBotRosterOperations(), id, updates)
+  }
+
+  deleteBot(id: string): void {
+    deleteBotOperation(this.getBotRosterOperations(), id)
   }
 
   // ── Automations ───────────────────────────────────────────────────
