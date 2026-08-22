@@ -33,7 +33,7 @@ import {
   type BotUpdateInput
 } from '../../../../../shared/bot-types'
 import type { TuiAgent } from '../../../../../shared/tui-agent'
-import type { BotWorkspaceOption } from './bot-workspace-options'
+import type { BotProjectOption } from './bot-project-options'
 
 const UNBOUND_VALUE = '__unbound__'
 
@@ -41,7 +41,7 @@ export type BotEditorDialogProps = {
   open: boolean
   /** The bot being edited, or null to create a new one. */
   bot: Bot | null
-  workspaceOptions: readonly BotWorkspaceOption[]
+  projectOptions: readonly BotProjectOption[]
   onOpenChange: (open: boolean) => void
   onCreate: (input: BotCreateInput) => Promise<unknown>
   onUpdate: (id: string, updates: BotUpdateInput) => Promise<unknown>
@@ -53,7 +53,7 @@ type EditorDraft = {
   description: string
   avatarEmoji: string
   agentId: TuiAgent
-  workspaceKey: string | null
+  projectId: string | null
 }
 
 function draftFromBot(bot: Bot | null, fallbackAgent: TuiAgent): EditorDraft {
@@ -63,14 +63,14 @@ function draftFromBot(bot: Bot | null, fallbackAgent: TuiAgent): EditorDraft {
     description: bot?.description ?? '',
     avatarEmoji: bot?.avatarEmoji ?? DEFAULT_BOT_AVATAR,
     agentId: bot?.agentId ?? fallbackAgent,
-    workspaceKey: bot?.workspaceKey ?? null
+    projectId: bot?.projectId ?? null
   }
 }
 
 export function BotEditorDialog({
   open,
   bot,
-  workspaceOptions,
+  projectOptions,
   onOpenChange,
   onCreate,
   onUpdate
@@ -91,7 +91,7 @@ export function BotEditorDialog({
     }
   }
 
-  const selectedWorkspace = workspaceOptions.find((option) => option.value === draft.workspaceKey)
+  const selectedProject = projectOptions.find((option) => option.projectId === draft.projectId)
   const canSave = draft.name.trim().length > 0 && !saving
 
   const handleSave = async (): Promise<void> => {
@@ -105,8 +105,9 @@ export function BotEditorDialog({
       description: draft.description,
       avatarEmoji: draft.avatarEmoji,
       agentId: draft.agentId,
-      workspaceKey: draft.workspaceKey,
-      projectId: selectedWorkspace?.projectId ?? null
+      // The checkout is derived, never asked for: the user picks the project.
+      workspaceKey: selectedProject?.workspaceKey ?? null,
+      projectId: selectedProject?.projectId ?? null
     }
     const saved = bot ? await onUpdate(bot.id, payload) : await onCreate(payload)
     setSaving(false)
@@ -246,14 +247,14 @@ export function BotEditorDialog({
 
             <div className="flex flex-col gap-1.5">
               <Label>
-                {translate('auto.components.sidebar.bots.BotEditorDialog.9e02b6d3c4', 'Workspace')}
+                {translate('auto.components.sidebar.bots.BotEditorDialog.9e02b6d3c4', 'Project')}
               </Label>
               <Select
-                value={draft.workspaceKey ?? UNBOUND_VALUE}
+                value={draft.projectId ?? UNBOUND_VALUE}
                 onValueChange={(value) =>
                   setDraft((current) => ({
                     ...current,
-                    workspaceKey: value === UNBOUND_VALUE ? null : value
+                    projectId: value === UNBOUND_VALUE ? null : value
                   }))
                 }
               >
@@ -264,11 +265,11 @@ export function BotEditorDialog({
                   <SelectItem value={UNBOUND_VALUE}>
                     {translate(
                       'auto.components.sidebar.bots.BotEditorDialog.fb1c07e9a8',
-                      'Not bound yet'
+                      'Not chosen yet'
                     )}
                   </SelectItem>
-                  {workspaceOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
+                  {projectOptions.map((option) => (
+                    <SelectItem key={option.projectId} value={option.projectId}>
                       {option.label}
                     </SelectItem>
                   ))}
@@ -277,11 +278,11 @@ export function BotEditorDialog({
             </div>
           </div>
 
-          {selectedWorkspace && !selectedWorkspace.supportsRoutines ? (
+          {selectedProject && !selectedProject.workspaceKey ? (
             <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
               {translate(
                 'auto.components.sidebar.bots.BotEditorDialog.31ac6e5470',
-                'Folder workspaces cannot run scheduled routines. The bot saves, but its routine list stays empty until you bind it to a git workspace.'
+                'This project has no checkout yet. The bot saves, but it cannot chat or run routines until the project has one.'
               )}
             </p>
           ) : null}

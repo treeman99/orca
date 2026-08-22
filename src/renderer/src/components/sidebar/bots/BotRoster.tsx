@@ -1,5 +1,5 @@
 import React from 'react'
-import { Plus, SlidersHorizontal } from 'lucide-react'
+import { ChevronDown, ChevronRight, Folder, Plus, SlidersHorizontal } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -17,8 +17,13 @@ export type BotRosterProps = {
   onOpenBotDetail: (botId: string) => void
   /** Double-click: reveal the bot's agent pane in the main area, starting it when needed. */
   onOpenBotChat: (botId: string) => void
+  collapsedProjectIds: readonly string[]
+  onToggleProject: (projectKey: string) => void
   onCreateBot: () => void
 }
+
+/** Group key for the bucket of bots with no project; `projectId` is null there. */
+const UNASSIGNED_GROUP_KEY = '__unassigned__'
 
 // Why a timer instead of acting on `onClick` directly: the single-click handler navigates
 // away, which unmounts this row before the browser can deliver `dblclick`. The double-click
@@ -137,6 +142,8 @@ export function BotRoster({
   unreadBotIds,
   onOpenBotDetail,
   onOpenBotChat,
+  collapsedProjectIds,
+  onToggleProject,
   onCreateBot
 }: BotRosterProps): React.JSX.Element {
   const isEmpty = groups.every((group) => group.bots.length === 0)
@@ -175,25 +182,64 @@ export function BotRoster({
       ) : (
         <ScrollArea className="min-h-0 flex-1">
           <div className="flex flex-col gap-2 px-2 pb-2">
-            {groups.map((group) => (
-              <div key={group.projectId ?? '__unassigned__'} className="flex flex-col gap-0.5">
-                <span className="px-2 pt-1 text-[11px] font-semibold tracking-[0.05em] text-muted-foreground/70 uppercase">
-                  {group.label}
-                </span>
-                <ul className="flex flex-col gap-0.5">
-                  {group.bots.map((bot) => (
-                    <BotRow
-                      key={bot.id}
-                      bot={bot}
-                      routineCount={routineCountByBotId[bot.id] ?? 0}
-                      unread={unreadBotIds.includes(bot.id)}
-                      onOpenBotDetail={onOpenBotDetail}
-                      onOpenBotChat={onOpenBotChat}
-                    />
-                  ))}
-                </ul>
-              </div>
-            ))}
+            {groups.map((group) => {
+              const groupKey = group.projectId ?? UNASSIGNED_GROUP_KEY
+              const collapsed = collapsedProjectIds.includes(groupKey)
+              const unreadInGroup = group.bots.some((bot) => unreadBotIds.includes(bot.id))
+              return (
+                <div key={groupKey} className="flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => onToggleProject(groupKey)}
+                    aria-expanded={!collapsed}
+                    className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-worktree-sidebar-accent/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    {collapsed ? (
+                      <ChevronRight
+                        className="size-3 shrink-0 text-muted-foreground"
+                        strokeWidth={2.5}
+                      />
+                    ) : (
+                      <ChevronDown
+                        className="size-3 shrink-0 text-muted-foreground"
+                        strokeWidth={2.5}
+                      />
+                    )}
+                    <Folder className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2} />
+                    <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">
+                      {group.label}
+                    </span>
+                    {collapsed && unreadInGroup ? (
+                      <span
+                        className="size-1.5 shrink-0 rounded-full bg-primary"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                    <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/70">
+                      {group.bots.length}
+                    </span>
+                  </button>
+
+                  {/* Indented behind a rail: the bots read as belonging TO the project above,
+                      not as siblings of it. Without this the two levels sat at one indent and
+                      a project header looked like another roster row. */}
+                  {collapsed ? null : (
+                    <ul className="ml-[13px] flex flex-col gap-0.5 border-l border-border/60 py-0.5 pl-1.5">
+                      {group.bots.map((bot) => (
+                        <BotRow
+                          key={bot.id}
+                          bot={bot}
+                          routineCount={routineCountByBotId[bot.id] ?? 0}
+                          unread={unreadBotIds.includes(bot.id)}
+                          onOpenBotDetail={onOpenBotDetail}
+                          onOpenBotChat={onOpenBotChat}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
+            })}
             <p className="px-2 pt-1 text-[10px] text-muted-foreground/70">
               {translate(
                 'auto.components.sidebar.bots.BotRoster.2c9f0b1e74',

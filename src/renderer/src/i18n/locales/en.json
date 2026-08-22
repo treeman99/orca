@@ -5690,8 +5690,8 @@
             "24e7b0af53": "Edit bot",
             "b7c1e50d38": "Delete bot",
             "0f5a3c8b91": "Agent",
-            "7e2d40b6ca": "Workspace",
-            "c108d5f92b": "Not bound yet",
+            "7e2d40b6ca": "Project",
+            "c108d5f92b": "Not chosen yet",
             "3a90c47e12": "Routines",
             "d61b8e0f47": "New routine",
             "85f2c603ea": "Scheduled runs are turned off by your organization’s Orca policy. Existing routines stay listed but will not start.",
@@ -5716,9 +5716,9 @@
             "83c0a7e5b1": "Description",
             "6b90fe14c2": "How this bot should work, in its own words.",
             "2d7c4f8a90": "Agent",
-            "9e02b6d3c4": "Workspace",
-            "fb1c07e9a8": "Not bound yet",
-            "31ac6e5470": "Folder workspaces cannot run scheduled routines. The bot saves, but its routine list stays empty until you bind it to a git workspace.",
+            "9e02b6d3c4": "Project",
+            "fb1c07e9a8": "Not chosen yet",
+            "31ac6e5470": "This project has no checkout yet. The bot saves, but it cannot chat or run routines until the project has one.",
             "7a0c1e94b6": "Cancel",
             "c81f0d3a25": "Save",
             "4f9b2c60ad": "Create bot"
@@ -5728,9 +5728,9 @@
             "b09d3f61ca": "New bot",
             "e47a2c9018": "No bots yet. A bot is a named agent that runs its routines on a schedule.",
             "d19c0f4a83": "Unread message",
-            "61e0c3a97f": "Edit {{value0}}",
-            "8a1f04b6d2": "Edit bot",
-            "2c9f0b1e74": "Double-click a bot to open its chat."
+            "61e0c3a97f": "Open {{value0}}",
+            "8a1f04b6d2": "Routines and settings",
+            "2c9f0b1e74": "Click for routines and settings · double-click to open its Claude session"
           },
           "BotRoutineDialog": {
             "1a5f0b73e2": "Every hour",

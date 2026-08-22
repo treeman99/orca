@@ -12,14 +12,14 @@ import BotChatThread from './BotChatThread'
 import BotComposer from './BotComposer'
 import BotRoutineList from './BotRoutineList'
 import type { BotActivityState } from './bot-chat-session'
-import type { BotWorkspaceOption } from './bot-workspace-options'
+import type { BotProjectOption } from './bot-project-options'
 
 export type BotDetailProps = {
   bot: Bot
   teammates: readonly Bot[]
   routines: readonly Automation[]
   runs: readonly AutomationRun[]
-  workspaceOption: BotWorkspaceOption | null
+  projectOption: BotProjectOption | null
   chatEntries: readonly BotChatEntry[]
   latestReply: string | null
   activity: BotActivityState
@@ -70,7 +70,7 @@ export function BotDetail({
   teammates,
   routines,
   runs,
-  workspaceOption,
+  projectOption,
   chatEntries,
   latestReply,
   activity,
@@ -182,10 +182,10 @@ export function BotDetail({
               value={getAgentLabel(bot.agentId)}
             />
             <SummaryRow
-              label={translate('auto.components.sidebar.bots.BotDetail.7e2d40b6ca', 'Workspace')}
+              label={translate('auto.components.sidebar.bots.BotDetail.7e2d40b6ca', 'Project')}
               value={
-                workspaceOption?.label ??
-                translate('auto.components.sidebar.bots.BotDetail.c108d5f92b', 'Not bound yet')
+                projectOption?.label ??
+                translate('auto.components.sidebar.bots.BotDetail.c108d5f92b', 'Not chosen yet')
               }
             />
           </div>

@@ -20,6 +20,9 @@ export type BotsSlice = {
   updateBot: (id: string, updates: BotUpdateInput) => Promise<Bot | null>
   deleteBot: (id: string) => Promise<void>
   setSelectedBotId: (id: string | null) => void
+  /** Collapsed project groups in the roster. Session-only; a view preference, not data. */
+  collapsedBotProjectIds: string[]
+  toggleBotProjectCollapsed: (projectKey: string) => void
 }
 
 function reportBotFailure(error: unknown): void {
@@ -34,6 +37,7 @@ export const createBotsSlice: StateCreator<AppState, [], [], BotsSlice> = (set, 
   botsLoaded: false,
   botsLoading: false,
   selectedBotId: null,
+  collapsedBotProjectIds: [],
   botRoutines: [],
   botRoutineRuns: [],
 
@@ -114,5 +118,12 @@ export const createBotsSlice: StateCreator<AppState, [], [], BotsSlice> = (set, 
     void get().fetchBotRoutines()
   },
 
-  setSelectedBotId: (id) => set({ selectedBotId: id })
+  setSelectedBotId: (id) => set({ selectedBotId: id }),
+
+  toggleBotProjectCollapsed: (projectKey) =>
+    set((state) => ({
+      collapsedBotProjectIds: state.collapsedBotProjectIds.includes(projectKey)
+        ? state.collapsedBotProjectIds.filter((id) => id !== projectKey)
+        : [...state.collapsedBotProjectIds, projectKey]
+    }))
 })

@@ -15,7 +15,7 @@ Hermes Bot Mode가 "no core patches, no background daemons, no extra storage"로
 ```
 봇 = 이름 + 아바타 + 역할 설명
     + 에이전트 선택 (TuiAgent)
-    + 워크스페이스 바인딩 (WorkspaceKey)
+    + 프로젝트 (repo) — 체크아웃은 Orca가 메인 워크트리로 해석
     + 고정된 대화 페인 1개 (PaneKey)          ← 봇 챗
     + 그 봇에 귀속된 자동화 N개 (= 루틴)
 ```
@@ -40,6 +40,7 @@ Hermes Bot Mode가 "no core patches, no background daemons, no extra storage"로
 | 봇 간 라우팅 | `components/sidebar/bots/bot-message-routing.ts` | 신규 |
 | 사이드바 탭 | `components/sidebar/SidebarLaneSwitch.tsx`, `components/sidebar/index.tsx` | 신규 + 조립 1곳 |
 | 봇 UI | `components/sidebar/bots/**` | 신규 |
+| 프로젝트 해석 | `components/sidebar/bots/bot-project-options.ts` | 신규 — 사용자는 프로젝트를 고르고, 체크아웃은 여기서 정해집니다(메인 워크트리 우선) |
 | 정책 게이트 | `src/main/enterprise/unattended-agent-run-guard.ts` | 신규 가드 모듈 |
 
 fork sync 원칙대로 **로직은 전부 신규 파일**이고, upstream 파일 접촉은 등록/조립 수준으로 묶었습니다.

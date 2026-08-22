@@ -13,7 +13,7 @@ import BotRoster from './BotRoster'
 import BotRoutineDialog from './BotRoutineDialog'
 import { findLiveBotChatSession, getBotActivityState, getBotLatestReply } from './bot-chat-session'
 import { buildBotRosterGroups } from './bot-roster-groups'
-import { buildBotWorkspaceOptions, findBotWorkspaceOption } from './bot-workspace-options'
+import { buildBotProjectOptions, findBotProjectOption } from './bot-project-options'
 
 function reportRoutineFailure(message: string, error: unknown): void {
   toast.error(message, error instanceof Error ? { description: error.message } : undefined)
@@ -40,6 +40,8 @@ export function BotsPanel(): React.JSX.Element {
   const updateBot = useAppStore((s) => s.updateBot)
   const deleteBot = useAppStore((s) => s.deleteBot)
   const setSelectedBotId = useAppStore((s) => s.setSelectedBotId)
+  const collapsedBotProjectIds = useAppStore((s) => s.collapsedBotProjectIds)
+  const toggleBotProjectCollapsed = useAppStore((s) => s.toggleBotProjectCollapsed)
   const sendBotMessage = useAppStore((s) => s.sendBotMessage)
   const startBotSession = useAppStore((s) => s.startBotSession)
   const markBotChatRead = useAppStore((s) => s.markBotChatRead)
@@ -47,7 +49,6 @@ export function BotsPanel(): React.JSX.Element {
   const setActiveTabForWorktree = useAppStore((s) => s.setActiveTabForWorktree)
   const repos = useAppStore((s) => s.repos)
   const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
-  const folderWorkspaces = useAppStore((s) => s.folderWorkspaces)
 
   const { disableUnattendedAgentRuns } = useEnterprisePolicyView()
   const confirm = useConfirmationDialog()
@@ -68,9 +69,9 @@ export function BotsPanel(): React.JSX.Element {
     }
   }, [selectedBotId, markBotChatRead, botChatLog])
 
-  const workspaceOptions = useMemo(
-    () => buildBotWorkspaceOptions({ repos, worktreesByRepo, folderWorkspaces }),
-    [repos, worktreesByRepo, folderWorkspaces]
+  const projectOptions = useMemo(
+    () => buildBotProjectOptions({ repos, worktreesByRepo }),
+    [repos, worktreesByRepo]
   )
 
   const rosterGroups = useMemo(
@@ -320,7 +321,7 @@ export function BotsPanel(): React.JSX.Element {
           teammates={bots.filter((bot) => bot.id !== selectedBot.id)}
           routines={botRoutines.filter((routine) => routine.botId === selectedBot.id)}
           runs={botRoutineRuns}
-          workspaceOption={findBotWorkspaceOption(workspaceOptions, selectedBot.workspaceKey)}
+          projectOption={findBotProjectOption(projectOptions, selectedBot.projectId)}
           chatEntries={botChatLog[selectedBot.id] ?? []}
           latestReply={getBotLatestReply(
             { agentStatusByPaneKey },
@@ -348,6 +349,8 @@ export function BotsPanel(): React.JSX.Element {
           unreadBotIds={unreadBotIds}
           onOpenBotDetail={setSelectedBotId}
           onOpenBotChat={(botId) => void openBotChat(botId)}
+          collapsedProjectIds={collapsedBotProjectIds}
+          onToggleProject={toggleBotProjectCollapsed}
           onCreateBot={() => {
             setEditingBotId(null)
             setEditorOpen(true)
@@ -358,7 +361,7 @@ export function BotsPanel(): React.JSX.Element {
       <BotEditorDialog
         open={editorOpen}
         bot={editingBot}
-        workspaceOptions={workspaceOptions}
+        projectOptions={projectOptions}
         onOpenChange={setEditorOpen}
         onCreate={createBot}
         onUpdate={updateBot}
