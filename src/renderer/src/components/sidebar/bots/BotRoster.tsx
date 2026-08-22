@@ -1,5 +1,5 @@
-import type React from 'react'
-import { Pencil, Plus } from 'lucide-react'
+import React from 'react'
+import { Plus, SlidersHorizontal } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -13,34 +13,67 @@ export type BotRosterProps = {
   routineCountByBotId: Readonly<Record<string, number>>
   /** Bots another bot messaged while the user was elsewhere. */
   unreadBotIds: readonly string[]
-  onSelectBot: (botId: string) => void
-  /** Double-click: open the bot's conversation, starting it when there is none. */
+  /** Open the bot's own screen — routines, settings summary, and the message box. */
+  onOpenBotDetail: (botId: string) => void
+  /** Double-click: reveal the bot's agent pane in the main area, starting it when needed. */
   onOpenBotChat: (botId: string) => void
-  onEditBot: (botId: string) => void
   onCreateBot: () => void
 }
+
+// Why a timer instead of acting on `onClick` directly: the single-click handler navigates
+// away, which unmounts this row before the browser can deliver `dblclick`. The double-click
+// then never fires at all. Holding the single action for one interval lets the second click
+// cancel it, so both gestures work on the same row.
+const DOUBLE_CLICK_WINDOW_MS = 220
 
 function BotRow({
   bot,
   routineCount,
   unread,
-  onSelectBot,
-  onOpenBotChat,
-  onEditBot
+  onOpenBotDetail,
+  onOpenBotChat
 }: {
   bot: Bot
   routineCount: number
   unread: boolean
-  onSelectBot: (botId: string) => void
+  onOpenBotDetail: (botId: string) => void
   onOpenBotChat: (botId: string) => void
-  onEditBot: (botId: string) => void
 }): React.JSX.Element {
+  const pendingRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  React.useEffect(
+    () => () => {
+      if (pendingRef.current) {
+        clearTimeout(pendingRef.current)
+      }
+    },
+    []
+  )
+
+  const handleClick = (): void => {
+    if (pendingRef.current) {
+      clearTimeout(pendingRef.current)
+    }
+    pendingRef.current = setTimeout(() => {
+      pendingRef.current = null
+      onOpenBotDetail(bot.id)
+    }, DOUBLE_CLICK_WINDOW_MS)
+  }
+
+  const handleDoubleClick = (): void => {
+    if (pendingRef.current) {
+      clearTimeout(pendingRef.current)
+      pendingRef.current = null
+    }
+    onOpenBotChat(bot.id)
+  }
+
   return (
     <li className="group/bot relative">
       <button
         type="button"
-        onClick={() => onSelectBot(bot.id)}
-        onDoubleClick={() => onOpenBotChat(bot.id)}
+        onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
         className={cn(
           'flex w-full items-center gap-2 rounded-md py-1.5 pr-8 pl-2 text-left transition-colors',
           'hover:bg-worktree-sidebar-accent focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none'
@@ -82,16 +115,16 @@ function BotRow({
             className="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 transition-opacity group-hover/bot:opacity-100 focus-visible:opacity-100"
             aria-label={translate(
               'auto.components.sidebar.bots.BotRoster.61e0c3a97f',
-              'Edit {{value0}}',
+              'Open {{value0}}',
               { value0: bot.name }
             )}
-            onClick={() => onEditBot(bot.id)}
+            onClick={() => onOpenBotDetail(bot.id)}
           >
-            <Pencil className="size-3" strokeWidth={2.25} />
+            <SlidersHorizontal className="size-3" strokeWidth={2.25} />
           </Button>
         </TooltipTrigger>
         <TooltipContent side="right" sideOffset={6}>
-          {translate('auto.components.sidebar.bots.BotRoster.8a1f04b6d2', 'Edit bot')}
+          {translate('auto.components.sidebar.bots.BotRoster.8a1f04b6d2', 'Routines and settings')}
         </TooltipContent>
       </Tooltip>
     </li>
@@ -102,9 +135,8 @@ export function BotRoster({
   groups,
   routineCountByBotId,
   unreadBotIds,
-  onSelectBot,
+  onOpenBotDetail,
   onOpenBotChat,
-  onEditBot,
   onCreateBot
 }: BotRosterProps): React.JSX.Element {
   const isEmpty = groups.every((group) => group.bots.length === 0)
@@ -155,9 +187,8 @@ export function BotRoster({
                       bot={bot}
                       routineCount={routineCountByBotId[bot.id] ?? 0}
                       unread={unreadBotIds.includes(bot.id)}
-                      onSelectBot={onSelectBot}
+                      onOpenBotDetail={onOpenBotDetail}
                       onOpenBotChat={onOpenBotChat}
-                      onEditBot={onEditBot}
                     />
                   ))}
                 </ul>
@@ -166,7 +197,7 @@ export function BotRoster({
             <p className="px-2 pt-1 text-[10px] text-muted-foreground/70">
               {translate(
                 'auto.components.sidebar.bots.BotRoster.2c9f0b1e74',
-                'Double-click a bot to open its chat.'
+                'Click for routines and settings · double-click to open its Claude session'
               )}
             </p>
           </div>

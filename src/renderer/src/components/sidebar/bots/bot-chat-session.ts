@@ -29,12 +29,15 @@ export type BotChatSessionState = Pick<
   'agentStatusByPaneKey' | 'ptyIdsByTabId' | 'terminalLayoutsByTabId' | 'unifiedTabsByWorktree'
 >
 
+// A missing entry is accepted, unlike automation session reuse. Both lookups that reach here
+// are already bot-owned — the pane key this bot stored, or a pane titled bot:<handle> — and a
+// freshly launched agent has not reported status yet. Refusing it would make the session
+// invisible for the first seconds: the reveal button would not appear and the next message
+// would launch a duplicate beside it.
 function isSameAgent(entry: AgentStatusEntry | undefined, agentId: TuiAgent): boolean {
   if (!entry) {
-    return false
+    return true
   }
-  // `unknown` covers a pane whose agent identity has not been reported yet; refusing it would
-  // orphan a session the user can plainly see running.
   return !entry.agentType || entry.agentType === 'unknown' || entry.agentType === agentId
 }
 

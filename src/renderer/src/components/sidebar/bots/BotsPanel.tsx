@@ -6,6 +6,7 @@ import { useConfirmationDialog } from '@/components/confirmation-dialog-context'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import type { AutomationCreateInput } from '../../../../../shared/automations-types'
 import { getBotRoutineEligibility } from '../../../../../shared/bot-types'
+import { parsePaneKey } from '../../../../../shared/stable-pane-id'
 import BotDetail from './BotDetail'
 import BotEditorDialog from './BotEditorDialog'
 import BotRoster from './BotRoster'
@@ -229,7 +230,9 @@ export function BotsPanel(): React.JSX.Element {
       setActiveTabForWorktree(worktreeId, live.tabId)
       return
     }
-    if ((await startBotSession(botId)) !== 'started') {
+    const startedPaneKey = await startBotSession(botId)
+    const started = startedPaneKey ? parsePaneKey(startedPaneKey) : null
+    if (!started) {
       toast.error(
         translate(
           'auto.components.sidebar.bots.BotsPanel.4a8c17f0d3',
@@ -238,18 +241,10 @@ export function BotsPanel(): React.JSX.Element {
       )
       return
     }
-    const started = findLiveBotChatSession({
-      chatPaneKey:
-        useAppStore.getState().bots.find((entry) => entry.id === botId)?.chatPaneKey ?? null,
-      botName: bot.name,
-      worktreeId,
-      agentId: bot.agentId,
-      state: useAppStore.getState()
-    })
-    if (started) {
-      setActiveWorktree(worktreeId)
-      setActiveTabForWorktree(worktreeId, started.tabId)
-    }
+    // Reveal the pane the launch reported, not one re-resolved from state: the agent has not
+    // filed its first status yet, and waiting for it would make the double-click look dead.
+    setActiveWorktree(worktreeId)
+    setActiveTabForWorktree(worktreeId, started.tabId)
   }
 
   const openSelectedSession = useMemo(() => {
@@ -351,12 +346,8 @@ export function BotsPanel(): React.JSX.Element {
           groups={rosterGroups}
           routineCountByBotId={routineCountByBotId}
           unreadBotIds={unreadBotIds}
-          onSelectBot={setSelectedBotId}
+          onOpenBotDetail={setSelectedBotId}
           onOpenBotChat={(botId) => void openBotChat(botId)}
-          onEditBot={(botId) => {
-            setEditingBotId(botId)
-            setEditorOpen(true)
-          }}
           onCreateBot={() => {
             setEditingBotId(null)
             setEditorOpen(true)

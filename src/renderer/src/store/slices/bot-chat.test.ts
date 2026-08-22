@@ -188,7 +188,7 @@ describe('startBotSession', () => {
     store.setState({ updateBot })
     startStandbyMock.mockResolvedValue('tabS:leafS')
 
-    expect(await store.getState().startBotSession('bot1')).toBe('started')
+    expect(await store.getState().startBotSession('bot1')).toBe('tabS:leafS')
     expect(updateBot).toHaveBeenCalledWith('bot1', { chatPaneKey: 'tabS:leafS' })
     expect(store.getState().botSendInFlight).toEqual([])
   })
@@ -200,14 +200,14 @@ describe('startBotSession', () => {
     store.setState({ updateBot })
     startStandbyMock.mockResolvedValue(null)
 
-    expect(await store.getState().startBotSession('bot1')).toBe('failed')
+    expect(await store.getState().startBotSession('bot1')).toBeNull()
     expect(updateBot).not.toHaveBeenCalled()
   })
 
   it('reports failure for an unknown bot', async () => {
     const store = createTestStore()
     seedBots(store)
-    expect(await store.getState().startBotSession('nope')).toBe('failed')
+    expect(await store.getState().startBotSession('nope')).toBeNull()
   })
 })
 

@@ -42,8 +42,10 @@ export type BotChatSlice = {
   unreadBotIds: string[]
   botSendInFlight: string[]
   sendBotMessage: (args: { botId: string; text: string }) => Promise<BotSendOutcome | null>
-  /** Bring a bot's conversation up with nothing to do, so it can be opened or delegated to. */
-  startBotSession: (botId: string) => Promise<'started' | 'exists' | 'failed'>
+  /** Bring a bot's conversation up with nothing to do, so it can be opened or delegated to.
+   *  Returns the pane it landed in — the caller reveals that directly rather than re-resolving,
+   *  which would race the agent's first status report. */
+  startBotSession: (botId: string) => Promise<string | null>
   markBotChatRead: (botId: string) => void
   clearBotChat: (botId: string) => void
 }
@@ -160,7 +162,7 @@ export const createBotChatSlice: StateCreator<AppState, [], [], BotChatSlice> = 
   startBotSession: async (botId) => {
     const bot = get().bots.find((entry) => entry.id === botId)
     if (!bot) {
-      return 'failed'
+      return null
     }
     set((current) => ({ botSendInFlight: [...current.botSendInFlight, botId] }))
     const { startBotStandbySession } = await import('@/components/sidebar/bots/bot-chat-delivery')
@@ -169,10 +171,10 @@ export const createBotChatSlice: StateCreator<AppState, [], [], BotChatSlice> = 
       botSendInFlight: current.botSendInFlight.filter((id) => id !== botId)
     }))
     if (!paneKey) {
-      return 'failed'
+      return null
     }
     await get().updateBot(botId, { chatPaneKey: paneKey })
-    return 'started'
+    return paneKey
   },
 
   markBotChatRead: (botId) =>
