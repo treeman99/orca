@@ -96,6 +96,19 @@ describe('buildBotTeammatePreamble', () => {
   it('returns null for a lone bot — an empty roster is noise in a system prompt', () => {
     expect(buildBotTeammatePreamble({ self: checker, roster: [checker] })).toBeNull()
   })
+
+  // Delegation never crosses projects, and a teammate in another checkout could not be
+  // started here anyway.
+  it('omits a teammate from another project', () => {
+    const elsewhere = makeBot({
+      id: 'bot9',
+      name: 'Other Project Bot',
+      projectId: 'r2',
+      workspaceKey: 'worktree:r2::/wt'
+    })
+    const preamble = buildBotTeammatePreamble({ self: checker, roster: [checker, elsewhere] })
+    expect(preamble).toBeNull()
+  })
 })
 
 describe('botSessionTitle', () => {

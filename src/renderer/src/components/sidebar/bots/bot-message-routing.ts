@@ -12,6 +12,7 @@
 // Both are plain text over paths that already exist. Nothing here needs a wire change.
 
 import { botHandle, type Bot } from '../../../../../shared/bot-types'
+import { getProjectTeammates } from './bot-roster-groups'
 
 export type BotMention = {
   /** The addressed bot, or null when the leading @handle matches nobody. */
@@ -75,7 +76,9 @@ export function buildBotTeammatePreamble(args: {
   self: Bot
   roster: readonly Bot[]
 }): string | null {
-  const teammates = args.roster.filter((bot) => bot.id !== args.self.id)
+  // Same project only: delegation never crosses projects, and a teammate in another checkout
+  // could not be started here anyway.
+  const teammates = getProjectTeammates(args.self, args.roster)
   if (teammates.length === 0) {
     return null
   }
@@ -90,14 +93,16 @@ export function buildBotTeammatePreamble(args: {
     'Teammates you can hand work to:',
     ...lines,
     '',
-    'Each teammate runs in a terminal titled bot:<handle>. A teammate that has never been',
-    'messaged has NO terminal yet — start it before delegating:',
+    'Each teammate runs in a terminal titled bot:<handle>, and Orca starts them for you when',
+    'you are given work — so they should already be listed. Find one and send to it:',
     '',
     '  orca terminal list --json',
-    '  # not listed? start it in this same workspace, with that exact title:',
+    '  orca terminal send --terminal <handle> --text "<message>" --enter --json',
+    '',
+    'If a teammate is somehow missing, start it yourself with that exact title:',
+    '',
     '  orca terminal create --worktree active --title "bot:<handle>" --command "<agent>" --json',
     '  orca terminal wait --terminal <handle> --for tui-idle --timeout-ms 120000 --json',
-    '  orca terminal send --terminal <handle> --text "<message>" --enter --json',
     '',
     'The title matters: Orca adopts a terminal with that exact title as that bot’s',
     'conversation, so the user sees your delegation in the right place.',

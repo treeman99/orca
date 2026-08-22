@@ -42,6 +42,8 @@ export type BotChatSlice = {
   unreadBotIds: string[]
   botSendInFlight: string[]
   sendBotMessage: (args: { botId: string; text: string }) => Promise<BotSendOutcome | null>
+  /** Bring a bot's conversation up with nothing to do, so it can be opened or delegated to. */
+  startBotSession: (botId: string) => Promise<'started' | 'exists' | 'failed'>
   markBotChatRead: (botId: string) => void
   clearBotChat: (botId: string) => void
 }
@@ -86,7 +88,17 @@ export const createBotChatSlice: StateCreator<AppState, [], [], BotChatSlice> = 
     // Imported at call time, not at module scope: the delivery path reaches the agent
     // launcher, which imports the store this slice belongs to. A static edge there makes the
     // whole store module cycle and evaluate to undefined slice factories.
-    const { deliverToBot } = await import('@/components/sidebar/bots/bot-chat-delivery')
+    const { deliverToBot, ensureProjectTeammateSessions } =
+      await import('@/components/sidebar/bots/bot-chat-delivery')
+    // Before delivering, not after: the coordinator's first act is to look for teammates, and
+    // a roster that is not up yet reads to it as "nobody to delegate to".
+    const startedTeammates = await ensureProjectTeammateSessions({
+      bot: recipient,
+      roster: get().bots
+    })
+    for (const started of startedTeammates) {
+      void get().updateBot(started.botId, { chatPaneKey: started.paneKey })
+    }
     const result = await deliverToBot({
       bot: recipient,
       text: payload,
@@ -143,6 +155,24 @@ export const createBotChatSlice: StateCreator<AppState, [], [], BotChatSlice> = 
     })
 
     return { status: 'delivered', targetBotId: recipient.id, launched: result.launched }
+  },
+
+  startBotSession: async (botId) => {
+    const bot = get().bots.find((entry) => entry.id === botId)
+    if (!bot) {
+      return 'failed'
+    }
+    set((current) => ({ botSendInFlight: [...current.botSendInFlight, botId] }))
+    const { startBotStandbySession } = await import('@/components/sidebar/bots/bot-chat-delivery')
+    const paneKey = await startBotStandbySession(bot, get().bots)
+    set((current) => ({
+      botSendInFlight: current.botSendInFlight.filter((id) => id !== botId)
+    }))
+    if (!paneKey) {
+      return 'failed'
+    }
+    await get().updateBot(botId, { chatPaneKey: paneKey })
+    return 'started'
   },
 
   markBotChatRead: (botId) =>

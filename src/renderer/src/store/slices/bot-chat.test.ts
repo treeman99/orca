@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Bot } from '../../../../shared/bot-types'
 
 const deliverToBotMock = vi.hoisted(() => vi.fn())
+const ensureTeammatesMock = vi.hoisted(() => vi.fn())
+const startStandbyMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/components/sidebar/bots/bot-chat-delivery', () => ({
-  deliverToBot: deliverToBotMock
+  deliverToBot: deliverToBotMock,
+  ensureProjectTeammateSessions: ensureTeammatesMock,
+  startBotStandbySession: startStandbyMock
 }))
 
 const { createTestStore } = await import('./store-test-helpers')
@@ -34,6 +38,9 @@ function seedBots(store: ReturnType<typeof createTestStore>): void {
 describe('sendBotMessage', () => {
   beforeEach(() => {
     deliverToBotMock.mockReset()
+    ensureTeammatesMock.mockReset()
+    ensureTeammatesMock.mockResolvedValue([])
+    startStandbyMock.mockReset()
     deliverToBotMock.mockResolvedValue({ ok: true, paneKey: 'tab1:leaf1', launched: true })
   })
 
@@ -137,6 +144,70 @@ describe('sendBotMessage', () => {
     seedBots(store)
     await store.getState().sendBotMessage({ botId: 'bot1', text: 'go' })
     expect(store.getState().botSendInFlight).toEqual([])
+  })
+})
+
+// The roster has to be true before the coordinator reads it, or it concludes it has nobody
+// to delegate to (the bug this replaced).
+describe('teammate autostart', () => {
+  beforeEach(() => {
+    deliverToBotMock.mockReset()
+    ensureTeammatesMock.mockReset()
+    ensureTeammatesMock.mockResolvedValue([])
+    deliverToBotMock.mockResolvedValue({ ok: true, paneKey: 'tab1:leaf1', launched: true })
+  })
+
+  it('brings up same-project teammates before delivering, and records their panes', async () => {
+    const store = createTestStore()
+    seedBots(store)
+    const updateBot = vi.fn().mockResolvedValue(null)
+    store.setState({ updateBot })
+    ensureTeammatesMock.mockResolvedValue([{ botId: 'bot2', paneKey: 'tabX:leafX' }])
+
+    await store.getState().sendBotMessage({ botId: 'bot1', text: 'go' })
+
+    expect(ensureTeammatesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ bot: expect.objectContaining({ id: 'bot1' }) })
+    )
+    expect(updateBot).toHaveBeenCalledWith('bot2', { chatPaneKey: 'tabX:leafX' })
+    expect(ensureTeammatesMock.mock.invocationCallOrder[0]).toBeLessThan(
+      deliverToBotMock.mock.invocationCallOrder[0]
+    )
+  })
+})
+
+describe('startBotSession', () => {
+  beforeEach(() => {
+    startStandbyMock.mockReset()
+  })
+
+  it('starts a standby session and stores its pane', async () => {
+    const store = createTestStore()
+    seedBots(store)
+    const updateBot = vi.fn().mockResolvedValue(null)
+    store.setState({ updateBot })
+    startStandbyMock.mockResolvedValue('tabS:leafS')
+
+    expect(await store.getState().startBotSession('bot1')).toBe('started')
+    expect(updateBot).toHaveBeenCalledWith('bot1', { chatPaneKey: 'tabS:leafS' })
+    expect(store.getState().botSendInFlight).toEqual([])
+  })
+
+  it('reports failure without touching the binding', async () => {
+    const store = createTestStore()
+    seedBots(store)
+    const updateBot = vi.fn().mockResolvedValue(null)
+    store.setState({ updateBot })
+    startStandbyMock.mockResolvedValue(null)
+
+    expect(await store.getState().startBotSession('bot1')).toBe('failed')
+    expect(updateBot).not.toHaveBeenCalled()
+  })
+
+  it('reports failure for an unknown bot', async () => {
+    const store = createTestStore()
+    seedBots(store)
+    expect(await store.getState().startBotSession('nope')).toBe('failed')
   })
 })
 

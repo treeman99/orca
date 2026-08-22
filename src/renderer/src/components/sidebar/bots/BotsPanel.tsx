@@ -11,6 +11,7 @@ import BotEditorDialog from './BotEditorDialog'
 import BotRoster from './BotRoster'
 import BotRoutineDialog from './BotRoutineDialog'
 import { findLiveBotChatSession, getBotActivityState, getBotLatestReply } from './bot-chat-session'
+import { buildBotRosterGroups } from './bot-roster-groups'
 import { buildBotWorkspaceOptions, findBotWorkspaceOption } from './bot-workspace-options'
 
 function reportRoutineFailure(message: string, error: unknown): void {
@@ -39,6 +40,7 @@ export function BotsPanel(): React.JSX.Element {
   const deleteBot = useAppStore((s) => s.deleteBot)
   const setSelectedBotId = useAppStore((s) => s.setSelectedBotId)
   const sendBotMessage = useAppStore((s) => s.sendBotMessage)
+  const startBotSession = useAppStore((s) => s.startBotSession)
   const markBotChatRead = useAppStore((s) => s.markBotChatRead)
   const setActiveWorktree = useAppStore((s) => s.setActiveWorktree)
   const setActiveTabForWorktree = useAppStore((s) => s.setActiveTabForWorktree)
@@ -68,6 +70,19 @@ export function BotsPanel(): React.JSX.Element {
   const workspaceOptions = useMemo(
     () => buildBotWorkspaceOptions({ repos, worktreesByRepo, folderWorkspaces }),
     [repos, worktreesByRepo, folderWorkspaces]
+  )
+
+  const rosterGroups = useMemo(
+    () =>
+      buildBotRosterGroups({
+        bots,
+        repos,
+        unassignedLabel: translate(
+          'auto.components.sidebar.bots.BotsPanel.30d7f1a6c8',
+          'No workspace yet'
+        )
+      }),
+    [bots, repos]
   )
 
   const routineCountByBotId = useMemo(() => {
@@ -179,6 +194,64 @@ export function BotsPanel(): React.JSX.Element {
     }
   }
 
+  // Double-click on a roster row, and the ↗ in the detail header, share this: open the bot's
+  // conversation. A bot with no session gets one started rather than a silent no-op.
+  const openBotChat = async (botId: string): Promise<void> => {
+    const bot = useAppStore.getState().bots.find((entry) => entry.id === botId)
+    if (!bot) {
+      return
+    }
+    const eligibility = getBotRoutineEligibility(bot)
+    if (!eligibility.ok) {
+      toast.error(
+        eligibility.reason === 'folder_workspace'
+          ? translate(
+              'auto.components.sidebar.bots.BotsPanel.c62f019b4e',
+              'That bot is bound to a folder workspace, which cannot run an agent.'
+            )
+          : translate(
+              'auto.components.sidebar.bots.BotsPanel.19d0b7e3ca',
+              'That bot has no workspace yet.'
+            )
+      )
+      return
+    }
+    const { worktreeId } = eligibility
+    const live = findLiveBotChatSession({
+      chatPaneKey: bot.chatPaneKey,
+      botName: bot.name,
+      worktreeId,
+      agentId: bot.agentId,
+      state: useAppStore.getState()
+    })
+    if (live) {
+      setActiveWorktree(worktreeId)
+      setActiveTabForWorktree(worktreeId, live.tabId)
+      return
+    }
+    if ((await startBotSession(botId)) !== 'started') {
+      toast.error(
+        translate(
+          'auto.components.sidebar.bots.BotsPanel.4a8c17f0d3',
+          'Could not reach that bot’s session.'
+        )
+      )
+      return
+    }
+    const started = findLiveBotChatSession({
+      chatPaneKey:
+        useAppStore.getState().bots.find((entry) => entry.id === botId)?.chatPaneKey ?? null,
+      botName: bot.name,
+      worktreeId,
+      agentId: bot.agentId,
+      state: useAppStore.getState()
+    })
+    if (started) {
+      setActiveWorktree(worktreeId)
+      setActiveTabForWorktree(worktreeId, started.tabId)
+    }
+  }
+
   const openSelectedSession = useMemo(() => {
     if (!selectedBot || !selectedSession) {
       return null
@@ -275,10 +348,15 @@ export function BotsPanel(): React.JSX.Element {
         />
       ) : (
         <BotRoster
-          bots={bots}
+          groups={rosterGroups}
           routineCountByBotId={routineCountByBotId}
           unreadBotIds={unreadBotIds}
           onSelectBot={setSelectedBotId}
+          onOpenBotChat={(botId) => void openBotChat(botId)}
+          onEditBot={(botId) => {
+            setEditingBotId(botId)
+            setEditorOpen(true)
+          }}
           onCreateBot={() => {
             setEditingBotId(null)
             setEditorOpen(true)

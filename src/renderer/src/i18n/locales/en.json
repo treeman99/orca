@@ -5727,7 +5727,10 @@
             "5c81e0a72f": "Bots",
             "b09d3f61ca": "New bot",
             "e47a2c9018": "No bots yet. A bot is a named agent that runs its routines on a schedule.",
-            "d19c0f4a83": "Unread message"
+            "d19c0f4a83": "Unread message",
+            "61e0c3a97f": "Edit {{value0}}",
+            "8a1f04b6d2": "Edit bot",
+            "2c9f0b1e74": "Double-click a bot to open its chat."
           },
           "BotRoutineDialog": {
             "1a5f0b73e2": "Every hour",
@@ -5759,7 +5762,8 @@
             "7b0e34a1c9": "No bot named @{{value0}}.",
             "c62f019b4e": "That bot is bound to a folder workspace, which cannot run an agent.",
             "19d0b7e3ca": "That bot has no workspace yet.",
-            "4a8c17f0d3": "Could not reach that bot’s session."
+            "4a8c17f0d3": "Could not reach that bot’s session.",
+            "30d7f1a6c8": "No workspace yet"
           },
           "BotChatThread": {
             "4d0a71e3b9": "Handed to {{value0}}",
