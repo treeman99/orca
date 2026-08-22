@@ -5730,7 +5730,7 @@
             "d19c0f4a83": "Unread message",
             "61e0c3a97f": "Open {{value0}}",
             "8a1f04b6d2": "Routines and settings",
-            "2c9f0b1e74": "Click for routines and settings · double-click to open its Claude session"
+            "2c9f0b1e74": "Click for routines and settings · double-click to open its agent session"
           },
           "BotRoutineDialog": {
             "1a5f0b73e2": "Every hour",

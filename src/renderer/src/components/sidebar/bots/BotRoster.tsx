@@ -243,7 +243,7 @@ export function BotRoster({
             <p className="px-2 pt-1 text-[10px] text-muted-foreground/70">
               {translate(
                 'auto.components.sidebar.bots.BotRoster.2c9f0b1e74',
-                'Click for routines and settings · double-click to open its Claude session'
+                'Click for routines and settings · double-click to open its agent session'
               )}
             </p>
           </div>
