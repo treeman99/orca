@@ -12,6 +12,7 @@ import BotEditorDialog from './BotEditorDialog'
 import BotRoster from './BotRoster'
 import BotRoutineDialog from './BotRoutineDialog'
 import { findLiveBotChatSession, getBotActivityState, getBotLatestReply } from './bot-chat-session'
+import { buildBotRosterActivity } from './bot-roster-activity'
 import { buildBotRosterGroups } from './bot-roster-groups'
 import { buildBotProjectOptions, findBotProjectOption } from './bot-project-options'
 
@@ -85,6 +86,28 @@ export function BotsPanel(): React.JSX.Element {
         )
       }),
     [bots, repos]
+  )
+
+  const rosterActivity = useMemo(
+    () =>
+      buildBotRosterActivity({
+        bots,
+        chatLog: botChatLog,
+        state: {
+          agentStatusByPaneKey,
+          ptyIdsByTabId,
+          terminalLayoutsByTabId,
+          unifiedTabsByWorktree
+        }
+      }),
+    [
+      bots,
+      botChatLog,
+      agentStatusByPaneKey,
+      ptyIdsByTabId,
+      terminalLayoutsByTabId,
+      unifiedTabsByWorktree
+    ]
   )
 
   const routineCountByBotId = useMemo(() => {
@@ -347,6 +370,7 @@ export function BotsPanel(): React.JSX.Element {
           groups={rosterGroups}
           routineCountByBotId={routineCountByBotId}
           unreadBotIds={unreadBotIds}
+          activityByBotId={rosterActivity}
           onOpenBotDetail={setSelectedBotId}
           onOpenBotChat={(botId) => void openBotChat(botId)}
           collapsedProjectIds={collapsedBotProjectIds}

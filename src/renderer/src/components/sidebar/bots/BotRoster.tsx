@@ -1,11 +1,13 @@
 import React from 'react'
-import { ChevronDown, ChevronRight, Folder, Plus, SlidersHorizontal } from 'lucide-react'
+import { ChevronDown, ChevronRight, Folder, Hourglass, Plus, SlidersHorizontal } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { Bot } from '../../../../../shared/bot-types'
+import { AgentStateDot } from '@/components/AgentStateDot'
+import type { BotRosterActivity } from './bot-roster-activity'
 import type { BotRosterGroup } from './bot-roster-groups'
 
 export type BotRosterProps = {
@@ -13,6 +15,7 @@ export type BotRosterProps = {
   routineCountByBotId: Readonly<Record<string, number>>
   /** Bots another bot messaged while the user was elsewhere. */
   unreadBotIds: readonly string[]
+  activityByBotId: Readonly<Record<string, BotRosterActivity>>
   /** Open the bot's own screen — routines, settings summary, and the message box. */
   onOpenBotDetail: (botId: string) => void
   /** Double-click: reveal the bot's agent pane in the main area, starting it when needed. */
@@ -31,16 +34,44 @@ const UNASSIGNED_GROUP_KEY = '__unassigned__'
 // cancel it, so both gestures work on the same row.
 const DOUBLE_CLICK_WINDOW_MS = 220
 
+/**
+ * Only `working` and `waiting` draw anything.
+ *
+ * `AgentStateDot`'s own `waiting` means "waiting for the USER", which is a different thing
+ * from "blocked on a teammate" — reusing it would say the wrong word. The spinner is shared
+ * so a busy bot reads exactly like a busy session elsewhere in the app.
+ */
+function BotActivityIcon({ activity }: { activity: BotRosterActivity }): React.JSX.Element | null {
+  if (activity === 'working') {
+    return <AgentStateDot state="working" size="sm" className="mt-0.5" />
+  }
+  if (activity === 'waiting') {
+    return (
+      <Hourglass
+        className="mt-0.5 size-3 shrink-0 text-muted-foreground"
+        strokeWidth={2}
+        aria-label={translate(
+          'auto.components.sidebar.bots.BotRoster.f2b70c419e',
+          'Waiting for a teammate'
+        )}
+      />
+    )
+  }
+  return null
+}
+
 function BotRow({
   bot,
   routineCount,
   unread,
+  activity,
   onOpenBotDetail,
   onOpenBotChat
 }: {
   bot: Bot
   routineCount: number
   unread: boolean
+  activity: BotRosterActivity
   onOpenBotDetail: (botId: string) => void
   onOpenBotChat: (botId: string) => void
 }): React.JSX.Element {
@@ -80,19 +111,23 @@ function BotRow({
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
         className={cn(
-          'flex w-full items-center gap-2 rounded-md py-1.5 pr-8 pl-2 text-left transition-colors',
+          // items-start, not items-center: once the role wraps, centering pushes the avatar
+          // to the middle of a tall block instead of beside the name it belongs to.
+          'flex w-full items-start gap-2 rounded-md py-1.5 pr-8 pl-2 text-left transition-colors',
           'hover:bg-worktree-sidebar-accent focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none'
         )}
       >
-        <span className="text-base leading-none" aria-hidden="true">
+        <span className="mt-px shrink-0 text-base leading-tight" aria-hidden="true">
           {bot.avatarEmoji}
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="flex items-center gap-1.5">
-            <span className="truncate text-[13px] font-medium">{bot.name}</span>
+          <span className="flex items-start gap-1.5">
+            <span className="min-w-0 flex-1 text-[13px] leading-snug font-medium break-words">
+              {bot.name}
+            </span>
             {unread ? (
               <span
-                className="size-1.5 shrink-0 rounded-full bg-primary"
+                className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary"
                 aria-label={translate(
                   'auto.components.sidebar.bots.BotRoster.d19c0f4a83',
                   'Unread message'
@@ -101,11 +136,14 @@ function BotRow({
             ) : null}
           </span>
           {bot.title ? (
-            <span className="truncate text-[11px] text-muted-foreground">{bot.title}</span>
+            <span className="text-[11px] leading-snug break-words text-muted-foreground">
+              {bot.title}
+            </span>
           ) : null}
         </span>
+        <BotActivityIcon activity={activity} />
         {routineCount > 0 ? (
-          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+          <span className="mt-px shrink-0 text-[11px] tabular-nums text-muted-foreground">
             {routineCount}
           </span>
         ) : null}
@@ -117,7 +155,7 @@ function BotRow({
           <Button
             variant="ghost"
             size="icon-xs"
-            className="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 transition-opacity group-hover/bot:opacity-100 focus-visible:opacity-100"
+            className="absolute top-1 right-1 opacity-0 transition-opacity group-hover/bot:opacity-100 focus-visible:opacity-100"
             aria-label={translate(
               'auto.components.sidebar.bots.BotRoster.61e0c3a97f',
               'Open {{value0}}',
@@ -140,6 +178,7 @@ export function BotRoster({
   groups,
   routineCountByBotId,
   unreadBotIds,
+  activityByBotId,
   onOpenBotDetail,
   onOpenBotChat,
   collapsedProjectIds,
@@ -186,13 +225,18 @@ export function BotRoster({
               const groupKey = group.projectId ?? UNASSIGNED_GROUP_KEY
               const collapsed = collapsedProjectIds.includes(groupKey)
               const unreadInGroup = group.bots.some((bot) => unreadBotIds.includes(bot.id))
+              // Collapsing must not hide that work is running inside the group.
+              const busyInGroup = group.bots.some(
+                (bot) =>
+                  activityByBotId[bot.id] === 'working' || activityByBotId[bot.id] === 'waiting'
+              )
               return (
                 <div key={groupKey} className="flex flex-col">
                   <button
                     type="button"
                     onClick={() => onToggleProject(groupKey)}
                     aria-expanded={!collapsed}
-                    className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-worktree-sidebar-accent/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                    className="flex w-full items-start gap-1.5 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-worktree-sidebar-accent/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                   >
                     {collapsed ? (
                       <ChevronRight
@@ -205,10 +249,22 @@ export function BotRoster({
                         strokeWidth={2.5}
                       />
                     )}
-                    <Folder className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2} />
-                    <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">
+                    <Folder
+                      className="mt-px size-3.5 shrink-0 text-muted-foreground"
+                      strokeWidth={2}
+                    />
+                    <span className="min-w-0 flex-1 text-[12px] leading-snug font-semibold break-words">
                       {group.label}
                     </span>
+                    {collapsed && busyInGroup ? (
+                      <BotActivityIcon
+                        activity={
+                          group.bots.some((bot) => activityByBotId[bot.id] === 'working')
+                            ? 'working'
+                            : 'waiting'
+                        }
+                      />
+                    ) : null}
                     {collapsed && unreadInGroup ? (
                       <span
                         className="size-1.5 shrink-0 rounded-full bg-primary"
@@ -231,6 +287,7 @@ export function BotRoster({
                           bot={bot}
                           routineCount={routineCountByBotId[bot.id] ?? 0}
                           unread={unreadBotIds.includes(bot.id)}
+                          activity={activityByBotId[bot.id] ?? 'offline'}
                           onOpenBotDetail={onOpenBotDetail}
                           onOpenBotChat={onOpenBotChat}
                         />

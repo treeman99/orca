@@ -44,7 +44,7 @@ function SummaryRow({ label, value }: { label: string; value: string }): React.J
   return (
     <div className="flex items-baseline gap-2 text-[11px]">
       <span className="w-16 shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 flex-1 truncate">{value}</span>
+      <span className="min-w-0 flex-1 break-words">{value}</span>
     </div>
   )
 }
@@ -53,7 +53,7 @@ function ActivityDot({ activity }: { activity: BotActivityState }): React.JSX.El
   return (
     <span
       className={cn(
-        'size-1.5 shrink-0 rounded-full',
+        'mt-1.5 size-1.5 shrink-0 rounded-full',
         activity === 'working'
           ? 'bg-primary animate-pulse'
           : activity === 'idle'
@@ -159,10 +159,10 @@ export function BotDetail({
               {bot.avatarEmoji}
             </span>
             <div className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-sm font-medium">{bot.name}</span>
-              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="text-sm leading-snug font-medium break-words">{bot.name}</span>
+              <span className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
                 <ActivityDot activity={activity} />
-                <span className="truncate">
+                <span className="min-w-0 flex-1 break-words">
                   @{botHandle(bot.name)} · {activityLabel}
                 </span>
               </span>
