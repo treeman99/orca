@@ -42,6 +42,7 @@ Hermes Bot Mode가 "no core patches, no background daemons, no extra storage"로
 | 봇 UI | `components/sidebar/bots/**` | 신규 |
 | 프로젝트 해석 | `components/sidebar/bots/bot-project-options.ts` | 신규 — 사용자는 프로젝트를 고르고, 체크아웃은 여기서 정해집니다(메인 워크트리 우선) |
 | 정책 게이트 | `src/main/enterprise/unattended-agent-run-guard.ts` | 신규 가드 모듈 |
+| 사용 설명서 | `components/sidebar/bots/BotGuideDialog.tsx`, `bot-guide-figures.tsx` + `SidebarSettingsHelpMenu.tsx` 항목 1개 | 신규 + 메뉴 1줄 — 그림은 캡쳐가 아니라 실제 UI 토큰으로 그립니다(캡쳐는 낡고, 테마를 못 따라갑니다) |
 
 fork sync 원칙대로 **로직은 전부 신규 파일**이고, upstream 파일 접촉은 등록/조립 수준으로 묶었습니다.
 `orca-runtime.ts`에는 아무것도 넣지 않았습니다.
