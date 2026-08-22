@@ -6852,7 +6852,9 @@
           "3ba07f933b": "Connect issue trackers Orca can use to browse tasks and start workspaces with linked context.",
           "70e885705b": "Task providers",
           "1683acbac4": "Connect the source host Orca can use for pull requests, checks, and review status.",
-          "298c65ecac": "Review providers"
+          "298c65ecac": "Review providers",
+          "knowledge": "Knowledge base",
+          "knowledgeDescription": "The company wiki bots can read from."
         },
         "KagiSessionLinkForm": {
           "92f0b4e472": "Clear",
@@ -11173,6 +11175,22 @@
           "title": "Split worker panes automatically",
           "description": "Lay dispatched workers out beside the coordinator instead of stacking them as tabs.",
           "rowDescription": "Workers started in the coordinator’s own worktree open in a column to its right, stacking downward for up to three panes; later workers become tabs in the last one. Workers dispatched to another worktree are unaffected."
+        },
+        "confluence": {
+          "title": "Confluence",
+          "description": "Self-hosted Confluence (Server / Data Center). Bots read pages from here.",
+          "connected": "Configured",
+          "notConnected": "Not configured",
+          "urlLabel": "Base URL",
+          "tokenLabel": "Personal access token",
+          "tokenPlaceholder": "Paste a token from Confluence → Profile → Personal Access Tokens",
+          "tokenStored": "A token is stored. Leave this empty to keep it, or paste a new one to replace it.",
+          "tokenHelp": "Sent as a bearer token. Stored on this machine and encrypted where the OS supports it.",
+          "readOnly": "Read-only. This mirror is not expected to accept writes, so page creation and edits are not offered — treat Confluence as a source, not a destination.",
+          "save": "Save",
+          "disconnect": "Disconnect",
+          "savedNote": "Saved.",
+          "urlPlaceholder": "https://confluence-mirror.samsungds.net"
         }
       },
       "right": {

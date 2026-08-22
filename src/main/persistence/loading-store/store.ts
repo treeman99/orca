@@ -834,6 +834,12 @@ export class Store {
         logPersistenceStartupMilestone('persistence-json-parse-done')
 
         // Why: secrets are stored encrypted via safeStorage; decrypt at the load boundary so the app sees plaintext.
+        if (parsed.settings?.confluenceApiToken) {
+          parsed.settings.confluenceApiToken = this.protectedSecrets.decrypt(
+            PROTECTED_SECRET_SLOT.confluenceApiToken,
+            parsed.settings.confluenceApiToken
+          )
+        }
         if (parsed.settings?.opencodeSessionCookie) {
           parsed.settings.opencodeSessionCookie = this.protectedSecrets.decrypt(
             PROTECTED_SECRET_SLOT.opencodeSessionCookie,
@@ -1840,6 +1846,10 @@ export class Store {
         httpProxyUrl: encryptToSentinel(
           PROTECTED_SECRET_SLOT.httpProxyUrl,
           this.state.settings.httpProxyUrl ?? ''
+        ),
+        confluenceApiToken: encryptToSentinel(
+          PROTECTED_SECRET_SLOT.confluenceApiToken,
+          this.state.settings.confluenceApiToken ?? ''
         )
       },
       ui: {

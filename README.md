@@ -539,6 +539,26 @@ scope가 겹치는 것, 이 머신에서만 참인 것은 승격하지 않습니
 
 ---
 
+## 7-1. Confluence 연결 (설정 → 연동)
+
+봇이 사내 위키를 읽을 수 있도록 **URL + 토큰**만 받습니다.
+
+| 항목 | 값 |
+| --- | --- |
+| 기본 URL | `https://confluence-mirror.samsungds.net` |
+| 토큰 | Confluence → 프로필 → **Personal Access Tokens** 에서 발급 |
+
+- **자체 호스팅(Server / Data Center) 전용입니다.** Atlassian Cloud 주소(`*.atlassian.net`)는
+  입력 단계에서 거부합니다 — Cloud는 API 경로(`/wiki/rest/api`)와 인증 헤더(email 기반 Basic)가
+  달라서, 받아 두면 절대 동작하지 않을 자격증명을 저장하는 셈이 됩니다.
+- 토큰은 `Authorization: Bearer` 로 나갑니다. **이 PC에만** 저장되고 OS가 지원하면 암호화됩니다
+  (`opencodeSessionCookie`·`httpProxyUrl`과 같은 보호 슬롯). 화면에 다시 보여 주지 않으며,
+  비워 두면 기존 값이 유지되고 **연결 해제**로만 지웁니다.
+- ⚠️ **읽기 전용입니다.** 이 미러는 쓰기를 받지 않을 것으로 보고 페이지 생성·수정 기능을
+  제공하지 않습니다. Confluence는 출처이지 목적지가 아닙니다.
+- REST 경로를 통째로 붙여 넣어도 됩니다(`…/rest/api/content/12345`) — 저장할 때 잘라 냅니다.
+  컨텍스트 경로(`…/confluence`)는 보존합니다.
+
 ## 8. 봇(Bots) — 반복 작업을 맡기는 상주 담당자
 
 > 이 포크 고유 기능입니다. upstream Orca와 [onorca.dev/docs](https://www.onorca.dev/docs)에는 없습니다.

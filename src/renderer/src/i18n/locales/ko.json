@@ -6246,7 +6246,9 @@
           "3ba07f933b": "Orca가 작업을 탐색하고 연결된 컨텍스트로 워크스페이스를 시작하는 데 사용할 이슈 트래커를 연결합니다.",
           "70e885705b": "작업 제공자",
           "1683acbac4": "Orca가 Pull Request, 체크, 리뷰 상태에 사용할 소스 호스트를 연결합니다.",
-          "298c65ecac": "리뷰 제공자"
+          "298c65ecac": "리뷰 제공자",
+          "knowledge": "지식 베이스",
+          "knowledgeDescription": "봇이 읽어 갈 사내 위키입니다."
         },
         "KagiSessionLinkForm": {
           "92f0b4e472": "지우기",
@@ -10402,6 +10404,22 @@
           "title": "워커 패널 자동 분할",
           "description": "디스패치된 워커를 탭으로 쌓지 않고 코디네이터 옆에 배치합니다.",
           "rowDescription": "코디네이터와 같은 워크트리에서 시작한 워커가 오른쪽 컬럼에 열리고, 최대 3개까지 아래로 쌓입니다. 그 다음 워커부터는 마지막 패널의 탭이 됩니다. 다른 워크트리로 디스패치한 워커는 영향을 받지 않습니다."
+        },
+        "confluence": {
+          "title": "Confluence",
+          "description": "사내 자체 호스팅 Confluence(Server / Data Center). 봇이 여기서 문서를 읽습니다.",
+          "connected": "설정됨",
+          "notConnected": "설정 안 됨",
+          "urlLabel": "기본 URL",
+          "tokenLabel": "개인 액세스 토큰",
+          "tokenPlaceholder": "Confluence → 프로필 → Personal Access Tokens 에서 발급한 토큰",
+          "tokenStored": "토큰이 저장돼 있습니다. 비워 두면 유지되고, 새로 붙여 넣으면 교체됩니다.",
+          "tokenHelp": "bearer 토큰으로 전송됩니다. 이 PC에만 저장되며 OS가 지원하면 암호화됩니다.",
+          "readOnly": "읽기 전용입니다. 이 미러는 쓰기를 받지 않을 것으로 보고 페이지 생성·수정은 제공하지 않습니다 — Confluence는 출처이지 목적지가 아닙니다.",
+          "save": "저장",
+          "disconnect": "연결 해제",
+          "savedNote": "저장했습니다.",
+          "urlPlaceholder": "https://confluence-mirror.samsungds.net"
         }
       },
       "right": {
