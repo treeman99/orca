@@ -25,6 +25,7 @@ const UNRESTRICTED = {
   disableMobilePairing: false,
   disableMobileEmulator: false,
   disableExternalAutomations: false,
+  disableUnattendedAgentRuns: false,
   disableAgentInstallSuggestions: false,
   disableUsagePolling: false,
   disableVendorProviderAccounts: false,

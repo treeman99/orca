@@ -11,6 +11,112 @@
   },
   "gates": [
     {
+      "id": "bot-lane.unattended-run-policy-gate",
+      "title": "A policy-locked host starts no scheduled agent run",
+      "maturity": "experimental",
+      "protection": "partial",
+      "owner": "enterprise-policy",
+      "layer": "desktop-main-automations",
+      "surfaces": [
+        "bot routines",
+        "Orca automation scheduler",
+        "headless orca serve dispatcher",
+        "bot roster persistence"
+      ],
+      "platforms": ["macos", "linux", "windows"],
+      "providers": ["local-host", "orca-server"],
+      "coveredPlatforms": ["macos"],
+      "coveredProviders": ["local-host", "orca-server"],
+      "coverageNotes": "The gate sits in AutomationService.requestDispatch, which is process-local and platform-neutral: both the 60s tick and the headless serve dispatcher funnel through it, and neither path touches a filesystem or PTY before the refusal. Linux and Windows share that code with no platform branch, so the macOS evidence run is representative; SSH is out of scope because the scheduler owner for a remote host is the remote service, not this client.",
+      "motivatingLinks": [
+        "https://github.com/stablyai/orca/blob/HEAD/docs/reference/bot-lane.md",
+        "https://github.com/stablyai/orca/blob/HEAD/docs/reference/enterprise-policy.md",
+        "https://github.com/stablyai/orca/blob/HEAD/docs/reference/external-integrations-audit.md"
+      ],
+      "invariant": "When disableUnattendedAgentRuns is on, no scheduled automation or bot routine spawns an agent: the renderer dispatch IPC is not sent, the headless dispatcher is not called, and the run is recorded as skipped_policy with the refusal text. The refusal happens before run-target resolution, so a refused occurrence leaves no trace of having inspected the workspace. The schedule still advances so a refused occurrence does not re-fire every tick. A manual Run now is deliberately unaffected. Deleting a bot detaches its routines instead of cancelling them, and a folder-bound bot is refused a routine at creation rather than failing at run time.",
+      "oracle": "Drive a real Store plus AutomationService with an injected lockdown policy and a due daily automation. Require that the renderer send mock is never called, that the headless dispatcher mock is never called, that the single recorded run is skipped_policy with a policy message, and that nextRunAt advanced by one day. Then require the same automation to dispatch under an unlocked policy, and require runNow to dispatch even under lockdown. Separately, create a bot with a routine, delete the bot, and require the routine to survive with botId null and enabled true; and require the routine input builder to return null for a folder-bound or unbound bot.",
+      "commands": [
+        "pnpm exec vitest run --config config/vitest.config.ts src/main/automations/service-enterprise-policy.test.ts src/main/persistence-bots.test.ts src/shared/bot-types.test.ts src/renderer/src/components/sidebar/bots/bot-routine-draft.test.ts src/renderer/src/components/sidebar/bots/bot-workspace-options.test.ts src/renderer/src/components/sidebar/Sidebar.test.tsx"
+      ],
+      "testFiles": [
+        "src/main/automations/service-enterprise-policy.test.ts",
+        "src/main/persistence-bots.test.ts",
+        "src/shared/bot-types.test.ts",
+        "src/renderer/src/components/sidebar/bots/bot-routine-draft.test.ts",
+        "src/renderer/src/components/sidebar/bots/bot-workspace-options.test.ts",
+        "src/renderer/src/components/sidebar/Sidebar.test.tsx"
+      ],
+      "assertionRefs": [
+        {
+          "file": "src/main/automations/service-enterprise-policy.test.ts",
+          "assertions": [
+            "refuses a due scheduled run under lockdown and records it as skipped_policy",
+            "never reaches the headless dispatcher under lockdown",
+            "still dispatches a manual run under lockdown",
+            "dispatches the same scheduled run when the policy is unlocked"
+          ]
+        },
+        {
+          "file": "src/main/persistence-bots.test.ts",
+          "assertions": [
+            "detaches routines on delete instead of deleting them",
+            "keeps projectId and workspaceKey consistent through an update"
+          ]
+        },
+        {
+          "file": "src/renderer/src/components/sidebar/bots/bot-routine-draft.test.ts",
+          "assertions": [
+            "refuses a folder-bound bot",
+            "produces an ordinary automation tagged with the bot"
+          ]
+        },
+        {
+          "file": "src/renderer/src/components/sidebar/Sidebar.test.tsx",
+          "assertions": [
+            "swaps the workspace list for the bot roster without unmounting the sidebar chrome"
+          ]
+        }
+      ],
+      "evidenceRuns": [
+        {
+          "date": "2026-08-22",
+          "runner": "local",
+          "platform": "macos",
+          "command": "pnpm exec vitest run --config config/vitest.config.ts src/main/automations/service-enterprise-policy.test.ts src/main/persistence-bots.test.ts src/shared/bot-types.test.ts src/renderer/src/components/sidebar/bots/bot-routine-draft.test.ts src/renderer/src/components/sidebar/bots/bot-workspace-options.test.ts src/renderer/src/components/sidebar/Sidebar.test.tsx",
+          "result": "passed",
+          "durationSeconds": 3,
+          "summary": "The locked scheduler recorded skipped_policy without sending the renderer dispatch or calling the headless dispatcher, the manual run still dispatched, the unlocked control dispatched, bot deletion detached its routine, and the folder-bound routine builder refused."
+        }
+      ],
+      "runtimeBudget": {
+        "p95Seconds": 60,
+        "scope": "focused in-process automation, persistence, and renderer contract tests; no Electron journey"
+      },
+      "flakeHistory": {
+        "status": "unknown",
+        "evidence": "Deterministic in-process tests with fake timers and an injected policy; no CI soak history yet."
+      },
+      "redGreenEvidence": {
+        "status": "complete",
+        "evidence": "The lockdown cases fail against the pre-gate service (the renderer send mock is called and the run reaches dispatching), and the unlocked control plus the manual-run case fail if the gate is widened to cover every trigger."
+      },
+      "performanceBudget": {
+        "required": false,
+        "evidence": "The gate is one policy read per dispatch attempt, on a path that already reads the store and resolves a run target."
+      },
+      "promotionCriteria": [
+        "Keep the locked, unlocked, manual, and headless cases green in CI.",
+        "Add a Windows or Linux evidence run once the fork's CI matrix runs this suite there.",
+        "Collect soak history without unexplained flakes in the fake-timer scheduler cases."
+      ],
+      "knownGaps": [
+        "No packaged-build journey: the policy is injected in-process rather than discovered from %ProgramData% or the bundled resources file.",
+        "No coverage for a remote-host scheduler owner; remote scheduling is refused earlier by run-target resolution and is not part of this gate.",
+        "The renderer surfaces (hidden New routine control, policy notice) are asserted only through the pure eligibility helpers, not a rendered bot detail."
+      ],
+      "demotionRule": "Demote if a scheduled run reaches an agent while disableUnattendedAgentRuns is on, if a refused run stops being recorded, or if a manual run starts being refused."
+    },
+    {
       "id": "ephemeral-vm-runtime.rollback-readable-sidecar",
       "title": "VM lifecycle stays rollback-readable and cleanup-retryable",
       "maturity": "experimental",

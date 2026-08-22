@@ -64,6 +64,22 @@ export type EnterprisePolicy = {
    */
   disableExternalAutomations: boolean
   /**
+   * Refuse Orca's OWN scheduler: when a stored automation's time comes, nothing is
+   * dispatched and the run is recorded as `skipped_policy`. Bot routines ride the same
+   * service, so one switch covers both.
+   *
+   * A different axis from `disableExternalAutomations`, which covers the third-party
+   * runners (`hermes`, `openclaw`) and the vendor CLIs they spawn. That switch never
+   * looked at the in-app timer at all, so a bare `"lockdown": true` still left Orca free
+   * to start an agent with nobody at the keyboard — the exact thing its own comment says
+   * should be the last lane left live.
+   *
+   * Deliberately scoped to the *unattended* trigger. A person pressing Run now is at the
+   * keyboard and could have typed the same prompt into a terminal; refusing that would
+   * remove a capability without removing a risk.
+   */
+  disableUnattendedAgentRuns: boolean
+  /**
    * Stop suggesting that a user install an agent CLI themselves: the "Available to
    * install" section in Settings → Agents and the onboarding step's install banner.
    * A different axis from `allowedAgents` — that one says which agents may be selected,
@@ -171,6 +187,7 @@ export const LOCKDOWN_INHERITING_KEYS = [
   'disableMobilePairing',
   'disableMobileEmulator',
   'disableExternalAutomations',
+  'disableUnattendedAgentRuns',
   'disableAgentInstallSuggestions',
   'disableVendorProviderAccounts',
   'disableRemoteOrcaServer',

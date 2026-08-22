@@ -296,6 +296,7 @@ import type {
   AutomationPrecheckResult,
   AutomationUpdateInput
 } from '../shared/automations-types'
+import type { Bot, BotCreateInput, BotUpdateInput } from '../shared/bot-types'
 import type { KeybindingActionId, KeybindingFileSnapshot } from '../shared/keybindings'
 import type {
   AiVaultDeleteSessionArgs,
@@ -4865,6 +4866,14 @@ const api = {
 
     submitCredential: (args: { requestId: string; value: string | null }): Promise<void> =>
       ipcRenderer.invoke('ssh:submitCredential', args)
+  },
+
+  bots: {
+    list: (): Promise<Bot[]> => ipcRenderer.invoke('bots:list'),
+    create: (input: BotCreateInput): Promise<Bot> => ipcRenderer.invoke('bots:create', input),
+    update: (args: { id: string; updates: BotUpdateInput }): Promise<Bot> =>
+      ipcRenderer.invoke('bots:update', args),
+    delete: (args: { id: string }): Promise<void> => ipcRenderer.invoke('bots:delete', args)
   },
 
   automations: {

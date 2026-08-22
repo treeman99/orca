@@ -48,6 +48,8 @@ import { createOrcaProfilesSlice } from './orca-profiles'
 import { createNewIssueDraftSlice } from './new-issue-draft'
 import { createTaskCreationDraftsSlice } from './task-creation-drafts'
 import { createTerminalQuickCommandHostsSlice } from './terminal-quick-command-hosts'
+import { createBotsSlice } from './bots'
+import { createLeftSidebarLaneSlice } from './left-sidebar-lane'
 import { translate } from '@/i18n/i18n'
 
 export const TEST_REPO = {
@@ -101,7 +103,9 @@ export function createTestStore() {
     ...createOrcaProfilesSlice(...a),
     ...createNewIssueDraftSlice(...a),
     ...createTaskCreationDraftsSlice(...a),
-    ...createTerminalQuickCommandHostsSlice(...a)
+    ...createTerminalQuickCommandHostsSlice(...a),
+    ...createBotsSlice(...a),
+    ...createLeftSidebarLaneSlice(...a)
   }))
 }
 

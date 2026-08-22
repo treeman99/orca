@@ -32,6 +32,14 @@
   "requireComputerUseApproval": true, // Computer Use 변경 동작 전 사용자 확인
   "disableMobileEmulator": true, // 로컬 시뮬레이터/AVD 스트리밍 (페어링과 다른 스위치)
   "disableExternalAutomations": true, // hermes/openclaw 크론 레인
+  // Orca 자신의 스케줄러 — 예약된 자동화/봇 루틴이 사람 없이 에이전트를 띄우는 레인입니다.
+  // ⚠️ 기본을 false로 둔 이유: 이 스위치가 생기기 전부터 사내에서 예약 자동화를 쓰고 있었고,
+  //    스위치 도입만으로 그 기능이 조용히 꺼지면 안 되기 때문입니다. 정책 판단은 관리자 몫입니다.
+  // ⚠️ lockdown: true 아래에서는 이 줄을 지우면 상속되어 true가 됩니다(=예약 실행 차단).
+  //    무인 실행을 막으려면 이 줄을 지우거나 true로 바꾸세요. "지금 실행"은 영향받지 않습니다.
+  // ⚠️ %ProgramData% 정책 파일이 이 키를 언급하지 않으면 그 파일이 채택될 때 lockdown을 상속합니다
+  //    (바닥선은 조이는 방향으로만 채웁니다 — docs/reference/enterprise-policy.md §2-1).
+  "disableUnattendedAgentRuns": false,
   "disableAgentInstallSuggestions": true, // "직접 설치하세요" 안내 표면
   "disableVendorLinks": true, // Discord/X/공개 이슈 트래커/벤더 문서로 나가는 링크 (사내 GHES는 예외)
 

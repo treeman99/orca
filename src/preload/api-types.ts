@@ -18,6 +18,7 @@ import type {
 import type { AiVaultApi } from './api/ai-vault-api'
 import type { AppApi, E2EApi, PlatformApi } from './api/app-api'
 import type { AutomationsApi } from './api/automation-api'
+import type { BotsApi } from './api/bot-api'
 import type { BrowserApi } from './api/browser-api'
 import type { CliApi } from './api/cli-install-api'
 import type { CrashReportsApi } from './api/crash-report-api'
@@ -140,6 +141,7 @@ export type PreloadApi = {
   grokAccounts: GrokAccountsApi
   ssh: SshApi
   automations: AutomationsApi
+  bots: BotsApi
   wsl: RuntimeApi['wsl']
   pwsh: RuntimeApi['pwsh']
   gitBash: RuntimeApi['gitBash']
@@ -154,6 +156,7 @@ export type PreloadApi = {
 }
 
 export type { AppUpdateApi } from './api/app-update-api'
+export type { BotsApi } from './api/bot-api'
 export type { ClaudeUsageApi, CodexUsageApi, OpenCodeUsageApi } from './api/agent-usage-api'
 export type { AiVaultApi } from './api/ai-vault-api'
 export type { AppApi } from './api/app-api'

@@ -45,6 +45,7 @@ describe('resolveEnterprisePolicy', () => {
       'disableMobilePairing',
       'disableMobileEmulator',
       'disableExternalAutomations',
+      'disableUnattendedAgentRuns',
       'disableAgentInstallSuggestions',
       'disableVendorProviderAccounts',
       'disableRemoteOrcaServer',
