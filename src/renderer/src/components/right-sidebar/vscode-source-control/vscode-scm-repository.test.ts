@@ -8,7 +8,7 @@ import {
   type VscodeScmSubmoduleStatusState
 } from './vscode-scm-repository'
 import { isUninitializedSubmoduleError } from './vscode-scm-submodule-availability'
-import { canDiscardStatusEntry } from '../source-control-entry-actions'
+import { canDiscardStatusEntry } from '../source-control/listing/entry-actions'
 import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 
 function entry(partial: Partial<GitStatusEntry> & Pick<GitStatusEntry, 'path'>): GitStatusEntry {

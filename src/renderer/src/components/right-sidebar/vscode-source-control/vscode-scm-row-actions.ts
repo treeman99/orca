@@ -3,7 +3,7 @@ import {
   canDiscardStatusEntry,
   canStageStatusEntry,
   canUnstageStatusEntry
-} from '../source-control-entry-actions'
+} from '../source-control/listing/entry-actions'
 import type { VscodeScmRowAction } from './VscodeScmResourceRow'
 import type { VscodeScmResourceGroup } from './vscode-scm-resource-groups'
 import type { GitStatusEntry } from '../../../../../shared/git-status-types'

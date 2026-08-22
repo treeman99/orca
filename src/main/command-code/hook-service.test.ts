@@ -136,7 +136,10 @@ describe('CommandCodeHookService', () => {
         body += chunk
       })
       req.on('end', () => {
-        requests.push({ body, token: req.headers['x-orca-agent-hook-token'] })
+        requests.push({
+          body,
+          token: req.headers['x-orca-agent-hook-token']
+        })
         res.statusCode = 204
         res.end()
       })

@@ -152,8 +152,8 @@ export class ClaudeRuntimeAuthService {
     })
   }
 
-  getRuntimeConfigDir(): string {
-    return this.pathResolver.getRuntimePaths().configDir
+  getRuntimeConfigDir(target?: ClaudeAccountSelectionTarget): string {
+    return this.getPreparation(target).configDir
   }
 
   private initializeLastSyncedState(): void {
@@ -1096,7 +1096,7 @@ export class ClaudeRuntimeAuthService {
             [
               '-d',
               wslInfo.distro,
-              '--',
+              '--exec',
               'bash',
               '-lc',
               buildEncodedWslBashCommand(

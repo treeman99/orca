@@ -7,7 +7,8 @@
 import type { Store } from '../persistence'
 import type { GitRuntimeOptions } from '../git/git-runtime-options'
 import { resolveSubmoduleWorktreePath } from '../git/status'
-import { resolveRegisteredWorktreePath, validateGitRelativeFilePath } from './filesystem-auth'
+import { resolveRegisteredWorktreePath } from './registered-worktree-roots-cache'
+import { validateGitRelativeFilePath } from './filesystem-path-containment'
 import { getLocalGitOptionsForRegisteredWorktree } from './local-worktree-runtime-options'
 
 export type SubmodulePathsIpcArgs = {

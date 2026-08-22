@@ -36,20 +36,41 @@ export const OPENCLAUDE_HOOK_SETTINGS: ClaudeCompatibleHookSettings = {
 export const CLAUDE_EVENTS = [
   // Why: SessionStart is the only event a resumed/idle session emits before the
   // first prompt; without it the sidebar row can't exist until the user types (STA-3386).
-  { eventName: 'SessionStart', definition: { hooks: [{ type: 'command', command: '' }] } },
-  { eventName: 'UserPromptSubmit', definition: { hooks: [{ type: 'command', command: '' }] } },
-  { eventName: 'Stop', definition: { hooks: [{ type: 'command', command: '' }] } },
+  {
+    eventName: 'SessionStart',
+    definition: { hooks: [{ type: 'command', command: '' }] }
+  },
+  {
+    eventName: 'UserPromptSubmit',
+    definition: { hooks: [{ type: 'command', command: '' }] }
+  },
+  {
+    eventName: 'Stop',
+    definition: { hooks: [{ type: 'command', command: '' }] }
+  },
   // Why: OpenClaude skips normal Stop hooks after API/model errors and emits
   // StopFailure instead; without this hook Orca leaves the turn spinning.
-  { eventName: 'StopFailure', definition: { hooks: [{ type: 'command', command: '' }] } },
+  {
+    eventName: 'StopFailure',
+    definition: { hooks: [{ type: 'command', command: '' }] }
+  },
   // Why: subagent/teammate lifecycle feeds the sidebar's child rows and keeps
   // a pane 'working' while background children outlive the lead's turn.
   // TeammateIdle parks turn-based teammates without trusting their permanently
   // "running" background_tasks entry to gate the pane.
   // Older Claude builds ignore unregistered event names (StopFailure precedent).
-  { eventName: 'SubagentStart', definition: { hooks: [{ type: 'command', command: '' }] } },
-  { eventName: 'SubagentStop', definition: { hooks: [{ type: 'command', command: '' }] } },
-  { eventName: 'TeammateIdle', definition: { hooks: [{ type: 'command', command: '' }] } },
+  {
+    eventName: 'SubagentStart',
+    definition: { hooks: [{ type: 'command', command: '' }] }
+  },
+  {
+    eventName: 'SubagentStop',
+    definition: { hooks: [{ type: 'command', command: '' }] }
+  },
+  {
+    eventName: 'TeammateIdle',
+    definition: { hooks: [{ type: 'command', command: '' }] }
+  },
   // Why: PreToolUse gives the dashboard a live readout of the in-flight tool
   // (name + input preview) before it completes.
   {

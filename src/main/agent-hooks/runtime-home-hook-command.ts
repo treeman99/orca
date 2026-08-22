@@ -15,12 +15,10 @@ export function wrapRuntimeHomeHookCommand(
     throw new Error(`Invalid managed script base name: ${scriptBaseName}`)
   }
   // Why: default-form every var — a static hook precheck (Grok) rejects the whole command on a bare
-  // reference it cannot resolve, even in a branch that platform never takes. Do not "simplify" the
-  // ${VAR-} back to $VAR: absent set -u the expansion is identical, only the precheck differs.
+  // reference it cannot resolve, even in a branch that platform never takes.
   const windowsScript = `"\${HOME-}/.orca/agent-hooks/${scriptBaseName}.cmd"`
   const posixScript = `"\${HOME-}/.orca/agent-hooks/${scriptBaseName}.sh"`
   const drain = POSIX_HOOK_STDIN_DRAIN_COMMAND
-  // Why: Claude-compatible permission gates fail closed on empty stdout (#14818).
   const missingScriptFallback = options.neutralJsonWhenMissing ? `${drain}; printf '{}\\n'` : drain
   const powershell = '"${SYSTEMROOT-}/System32/WindowsPowerShell/v1.0/powershell.exe"'
   const powershellFallback = options.neutralJsonWhenMissing ? "; Write-Output '{}'" : ''

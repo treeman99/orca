@@ -10,7 +10,7 @@ import { VscodeScmAheadBehind } from './VscodeScmAheadBehind'
 import { VscodeScmRepositorySection } from './VscodeScmRepositorySection'
 import type { VscodeScmUntrackedPolicy } from './vscode-scm-resource-groups'
 import type { VscodeScmRepository } from './vscode-scm-repository'
-import { SourceControlDiscardDialog } from '../source-control-discard-dialog'
+import { SourceControlDiscardDialog } from '../source-control/commit/discard-dialog'
 import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 
 function HeaderButton({

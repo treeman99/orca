@@ -3,7 +3,7 @@ import {
   getSubmoduleBranchLabel,
   toShortSubmoduleBranchName
 } from './source-control-submodule-branch'
-import type { SubmoduleStatusState } from './source-control-submodule-expansion'
+import type { SubmoduleStatusState } from './source-control/listing/submodule-expansion'
 
 function loaded(extra: Partial<Extract<SubmoduleStatusState, { status: 'loaded' }>> = {}) {
   return { status: 'loaded', entries: [], ...extra } as SubmoduleStatusState

@@ -7,7 +7,7 @@ import { isVscodeScmPointerRestoreRow } from './vscode-scm-row-actions'
 import { VSCODE_SCM_PARENT_REPOSITORY_ID, type VscodeScmRepository } from './vscode-scm-repository'
 import type { VscodeScmActionButton } from './vscode-scm-action-button'
 import type { VscodeScmRepositoryMutations } from './VscodeScmRepositorySection'
-import type { PendingDiscardConfirmation } from '../source-control-discard-dialog'
+import type { PendingDiscardConfirmation } from '../source-control/commit/discard-dialog'
 
 type ScopedDiscard = { repositoryId: string; pending: PendingDiscardConfirmation }
 

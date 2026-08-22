@@ -1,6 +1,7 @@
 import { getAgentCatalog, getFullAgentCatalog } from '@/lib/agent-catalog'
-import { normalizeMatchQuery, tokenizeMatchValue } from './query-token-match'
+import { filterEnabledTuiAgents } from '../../../../shared/tui-agent-selection'
 import { filterAgentsByPolicy } from '../../../../shared/corporate-agent-access'
+import { normalizeMatchQuery, tokenizeMatchValue } from './query-token-match'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 
 export type TabAgentLaunchOption = {
@@ -31,10 +32,12 @@ function getCatalogEntry(agent: TuiAgent): { id: TuiAgent; label: string; cmd: s
 export function orderTabLaunchAgents(
   defaultAgent: TuiAgent | 'blank' | null | undefined,
   detected: readonly TuiAgent[],
+  disabled?: Iterable<unknown> | null,
   allowedAgents: readonly string[] | null = null
 ): TuiAgent[] {
+  const enabledDetected = filterEnabledTuiAgents(detected, disabled)
   const inCatalogOrder = filterAgentsByPolicy(
-    getAgentCatalog().filter((entry) => detected.includes(entry.id)),
+    getAgentCatalog().filter((entry) => enabledDetected.includes(entry.id)),
     (entry) => entry.id,
     allowedAgents
   ).map((entry) => entry.id)

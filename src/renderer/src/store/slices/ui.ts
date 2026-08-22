@@ -4,6 +4,7 @@ import type { AppState } from '../types'
 import { normalizeRightSidebarRoute } from '../right-sidebar-route'
 import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { ARTIFACT_SHARING_REMOVED } from '../../../../shared/artifact-sharing-removal'
+import { settleEvictedModalData } from './modal-slot-dismissal'
 import {
   findPrevLiveNonTaskStackHistoryIndex,
   findPrevLiveWorktreeHistoryIndex
@@ -136,6 +137,7 @@ import { getRepoHostIdentity } from './repo-host-identity'
 
 export type PendingSidebarWorktreeReveal = {
   worktreeId: string
+  executionHostId?: ExecutionHostId
   behavior: 'auto' | 'smooth'
   highlight?: boolean
   beginRename?: boolean
@@ -643,6 +645,7 @@ export type UISlice = {
     | 'activity'
     | 'automations'
     | 'space'
+    | 'skills'
     | 'artifacts'
     | 'mobile'
   previousViewBeforeSettings:
@@ -651,6 +654,7 @@ export type UISlice = {
     | 'activity'
     | 'automations'
     | 'space'
+    | 'skills'
     | 'artifacts'
     | 'mobile'
   previousViewBeforeActivity:
@@ -659,6 +663,7 @@ export type UISlice = {
     | 'tasks'
     | 'automations'
     | 'space'
+    | 'skills'
     | 'artifacts'
     | 'mobile'
   previousViewBeforeAutomations:
@@ -667,6 +672,7 @@ export type UISlice = {
     | 'tasks'
     | 'activity'
     | 'space'
+    | 'skills'
     | 'artifacts'
     | 'mobile'
   previousViewBeforeSpace:
@@ -675,6 +681,16 @@ export type UISlice = {
     | 'tasks'
     | 'activity'
     | 'automations'
+    | 'skills'
+    | 'artifacts'
+    | 'mobile'
+  previousViewBeforeSkills:
+    | 'terminal'
+    | 'settings'
+    | 'tasks'
+    | 'activity'
+    | 'automations'
+    | 'space'
     | 'artifacts'
     | 'mobile'
   previousViewBeforeMobile:
@@ -684,6 +700,7 @@ export type UISlice = {
     | 'activity'
     | 'automations'
     | 'space'
+    | 'skills'
     | 'artifacts'
   previousViewBeforeArtifacts:
     | 'terminal'
@@ -692,6 +709,7 @@ export type UISlice = {
     | 'activity'
     | 'automations'
     | 'space'
+    | 'skills'
     | 'mobile'
   setActiveView: (view: UISlice['activeView']) => void
   taskPageData: {
@@ -771,6 +789,15 @@ export type UISlice = {
   closeAutomationsPage: () => void
   openSpacePage: () => void
   closeSpacePage: () => void
+  openSkillsPage: () => void
+  closeSkillsPage: () => void
+  pendingSkillShareId: string | null
+  openSkillShare: (shareId: string) => void
+  clearPendingSkillShare: () => void
+  /** Set when another surface links straight to the page's shared-links view. */
+  pendingSkillsSharedView: boolean
+  openSkillsSharedLinks: () => void
+  clearPendingSkillsSharedView: () => void
   openArtifactsPage: () => void
   closeArtifactsPage: () => void
   openMobilePage: () => void
@@ -976,6 +1003,7 @@ export type UISlice = {
       behavior?: PendingSidebarWorktreeReveal['behavior']
       highlight?: boolean
       beginRename?: boolean
+      executionHostId?: ExecutionHostId
     }
   ) => void
   revealSidebarRow: (
@@ -1249,6 +1277,9 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
   previousViewBeforeActivity: 'terminal',
   previousViewBeforeAutomations: 'terminal',
   previousViewBeforeSpace: 'terminal',
+  previousViewBeforeSkills: 'terminal',
+  pendingSkillShareId: null,
+  pendingSkillsSharedView: false,
   previousViewBeforeMobile: 'terminal',
   previousViewBeforeArtifacts: 'terminal',
   // The third writer of `activeView`; a rebase that routes a menu or palette through
@@ -1490,6 +1521,32 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     set((state) => ({
       activeView: state.previousViewBeforeSpace
     })),
+  openSkillsPage: () =>
+    set((state) => ({
+      activeView: 'skills',
+      previousViewBeforeSkills:
+        state.activeView === 'skills' ? state.previousViewBeforeSkills : state.activeView
+    })),
+  closeSkillsPage: () =>
+    set((state) => ({
+      activeView: state.previousViewBeforeSkills
+    })),
+  openSkillShare: (shareId) =>
+    set((state) => ({
+      activeView: 'skills',
+      previousViewBeforeSkills:
+        state.activeView === 'skills' ? state.previousViewBeforeSkills : state.activeView,
+      pendingSkillShareId: shareId
+    })),
+  clearPendingSkillShare: () => set({ pendingSkillShareId: null }),
+  openSkillsSharedLinks: () =>
+    set((state) => ({
+      activeView: 'skills',
+      previousViewBeforeSkills:
+        state.activeView === 'skills' ? state.previousViewBeforeSkills : state.activeView,
+      pendingSkillsSharedView: true
+    })),
+  clearPendingSkillsSharedView: () => set({ pendingSkillsSharedView: false }),
   openArtifactsPage: () =>
     set((state) =>
       // The door the sidebar button and the Settings pane's "Open Artifacts" both use.
@@ -1591,12 +1648,18 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     if (modal === 'add-repo' || modal === 'create-worktree') {
       get().recordFeatureInteraction?.('workspace-creation')
     }
+    const evicted = get().modalData
     set({
       activeModal: modal,
       modalData: data
     })
+    settleEvictedModalData(evicted)
   },
-  closeModal: () => set({ activeModal: 'none', modalData: {} }),
+  closeModal: () => {
+    const evicted = get().modalData
+    set({ activeModal: 'none', modalData: {} })
+    settleEvictedModalData(evicted)
+  },
   featureTipsSeenIds: [],
   markFeatureTipsSeen: (ids) =>
     set((s) => {
@@ -2373,6 +2436,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     set({
       pendingRevealWorktree: {
         worktreeId,
+        ...(options?.executionHostId ? { executionHostId: options.executionHostId } : {}),
         behavior: options?.behavior ?? 'smooth',
         ...(options?.highlight ? { highlight: true } : {}),
         ...(options?.beginRename ? { beginRename: true } : {})

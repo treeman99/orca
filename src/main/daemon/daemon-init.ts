@@ -27,17 +27,19 @@ import {
   PROTOCOL_VERSION,
   type ListSessionsResult
 } from './types'
+import { getMacDaemonSystemResolverHealth, checkDaemonHealth } from './daemon-health'
 import {
-  getMacDaemonSystemResolverHealth,
   getMacDaemonTccAttributionHealth,
-  getDaemonLaunchIdentity,
-  checkDaemonHealth,
-  isDaemonStaleForCurrentBundle,
-  killStaleDaemon,
-  parseDaemonPidFile,
   type MacDaemonTccAttributionHealth
-} from './daemon-health'
+} from './daemon-tcc-attribution'
+import { getDaemonLaunchIdentity } from './daemon-pid-identity'
+import { isDaemonStaleForCurrentBundle } from './daemon-bundle-staleness'
+import { killStaleDaemon } from './daemon-stale-kill'
+import { parseDaemonPidFile } from './daemon-pid-file-parse'
 import { collectPinnedDaemonVersions, pruneOldDaemonHosts } from './daemon-host-relocation'
+// Fork: materializeRelocatedDaemonHost is reached through resolveDaemonLaunchHosts, which keeps
+// the install-dir image as a second attempt so a refused relocated copy cannot cost the whole
+// daemon lane (#5232).
 import { resolveDaemonLaunchHosts, type DaemonLaunchHost } from './daemon-launch-hosts'
 import { classifyDaemonLaunchFailure, logDaemonLaunch } from './daemon-launch-log'
 import { DegradedDaemonPtyProvider } from './degraded-daemon-pty-provider'

@@ -39,7 +39,6 @@ describe('getWindowsManagedLifecycleHook', () => {
     const scriptPath = 'C:\\Users\\%name%\\a^b&c\\.orca\\agent-hooks\\claude-hook.cmd'
     const hook = getWindowsManagedLifecycleHook(scriptPath)
 
-    // Why: Claude-hooks-compat consumers ignore `args` and spawn `command` bare (#14825).
     expect(hook.args).toBeUndefined()
     expect(hook.command).toMatch(
       /\/powershell\.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden /
@@ -279,7 +278,12 @@ describe('ClaudeHookService.install', () => {
       mkdirSync(join(tmpHome, '.claude'), { recursive: true })
       writeFileSync(
         settingsPath,
-        JSON.stringify({ statusLine: { type: 'command', command: '/usr/local/bin/my-statusline' } })
+        JSON.stringify({
+          statusLine: {
+            type: 'command',
+            command: '/usr/local/bin/my-statusline'
+          }
+        })
       )
 
       expect(new ClaudeHookService().install().state).toBe('installed')

@@ -19,9 +19,9 @@ import {
   type VscodeScmUntrackedPolicy
 } from './vscode-scm-resource-groups'
 import type { VscodeScmRepository } from './vscode-scm-repository'
-import type { PendingDiscardConfirmation } from '../source-control-discard-dialog'
-import { canDiscardStatusEntry, canStageStatusEntry } from '../source-control-entry-actions'
-import type { DiscardAllArea } from '../discard-all-sequence'
+import type { PendingDiscardConfirmation } from '../source-control/commit/discard-dialog'
+import { canDiscardStatusEntry, canStageStatusEntry } from '../source-control/listing/entry-actions'
+import type { DiscardAllArea } from '../source-control/commit/discard-all-sequence'
 import type { GitStatusEntry } from '../../../../../shared/git-status-types'
 import { MAX_DETECTED_SUBMODULES } from '../../../../../shared/git-submodule-list'
 

@@ -448,8 +448,6 @@ describe('Windows managed hook stdin structure', () => {
 })
 
 describe.skipIf(process.platform === 'win32')('managed hook stdin lifecycle', () => {
-  // Why: a compat consumer treats PreToolUse as a permission gate and blocks the tool call when
-  // stdout is empty, so the missing-script path must still answer with neutral JSON (#14818).
   it('emits neutral JSON when the Claude lifecycle script is missing', async () => {
     const command = getRemoteManagedCommand('/home/dev/.orca/agent-hooks/claude-hook.sh')
     const result = await runPosixHook(command)

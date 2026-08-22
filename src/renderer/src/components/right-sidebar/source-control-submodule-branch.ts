@@ -1,4 +1,4 @@
-import type { SubmoduleStatusState } from './source-control-submodule-expansion'
+import type { SubmoduleStatusState } from './source-control/listing/submodule-expansion'
 
 /**
  * What to show beneath an expanded submodule row so it reads as its own

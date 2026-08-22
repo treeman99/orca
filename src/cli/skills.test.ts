@@ -204,7 +204,7 @@ describe('orca skills CLI', () => {
       'Usage: orca skills get <topic> [--full] [--json]'
     )
     expect(String(logSpy.mock.calls[1]?.[0])).toContain(
-      'Commands:\n  list               List version-matched skill guides'
+      'Commands:\n  installed          List installed skill selectors'
     )
     expect(String(logSpy.mock.calls[1]?.[0])).toContain(
       'get                Print a version-matched skill guide'
@@ -215,7 +215,7 @@ describe('orca skills CLI', () => {
     expect(String(logSpy.mock.calls[1]?.[0])).toContain(
       'update             Refresh already-installed Orca skills from this build, with no network access'
     )
-    expect(String(logSpy.mock.calls[2]?.[0])).toContain('Skills:\n  skills list')
+    expect(String(logSpy.mock.calls[2]?.[0])).toContain('Skills:\n  skills installed')
     expect(String(logSpy.mock.calls[2]?.[0])).toContain('skills update')
     expect(runtimeClientConstructorMock).not.toHaveBeenCalled()
   })
