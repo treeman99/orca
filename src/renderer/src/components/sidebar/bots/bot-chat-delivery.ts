@@ -42,6 +42,7 @@ export async function deliverToBot(args: {
   const state = useAppStore.getState()
   const existing = findLiveBotChatSession({
     chatPaneKey: bot.chatPaneKey,
+    botName: bot.name,
     worktreeId,
     agentId: bot.agentId,
     state

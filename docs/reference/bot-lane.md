@@ -83,6 +83,11 @@ Hermes는 프로필마다 갈라지지 않는 정본 대화를 고정합니다. 
 
 - `Bot.chatPaneKey`가 그 봇의 대화 페인을 `tabId:leafId`로 붙듭니다. PTY id가 아니라 **페인 키**라서
   PTY가 재시작돼도 같은 대화로 되돌아옵니다.
+- **제목으로 복구합니다.** 앱을 재시작하면 탭 id가 새로 생겨 저장된 페인 키가 죽습니다.
+  그때는 그 워크스페이스에서 `bot:<handle>` 제목을 가진 살아 있는 세션을 찾아 다시 붙듭니다 —
+  사용자 눈앞에 돌고 있는 세션을 잃고 옆에 중복을 여는 일이 없어야 합니다.
+  복구된 키는 즉시 저장되어 다음부터는 다시 찾지 않습니다.
+  이 제목은 팀메이트가 서로를 찾는 키와 **같은 것**이라 복구와 발견이 어긋날 수 없습니다.
 - 첫 메시지는 `launchAgentBackgroundSession`으로 **백그라운드 탭**을 띄웁니다 — 봇이 답하느라
   사용자의 현재 탭을 빼앗으면 안 됩니다. 세션 제목은 `bot:<handle>`입니다(§6의 발견 수단).
 - 이후 메시지는 `submitPromptToAgentPty`로 같은 페인에 들어갑니다.
@@ -124,8 +129,16 @@ PR 3 좀 봐줘
 
 ```bash
 orca terminal list --json                 # 팀메이트는 bot:<handle> 제목으로 떠 있습니다
+# 목록에 없으면 = 아직 한 번도 메시지를 받지 않은 봇입니다. 같은 제목으로 직접 띄웁니다:
+orca terminal create --worktree active --title "bot:<handle>" --command "<agent>" --json
+orca terminal wait --terminal <handle> --for tui-idle --timeout-ms 120000 --json
 orca terminal send --terminal <handle> --text "<메시지>" --enter --json
 ```
+
+⚠️ **`create` 단계가 프리앰블에 반드시 있어야 합니다.** 봇은 누군가 메시지를 보내야 터미널이
+생기므로, 새로 만든 로스터에서는 팀메이트 대부분이 **떠 있지 않습니다.** 첫 버전은 `list`와 `send`만
+알려 줬고, 코디네이터 봇은 정확하게 "위임할 대상이 없으니 제가 직접 하겠습니다"로 결론냈습니다.
+제목이 정확해야 Orca가 그 터미널을 **그 봇의 대화로 채택**합니다(§5의 제목 복구와 같은 키).
 
 새 RPC를 만들지 않은 이유가 여기 있습니다 — 새 메서드는 capability 협상 없이는 페어링된
 구버전 클라이언트에 닿지 않습니다([remote-wire-compatibility.md](./remote-wire-compatibility.md)).

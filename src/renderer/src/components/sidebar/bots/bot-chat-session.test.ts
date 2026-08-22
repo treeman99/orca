@@ -26,6 +26,7 @@ function makeState(overrides: Partial<BotChatSessionState> = {}): BotChatSession
 
 const args = (state: BotChatSessionState, chatPaneKey: string | null = PANE_KEY) => ({
   chatPaneKey,
+  botName: 'Release Checker',
   worktreeId: 'wt1',
   agentId: 'claude' as const,
   state
@@ -53,7 +54,7 @@ describe('findLiveBotChatSession', () => {
     expect(findLiveBotChatSession(args(state))?.idle).toBe(false)
   })
 
-  it('returns null when the bot has never been messaged', () => {
+  it('returns null when the bot has never been messaged and no titled session exists', () => {
     expect(findLiveBotChatSession(args(makeState(), null))).toBeNull()
   })
 
@@ -100,6 +101,64 @@ describe('findLiveBotChatSession', () => {
       agentStatusByPaneKey: { [PANE_KEY]: { state: 'done' } as AgentStatusEntry }
     })
     expect(findLiveBotChatSession(args(state))?.paneKey).toBe(PANE_KEY)
+  })
+})
+
+// The recovery that makes a restart survivable: tab ids change, the bot: title does not.
+describe('findLiveBotChatSession — title recovery', () => {
+  const titledState = (): BotChatSessionState =>
+    ({
+      agentStatusByPaneKey: {
+        [PANE_KEY]: { state: 'done', agentType: 'claude' } as AgentStatusEntry
+      },
+      ptyIdsByTabId: { tab1: ['pty1'] },
+      terminalLayoutsByTabId: { tab1: { ptyIdsByLeafId: { [LEAF_ID]: 'pty1' } } },
+      unifiedTabsByWorktree: {
+        wt1: [
+          {
+            contentType: 'terminal',
+            entityId: 'tab1',
+            customLabel: 'bot:release-checker',
+            label: 'zsh'
+          }
+        ]
+      }
+    }) as unknown as BotChatSessionState
+
+  it('finds the session by its bot: title when the stored key is stale', () => {
+    const found = findLiveBotChatSession({
+      chatPaneKey: 'deadtab:11111111-2222-4333-8444-555555555555',
+      botName: 'Release Checker',
+      worktreeId: 'wt1',
+      agentId: 'claude',
+      state: titledState()
+    })
+    // The healed key is the live one, which the caller persists.
+    expect(found?.paneKey).toBe(PANE_KEY)
+  })
+
+  it('finds it with no stored key at all', () => {
+    expect(
+      findLiveBotChatSession({
+        chatPaneKey: null,
+        botName: 'Release Checker',
+        worktreeId: 'wt1',
+        agentId: 'claude',
+        state: titledState()
+      })?.paneKey
+    ).toBe(PANE_KEY)
+  })
+
+  it('does not adopt another bot’s titled session', () => {
+    expect(
+      findLiveBotChatSession({
+        chatPaneKey: null,
+        botName: 'Code Reviewer',
+        worktreeId: 'wt1',
+        agentId: 'claude',
+        state: titledState()
+      })
+    ).toBeNull()
   })
 })
 

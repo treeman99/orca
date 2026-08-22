@@ -95,6 +95,7 @@ export function BotsPanel(): React.JSX.Element {
     }
     return findLiveBotChatSession({
       chatPaneKey: selectedBot.chatPaneKey,
+      botName: selectedBot.name,
       worktreeId: eligibility.worktreeId,
       agentId: selectedBot.agentId,
       state: {
@@ -111,6 +112,14 @@ export function BotsPanel(): React.JSX.Element {
     terminalLayoutsByTabId,
     unifiedTabsByWorktree
   ])
+
+  // Heal a stale binding: an app restart re-creates tabs with new ids, so the stored pane key
+  // can point at nothing while the session itself is right there under its bot: title.
+  useEffect(() => {
+    if (selectedBot && selectedSession && selectedBot.chatPaneKey !== selectedSession.paneKey) {
+      void updateBot(selectedBot.id, { chatPaneKey: selectedSession.paneKey })
+    }
+  }, [selectedBot, selectedSession, updateBot])
 
   const handleDelete = async (): Promise<void> => {
     if (!selectedBot) {

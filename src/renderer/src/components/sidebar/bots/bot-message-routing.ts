@@ -58,10 +58,16 @@ export function formatBotToBotMessage(args: { fromBot: Bot; body: string }): str
 /**
  * The teammate roster handed to a bot session when it starts.
  *
- * Named terminals are the discovery mechanism: every bot session launches with the title
- * `bot:<handle>`, so `orca terminal list --json` is enough for one bot to find another. That
- * keeps bot-to-bot messaging on commands that already exist instead of a new RPC that would
- * need capability negotiation to reach a paired client.
+ * Named terminals are the whole mechanism: every bot conversation runs in a terminal titled
+ * `bot:<handle>`, so `orca terminal list` finds a teammate and `orca terminal create` with
+ * that title STARTS one that is not running yet. Orca's own roster discovers sessions by the
+ * same title, so a teammate the agent starts this way is adopted as that bot's conversation
+ * rather than becoming an orphan terminal.
+ *
+ * Why the create step is spelled out: a bot only gets a terminal once someone messages it, so
+ * on a fresh roster most teammates are NOT running. The first version of this preamble
+ * listed only `list` and `send`, and the coordinator correctly concluded it had nobody to
+ * delegate to and did the work itself.
  *
  * Returns null when the bot has no teammates — an empty roster is noise in a system prompt.
  */
@@ -75,7 +81,7 @@ export function buildBotTeammatePreamble(args: {
   }
   const lines = teammates.map((bot) => {
     const role = bot.title.trim()
-    return `- @${botHandle(bot.name)} — ${bot.name}${role ? `: ${role}` : ''}`
+    return `- @${botHandle(bot.name)} — ${bot.name}${role ? `: ${role}` : ''} (agent: ${bot.agentId}, terminal title: ${botSessionTitle(bot)})`
   })
   return [
     `You are the Orca bot "${args.self.name}" (@${botHandle(args.self.name)}).`,
@@ -84,11 +90,20 @@ export function buildBotTeammatePreamble(args: {
     'Teammates you can hand work to:',
     ...lines,
     '',
-    'To message a teammate, find its terminal and send to it:',
-    '  orca terminal list --json          # the teammate runs under the title bot:<handle>',
+    'Each teammate runs in a terminal titled bot:<handle>. A teammate that has never been',
+    'messaged has NO terminal yet — start it before delegating:',
+    '',
+    '  orca terminal list --json',
+    '  # not listed? start it in this same workspace, with that exact title:',
+    '  orca terminal create --worktree active --title "bot:<handle>" --command "<agent>" --json',
+    '  orca terminal wait --terminal <handle> --for tui-idle --timeout-ms 120000 --json',
     '  orca terminal send --terminal <handle> --text "<message>" --enter --json',
-    'Prefix what you send with who you are. Do not forward a message verbatim —',
-    'say what you need in your own words, and only when the work is actually theirs.'
+    '',
+    'The title matters: Orca adopts a terminal with that exact title as that bot’s',
+    'conversation, so the user sees your delegation in the right place.',
+    'Prefix what you send with who you are. Do not forward a message verbatim — say what you',
+    'need in your own words, and only when the work is actually theirs.',
+    'If you cannot start a teammate, say so instead of quietly doing their work yourself.'
   ]
     .filter((line) => line !== null)
     .join('\n')

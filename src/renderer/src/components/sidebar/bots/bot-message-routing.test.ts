@@ -86,6 +86,11 @@ describe('buildBotTeammatePreamble', () => {
     // Discovery has to be a command the agent can actually run today.
     expect(preamble).toContain('orca terminal list --json')
     expect(preamble).toContain('orca terminal send')
+    // A teammate that was never messaged has no terminal; without the create step the
+    // coordinator concludes it has nobody to delegate to and does the work itself.
+    expect(preamble).toContain('orca terminal create')
+    expect(preamble).toContain('bot:code-reviewer')
+    expect(preamble).toContain('agent: claude')
   })
 
   it('returns null for a lone bot — an empty roster is noise in a system prompt', () => {

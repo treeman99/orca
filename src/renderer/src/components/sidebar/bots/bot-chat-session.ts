@@ -10,9 +10,10 @@
 // follow-up mid-turn is normal, while a scheduled run must not stack on top of one.
 
 import type { AgentStatusEntry } from '../../../../../shared/agent-status-types'
-import { parsePaneKey } from '../../../../../shared/stable-pane-id'
+import { makePaneKey, parsePaneKey } from '../../../../../shared/stable-pane-id'
 import type { TuiAgent } from '../../../../../shared/tui-agent'
 import type { AppState } from '@/store/types'
+import { botSessionTitle } from './bot-message-routing'
 
 export type BotChatSession = {
   tabId: string
@@ -37,23 +38,14 @@ function isSameAgent(entry: AgentStatusEntry | undefined, agentId: TuiAgent): bo
   return !entry.agentType || entry.agentType === 'unknown' || entry.agentType === agentId
 }
 
-/**
- * The bot's live conversation pane, or null when the next message must launch a new one.
- *
- * Returns null rather than throwing for every miss — an absent, closed, reassigned, or
- * different-agent pane are all the same instruction to the caller.
- */
-export function findLiveBotChatSession(args: {
-  chatPaneKey: string | null
+function resolvePaneKey(args: {
+  paneKey: string
   worktreeId: string
   agentId: TuiAgent
   state: BotChatSessionState
 }): BotChatSession | null {
-  const { chatPaneKey, worktreeId, agentId, state } = args
-  if (!chatPaneKey) {
-    return null
-  }
-  const parsed = parsePaneKey(chatPaneKey)
+  const { paneKey, worktreeId, agentId, state } = args
+  const parsed = parsePaneKey(paneKey)
   if (!parsed) {
     return null
   }
@@ -68,7 +60,7 @@ export function findLiveBotChatSession(args: {
   if (!ptyId || !state.ptyIdsByTabId[parsed.tabId]?.includes(ptyId)) {
     return null
   }
-  const entry = state.agentStatusByPaneKey[chatPaneKey]
+  const entry = state.agentStatusByPaneKey[paneKey]
   if (!isSameAgent(entry, agentId)) {
     return null
   }
@@ -76,9 +68,75 @@ export function findLiveBotChatSession(args: {
     tabId: parsed.tabId,
     leafId: parsed.leafId,
     ptyId,
-    paneKey: chatPaneKey,
+    paneKey,
     idle: entry?.state === 'done'
   }
+}
+
+/**
+ * A live session found by the tab title this bot's sessions carry (`bot:<handle>`).
+ *
+ * Why a second lookup exists: an app restart re-creates tabs with new ids, so a stored pane
+ * key goes stale even when the daemon kept the PTY alive and the user is looking straight at
+ * the running session. Without this the bot loses a conversation that is plainly still there,
+ * and the next message opens a duplicate beside it.
+ *
+ * The title is the same key teammates discover each other by, so recovery and discovery
+ * cannot drift apart.
+ */
+function findBotSessionByTitle(args: {
+  botName: string
+  worktreeId: string
+  agentId: TuiAgent
+  state: BotChatSessionState
+}): BotChatSession | null {
+  const { botName, worktreeId, agentId, state } = args
+  const title = botSessionTitle({ name: botName })
+  const candidates = (state.unifiedTabsByWorktree[worktreeId] ?? []).filter(
+    (tab) => tab.contentType === 'terminal' && (tab.customLabel === title || tab.label === title)
+  )
+  for (const tab of candidates) {
+    const layout = state.terminalLayoutsByTabId[tab.entityId]?.ptyIdsByLeafId ?? {}
+    for (const [leafId, ptyId] of Object.entries(layout)) {
+      if (!ptyId) {
+        continue
+      }
+      const session = resolvePaneKey({
+        paneKey: makePaneKey(tab.entityId, leafId),
+        worktreeId,
+        agentId,
+        state
+      })
+      if (session) {
+        return session
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * The bot's live conversation pane, or null when the next message must launch a new one.
+ *
+ * Two lookups, in order: the stored pane key, then the session title. Returns null rather
+ * than throwing for every miss — an absent, closed, reassigned, or different-agent pane are
+ * all the same instruction to the caller.
+ *
+ * When the title lookup wins, the returned `paneKey` differs from the stored one; callers
+ * persist it so the binding heals instead of re-searching on every render.
+ */
+export function findLiveBotChatSession(args: {
+  chatPaneKey: string | null
+  botName: string
+  worktreeId: string
+  agentId: TuiAgent
+  state: BotChatSessionState
+}): BotChatSession | null {
+  const { chatPaneKey, botName, worktreeId, agentId, state } = args
+  const bound = chatPaneKey
+    ? resolvePaneKey({ paneKey: chatPaneKey, worktreeId, agentId, state })
+    : null
+  return bound ?? findBotSessionByTitle({ botName, worktreeId, agentId, state })
 }
 
 /** The bot's newest reply, for the chat surface. Falls back to the last completed turn. */
