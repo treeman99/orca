@@ -12,6 +12,7 @@ import type {
 } from '../../../../../shared/automations-types'
 import { buildAutomationRrule } from '../../../../../shared/automation-schedules'
 import { getBotRoutineEligibility, type Bot } from '../../../../../shared/bot-types'
+import { buildBotRoleBlock } from './bot-message-routing'
 
 export type BotRoutinePreset = Exclude<AutomationSchedulePreset, 'custom'>
 
@@ -72,7 +73,10 @@ export function buildBotRoutineCreateInput(args: {
   return {
     botId: args.bot.id,
     name: args.draft.name.trim(),
-    prompt: args.draft.prompt.trim(),
+    // The role travels WITH the prompt, not just with the session. A routine can land in a
+    // session the daemon could not keep alive, and a fresh agent that was never told who it
+    // is runs the prompt as a generic assistant — ignoring the scope the user wrote.
+    prompt: `${buildBotRoleBlock(args.bot)}\n\n---\n\n${args.draft.prompt.trim()}`,
     agentId: args.bot.agentId,
     projectId: eligibility.projectId,
     workspaceMode: 'existing',

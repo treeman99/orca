@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Bot } from '../../../../../shared/bot-types'
 import {
   botSessionTitle,
-  buildBotTeammatePreamble,
+  buildBotSessionPreamble,
   formatBotToBotMessage,
   parseBotMention
 } from './bot-message-routing'
@@ -79,7 +79,7 @@ describe('formatBotToBotMessage', () => {
 
 describe('buildBotTeammatePreamble', () => {
   it('names every teammate but not the bot itself', () => {
-    const preamble = buildBotTeammatePreamble({ self: checker, roster })
+    const preamble = buildBotSessionPreamble({ self: checker, roster })
     expect(preamble).toContain('@code-reviewer — Code Reviewer: Reviews open PRs')
     expect(preamble).toContain('@릴리스-점검')
     expect(preamble).not.toContain('@release-checker —')
@@ -93,8 +93,31 @@ describe('buildBotTeammatePreamble', () => {
     expect(preamble).toContain('agent: claude')
   })
 
-  it('returns null for a lone bot — an empty roster is noise in a system prompt', () => {
-    expect(buildBotTeammatePreamble({ self: checker, roster: [checker] })).toBeNull()
+  // A lone bot used to get NO preamble at all, so its name, job, and description never
+  // reached the agent and it behaved as a generic assistant.
+  it('still identifies a lone bot, without a teammate section', () => {
+    const preamble = buildBotSessionPreamble({ self: checker, roster: [checker] })
+    expect(preamble).toContain('Release Checker')
+    expect(preamble).toContain('@release-checker')
+    expect(preamble).not.toContain('Teammates you can hand work to')
+  })
+
+  // The description is where a user writes scope — "only look in this repo", "read this
+  // page first" — so it has to arrive as an instruction, not as background.
+  it('delivers the description as standing instructions', () => {
+    const scoped = makeBot({
+      description: 'Search only https://github.example.com/team/api — never the open web.'
+    })
+    const preamble = buildBotSessionPreamble({ self: scoped, roster: [scoped] })
+    expect(preamble).toContain('Standing instructions')
+    expect(preamble).toContain('https://github.example.com/team/api')
+    expect(preamble).toContain('every turn')
+  })
+
+  it('omits the standing-instructions block when there is no description', () => {
+    expect(buildBotSessionPreamble({ self: checker, roster: [checker] })).not.toContain(
+      'Standing instructions'
+    )
   })
 
   // Delegation never crosses projects, and a teammate in another checkout could not be
@@ -106,8 +129,9 @@ describe('buildBotTeammatePreamble', () => {
       projectId: 'r2',
       workspaceKey: 'worktree:r2::/wt'
     })
-    const preamble = buildBotTeammatePreamble({ self: checker, roster: [checker, elsewhere] })
-    expect(preamble).toBeNull()
+    const preamble = buildBotSessionPreamble({ self: checker, roster: [checker, elsewhere] })
+    expect(preamble).not.toContain('Other Project Bot')
+    expect(preamble).not.toContain('Teammates you can hand work to')
   })
 })
 

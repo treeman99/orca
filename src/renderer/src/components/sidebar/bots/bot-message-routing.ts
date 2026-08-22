@@ -57,7 +57,52 @@ export function formatBotToBotMessage(args: { fromBot: Bot; body: string }): str
 }
 
 /**
- * The teammate roster handed to a bot session when it starts.
+ * Everything a bot session is told about itself when it starts.
+ *
+ * Three parts, and the order matters: who you are, the standing instructions you were created
+ * with, then who you can hand work to.
+ *
+ * Why this is never null, unlike the teammate section it replaced: a bot with no teammates was
+ * getting NO preamble at all, so its name, its job, and its description never reached the
+ * agent. The user filled those fields in and the bot behaved as a generic assistant.
+ */
+export function buildBotSessionPreamble(args: { self: Bot; roster: readonly Bot[] }): string {
+  return [buildBotRoleBlock(args.self), ...buildTeammateSection(args)]
+    .filter((line) => line !== null)
+    .join('\n')
+}
+
+/**
+ * Who this bot is and what it was told to do — without the delegation recipe.
+ *
+ * Split out because a scheduled routine needs the role but not the teammate section: it runs
+ * one prompt on a timer, and the recipe is several lines of shell that would dominate it.
+ */
+export function buildBotRoleBlock(bot: Bot): string {
+  const description = bot.description.trim()
+  return [
+    `You are the Orca bot "${bot.name}" (@${botHandle(bot.name)}).`,
+    bot.title.trim() ? `Your job: ${bot.title.trim()}` : null,
+    // Framed as standing instructions rather than a bio: the description is where a user
+    // writes scope ("only look in this repo", "read this page first"), and a bio would read
+    // as background the agent may drop once it gets a concrete request.
+    ...(description
+      ? [
+          '',
+          'Standing instructions from the person who created you. They apply on every turn,',
+          'including work handed to you by a teammate or started on a schedule. If one of them',
+          'conflicts with a request, say so rather than silently ignoring it:',
+          '',
+          description
+        ]
+      : [])
+  ]
+    .filter((line) => line !== null)
+    .join('\n')
+}
+
+/**
+ * The teammate half of the preamble, or nothing when this bot works alone.
  *
  * Named terminals are the whole mechanism: every bot conversation runs in a terminal titled
  * `bot:<handle>`, so `orca terminal list` finds a teammate and `orca terminal create` with
@@ -66,29 +111,22 @@ export function formatBotToBotMessage(args: { fromBot: Bot; body: string }): str
  * rather than becoming an orphan terminal.
  *
  * Why the create step is spelled out: a bot only gets a terminal once someone messages it, so
- * on a fresh roster most teammates are NOT running. The first version of this preamble
- * listed only `list` and `send`, and the coordinator correctly concluded it had nobody to
- * delegate to and did the work itself.
- *
- * Returns null when the bot has no teammates — an empty roster is noise in a system prompt.
+ * on a fresh roster most teammates are NOT running. The first version listed only `list` and
+ * `send`, and the coordinator correctly concluded it had nobody to delegate to and did the
+ * work itself.
  */
-export function buildBotTeammatePreamble(args: {
-  self: Bot
-  roster: readonly Bot[]
-}): string | null {
+function buildTeammateSection(args: { self: Bot; roster: readonly Bot[] }): (string | null)[] {
   // Same project only: delegation never crosses projects, and a teammate in another checkout
   // could not be started here anyway.
   const teammates = getProjectTeammates(args.self, args.roster)
   if (teammates.length === 0) {
-    return null
+    return []
   }
   const lines = teammates.map((bot) => {
     const role = bot.title.trim()
     return `- @${botHandle(bot.name)} — ${bot.name}${role ? `: ${role}` : ''} (agent: ${bot.agentId}, terminal title: ${botSessionTitle(bot)})`
   })
   return [
-    `You are the Orca bot "${args.self.name}" (@${botHandle(args.self.name)}).`,
-    args.self.title.trim() ? `Your job: ${args.self.title.trim()}` : null,
     '',
     'Teammates you can hand work to:',
     ...lines,
@@ -110,8 +148,6 @@ export function buildBotTeammatePreamble(args: {
     'need in your own words, and only when the work is actually theirs.',
     'If you cannot start a teammate, say so instead of quietly doing their work yourself.'
   ]
-    .filter((line) => line !== null)
-    .join('\n')
 }
 
 /** Terminal title for a bot's conversation, and the discovery key teammates search for. */

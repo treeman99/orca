@@ -58,6 +58,35 @@ describe('buildBotRoutineCreateInput', () => {
     })
   })
 
+  // A routine can land in a session the daemon could not keep alive. A fresh agent that was
+  // never told who it is runs the prompt as a generic assistant and drops the user's scope.
+  it('carries the bot’s role and standing instructions in the prompt', () => {
+    const input = buildBotRoutineCreateInput({
+      bot: makeBot({
+        title: 'Checks the release branch',
+        description: 'Only look in this repository. Never search the open web.'
+      }),
+      draft: completeDraft(),
+      timezone: 'UTC',
+      now: 0
+    })
+    expect(input?.prompt).toContain('You are the Orca bot "Checker"')
+    expect(input?.prompt).toContain('Checks the release branch')
+    expect(input?.prompt).toContain('Never search the open web.')
+    // The user's own instruction still ends the prompt — the role is context, not a rewrite.
+    expect(input?.prompt.endsWith('Check the release branch')).toBe(true)
+  })
+
+  it('omits the standing-instructions block when the bot has no description', () => {
+    const input = buildBotRoutineCreateInput({
+      bot: makeBot({ description: '' }),
+      draft: completeDraft(),
+      timezone: 'UTC',
+      now: 0
+    })
+    expect(input?.prompt).not.toContain('Standing instructions')
+  })
+
   it('builds the weekly and hourly presets from the same draft shape', () => {
     expect(
       buildBotRoutineCreateInput({

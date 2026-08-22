@@ -13,7 +13,7 @@ import { submitPromptToAgentPty } from '@/lib/agent-paste-draft'
 import { useAppStore } from '@/store'
 import { getBotRoutineEligibility, type Bot } from '../../../../../shared/bot-types'
 import { findLiveBotChatSession } from './bot-chat-session'
-import { botSessionTitle, buildBotTeammatePreamble } from './bot-message-routing'
+import { botSessionTitle, buildBotSessionPreamble } from './bot-message-routing'
 import { getProjectTeammates } from './bot-roster-groups'
 
 export type BotDeliveryResult =
@@ -53,14 +53,10 @@ export async function startBotStandbySession(
   if (!eligibility.ok) {
     return null
   }
-  const preamble = buildBotTeammatePreamble({ self: bot, roster })
   const standby = [
-    preamble,
-    preamble ? '---' : null,
-    `You are on standby. A teammate may hand you work; until then, do nothing and wait.`
-  ]
-    .filter((line) => line !== null)
-    .join('\n\n')
+    buildBotSessionPreamble({ self: bot, roster }),
+    'You are on standby. A teammate may hand you work; until then, do nothing and wait.'
+  ].join('\n\n---\n\n')
   try {
     const result = await launchAgentBackgroundSession({
       agent: bot.agentId,
@@ -144,10 +140,10 @@ export async function deliverToBot(args: {
     return { ok: true, paneKey: existing.paneKey, launched: false }
   }
 
-  // First message of a conversation carries the roster: the agent has to know who its
-  // teammates are before it can decide to hand anything off.
-  const preamble = buildBotTeammatePreamble({ self: bot, roster })
-  const prompt = preamble ? `${preamble}\n\n---\n\n${text}` : text
+  // First message of a conversation carries the whole preamble: identity, the standing
+  // instructions the user wrote, and who it can hand work to.
+  const preamble = buildBotSessionPreamble({ self: bot, roster })
+  const prompt = `${preamble}\n\n---\n\n${text}`
   try {
     const result = await launchAgentBackgroundSession({
       agent: bot.agentId,
