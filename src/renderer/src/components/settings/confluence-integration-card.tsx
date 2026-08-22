@@ -8,7 +8,7 @@
 // a page is the bot's business.
 
 import { useEffect, useState } from 'react'
-import { BookText, TriangleAlert } from 'lucide-react'
+import { BookText, CheckCircle2, LoaderCircle, TriangleAlert, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -38,7 +38,8 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
   // The saved token is never shown back. An empty field means "keep what is stored"; the
   // Disconnect button is the only way to clear it, so a stray focus cannot wipe a credential.
   const [token, setToken] = useState('')
-  const [saved, setSaved] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   useEffect(() => {
     setUrl(savedUrl)
@@ -48,22 +49,53 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
   const dirty = url.trim() !== savedUrl || token.trim().length > 0
   const canSave = dirty && !urlProblem
 
-  const save = (): void => {
+  // Save, then immediately prove it works. A credential nobody exercised is a bot failure
+  // hours later, and the user is standing right here.
+  const save = async (): Promise<void> => {
     if (!canSave) {
       return
     }
+    const nextUrl = normalizeConfluenceBaseUrl(url)
+    const nextToken = token.trim()
     updateSettings({
-      confluenceBaseUrl: normalizeConfluenceBaseUrl(url),
-      ...(token.trim() ? { confluenceApiToken: token.trim() } : {})
+      confluenceBaseUrl: nextUrl,
+      ...(nextToken ? { confluenceApiToken: nextToken } : {})
     })
     setToken('')
-    setSaved(true)
+    setTesting(true)
+    setResult(null)
+    try {
+      // The draft values are passed explicitly: the settings write is async, so reading the
+      // store back here would test whatever was stored a moment ago.
+      const outcome = await window.api.confluence.testConnection({
+        baseUrl: nextUrl,
+        ...(nextToken ? { token: nextToken } : {})
+      })
+      setResult(
+        outcome.ok
+          ? {
+              ok: true,
+              message: outcome.displayName
+                ? translate(
+                    'auto.components.settings.confluence.testOkSpace',
+                    'Connected. Example space: {{value0}}',
+                    { value0: outcome.displayName }
+                  )
+                : translate('auto.components.settings.confluence.testOk', 'Connected.')
+            }
+          : { ok: false, message: outcome.message }
+      )
+    } catch (error) {
+      setResult({ ok: false, message: error instanceof Error ? error.message : String(error) })
+    } finally {
+      setTesting(false)
+    }
   }
 
   const disconnect = (): void => {
     updateSettings({ confluenceBaseUrl: '', confluenceApiToken: '' })
     setToken('')
-    setSaved(false)
+    setResult(null)
   }
 
   return (
@@ -97,7 +129,7 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
             )}
             onChange={(event) => {
               setUrl(event.target.value)
-              setSaved(false)
+              setResult(null)
             }}
           />
           {urlProblem ? <p className="text-[11px] text-destructive">{urlProblem}</p> : null}
@@ -123,7 +155,7 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
             }
             onChange={(event) => {
               setToken(event.target.value)
-              setSaved(false)
+              setResult(null)
             }}
           />
           <p className="text-[11px] text-muted-foreground">
@@ -150,17 +182,29 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
         </p>
 
         <div className="flex items-center gap-2">
-          <Button size="sm" disabled={!canSave} onClick={save}>
-            {translate('auto.components.settings.confluence.save', 'Save')}
+          <Button size="sm" disabled={!canSave || testing} onClick={() => void save()}>
+            {testing ? <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" /> : null}
+            {translate('auto.components.settings.confluence.save', 'Save and test')}
           </Button>
           {savedUrl || hasToken ? (
             <Button size="sm" variant="ghost" onClick={disconnect}>
               {translate('auto.components.settings.confluence.disconnect', 'Disconnect')}
             </Button>
           ) : null}
-          {saved && !dirty ? (
-            <span className="text-[11px] text-muted-foreground">
-              {translate('auto.components.settings.confluence.savedNote', 'Saved.')}
+          {result ? (
+            <span
+              className={
+                result.ok
+                  ? 'flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400'
+                  : 'flex items-center gap-1 text-[11px] text-destructive'
+              }
+            >
+              {result.ok ? (
+                <CheckCircle2 className="size-3.5 shrink-0" aria-hidden="true" />
+              ) : (
+                <XCircle className="size-3.5 shrink-0" aria-hidden="true" />
+              )}
+              {result.message}
             </span>
           ) : null}
         </div>

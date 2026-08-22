@@ -42,6 +42,7 @@ import { registerWorkspacePortHandlers } from './workspace-ports'
 import { registerLocalhostWorktreeLabelHandlers } from './localhost-worktree-labels'
 import { registerAutomationHandlers } from './automations'
 import { registerBotHandlers } from './bots'
+import { registerConfluenceHandlers } from './confluence'
 import { registerKeybindingHandlers } from './keybindings'
 import { registerTelemetryHandlers } from './telemetry'
 import { registerShellHandlers } from './shell'
@@ -184,6 +185,7 @@ export function registerCoreHandlers(
   registerSettingsHandlers(store, agentAwakeService)
   registerSkillsHandlers(store, runtime)
   registerBotHandlers(store)
+  registerConfluenceHandlers(store)
   if (automations) {
     registerAutomationHandlers(store, automations)
   }

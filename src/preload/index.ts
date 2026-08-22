@@ -4868,6 +4868,11 @@ const api = {
       ipcRenderer.invoke('ssh:submitCredential', args)
   },
 
+  confluence: {
+    testConnection: (args?: { baseUrl?: string; token?: string }) =>
+      ipcRenderer.invoke('confluence:testConnection', args)
+  },
+
   bots: {
     list: (): Promise<Bot[]> => ipcRenderer.invoke('bots:list'),
     create: (input: BotCreateInput): Promise<Bot> => ipcRenderer.invoke('bots:create', input),

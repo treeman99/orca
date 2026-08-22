@@ -11187,10 +11187,12 @@
           "tokenStored": "A token is stored. Leave this empty to keep it, or paste a new one to replace it.",
           "tokenHelp": "Sent as a bearer token. Stored on this machine and encrypted where the OS supports it.",
           "readOnly": "Read-only. This mirror is not expected to accept writes, so page creation and edits are not offered — treat Confluence as a source, not a destination.",
-          "save": "Save",
+          "save": "Save and test",
           "disconnect": "Disconnect",
           "savedNote": "Saved.",
-          "urlPlaceholder": "https://confluence-mirror.samsungds.net"
+          "urlPlaceholder": "https://confluence-mirror.samsungds.net",
+          "testOkSpace": "Connected. Example space: {{value0}}",
+          "testOk": "Connected."
         }
       },
       "right": {

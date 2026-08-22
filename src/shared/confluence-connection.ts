@@ -51,6 +51,14 @@ export function describeConfluenceBaseUrl(value: string): string | null {
   return null
 }
 
+export type ConfluenceConnectionTestResult =
+  | { ok: true; displayName: string | null }
+  | {
+      ok: false
+      reason: 'not_configured' | 'unauthorized' | 'not_found' | 'network'
+      message: string
+    }
+
 /** Whether both halves of the credential are present. */
 export function isConfluenceConfigured(settings: {
   confluenceBaseUrl?: string

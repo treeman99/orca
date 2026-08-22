@@ -630,7 +630,12 @@ export function buildSettingsNavigationMetadata({
       : []),
     // Why: dev tooling must not be reachable from packaged/web builds even if
     // this pure metadata builder is called manually with isDev=true.
-    ...(showDesktopOnlySettings && import.meta.env.DEV && isDev
+    //
+    // Fork: also hidden under `lockdown`, on request. The pane never reached a packaged
+    // corporate build anyway (import.meta.env.DEV is false there), so this only cleans up the
+    // dev run an operator uses to review the corporate UI — where a Dev Tools row is exactly
+    // the thing that makes the review not match what the fleet sees.
+    ...(showDesktopOnlySettings && import.meta.env.DEV && isDev && !policy.lockdown
       ? [
           {
             id: 'dev',

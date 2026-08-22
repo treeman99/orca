@@ -10416,10 +10416,12 @@
           "tokenStored": "토큰이 저장돼 있습니다. 비워 두면 유지되고, 새로 붙여 넣으면 교체됩니다.",
           "tokenHelp": "bearer 토큰으로 전송됩니다. 이 PC에만 저장되며 OS가 지원하면 암호화됩니다.",
           "readOnly": "읽기 전용입니다. 이 미러는 쓰기를 받지 않을 것으로 보고 페이지 생성·수정은 제공하지 않습니다 — Confluence는 출처이지 목적지가 아닙니다.",
-          "save": "저장",
+          "save": "저장하고 연결 테스트",
           "disconnect": "연결 해제",
           "savedNote": "저장했습니다.",
-          "urlPlaceholder": "https://confluence-mirror.samsungds.net"
+          "urlPlaceholder": "https://confluence-mirror.samsungds.net",
+          "testOk": "연결됐습니다.",
+          "testOkSpace": "연결됐습니다. 예시 스페이스: {{value0}}"
         }
       },
       "right": {
