@@ -183,7 +183,7 @@ export function BotGuideDialog({ open, onOpenChange }: BotGuideDialogProps): Rea
                 <Rule>
                   {translate(
                     'auto.components.sidebar.bots.BotGuideDialog.r3a',
-                    'Teammates are bots in the SAME project that have a workspace. Delegation never crosses projects.'
+                    'A bot discovers teammates on its own only inside its OWN project, and only ones that have a workspace. Your own @handle is not limited that way — it reaches any bot in the roster.'
                   )}
                 </Rule>
                 <Rule>
@@ -281,7 +281,7 @@ export function BotGuideDialog({ open, onOpenChange }: BotGuideDialogProps): Rea
               <p>
                 {translate(
                   'auto.components.sidebar.bots.BotGuideDialog.p4bad',
-                  'What does not work: “아까 그거 분석해줘” — the other bot has no “아까”. Nor does a mention buried mid-sentence, or one addressed to a bot in another project.'
+                  'What does not work: “아까 그거 분석해줘” — the other bot has no “아까”. Nor does a mention buried mid-sentence, or one addressed to a bot with no workspace, which has nowhere to run.'
                 )}
               </p>
               <p>
