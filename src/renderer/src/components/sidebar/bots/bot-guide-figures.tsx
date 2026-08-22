@@ -104,7 +104,7 @@ export function HandoffFigure(props: {
           </div>
         </div>
         <div
-          className="flex items-center justify-center px-1 text-muted-foreground"
+          className="flex rotate-90 items-center justify-center px-1 text-muted-foreground sm:rotate-0"
           aria-hidden="true"
         >
           →
@@ -162,7 +162,11 @@ export function DiscoveryFigure(props: {
         </div>
         <div className="rounded-md rounded-tl-none border border-border bg-background/60 p-2 font-mono text-[11px] leading-relaxed">
           {DISCOVERY_COMMANDS.map((line) => (
-            <div key={line.text} className={line.muted ? 'text-muted-foreground' : undefined}>
+            // whitespace-pre: the continuation line's indent is what makes it read as one command.
+            <div
+              key={line.text}
+              className={line.muted ? 'whitespace-pre text-muted-foreground' : 'whitespace-pre'}
+            >
               {line.text}
             </div>
           ))}
