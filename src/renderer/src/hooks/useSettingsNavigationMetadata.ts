@@ -264,7 +264,7 @@ export function buildSettingsNavigationMetadata({
           }
         ]
       : []),
-    ...(showDesktopOnlySettings
+    ...(showDesktopOnlySettings && !policy.disableCloudRelay
       ? [
           {
             id: 'orca-account',

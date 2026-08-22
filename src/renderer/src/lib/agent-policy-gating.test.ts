@@ -12,6 +12,7 @@ const UNRESTRICTED: EnterprisePolicyView = {
   allowedAgents: null,
   lockdown: false,
   disableAutoUpdate: false,
+  disableCloudRelay: false,
   disableMobilePairing: false,
   disableMobileEmulator: false,
   disableExternalAutomations: false,

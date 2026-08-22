@@ -13,6 +13,9 @@ export type EnterprisePolicyView = {
   lockdown: boolean
   /** Hide every update affordance: menu items, settings rows, the update card. */
   disableAutoUpdate: boolean
+  /** Hide Settings → Orca Account: the pane exists to configure Orca Cloud sign-in and the
+   *  vendor mobile relay, which this switch already turns off. */
+  disableCloudRelay: boolean
   /** Hide the Mobile pane, its sidebar entry, and the pairing QR. */
   disableMobilePairing: boolean
   /** Hide the Mobile Emulator pane, the New Mobile Emulator tab action, and the pane itself. */
@@ -45,6 +48,7 @@ export const ENTERPRISE_POLICY_VIEW_KEYS = [
   'allowedAgents',
   'lockdown',
   'disableAutoUpdate',
+  'disableCloudRelay',
   'disableMobilePairing',
   'disableMobileEmulator',
   'disableExternalAutomations',
@@ -75,6 +79,7 @@ export function toEnterprisePolicyView(
     allowedAgents: policy.allowedAgents,
     lockdown: policy.lockdown,
     disableAutoUpdate: policy.disableAutoUpdate,
+    disableCloudRelay: policy.disableCloudRelay,
     disableMobilePairing: policy.disableMobilePairing,
     disableMobileEmulator: policy.disableMobileEmulator,
     disableExternalAutomations: policy.disableExternalAutomations,
