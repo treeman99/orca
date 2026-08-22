@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { effectiveAllowedFlags } from '../args'
-import { formatCommandHelp } from '../help'
 import { SKILL_COMMAND_SPECS } from './skills'
 
 function spec(path: string): (typeof SKILL_COMMAND_SPECS)[number] {
@@ -12,15 +10,15 @@ function spec(path: string): (typeof SKILL_COMMAND_SPECS)[number] {
 }
 
 describe('skill command specs', () => {
-  it('requires explicit selectors for sharing and exposes no bulk or path flag', () => {
-    const flags = effectiveAllowedFlags(spec('skills share'))
+  // Replaces upstream's `skills share` flag-surface assertion: the command is gone, and what
+  // matters now is that it cannot come back through an unnoticed spec restore on a sync.
+  it('exposes no publishing command and keeps the local lanes', () => {
+    const paths = SKILL_COMMAND_SPECS.map((entry) => entry.path.join(' '))
 
-    expect(flags).toContain('skill')
-    expect(flags).toContain('bundle-name')
-    expect(flags).not.toContain('all')
-    expect(flags).not.toContain('path')
-    expect(formatCommandHelp(spec('skills share'))).toContain(
-      'Only discovered skill directories can be selected'
+    expect(paths).not.toContain('skills share')
+    expect(paths).toEqual(
+      expect.arrayContaining(['skills installed', 'skills list', 'skills get', 'skills install'])
     )
+    expect(spec('skills installed').notes?.join(' ')).not.toContain('skills share')
   })
 })

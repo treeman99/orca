@@ -243,7 +243,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
   },
   {
     name: 'skill-sharing',
-    keys: ['skills installed', 'skills share'],
+    keys: ['skills installed'],
     load: async () => (await import('./handlers/skill-sharing.js')).SKILL_SHARING_HANDLERS
   },
   {

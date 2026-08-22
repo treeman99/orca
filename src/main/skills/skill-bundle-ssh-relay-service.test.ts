@@ -7,7 +7,6 @@ import type {
   SkillBundleInstallPreviewRequest,
   SkillBundleInstallRequest
 } from '../../shared/skill-bundle-install-contract'
-import { SKILL_PACKAGE_CONTENT_TYPE } from '../../shared/skill-package-manifest'
 import type { IPtyProvider } from '../providers/pty-provider-contract'
 import {
   installSkillBundleOnSshHost,
@@ -215,54 +214,8 @@ describe('installSkillBundleOnSshHost', () => {
     ])
   })
 
-  it('falls back to client-mediated transfer after direct download fails', async () => {
-    const bytes = Buffer.from('private bundle archive')
-    const requestHostRpc = vi.fn(async (method: string, params: unknown) => {
-      if (method === 'relay.status') {
-        return { capabilities: ['skills.install.bundle.v1', 'skills.upload.v1'] }
-      }
-      if (method === 'skills.installBundle') {
-        const ingress = (params as { request: SkillBundleInstallRequest }).request.ingress
-        if (ingress.kind === 'download-grant') {
-          throw Object.assign(new Error('skill-download-transport-failed'), { code: -32000 })
-        }
-        return result()
-      }
-      if (method === 'skills.beginUpload') {
-        return { uploadId: 'upload_1', chunkBytes: 256 * 1024 }
-      }
-      if (method === 'skills.uploadChunk') {
-        const chunk = params as { offset: number; bytesBase64: string }
-        return {
-          acknowledgedOffset: chunk.offset + Buffer.from(chunk.bytesBase64, 'base64').length
-        }
-      }
-      return { ok: true }
-    })
-
-    await expect(
-      installSkillBundleOnSshHost({
-        provider: { requestHostRpc } as unknown as IPtyProvider,
-        userDataPath: await userDataPath(),
-        request: request(bytes),
-        requireHttps: true,
-        fetcher: vi.fn(
-          async () =>
-            new Response(bytes, { headers: { 'content-type': SKILL_PACKAGE_CONTENT_TYPE } })
-        ) as typeof fetch
-      })
-    ).resolves.toEqual(result())
-    expect(requestHostRpc.mock.calls.map(([method]) => method)).toEqual([
-      'relay.status',
-      'skills.installBundle',
-      'relay.status',
-      'skills.beginUpload',
-      'skills.uploadChunk',
-      'skills.commitUpload',
-      'skills.installBundle',
-      'skills.cancelUpload'
-    ])
-  })
+  // The client-mediated fallback needed the desktop to download a vendor grant first; it went
+  // with the sharing removal.
 })
 
 describe('previewSkillBundleInstallOnSshHost', () => {

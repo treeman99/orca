@@ -113,6 +113,49 @@ describe('SkillInstallHandler', () => {
     ).toContain('# Relay')
   })
 
+  // Proves the sharing removal rides into the relay esbuild bundle: the constant lives in
+  // src/shared, so a remote host with no policy file still refuses. The advertised capabilities
+  // are deliberately left alone — see the removal decision in src/shared/skill-sharing-removal.ts.
+  it('refuses a caller-supplied download grant without reaching the network', async () => {
+    const { archive, bytes, call, home } = await fixture()
+    const fetchSpy = vi.fn(() => {
+      throw new Error('relay reached the network')
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+
+    try {
+      await expect(
+        call(SKILL_SSH_RELAY_INSTALL_METHOD, {
+          request: {
+            operationId: 'operation_grant',
+            package: {
+              packageId: archive.manifest.packageId,
+              versionId: archive.manifest.versionId,
+              packageDigest: archive.manifest.packageDigest,
+              archiveSha256: archive.archiveSha256,
+              compressedBytes: bytes.length
+            },
+            ingress: {
+              kind: 'download-grant',
+              url: 'https://storage.googleapis.com/orca-skill-packages/package.tar.gz?sig=valid',
+              expiresAt: new Date(Date.now() + 600_000).toISOString()
+            },
+            destination: { scope: 'global', executionTarget: { kind: 'host' } }
+          }
+        })
+      ).rejects.toMatchObject({
+        data: { category: 'transport', code: 'skill-download-sharing-removed', retryable: false }
+      })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+    await expect(
+      readFile(join(home, '.agents', 'skills', 'relay-skill', 'SKILL.md'))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('advertises separately gateable install, upload, and management capabilities', () => {
     expect(SKILL_RELAY_CAPABILITIES).toEqual([
       'skills.install.v1',

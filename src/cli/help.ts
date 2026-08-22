@@ -24,7 +24,6 @@ Accounts:
 
 Skills:
   skills installed          List installed skill selectors
-  skills share              Publish selected skills behind one unlisted link
   skills list               List version-matched skill guides bundled with this Orca CLI
   skills get                Print a version-matched skill guide as Markdown
   skills install            Install bundled Orca skills globally via the community skills CLI

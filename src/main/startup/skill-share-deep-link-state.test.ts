@@ -1,31 +1,20 @@
+// Upstream's three cases all asserted that a share link is captured and replayed to the renderer.
+// The removal makes `parseSkillShareId` return null, so what is worth asserting is the inverse:
+// every argv shape that used to open the install dialog is now inert.
 import { describe, expect, it, vi } from 'vitest'
 import { SkillShareDeepLinkState } from './skill-share-deep-link-state'
 
 describe('SkillShareDeepLinkState', () => {
-  it('queues a startup share until the renderer consumes it once', () => {
-    const state = new SkillShareDeepLinkState()
-
-    expect(state.capture(['orca', 'https://app.orca.dev/skills/share/share_startup'])).toBe(true)
-    expect(state.consume()).toBe('share_startup')
-    expect(state.consume()).toBeNull()
-  })
-
-  it('publishes a later second-instance intent and keeps it for renderer recovery', () => {
+  it('captures nothing from any share argv, so no intent survives to the renderer', () => {
     const state = new SkillShareDeepLinkState()
     const publish = vi.fn()
 
-    state.capture(['orca', 'https://app.orca.dev/skills/share/share_first'])
-    expect(state.capture(['orca', 'orca://skills/share/share_second'], publish)).toBe(true)
+    // First-instance argv, second-instance argv, and the custom-protocol form in turn.
+    expect(state.capture(['orca', 'https://app.orca.dev/skills/share/share_startup'])).toBe(false)
+    expect(state.capture(['orca', 'https://share.onorca.dev/skills/share/share_first'])).toBe(false)
+    expect(state.capture(['orca', 'orca://skills/share/share_second'], publish)).toBe(false)
 
-    expect(publish).toHaveBeenCalledWith('share_second')
-    expect(state.consume()).toBe('share_second')
-  })
-
-  it('ignores untrusted URLs without replacing a pending intent', () => {
-    const state = new SkillShareDeepLinkState()
-    state.capture(['orca', 'https://app.orca.dev/skills/share/share_safe'])
-
-    expect(state.capture(['orca', 'https://attacker.test/skills/share/share_bad'])).toBe(false)
-    expect(state.consume()).toBe('share_safe')
+    expect(publish).not.toHaveBeenCalled()
+    expect(state.consume()).toBeNull()
   })
 })

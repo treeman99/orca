@@ -1,10 +1,12 @@
-import { createHash, randomUUID, timingSafeEqual } from 'node:crypto'
-import { chmod, mkdir, mkdtemp, open, readdir, rm } from 'node:fs/promises'
+import { createHash, timingSafeEqual } from 'node:crypto'
+import { mkdtemp, open, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   SKILL_PACKAGE_CONTENT_TYPE,
   SKILL_PACKAGE_MAX_COMPRESSED_BYTES
 } from '../../shared/skill-package-manifest'
+import { SKILL_SHARING_REMOVED } from '../../shared/skill-sharing-removal'
+import { prepareTemporaryRoot } from './skill-download-temporary-root'
 import {
   createSkillDownloadAvailabilitySignal,
   isSkillDownloadGrantExpiredAbort,
@@ -14,9 +16,6 @@ import { startSkillPhaseOperation } from './skill-operation-observability'
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
 const MAX_REDIRECTS = 3
-const PROCESS_DOWNLOAD_ROOT_PREFIX = '.orca-skill-download-process-'
-const processDownloadRootName = `${PROCESS_DOWNLOAD_ROOT_PREFIX}${process.pid}-${randomUUID()}`
-const initializedTemporaryRoots = new Map<string, Promise<string>>()
 
 export type SkillPackageDownloadResult = {
   archivePath: string
@@ -119,51 +118,6 @@ async function fetchWithoutCredentialRedirect(
 
 function hashesEqual(actual: string, expected: string): boolean {
   return timingSafeEqual(Buffer.from(actual, 'hex'), Buffer.from(expected, 'hex'))
-}
-
-function processIsAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code !== 'ESRCH'
-  }
-}
-
-async function prepareTemporaryRoot(path: string): Promise<string> {
-  let initialization = initializedTemporaryRoots.get(path)
-  if (!initialization) {
-    initialization = (async () => {
-      await mkdir(path, { recursive: true, mode: 0o700 })
-      if (process.platform !== 'win32') {
-        await chmod(path, 0o700)
-      }
-      const entries = await readdir(path, { withFileTypes: true })
-      await Promise.all(
-        entries.map(async (entry) => {
-          const match = entry.isDirectory()
-            ? entry.name.match(/^\.orca-skill-download-process-(\d+)-/)
-            : null
-          const pid = Number(match?.[1])
-          if (match && Number.isSafeInteger(pid) && !processIsAlive(pid)) {
-            await rm(join(path, entry.name), { recursive: true, force: true })
-          }
-        })
-      )
-      const processRoot = join(path, processDownloadRootName)
-      await mkdir(processRoot, { recursive: true, mode: 0o700 })
-      return processRoot
-    })()
-    initializedTemporaryRoots.set(path, initialization)
-  }
-  try {
-    return await initialization
-  } catch (error) {
-    if (initializedTemporaryRoots.get(path) === initialization) {
-      initializedTemporaryRoots.delete(path)
-    }
-    throw error
-  }
 }
 
 async function downloadSkillPackageGrantUnobserved(
@@ -289,6 +243,13 @@ export async function downloadSkillPackageGrant(
     compressedBytes: input.expectedCompressedBytes
   })
   try {
+    // The one function desktop, relay, and headless `orca serve` all share: RPC `skills.install`
+    // and the relay install handlers take a caller-supplied grant URL and are otherwise ungated,
+    // so refusing at the four call sites would leave three of them reachable. Inside the observed
+    // span on purpose — an attempted install should still show up as a failed download phase.
+    if (SKILL_SHARING_REMOVED) {
+      throw new Error('skill-download-sharing-removed')
+    }
     const downloaded = await downloadSkillPackageGrantUnobserved(input)
     operation.complete({ status: 'complete', compressedBytes: downloaded.compressedBytes })
     return downloaded

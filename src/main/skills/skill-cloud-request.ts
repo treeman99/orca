@@ -1,3 +1,7 @@
+import {
+  SKILL_SHARING_REMOVED,
+  SKILL_SHARING_REMOVED_MESSAGE
+} from '../../shared/skill-sharing-removal'
 import { resolveArtifactCloudApiUrl } from '../artifacts/artifact-cloud-config'
 import { createSkillCloudDeadline } from './skill-cloud-deadline'
 
@@ -22,6 +26,13 @@ export async function skillCloudRequest<T>(input: {
   fetcher?: typeof fetch
   timeoutMs?: number
 }): Promise<T> {
+  // The chokepoint: all 12 SkillCloudService callers land here, so one refusal covers `withAuth`
+  // and the anonymous `withoutAuth` lane (resolveShare / createDownloadGrant) alike. Gating the
+  // request rather than `withAuth` also makes the dev auth-token bypass in skill-cloud-auth.ts
+  // irrelevant — that branch skips the cloud-config check, but not this function.
+  if (SKILL_SHARING_REMOVED) {
+    throw new SkillCloudRequestError(403, 'skill_sharing_removed', SKILL_SHARING_REMOVED_MESSAGE)
+  }
   const apiUrl = resolveArtifactCloudApiUrl(input.apiUrl)
   const url = new URL(input.path, `${apiUrl}/`)
   if (url.origin !== apiUrl || !url.pathname.startsWith('/v1/')) {

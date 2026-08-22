@@ -270,17 +270,20 @@ describe('skill operation observability', () => {
           'content-length': String(archive.length)
         }
       })
-    const downloaded = await downloadSkillPackageGrant({
-      url: 'https://storage.test/package',
-      expiresAt: '2030-01-01T00:00:00Z',
-      expectedArchiveSha256: created.archiveSha256,
-      expectedCompressedBytes: created.compressedBytes,
-      temporaryRoot: join(directory, 'private-downloads'),
-      allowedOrigins: ['https://storage.test'],
-      requireHttps: true,
-      fetcher
-    })
-    await downloaded.cleanup()
+    // Refused by the sharing removal, but still inside the observed span: the audit trail has to
+    // show that something asked for a vendor package.
+    await expect(
+      downloadSkillPackageGrant({
+        url: 'https://storage.test/package',
+        expiresAt: '2030-01-01T00:00:00Z',
+        expectedArchiveSha256: created.archiveSha256,
+        expectedCompressedBytes: created.compressedBytes,
+        temporaryRoot: join(directory, 'private-downloads'),
+        allowedOrigins: ['https://storage.test'],
+        requireHttps: true,
+        fetcher
+      })
+    ).rejects.toThrow('skill-download-sharing-removed')
 
     const providerRoot = join(directory, 'private-provider')
     const placement = await reconcileSkillProviderPlacement({

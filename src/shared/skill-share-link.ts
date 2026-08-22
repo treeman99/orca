@@ -1,7 +1,14 @@
+import { SKILL_SHARING_REMOVED } from './skill-sharing-removal'
+
 const SHARE_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/
 const PRODUCTION_HOSTS = new Set(['app.orca.dev', 'share.onorca.dev'])
 
 export function parseSkillShareId(value: string): string | null {
+  // Kills all three entry points at once: `open-url`, the argv capture on both instances, and the
+  // renderer's paste validation. There is no share host left to resolve the id against.
+  if (SKILL_SHARING_REMOVED) {
+    return null
+  }
   const trimmed = value.trim()
   if (SHARE_ID_PATTERN.test(trimmed)) {
     return trimmed

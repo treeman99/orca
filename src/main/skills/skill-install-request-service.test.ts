@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -71,41 +71,10 @@ async function fixture() {
   }
 }
 
+// The install/serialize/cancel round trips upstream asserts here all needed a live grant download;
+// they went with the sharing removal. `skill-install-service.test.ts` still covers local-archive
+// installation, and what is left here is the request-admission boundary.
 describe('executeSkillInstallRequest', () => {
-  it('downloads, verifies, and installs on the destination-owning host', async () => {
-    const { root, request, dependencies } = await fixture()
-    const result = await executeSkillInstallRequest(request, dependencies)
-    expect(result.status).toBe('installed')
-    expect(
-      await readFile(join(root, 'home', '.agents', 'skills', 'request-skill', 'SKILL.md'), 'utf8')
-    ).toContain('# Request')
-  })
-
-  it('serializes download and trusted-local requests through one destination transaction', async () => {
-    const { root, request, dependencies, archive } = await fixture()
-    const [downloaded, local] = await Promise.all([
-      executeSkillInstallRequest(request, dependencies),
-      executeSkillInstallRequest(
-        {
-          ...request,
-          operationId: 'operation_2',
-          ingress: { kind: 'local-file', path: archive.archivePath }
-        },
-        { ...dependencies, allowTrustedLocalFile: true }
-      )
-    ])
-
-    expect([downloaded.status, local.status].sort()).toEqual(['installed', 'unchanged'])
-    expect(
-      await readdir(join(dependencies.stateDirectory, 'skill-installs', 'receipts'))
-    ).toHaveLength(1)
-    expect(
-      (await readdir(join(root, 'home', '.agents', 'skills'))).filter((name) =>
-        name.includes('.orca-')
-      )
-    ).toEqual([])
-  })
-
   it('rejects local paths at the remote request boundary', async () => {
     const { request, dependencies, archive } = await fixture()
     await expect(
@@ -161,7 +130,9 @@ describe('executeSkillInstallRequest', () => {
             url: 'https://untrusted.test/package.tar.gz'
           }
         },
-        error: 'skill-download-origin-rejected'
+        // Was 'skill-download-origin-rejected'. The removal refuses one step earlier, so the
+        // allowed-origin check never runs — a stricter outcome, not a weaker one.
+        error: 'skill-download-sharing-removed'
       }
     ]
 
@@ -173,24 +144,5 @@ describe('executeSkillInstallRequest', () => {
       expect(dependencies.fetcher).not.toHaveBeenCalled()
       await expect(lstat(join(home, '.agents'))).rejects.toMatchObject({ code: 'ENOENT' })
     }
-  })
-
-  it('returns a structured cancelled result without leaving partial ingress bytes', async () => {
-    const { request, dependencies } = await fixture()
-    const controller = new AbortController()
-    controller.abort()
-
-    const result = await executeSkillInstallRequest(request, {
-      ...dependencies,
-      signal: controller.signal
-    })
-
-    expect(result).toMatchObject({
-      status: 'cancelled',
-      errorCategory: 'skill-download-cancelled',
-      failure: { category: 'cancelled', retryable: true }
-    })
-    const downloads = join(dependencies.stateDirectory, 'skill-installs', 'downloads')
-    expect(await readdir(downloads).catch(() => [])).toEqual([])
   })
 })
