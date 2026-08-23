@@ -92,9 +92,10 @@ function findBotSessionByTitle(args: {
   worktreeId: string
   agentId: TuiAgent
   state: BotChatSessionState
+  sessionTitle?: string
 }): BotChatSession | null {
   const { botName, worktreeId, agentId, state } = args
-  const title = botSessionTitle({ name: botName })
+  const title = args.sessionTitle ?? botSessionTitle({ name: botName })
   const candidates = (state.unifiedTabsByWorktree[worktreeId] ?? []).filter(
     (tab) => tab.contentType === 'terminal' && (tab.customLabel === title || tab.label === title)
   )
@@ -134,12 +135,15 @@ export function findLiveBotChatSession(args: {
   worktreeId: string
   agentId: TuiAgent
   state: BotChatSessionState
+  /** Overrides the title recovery key. A group room's member session carries the room id, so
+   *  it must not be re-adopted as that bot's 1:1 conversation (or vice versa). */
+  sessionTitle?: string
 }): BotChatSession | null {
-  const { chatPaneKey, botName, worktreeId, agentId, state } = args
+  const { chatPaneKey, botName, worktreeId, agentId, state, sessionTitle } = args
   const bound = chatPaneKey
     ? resolvePaneKey({ paneKey: chatPaneKey, worktreeId, agentId, state })
     : null
-  return bound ?? findBotSessionByTitle({ botName, worktreeId, agentId, state })
+  return bound ?? findBotSessionByTitle({ botName, worktreeId, agentId, state, sessionTitle })
 }
 
 /** The bot's newest reply, for the chat surface. Falls back to the last completed turn. */

@@ -46,6 +46,7 @@ import { createTaskCreationDraftsSlice } from './slices/task-creation-drafts'
 import { createTerminalQuickCommandHostsSlice } from './slices/terminal-quick-command-hosts'
 import { createBotsSlice } from './slices/bots'
 import { createBotChatSlice } from './slices/bot-chat'
+import { createBotGroupChatSlice } from './slices/bot-group-chat'
 import { createLeftSidebarLaneSlice } from './slices/left-sidebar-lane'
 import { e2eConfig } from '@/lib/e2e-config'
 import type { createWebRuntimeSessionTerminal } from '@/runtime/web-runtime-session'
@@ -108,6 +109,7 @@ export const useAppStore = create<AppState>()((...a) => {
     ...createTerminalQuickCommandHostsSlice(...a),
     ...createBotsSlice(...a),
     ...createBotChatSlice(...a),
+    ...createBotGroupChatSlice(...a),
     ...createLeftSidebarLaneSlice(...a)
   }
 })

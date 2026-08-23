@@ -28,6 +28,11 @@ import type {
   AutomationUpdateInput
 } from '../../../shared/automations-types'
 import type { Bot, BotCreateInput, BotUpdateInput } from '../../../shared/bot-types'
+import type {
+  BotGroupChat,
+  BotGroupChatCreateInput,
+  BotGroupChatUpdateInput
+} from '../../../shared/bot-group-chat-types'
 import { normalizeProxyUrl } from '../../../shared/network-proxy'
 import { normalizeKagiSessionLink } from '../../../shared/browser-url'
 import type { FolderWorkspace, WorkspaceKey } from '../../../shared/folder-workspace-types'
@@ -329,6 +334,14 @@ import {
   updateBot as updateBotOperation,
   type BotRosterOperations
 } from '../rostering-bots/bot-roster-operations'
+import {
+  createBotGroupChat as createBotGroupChatOperation,
+  deleteBotGroupChat as deleteBotGroupChatOperation,
+  detachBotFromGroupChats,
+  listBotGroupChats as listBotGroupChatsOperation,
+  updateBotGroupChat as updateBotGroupChatOperation,
+  type BotGroupChatOperations
+} from '../rostering-bots/bot-group-chat-operations'
 import {
   createAutomation as createAutomationOperation,
   deleteAutomation as deleteAutomationOperation,
@@ -2444,6 +2457,31 @@ export class Store {
 
   deleteBot(id: string): void {
     deleteBotOperation(this.getBotRosterOperations(), id)
+    // Rooms outlive their members: dropping the bot from every roster it sat in keeps the
+    // conversation readable instead of deleting it out from under the user.
+    detachBotFromGroupChats(this.getBotGroupChatOperations(), id)
+  }
+
+  // ── Bot group chats ───────────────────────────────────────────────
+
+  private getBotGroupChatOperations(): BotGroupChatOperations {
+    return { state: this.state, flush: () => this.flush() }
+  }
+
+  listBotGroupChats(): BotGroupChat[] {
+    return listBotGroupChatsOperation(this.state)
+  }
+
+  createBotGroupChat(input: BotGroupChatCreateInput): BotGroupChat {
+    return createBotGroupChatOperation(this.getBotGroupChatOperations(), input)
+  }
+
+  updateBotGroupChat(id: string, updates: BotGroupChatUpdateInput): BotGroupChat {
+    return updateBotGroupChatOperation(this.getBotGroupChatOperations(), id, updates)
+  }
+
+  deleteBotGroupChat(id: string): void {
+    deleteBotGroupChatOperation(this.getBotGroupChatOperations(), id)
   }
 
   // ── Automations ───────────────────────────────────────────────────

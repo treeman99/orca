@@ -9,6 +9,10 @@ import { getBotRoutineEligibility } from '../../../../../shared/bot-types'
 import { parsePaneKey } from '../../../../../shared/stable-pane-id'
 import BotDetail from './BotDetail'
 import BotEditorDialog from './BotEditorDialog'
+import BotGroupRosterRows from './group/BotGroupRosterRows'
+import CreateGroupChatDialog from './group/CreateGroupChatDialog'
+import GroupRoomView from './group/GroupRoomView'
+import { useBotGroupLane } from './group/use-bot-group-lane'
 import BotRoster from './BotRoster'
 import BotRoutineDialog from './BotRoutineDialog'
 import { findLiveBotChatSession, getBotActivityState, getBotLatestReply } from './bot-chat-session'
@@ -48,9 +52,11 @@ export function BotsPanel(): React.JSX.Element {
   const markBotChatRead = useAppStore((s) => s.markBotChatRead)
   const setActiveWorktree = useAppStore((s) => s.setActiveWorktree)
   const setActiveTabForWorktree = useAppStore((s) => s.setActiveTabForWorktree)
+  const setTabViewMode = useAppStore((s) => s.setTabViewMode)
   const repos = useAppStore((s) => s.repos)
   const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
 
+  const groupLane = useBotGroupLane()
   const { disableUnattendedAgentRuns } = useEnterprisePolicyView()
   const confirm = useConfirmationDialog()
   const [editorOpen, setEditorOpen] = useState(false)
@@ -252,6 +258,9 @@ export function BotsPanel(): React.JSX.Element {
     if (live) {
       setActiveWorktree(worktreeId)
       setActiveTabForWorktree(worktreeId, live.tabId)
+      // A bot conversation reads as a chat, not a terminal — the transcript view is what the
+      // sidebar thread is an index into.
+      setTabViewMode(live.tabId, 'chat')
       return
     }
     const startedPaneKey = await startBotSession(botId)
@@ -269,6 +278,7 @@ export function BotsPanel(): React.JSX.Element {
     // filed its first status yet, and waiting for it would make the double-click look dead.
     setActiveWorktree(worktreeId)
     setActiveTabForWorktree(worktreeId, started.tabId)
+    setTabViewMode(started.tabId, 'chat')
   }
 
   const openSelectedSession = useMemo(() => {
@@ -284,8 +294,9 @@ export function BotsPanel(): React.JSX.Element {
     return () => {
       setActiveWorktree(worktreeId)
       setActiveTabForWorktree(worktreeId, tabId)
+      setTabViewMode(tabId, 'chat')
     }
-  }, [selectedBot, selectedSession, setActiveWorktree, setActiveTabForWorktree])
+  }, [selectedBot, selectedSession, setActiveWorktree, setActiveTabForWorktree, setTabViewMode])
 
   const handleCreateRoutine = async (input: AutomationCreateInput): Promise<unknown> => {
     try {
@@ -336,9 +347,13 @@ export function BotsPanel(): React.JSX.Element {
     await fetchBotRoutines()
   }
 
+  const groupProjectId = bots.find((bot) => bot.projectId)?.projectId ?? null
+
   return (
     <>
-      {selectedBot ? (
+      {groupLane.selectedRoomId ? (
+        <GroupRoomView roomId={groupLane.selectedRoomId} onBack={groupLane.closeRoom} />
+      ) : selectedBot ? (
         <BotDetail
           bot={selectedBot}
           teammates={bots.filter((bot) => bot.id !== selectedBot.id)}
@@ -366,21 +381,38 @@ export function BotsPanel(): React.JSX.Element {
           onRunRoutine={(routineId) => void handleRunRoutine(routineId)}
         />
       ) : (
-        <BotRoster
-          groups={rosterGroups}
-          routineCountByBotId={routineCountByBotId}
-          unreadBotIds={unreadBotIds}
-          activityByBotId={rosterActivity}
-          onOpenBotDetail={setSelectedBotId}
-          onOpenBotChat={(botId) => void openBotChat(botId)}
-          collapsedProjectIds={collapsedBotProjectIds}
-          onToggleProject={toggleBotProjectCollapsed}
-          onCreateBot={() => {
-            setEditingBotId(null)
-            setEditorOpen(true)
-          }}
-        />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <BotGroupRosterRows
+            rooms={groupLane.rooms}
+            botsById={groupLane.botsById}
+            runningRoomIds={groupLane.runningRoomIds}
+            onOpenRoom={groupLane.openRoom}
+            onCreateRoom={() => groupLane.setCreateOpen(true)}
+            canCreate={Boolean(groupProjectId) && bots.length >= 2}
+          />
+          <BotRoster
+            groups={rosterGroups}
+            routineCountByBotId={routineCountByBotId}
+            unreadBotIds={unreadBotIds}
+            activityByBotId={rosterActivity}
+            onOpenBotDetail={setSelectedBotId}
+            onOpenBotChat={(botId) => void openBotChat(botId)}
+            collapsedProjectIds={collapsedBotProjectIds}
+            onToggleProject={toggleBotProjectCollapsed}
+            onCreateBot={() => {
+              setEditingBotId(null)
+              setEditorOpen(true)
+            }}
+          />
+        </div>
       )}
+
+      <CreateGroupChatDialog
+        open={groupLane.createOpen}
+        projectId={groupProjectId}
+        onOpenChange={groupLane.setCreateOpen}
+        onCreated={groupLane.openRoom}
+      />
 
       <BotEditorDialog
         open={editorOpen}

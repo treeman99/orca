@@ -50,6 +50,7 @@ import { createTaskCreationDraftsSlice } from './task-creation-drafts'
 import { createTerminalQuickCommandHostsSlice } from './terminal-quick-command-hosts'
 import { createBotsSlice } from './bots'
 import { createBotChatSlice } from './bot-chat'
+import { createBotGroupChatSlice } from './bot-group-chat'
 import { createLeftSidebarLaneSlice } from './left-sidebar-lane'
 import { translate } from '@/i18n/i18n'
 
@@ -107,6 +108,7 @@ export function createTestStore() {
     ...createTerminalQuickCommandHostsSlice(...a),
     ...createBotsSlice(...a),
     ...createBotChatSlice(...a),
+    ...createBotGroupChatSlice(...a),
     ...createLeftSidebarLaneSlice(...a)
   }))
 }

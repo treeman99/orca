@@ -415,6 +415,9 @@
         },
         "bots": {
           "f1c0a4e7b2": "Could not save the bot."
+        },
+        "botGroupChat": {
+          "3f7ac91e": "Could not save the group chat."
         }
       }
     },
@@ -5789,18 +5792,18 @@
             "r1a": "Click a bot (or the ⚙ on its row) for its own screen: routines, settings, and the message box.",
             "r1b": "Double-click to switch the main area to that bot’s agent session. If it has none, one starts first.",
             "r1c": "A dot on a bot means another bot messaged it while you were elsewhere.",
-            "s2": "2. Role and description are instructions, not labels",
+            "s2": "3. Role and description are instructions, not labels",
             "p2": "Whatever you write in a bot’s description is delivered to its agent as standing instructions — on every turn, on work a teammate hands it, and on scheduled runs. This is where scope belongs:",
             "descExample": "Search only inside this repository. Do not use open web search.\nWhen asked about a feature, read README and docs/ first, then answer with file paths.",
             "p2b": "A routine bakes the role in when you create it, so editing the description later does not rewrite routines that already exist — change those on the Automations page.",
-            "s3": "3. How one bot finds another",
+            "s3": "4. How one bot finds another",
             "discoveryCaption": "Every bot conversation runs in a terminal titled bot:<handle>. That title is the whole addressing scheme.",
             "r3a": "A bot discovers teammates on its own only inside its OWN project, and only ones that have a workspace. Your own @handle is not limited that way — it reaches any bot in the roster.",
             "r3b": "The handle comes from the name: lowercase, spaces become hyphens, Hangul is kept. “릴리스 점검” → @릴리스-점검. Rename the bot and the handle follows.",
             "r3c": "When you message a bot, Orca first starts every same-project teammate that has no session yet (up to 6), so the roster is real before the bot looks at it.",
             "r3d": "The bot then finds teammates with orca terminal list and writes to one with orca terminal send. If one is somehow missing it can start it with orca terminal create --title \"bot:<handle>\" --background.",
             "r3e": "A bot with no teammates in its project is told nothing about delegation — it will just do the work.",
-            "s4": "4. Addressing another bot on purpose",
+            "s4": "5. Addressing another bot on purpose",
             "handoffCaption": "A mention at the START of the message routes it. The recipient sees who sent it.",
             "r4a": "Only a mention at the very beginning routes. “@analyzer 이거 봐줘” goes to analyzer; “이건 @analyzer 한테 물어봐” stays with the bot you are talking to.",
             "r4b": "An unknown handle is not sent — you get told instead, so a typo never disappears into a conversation.",
@@ -5810,7 +5813,7 @@
             "promptGood": "@analyzer src/payment 아래에서 재시도 로직이 구현된 파일과 함수를 찾아줘.\n찾으면 파일 경로와 함수명만 정리해서 @리포터 에게 넘겨줘.",
             "p4bad": "What does not work: “아까 그거 분석해줘” — the other bot has no “아까”. Nor does a mention buried mid-sentence, or one addressed to a bot with no workspace, which has nowhere to run.",
             "p4chain": "To make a coordinator delegate every time rather than doing the work itself, put the rule in its description: “분석은 반드시 @analyzer 에게, 리포트는 @리포터 에게 넘겨라. 직접 하지 마라.”",
-            "s5": "5. What to expect, honestly",
+            "s5": "7. What to expect, honestly",
             "r5a": "A bot is not always on. It runs when you message it or when a routine fires, and a restart can end its conversation — the sidebar log is for this session only.",
             "r5b": "The full conversation lives in the bot’s own agent session. Use ↗ in the bot’s header to open it; the sidebar shows only what Orca routed plus the latest reply.",
             "r5c": "Each teammate Orca starts is a real agent process against your quota. Six is the cap for one message.",
@@ -5827,6 +5830,128 @@
             "figSender": "coordinator · chat",
             "figReceiver": "what analyzer receives",
             "figBody": "Find where the retry logic lives under src/payment"
+          },
+          "group": {
+            "roster": {
+              "9a3b71cf": "Rooms",
+              "5e6d20ba": "Create at least two bots in one project first.",
+              "b41c8fd7": "New group chat",
+              "7d1e04ab": "working…",
+              "2c9f18de": "{{value0}} bots"
+            },
+            "CreateGroupChatDialog": {
+              "37092229": "No bots bound to this project yet.",
+              "bf816ad1": "Room name",
+              "c092bbe2": "New group chat",
+              "d1a3ccf3": "Pick 2–{{value0}} bots. Every member is a real agent process against your quota, and a room never crosses projects.",
+              "e2b4ddf4": "Search bots to add…",
+              "f3c5eef5": "Search bots to add",
+              "04d6fff6": "Remove from selection",
+              "15e70007": "Pick a project first — a room is scoped to one checkout.",
+              "26f81118": "No bots in this project match “{{value0}}”.",
+              "481a333a": "Room name",
+              "592b444b": "Cancel",
+              "6a3c555c": "Pick at least 2 bots",
+              "7b4d666d": "Create room ({{value0}})",
+              "8c5e777e": "Create room"
+            },
+            "GroupMentionInput": {
+              "5f1a08d3": "Every bot in the room"
+            },
+            "GroupMessageRow": {
+              "0a5f31c7": "You",
+              "1b6e4d02": "Hide the full handle",
+              "2c7a58f9": "Show the full handle",
+              "3d81b6ea": "(no reply text)",
+              "4e92c703": "Clipped — open the bot session for the full turn."
+            },
+            "GroupRoomHeader": {
+              "e2a3b904": "Back to bots",
+              "f3b4ca15": "{{value0}} bots",
+              "04c5db26": "Room settings",
+              "15d6ec37": "Disband this room"
+            },
+            "GroupRoomView": {
+              "26e7fd48": "Disband this room?",
+              "37f80e59": "The shared room log is deleted. The bots themselves and their own sessions are kept.",
+              "48091f6a": "Disband",
+              "591a207b": "{{value0}} is thinking…",
+              "6a2b318c": "The room is working…",
+              "7b3c429d": "Say something — every bot in this room hears it.",
+              "8c4d53ae": "Message this room",
+              "9d5e64bf": "New thread in {{value0}}… (@name to direct, @everyone for all)",
+              "ae6f75c0": "New Thread"
+            },
+            "GroupThreadList": {
+              "6a24b91f": "Open this thread",
+              "7b35ca20": "Thread",
+              "8c46db31": "{{value0}} replies · {{value1}}",
+              "9d57ec42": "Collapse thread",
+              "ae68fd53": "Reply in thread",
+              "bf790e64": "Reply in thread…",
+              "c081af75": "Reply",
+              "d192b086": "Reply in thread"
+            },
+            "group-thread-view-state": {
+              "a1c07f3e": "now",
+              "b42d9e17": "{{value0}}s ago",
+              "c58e0a26": "{{value0}}m ago",
+              "d61b4c85": "{{value0}}h ago",
+              "e7f2183b": "{{value0}}d ago"
+            },
+            "GroupTurnIndicator": {
+              "4b1e7a02": "{{value0}} · {{value1}}",
+              "c73d1f95": "Waiting for your answer",
+              "9e40b6d1": "No update yet — still waiting",
+              "2a8c5be7": "Starting the session",
+              "7f3ad418": "{{value0}} is thinking",
+              "5d92c108": "The room",
+              "b6e1f720": "{{value0}} is taking a turn",
+              "e14a7d63": "round {{value0}}/{{value1}} · {{value2}}/{{value3}} replies"
+            }
+          },
+          "bot-guide-chat-sections": {
+            "a1c05e73": "2. Reading a bot as a chat",
+            "b2d16f84": "Terminal",
+            "c3e27095": "Chat",
+            "d4f381a6": "> where does the retry logic live?\n⏺ Search(pattern: \"retry\")\n  ⎿ 12 files\n⏺ src/payment/retry.ts:41",
+            "e50492b7": "Where does the retry logic live?",
+            "f615a3c8": "analyzer",
+            "0726b4d9": "src/payment/retry.ts:41 — withRetry()",
+            "1837c5ea": "The same session, drawn two ways. The chat view reads back the transcript the agent wrote to disk — Orca keeps no second copy of it.",
+            "2948d6fb": "A bot conversation runs in an ordinary terminal tab. Switch that tab to the chat view and the same session reads as a bubble thread.",
+            "3a59e70c": "Turn it on in Settings → Experimental → “Chat UI”. With that off, a bot only ever shows as a terminal.",
+            "4b6af81d": "Double-click a bot in the roster, or press ↗ in the bot’s header, and Orca opens that session in the chat view for you.",
+            "5c7b092e": "Supported agents: claude, openclaude, codex, grok, omp. Any other agent writes a transcript Orca cannot parse, so its tab stays a terminal.",
+            "6d8c1a3f": "⚠️ A bot in a remote (SSH) workspace keeps its transcript on the other host, so the chat view cannot read it. Use the terminal there.",
+            "7e9d2b40": "The sidebar thread stays an index either way: what you sent, what another bot handed over, and the one latest reply.",
+            "8fae3c51": "6. Group rooms — several bots in one place",
+            "90bf4d62": "release check",
+            "a1c05e74": "3 bots",
+            "b2d16f85": "You",
+            "c3e27096": "@analyzer find the retry logic under src/payment",
+            "d4f381a7": "analyzer",
+            "e50492b8": "src/payment/retry.ts:41. @reporter can you write it up?",
+            "f615a3c9": "reporter",
+            "0726b4da": "Grep · src/payment",
+            "1837c5eb": "round 2/{{value0}} · 3/{{value1}}",
+            "2948d6fc": "One room, one log. Members speak one at a time, and “(pass)” is how a bot says it has nothing to add.",
+            "3a59e70d": "Create one from the + in the “Rooms” section at the top of the Bots tab: pick 2–6 bots from the same project, then name it. Leave the name empty and the members’ names become the name.",
+            "4b6af81e": "It takes at least two bots in one project, each bound to a worktree. A bot on a folder workspace cannot run an agent, so it cannot join.",
+            "5c7b092f": "What one message sets off",
+            "6d8c1a40": "An @handle anywhere in the sentence addresses that bot — in a room it does not have to come first. @everyone or @all is the whole room, and so is naming nobody.",
+            "7e9d2b41": "A bot that @s another bot pulls it into the next round.",
+            "8fae3c52": "They answer one at a time, in order — never at once. Each round the bot that leads rotates, so one voice cannot frame every round.",
+            "90bf4d63": "A bot with nothing to add replies “(pass)”. When everyone passes, the room has settled and the exchange ends.",
+            "a1c05e75": "Hard caps per message: {{value0}} rounds, {{value1}} replies in total, {{value2}} members in a room, and the last {{value3}} room lines carried into each turn’s prompt.",
+            "b2d16f86": "Reading a room",
+            "c3e27097": "The bar under the log is the turn in progress: the speaker’s face, a spinner, the tool it is running, a clock counting up, and how far through the round and reply budget it is.",
+            "d4f381a8": "After {{value0}} seconds with no status update that bar stops moving and says there is no news yet. A stalled turn is never left animating as if it were working.",
+            "e50492b9": "The composer at the bottom opens a new thread; the reply box inside a thread continues that one. Only the newest thread is expanded.",
+            "f615a3ca": "What a room costs, and what it keeps",
+            "0726b4db": "⚠️ Every member gets its own session for that room, titled bot:<handle>@<room id> and kept apart from its 1:1 conversation. Four bots in a room means four more agent processes against your quota.",
+            "1837c5ec": "Orca stores the room log, so it survives a restart. It records who said what to the room — each bot’s full reasoning still lives in that bot’s own transcript.",
+            "2948d6fd": "Deleting a bot keeps the room. The bot just drops out of the membership."
           }
         }
       },

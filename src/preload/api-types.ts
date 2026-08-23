@@ -18,7 +18,7 @@ import type {
 import type { AiVaultApi } from './api/ai-vault-api'
 import type { AppApi, E2EApi, PlatformApi } from './api/app-api'
 import type { AutomationsApi } from './api/automation-api'
-import type { BotsApi } from './api/bot-api'
+import type { BotGroupChatsApi, BotsApi } from './api/bot-api'
 import type { ConfluenceApi } from './api/confluence-api'
 import type { BrowserApi } from './api/browser-api'
 import type { CliApi } from './api/cli-install-api'
@@ -143,6 +143,7 @@ export type PreloadApi = {
   ssh: SshApi
   automations: AutomationsApi
   bots: BotsApi
+  botGroupChats: BotGroupChatsApi
   confluence: ConfluenceApi
   wsl: RuntimeApi['wsl']
   pwsh: RuntimeApi['pwsh']
@@ -158,7 +159,7 @@ export type PreloadApi = {
 }
 
 export type { AppUpdateApi } from './api/app-update-api'
-export type { BotsApi } from './api/bot-api'
+export type { BotGroupChatsApi, BotsApi } from './api/bot-api'
 export type { ConfluenceApi } from './api/confluence-api'
 export type { ClaudeUsageApi, CodexUsageApi, OpenCodeUsageApi } from './api/agent-usage-api'
 export type { AiVaultApi } from './api/ai-vault-api'

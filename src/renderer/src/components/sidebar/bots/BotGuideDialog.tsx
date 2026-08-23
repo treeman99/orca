@@ -15,32 +15,13 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { ChatViewSection, GroupRoomSection } from './bot-guide-chat-sections'
 import { DiscoveryFigure, HandoffFigure, RosterFigure } from './bot-guide-figures'
+import { Rule, Section } from './bot-guide-section'
 
 export type BotGuideDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-}
-
-function Section({
-  title,
-  children
-}: {
-  title: string
-  children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <section className="flex flex-col gap-2">
-      <h3 className="text-sm font-semibold">{title}</h3>
-      <div className="flex flex-col gap-2 text-[12px] leading-relaxed text-muted-foreground">
-        {children}
-      </div>
-    </section>
-  )
-}
-
-function Rule({ children }: { children: React.ReactNode }): React.JSX.Element {
-  return <li className="ml-4 list-disc marker:text-muted-foreground/60">{children}</li>
 }
 
 export function BotGuideDialog({ open, onOpenChange }: BotGuideDialogProps): React.JSX.Element {
@@ -139,10 +120,12 @@ export function BotGuideDialog({ open, onOpenChange }: BotGuideDialogProps): Rea
               </ul>
             </Section>
 
+            <ChatViewSection />
+
             <Section
               title={translate(
                 'auto.components.sidebar.bots.BotGuideDialog.s2',
-                '2. Role and description are instructions, not labels'
+                '3. Role and description are instructions, not labels'
               )}
             >
               <p>
@@ -168,7 +151,7 @@ export function BotGuideDialog({ open, onOpenChange }: BotGuideDialogProps): Rea
             <Section
               title={translate(
                 'auto.components.sidebar.bots.BotGuideDialog.s3',
-                '3. How one bot finds another'
+                '4. How one bot finds another'
               )}
             >
               <DiscoveryFigure
@@ -216,7 +199,7 @@ export function BotGuideDialog({ open, onOpenChange }: BotGuideDialogProps): Rea
             <Section
               title={translate(
                 'auto.components.sidebar.bots.BotGuideDialog.s4',
-                '4. Addressing another bot on purpose'
+                '5. Addressing another bot on purpose'
               )}
             >
               <HandoffFigure
@@ -292,10 +275,12 @@ export function BotGuideDialog({ open, onOpenChange }: BotGuideDialogProps): Rea
               </p>
             </Section>
 
+            <GroupRoomSection />
+
             <Section
               title={translate(
                 'auto.components.sidebar.bots.BotGuideDialog.s5',
-                '5. What to expect, honestly'
+                '7. What to expect, honestly'
               )}
             >
               <ul className="flex flex-col gap-1">

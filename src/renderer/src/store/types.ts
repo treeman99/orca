@@ -44,6 +44,7 @@ import type { TaskCreationDraftsSlice } from './slices/task-creation-drafts'
 import type { TerminalQuickCommandHostsSlice } from './slices/terminal-quick-command-hosts'
 import type { BotsSlice } from './slices/bots'
 import type { BotChatSlice } from './slices/bot-chat'
+import type { BotGroupChatSlice } from './slices/bot-group-chat'
 import type { LeftSidebarLaneSlice } from './slices/left-sidebar-lane'
 
 export type AppState = RepoSlice &
@@ -90,4 +91,5 @@ export type AppState = RepoSlice &
   TerminalQuickCommandHostsSlice &
   BotsSlice &
   BotChatSlice &
+  BotGroupChatSlice &
   LeftSidebarLaneSlice

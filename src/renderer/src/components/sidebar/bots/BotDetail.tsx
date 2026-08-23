@@ -1,6 +1,7 @@
 import type React from 'react'
 import { ChevronLeft, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
+import { BotFace } from './bot-face/BotFace'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { getAgentLabel } from '@/lib/agent-catalog'
@@ -155,8 +156,8 @@ export function BotDetail({
       <ScrollArea className="min-h-0 flex-1">
         <div className="flex flex-col gap-4 px-3 pb-4">
           <div className="flex items-start gap-2.5">
-            <span className="text-2xl leading-none" aria-hidden="true">
-              {bot.avatarEmoji}
+            <span aria-hidden="true">
+              <BotFace bot={bot} size={32} mood={activity === 'working' ? 'work' : 'idle'} />
             </span>
             <div className="flex min-w-0 flex-1 flex-col">
               <span className="text-sm leading-snug font-medium break-words">{bot.name}</span>

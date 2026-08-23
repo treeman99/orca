@@ -9,6 +9,7 @@ import type { Bot } from '../../../../../shared/bot-types'
 import { AgentStateDot } from '@/components/AgentStateDot'
 import type { BotRosterActivity } from './bot-roster-activity'
 import type { BotRosterGroup } from './bot-roster-groups'
+import { BotFace } from './bot-face/BotFace'
 
 export type BotRosterProps = {
   groups: readonly BotRosterGroup[]
@@ -117,8 +118,8 @@ function BotRow({
           'hover:bg-worktree-sidebar-accent focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none'
         )}
       >
-        <span className="mt-px shrink-0 text-base leading-tight" aria-hidden="true">
-          {bot.avatarEmoji}
+        <span className="mt-px shrink-0" aria-hidden="true">
+          <BotFace bot={bot} size={20} mood={activity === 'working' ? 'work' : 'idle'} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex items-start gap-1.5">
