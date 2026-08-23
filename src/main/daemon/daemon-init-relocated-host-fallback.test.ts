@@ -25,7 +25,13 @@ vi.mock('net', () => moduleFactories.net())
 vi.mock('./daemon-health', () => moduleFactories.daemonHealth())
 vi.mock('./client', () => moduleFactories.client())
 vi.mock('./daemon-lifecycle-event', () => moduleFactories.daemonLifecycleEvent())
-vi.mock('./daemon-spawner', () => moduleFactories.daemonSpawner())
+// Why the spread: this suite is the only one whose launch reaches `killStaleDaemon`, which
+// reclaims an unparseable pid record through `unlinkDaemonPidFileWhen`. Upstream's shared
+// factory does not stub it, so the bare factory throws "No export is defined" here.
+vi.mock('./daemon-spawner', () => ({
+  ...moduleFactories.daemonSpawner(),
+  unlinkDaemonPidFileWhen: vi.fn(() => true)
+}))
 vi.mock('./daemon-pty-adapter', () => moduleFactories.daemonPtyAdapter())
 vi.mock('../ipc/pty', () => moduleFactories.ipcPty())
 vi.mock('./daemon-host-relocation', () => ({

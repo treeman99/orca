@@ -54,6 +54,8 @@ import { OrchestrationDb } from './orchestration/db'
 import type { MessagePriority, MessageRow, MessageType } from './orchestration/types'
 import {
   AUTHORITATIVE_TERMINAL_SNAPSHOT_TIMEOUT_MS,
+  AGENT_PROMPT_RENDER_MARKER,
+  AGENT_PROMPT_RENDER_QUIET_MS,
   appendNormalizedToTailBuffer,
   buildPreview,
   classifyAgentPromptSubmitEvidence,
@@ -95,6 +97,7 @@ import {
   AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS,
   buildAgentPromptPasteBytes
 } from '../../shared/agent-prompt-injection'
+import { AGENT_PROMPT_EFFECT_TIMEOUT_MS } from './agent-prompt-submission-verification'
 import { CLIPBOARD_TEXT_MEASURE_YIELD_CODE_UNITS } from '../../shared/clipboard-text'
 import { projectHostSetupProjectionFromRepos } from '../../shared/project-host-setup-projection'
 import {
@@ -17246,6 +17249,11 @@ describe('OrcaRuntimeService', () => {
   // re-read until it is decided. Tests drive every round explicitly so a hang
   // here reads as "verification stalled", not as an unrelated timeout.
   const drainAgentPromptSubmitVerification = async (): Promise<void> => {
+    // Why first: v1.4.188 put upstream's `verifyAgentPromptSubmission` ahead of this rescue, and
+    // it polls its own 5s window before reporting a stall. These suites never advance the working
+    // lifecycle, so that window always runs to the end — leave it undrained and the send never
+    // settles, which reads as a 30s test timeout instead of the verdict under test.
+    await vi.advanceTimersByTimeAsync(AGENT_PROMPT_EFFECT_TIMEOUT_MS + 10)
     for (let round = 0; round < AGENT_PROMPT_SUBMIT_VERIFY_ATTEMPTS; round += 1) {
       await vi.advanceTimersByTimeAsync(
         AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS + AGENT_PROMPT_PASTE_QUIET_MS + 10
@@ -17260,6 +17268,17 @@ describe('OrcaRuntimeService', () => {
     await vi.advanceTimersByTimeAsync(AGENT_PROMPT_SUBMIT_DELAY_MS + 10)
     runtime.onPtyData('pty-bg', 'composer redraw', 100)
     await vi.advanceTimersByTimeAsync(AGENT_PROMPT_PASTE_QUIET_MS + 10)
+  }
+
+  // Why: these cases pin *when* Enter goes out, not how the send ended. A stub PTY publishes no
+  // agent status, so the rescue stays indeterminate and upstream's `agent_prompt_stalled` — kept
+  // for exactly the stall this fork cannot repair — is the correct ending here.
+  const settleAgentPromptSend = async (send: Promise<unknown>): Promise<void> => {
+    await send.catch((error: unknown) => {
+      if (!(error instanceof Error) || error.message !== 'agent_prompt_stalled') {
+        throw error
+      }
+    })
   }
 
   // Why: the retry exists to rescue a swallowed Enter, but firing it on a
@@ -17295,7 +17314,8 @@ describe('OrcaRuntimeService', () => {
     const sendPromise = runtime.sendTerminalAgentPrompt(handle, 'task spec')
     await renderPastedPrompt(runtime)
     await drainAgentPromptSubmitVerification()
-    await sendPromise
+    // Why swallowed: the outcome itself is asserted by 'reports how the agent prompt submit ended'.
+    await settleAgentPromptSend(sendPromise)
     return writes
   }
 
@@ -17376,11 +17396,15 @@ describe('OrcaRuntimeService', () => {
       // Why: `accepted` only says the bytes went out. An unverifiable submit has
       // to be distinguishable from a delivered one, or the dispatch receipt
       // reads the same whether the worker started or is still holding the text.
+      // Since v1.4.188 that distinction is the rejection itself: the rescue had
+      // no evidence to act on, so upstream's `agent_prompt_stalled` stands and
+      // the caller cannot mistake it for a delivered prompt.
       status.mockResolvedValue({ handle, isRunningAgent: false, status: null })
       const unverified = runtime.sendTerminalAgentPrompt(handle, 'task spec')
+      const rejected = expect(unverified).rejects.toThrow('agent_prompt_stalled')
       await renderPastedPrompt(runtime)
       await drainAgentPromptSubmitVerification()
-      expect(await unverified).toMatchObject({ accepted: true, submit: 'unverified' })
+      await rejected
     } finally {
       warn.mockRestore()
       vi.useRealTimers()
@@ -17467,7 +17491,12 @@ describe('OrcaRuntimeService', () => {
         kill: () => true,
         getForegroundProcess: async () => null
       })
-      const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
+      // Why launchAgent: the render gate arms only for the agents whose paste-then-submit
+      // flow produced the swallowed-Enter reports. A bare terminal takes the fixed-delay
+      // path, which is not what this case is pinning.
+      const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`, {
+        launchAgent: 'claude'
+      })
       const ptyId = 'pty-bg'
 
       const sendPromise = runtime.sendTerminalAgentPrompt(handle, 'do the thing')
@@ -17475,21 +17504,25 @@ describe('OrcaRuntimeService', () => {
       await vi.advanceTimersByTimeAsync(AGENT_PROMPT_SUBMIT_DELAY_MS + 10)
       expect(writes).toHaveLength(1)
 
-      // Render bursts keep pushing the submit out for as long as they continue.
-      for (let i = 0; i < 6; i += 1) {
-        runtime.onPtyData(ptyId, `render frame ${i}`, 100 + i)
-        await vi.advanceTimersByTimeAsync(AGENT_PROMPT_PASTE_QUIET_MS - 20)
+      // Render bursts keep pushing the submit out for as long as they continue. Each frame ends
+      // with the show-cursor marker the gate reads as "the TUI finished a redraw" — any other
+      // output leaves it waiting, which is the point: noise is not consumption.
+      // Four, not more: the gate also caps the whole wait, and the bursts plus the closing quiet
+      // window have to stay inside it or the cap releases the submit mid-loop and proves nothing.
+      for (let i = 0; i < 4; i += 1) {
+        runtime.onPtyData(ptyId, `render frame ${i}${AGENT_PROMPT_RENDER_MARKER}`, 100 + i)
+        await vi.advanceTimersByTimeAsync(AGENT_PROMPT_RENDER_QUIET_MS - 20)
         expect(writes).toHaveLength(1)
       }
 
       // Quiet window closes -> the TUI is done consuming the paste -> submit.
-      await vi.advanceTimersByTimeAsync(AGENT_PROMPT_PASTE_QUIET_MS + 10)
+      await vi.advanceTimersByTimeAsync(AGENT_PROMPT_RENDER_QUIET_MS + 10)
       expect(writes.at(-1)).toBe('\r')
       expect(writes).toHaveLength(2)
 
       // No agent evidence from this stub -> verdict is indeterminate -> no retry.
       await drainAgentPromptSubmitVerification()
-      await sendPromise
+      await settleAgentPromptSend(sendPromise)
       expect(writes).toHaveLength(2)
     } finally {
       vi.useRealTimers()
@@ -17515,23 +17548,28 @@ describe('OrcaRuntimeService', () => {
         kill: () => true,
         getForegroundProcess: async () => null
       })
-      const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
+      // Why launchAgent: the render gate arms only for the agents whose paste-then-submit
+      // flow produced the swallowed-Enter reports. A bare terminal takes the fixed-delay
+      // path, which is not what this case is pinning.
+      const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`, {
+        launchAgent: 'claude'
+      })
 
       const sendPromise = runtime.sendTerminalAgentPrompt(handle, 'busy agent')
       // Floor and quiet window both elapse with the TUI silent: under the old
       // wall-clock rule the Enter went out here.
       await vi.advanceTimersByTimeAsync(
-        AGENT_PROMPT_SUBMIT_DELAY_MS + AGENT_PROMPT_PASTE_QUIET_MS + 10
+        AGENT_PROMPT_SUBMIT_DELAY_MS + AGENT_PROMPT_RENDER_QUIET_MS + 10
       )
       expect(writes).toHaveLength(1)
 
       // The late first frame is the consumption evidence; quiet after it submits.
-      runtime.onPtyData('pty-bg', 'composer redraw', 100)
-      await vi.advanceTimersByTimeAsync(AGENT_PROMPT_PASTE_QUIET_MS + 10)
+      runtime.onPtyData('pty-bg', `composer redraw${AGENT_PROMPT_RENDER_MARKER}`, 100)
+      await vi.advanceTimersByTimeAsync(AGENT_PROMPT_RENDER_QUIET_MS + 10)
       expect(writes.at(-1)).toBe('\r')
 
       await drainAgentPromptSubmitVerification()
-      await sendPromise
+      await settleAgentPromptSend(sendPromise)
     } finally {
       vi.useRealTimers()
     }
@@ -17562,7 +17600,7 @@ describe('OrcaRuntimeService', () => {
       expect(writes.at(-1)).toBe('\r')
 
       await drainAgentPromptSubmitVerification()
-      await sendPromise
+      await settleAgentPromptSend(sendPromise)
     } finally {
       vi.useRealTimers()
     }
@@ -17596,7 +17634,7 @@ describe('OrcaRuntimeService', () => {
       expect(writes.at(-1)).toBe('\r')
 
       await drainAgentPromptSubmitVerification()
-      await sendPromise
+      await settleAgentPromptSend(sendPromise)
     } finally {
       vi.useRealTimers()
     }

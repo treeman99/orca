@@ -2042,9 +2042,9 @@ const BRACKETED_PASTE_BEGIN = '\x1b[200~'
 const BRACKETED_PASTE_END = '\x1b[201~'
 const BRACKETED_PASTE_QUIET_MS = 1500
 const AGENT_PROMPT_RENDER_TIMEOUT_MS = 8000
-const AGENT_PROMPT_RENDER_QUIET_MS = 1500
+export const AGENT_PROMPT_RENDER_QUIET_MS = 1500
 // Why: Claude and Codex emit show-cursor after accepting bracketed paste.
-const AGENT_PROMPT_RENDER_MARKER = '\x1b[?25h'
+export const AGENT_PROMPT_RENDER_MARKER = '\x1b[?25h'
 
 function assertAgentPromptRequestActive(signal?: AbortSignal): void {
   if (signal?.aborted) {
@@ -18762,7 +18762,8 @@ export class OrcaRuntimeService {
       }
       await assertTerminalInputWithinLimitWithYield(payload)
       const generation = this.getPtyLifecycleGeneration(pty.pty.ptyId)
-      const submits = await this.serializeAgentPromptSubmission(
+      const activityBaseline = this.getAgentPromptActivity(handle, pty.pty.ptyId)
+      const { submits, stalled } = await this.serializeAgentPromptSubmission(
         pty.pty.ptyId,
         generation,
         async () => {
@@ -18778,7 +18779,12 @@ export class OrcaRuntimeService {
         }
       )
       const bytesWritten = Buffer.byteLength(payload, 'utf8') + submits
-      const submit = await this.resubmitAgentPromptIfStillUnsubmitted(handle, pty.pty.ptyId)
+      const submit = await this.resubmitAgentPromptIfStillUnsubmitted(
+        handle,
+        pty.pty.ptyId,
+        activityBaseline
+      )
+      assertAgentPromptRescuedIfStalled(stalled, submit)
       return { handle, accepted: true, bytesWritten, submit }
     }
 
@@ -18793,13 +18799,29 @@ export class OrcaRuntimeService {
       throw new Error('terminal_not_writable')
     }
     const generation = this.getPtyLifecycleGeneration(leaf.ptyId)
-    const submits = await this.serializeAgentPromptSubmission(leaf.ptyId, generation, async () => {
-      this.assertLiveTerminalHandleTargetsPty(handle, leaf.ptyId!)
-      this.assertAgentPromptGeneration(leaf.ptyId!, generation)
-      return await this.writeTerminalAgentPrompt(handle, leaf.ptyId!, generation, payload, options)
-    })
+    const activityBaseline = this.getAgentPromptActivity(handle, leaf.ptyId)
+    const { submits, stalled } = await this.serializeAgentPromptSubmission(
+      leaf.ptyId,
+      generation,
+      async () => {
+        this.assertLiveTerminalHandleTargetsPty(handle, leaf.ptyId!)
+        this.assertAgentPromptGeneration(leaf.ptyId!, generation)
+        return await this.writeTerminalAgentPrompt(
+          handle,
+          leaf.ptyId!,
+          generation,
+          payload,
+          options
+        )
+      }
+    )
     const bytesWritten = Buffer.byteLength(payload, 'utf8') + submits
-    const submit = await this.resubmitAgentPromptIfStillUnsubmitted(handle, leaf.ptyId)
+    const submit = await this.resubmitAgentPromptIfStillUnsubmitted(
+      handle,
+      leaf.ptyId,
+      activityBaseline
+    )
+    assertAgentPromptRescuedIfStalled(stalled, submit)
     return { handle, accepted: true, bytesWritten, submit }
   }
 
@@ -19481,7 +19503,7 @@ export class OrcaRuntimeService {
       suffixFailureError?: string
       signal?: AbortSignal
     } = {}
-  ): Promise<number> {
+  ): Promise<{ submits: number; stalled: boolean }> {
     assertAgentPromptRequestActive(options.signal)
     this.assertAgentPromptGeneration(ptyId, generation)
     const permissionBaseline = this.getAgentPromptActivity(handle, ptyId)
@@ -19556,12 +19578,25 @@ export class OrcaRuntimeService {
     if (!suffixWrote) {
       throw new Error(options.suffixFailureError ?? 'terminal_not_writable')
     }
-    await verifyAgentPromptSubmission({
-      baseline,
-      readActivity: () => this.getAgentPromptActivity(handle, ptyId),
-      signal: options.signal
-    })
-    return 1
+    // Why the catch: upstream's verifier reports a stall by throwing, which would retire this
+    // fork's rescue — the throw unwinds before `resubmitAgentPromptIfStillUnsubmitted` runs, and
+    // a swallowed Enter that one keystroke would fix becomes a failed dispatch. Chain them
+    // instead: this reports the stall, the rescue gets its turn, and the caller rethrows
+    // `agent_prompt_stalled` only when the rescue could not resend either. Every other verdict
+    // (blocked, stale generation, aborted) still throws from here untouched.
+    try {
+      await verifyAgentPromptSubmission({
+        baseline,
+        readActivity: () => this.getAgentPromptActivity(handle, ptyId),
+        signal: options.signal
+      })
+    } catch (error) {
+      if (error instanceof Error && error.message === 'agent_prompt_stalled') {
+        return { submits: 1, stalled: true }
+      }
+      throw error
+    }
+    return { submits: 1, stalled: false }
   }
 
   private async serializeAgentPromptSubmission<T>(
@@ -19644,6 +19679,11 @@ export class OrcaRuntimeService {
   } | null {
     const pty = this.ptysById.get(ptyId)
     const agent = pty?.launchAgent ?? pty?.foregroundAgent
+    // Why this stays narrow: before v1.4.188 this fork held for the first render on *every*
+    // terminal. Widening upstream's gate back to that costs a 6s hard-cap stall on every target
+    // that renders nothing — a plain shell, or an agent aborted mid-verify — and Orca now pays
+    // upstream's 5s submit verification on top. The two agents below are the ones whose paste
+    // -then-submit flow produced the swallowed-Enter reports; the rescue covers the rest.
     if (!isTerminalSendSettlementAgent(agent)) {
       return null
     }
@@ -19833,8 +19873,19 @@ export class OrcaRuntimeService {
    */
   private async resubmitAgentPromptIfStillUnsubmitted(
     handle: string,
-    ptyId: string
+    ptyId: string,
+    activityBaseline?: AgentPromptActivity
   ): Promise<AgentPromptSubmitOutcome> {
+    // Why: the classifier reads a *snapshot* and infers "idle means never submitted", which is
+    // wrong for an agent that answered and went idle before the settle wait polled. The lifecycle
+    // counter records the working transition even when it is already over, so a prompt that
+    // provably reached the agent can never draw the stray Enter this rescue exists to avoid.
+    if (
+      activityBaseline &&
+      this.getAgentPromptActivity(handle, ptyId).workingSequence > activityBaseline.workingSequence
+    ) {
+      return 'verified'
+    }
     let verdict: AgentPromptSubmitVerdict = 'indeterminate'
     // Why: a worker dispatched seconds after launch has no status evidence yet,
     // so the first check reads "cannot tell" on precisely the terminals this
@@ -24218,6 +24269,14 @@ export class OrcaRuntimeService {
         // pasted content, leaving the prompt sitting in the composer. Split the
         // submit, and arm the consumption watch before the prompt goes out so
         // the render it waits for cannot land before anyone is listening.
+        // Why: same snapshot blind spot as the dispatch lane — a follow-up the agent answers
+        // fast reads back as idle, which the classifier calls "never submitted".
+        let activityBaseline: AgentPromptActivity | undefined
+        try {
+          activityBaseline = this.getAgentPromptActivity(handle, ptyId)
+        } catch {
+          activityBaseline = undefined
+        }
         const watch = this.watchTerminalOutput(ptyId)
         try {
           if (this.ptyController?.write(ptyId, followup.prompt) !== true) {
@@ -24235,7 +24294,7 @@ export class OrcaRuntimeService {
         // Why: this leaves the same residue as a dispatch — an agent that never
         // quiets can still absorb the Enter — and it fails the same silent way,
         // with the prompt visible on screen but never submitted.
-        await this.resubmitAgentPromptIfStillUnsubmitted(handle, ptyId)
+        await this.resubmitAgentPromptIfStillUnsubmitted(handle, ptyId, activityBaseline)
       })
       .catch((error) => {
         console.warn('[worktree-create] failed to send startup follow-up prompt:', error)
@@ -40229,6 +40288,20 @@ export function classifyAgentPromptSubmitEvidence(
     return 'indeterminate'
   }
   return 'unsubmitted'
+}
+
+/**
+ * Upstream reports a stalled submit by throwing; this fork first lets the rescue try one Enter.
+ * Only a rescue that resent keeps the send successful — `unverified` means nothing was done about
+ * the stall, so the caller must still hear about it under upstream's own error name.
+ */
+export function assertAgentPromptRescuedIfStalled(
+  stalled: boolean,
+  submit: AgentPromptSubmitOutcome
+): void {
+  if (stalled && submit === 'unverified') {
+    throw new Error('agent_prompt_stalled')
+  }
 }
 
 function detectTerminalWaitBlockedReason(preview: string): RuntimeTerminalWaitBlockedReason | null {

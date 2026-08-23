@@ -99,23 +99,17 @@ describe('agent prompt submission runtime', () => {
     expect(writes.filter((data) => data === '\r')).toHaveLength(1)
   })
 
-  it('reports a neutral title transition as stalled without retrying Enter', async () => {
-    vi.useFakeTimers()
-    const { runtime, handle, writes } = await createPromptRuntime((runtime, data) => {
-      if (data === '\r') {
-        runtime.onPtyData('pty-prompt', '\x1b]0;plain shell\x07', Date.now())
-        runtime.onPtyData('pty-prompt', '\x1b]0;Codex idle\x07', Date.now())
-      }
-    })
-    runtime.onPtyData('pty-prompt', '\x1b]0;Codex idle\x07', Date.now())
-    const submission = runtime.sendTerminalAgentPrompt(handle, 'review this')
-    const rejected = expect(submission).rejects.toThrow('agent_prompt_stalled')
-
-    await vi.runAllTimersAsync()
-
-    await rejected
-    expect(writes.filter((data) => data === '\r')).toHaveLength(1)
-  })
+  // Upstream's 'reports a neutral title transition as stalled without retrying Enter' was removed
+  // here on purpose, and will come back on the next sync — delete it again.
+  //
+  // It pins "agent is idle after Enter -> stall, never retry". This fork resends exactly once in
+  // that state (`resubmitAgentPromptIfStillUnsubmitted`), because an idle agent that owns the
+  // terminal is the one case where the swallowed Enter is provable and one keystroke fixes it.
+  // The two contracts cannot both hold, and the rescue predates upstream's verifier. What upstream
+  // was protecting is still covered: the redraw-only case above stays `indeterminate` and still
+  // rejects, and the permission cases below still refuse to send anything at all.
+  // The fork's own coverage lives in orca-runtime.test.ts ('resends Enter once when an idle agent
+  // still holds the prompt in its composer').
 
   it('does not send Enter after a permission state appears', async () => {
     vi.useFakeTimers()
