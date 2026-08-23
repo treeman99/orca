@@ -41,6 +41,12 @@ Hermes Bot Mode가 "no core patches, no background daemons, no extra storage"로
 | 사이드바 탭 | `components/sidebar/SidebarLaneSwitch.tsx`, `components/sidebar/index.tsx` | 신규 + 조립 1곳 |
 | 봇 UI | `components/sidebar/bots/**` | 신규 |
 | 프로젝트 해석 | `components/sidebar/bots/bot-project-options.ts` | 신규 — 사용자는 프로젝트를 고르고, 체크아웃은 여기서 정해집니다(메인 워크트리 우선) |
+| 그룹 방 타입·순수 판정 | `src/shared/bot-group-chat-types.ts`, `-turn-order.ts`, `-log.ts`, `-prompt.ts`, `-activity.ts` | 신규 (전부 순수 함수) |
+| 그룹 방 저장 | `src/main/persistence/rostering-bots/bot-group-chat-operations.ts`, `PersistedState.botGroupChats` | 신규 |
+| 턴 완료 판정 | `src/shared/agent-turn-completion.ts` | 신규 — 자동화 레인이 쓰던 규칙을 순수 함수로 추출 |
+| 방 실행 | `components/sidebar/bots/group/group-chat-drive.ts`, `group-member-turn.ts` | 신규 — 상한을 강제하는 유일한 자리 |
+| 방 UI | `components/sidebar/bots/group/**` | 신규 |
+| 봇 얼굴 | `components/sidebar/bots/bot-face/**` | 신규 — 이름 해시 기반 절차 생성 SVG + 전역 15fps 클록 1개 |
 | 정책 게이트 | `src/main/enterprise/unattended-agent-run-guard.ts` | 신규 가드 모듈 |
 | 사용 설명서 | `components/sidebar/bots/BotGuideDialog.tsx`, `bot-guide-figures.tsx` + `SidebarSettingsHelpMenu.tsx` 항목 1개 | 신규 + 메뉴 1줄 — 그림은 캡쳐가 아니라 실제 UI 토큰으로 그립니다(캡쳐는 낡고, 테마를 못 따라갑니다) |
 
@@ -120,6 +126,10 @@ Hermes는 프로필마다 갈라지지 않는 정본 대화를 고정합니다. 
 - 봇이 작업 중이어도 보낼 수 있습니다. 사람이 턴 중간에 후속 지시를 넣는 것은 정상입니다 —
   예약 실행과 달리 채팅은 그 판정을 막지 않고 상태만 표시합니다.
 - 헤더의 ↗ 버튼이 그 페인을 본 화면에 띄웁니다. 전체 대화는 거기(에이전트 자신의 화면)에 있습니다.
+- ⚠️ 그때 **탭의 `viewMode`를 `chat`으로 세팅**합니다 — upstream의 native chat이 그 봇의 전사를
+  말풍선으로 그려 줍니다. 터미널 화면을 읽지 않아도 되고, 사이드바 미리보기의 8000자 상한도
+  받지 않습니다. 단 `settings.experimentalNativeChat`이 켜져 있고 에이전트가
+  claude/openclaude/codex/grok/omp일 때만입니다. 그 밖에는 평소대로 터미널로 열립니다.
 
 사이드바가 보여 주는 것은 **Orca가 라우팅한 것**(내가 보낸 것, 다른 봇이 넘긴 것)과
 에이전트 상태에서 읽은 **가장 최근 답변 한 개**입니다. 이건 대화의 사본이 아니라 인덱스입니다 —
@@ -180,13 +190,96 @@ orca terminal send --terminal <handle> --text "<메시지>" --enter --json
 ⚠️ 이건 **Hermes의 `message_agent` 툴이 아닙니다.** 에이전트가 명부를 읽고 스스로 명령을 실행할
 때만 동작하며, 강제되지 않습니다. 확실한 인계는 (a) 쪽입니다.
 
+## 6-1. 그룹 방 — 여러 봇이 하나의 기록을 공유한다
+
+§7이 오래 "만들지 않은 것"으로 적어 두었던 항목입니다. 만들 수 있게 된 이유는 하나입니다:
+**막고 있던 것이 기술이 아니라 상한을 걸 자리였다**는 것을 확인했기 때문입니다.
+
+### 설계 원칙의 예외 — 그리고 그 경계
+
+§1은 "봇은 자기 대화 저장소를 갖지 않는다"고 못박았습니다. 그룹 방은 **그 규칙의 유일한 예외**이고,
+예외인 이유는 원리적입니다 — 전사는 세션마다 하나인데 방은 정의상 여러 세션입니다. 방 기록을
+Orca가 갖지 않으면 방은 구현 자체가 불가능합니다.
+
+예외의 **범위는 좁힙니다**: 방 기록은 *누가 무슨 말을 했나*만 담습니다. 각 봇이 그 답에 이르기까지
+한 일은 여전히 그 봇의 전사에 있고, 방은 거기를 가리킵니다. 이건 §5의 "사본이 아니라 인덱스"와
+같은 선입니다 — 인덱스가 영속되기 시작했을 뿐입니다.
+
+### 무엇을 Hermes에서 가져왔고, 무엇을 바꿨나
+
+모델은 Hermes의 bounded serial round-robin을 그대로 가져왔습니다: 결정적 @멘션 라우팅,
+`(pass)`를 침묵으로, 전원 pass면 정착, 라운드마다 발언 순서 회전, epoch로 새 전송이 낡은 드라이브
+축출, 워터마크로 각 멤버에게 **새 줄만** 먹이기, 타임아웃된 턴의 늦은 답을 나중에 회수(stranded/harvest).
+
+바꾼 것은 **턴 완료를 어떻게 아는가** 한 곳입니다.
+
+| | Hermes | 이 포크 |
+| --- | --- | --- |
+| 턴 완료 판정 | `session.resume`을 2초마다 폴링 | agent-status **푸시** 구독 |
+| 답변 텍스트 | 폴링 응답의 `messages[]` | `nativeChat.readSession` (전사 직독, 길이 상한 없음) |
+| 폴백 | 없음 | `lastAssistantMessage`(8000자) — 이때는 엔트리에 `truncated` 표시 |
+
+푸시 쪽이 견고합니다. `sessionBoundary`(에이전트 **접속**은 턴 완료가 아니다), 배치 발행이
+done→working을 한 알림에 접었을 때를 받는 `lastCompletedAssistantMessage` 슬롯,
+`stateHistory` 오버랩으로 놓친 `done`을 사후 복구 — 세 가지가 이미 자동화 레인에서 검증돼 있습니다.
+판정 로직은 `src/shared/agent-turn-completion.ts`에 순수 함수로 있습니다.
+
+### 상한은 왜 렌더러가 아니라 여기인가
+
+⚠️ **기존 상한들은 봇이 스스로 보내는 메시지에 닿지 않습니다.** `MAX_TEAMMATE_AUTOSTART`(6)와
+`MAX_ENTRIES_PER_BOT`(50)은 전부 렌더러에 있는데, 봇↔봇 트래픽은 `orca terminal send`를 타고
+메인 RPC로만 흐릅니다. 그래서 그룹 방의 상한은 **드라이브 루프 자신**이 강제합니다 —
+`group-chat-drive.ts` 한 곳에서 라운드/발언 수를 세고, 넘으면 그냥 멈춥니다.
+
+| 상한 | 값 | 위치 |
+| --- | --- | --- |
+| 라운드 | 3 | `GROUP_CHAT_MAX_ROUNDS` |
+| 한 전송당 봇 발언 | 10 | `GROUP_CHAT_MAX_MESSAGES` |
+| 멤버 | 6 | `GROUP_CHAT_MAX_MEMBERS` |
+| 프롬프트에 싣는 방 기록 | 24줄 | `GROUP_CHAT_HISTORY_LIMIT` |
+| 보존하는 방 기록 | 96줄 | `GROUP_CHAT_LOG_LIMIT` |
+
+⚠️ **워터마크는 로그 배열의 인덱스입니다.** 로그를 자르면서 워터마크를 같은 양만큼 내리지 않으면
+멤버가 이미 답한 메시지를 다시 봅니다. `trimGroupChatLog`가 둘을 항상 함께 옮기고, `updateBotGroupChat`은
+어느 쪽만 바뀐 요청이 와도 다시 트림합니다.
+
+### 방마다 별도 세션인 이유
+
+멤버는 방마다 자기 세션을 따로 갖습니다(터미널 제목 `bot:<handle>@<roomId>`).
+매 턴 프롬프트에 "1:1 대화 내용을 방에 흘리지 말 것"이 들어가는데, 같은 세션을 쓰면 그 지시가
+성립하지 않기 때문입니다. 그리고 사용자가 1:1 페인에 넣은 후속 지시가 방 턴 한가운데 떨어지면 안 됩니다.
+
+제목에 **방 id를 넣는 것**이 핵심입니다. 이름을 쓰면 같은 이름으로 다시 만든 방이 옛 방의 세션을
+제목으로 주워 옵니다 — Hermes가 v1→v3에 걸쳐 배운 것을 처음부터 id-keyed로 가져왔습니다.
+
+대가는 정직하게 적습니다: **4명짜리 방은 에이전트 프로세스를 4개 더 띄웁니다.** 전부 사용자 쿼터입니다.
+
+### 진행 표시가 기능인 이유
+
+모델 턴은 몇 분씩 아무 줄도 내지 않을 수 있어서, 정적인 "생각 중" 한 줄은 **행이 걸린 것과 구분되지
+않습니다.** 그래서 방은 네 가지를 함께 보여 줍니다 — 얼굴 애니메이션, 회전 아이콘, 경과 시계,
+그리고 에이전트가 보고한 **현재 도구**(`toolName`/`toolInput`).
+
+⚠️ 그리고 45초(`GROUP_TURN_QUIET_AFTER_MS`) 동안 상태가 갱신되지 않으면 **애니메이션을 멈추고**
+"아직 소식 없음"으로 바꿉니다. 멈춘 `working` 행은 정확히 행이 걸렸을 때 남는 흔적이라,
+거기서도 계속 도는 것은 거짓말이 됩니다. 판정은 `src/shared/bot-group-chat-activity.ts`의 순수 함수입니다.
+
+### 가져오지 않은 것
+
+- **48KB `ui_meta` 동기화 레이어** — Hermes는 방을 모바일에 미러링하려고 gateway CAS 위에 병합
+  레이어를 올렸습니다. 우리에겐 그 프리미티브가 없고, 만들면 새 RPC라 capability 협상 대상이 됩니다
+  ([remote-wire-compatibility.md](./remote-wire-compatibility.md)). 미러링할 두 번째 클라이언트도 없습니다.
+- **크로스 커넥션 멤버** — §7의 비목표(SSH 상주 봇)와 같은 이유입니다.
+- **첨부(이미지/PDF/파일)** — 1:1 봇 챗에도 없습니다. 방만 먼저 가질 이유가 없습니다.
+
 ## 7. 의도적으로 만들지 않은 것
 
 | 기능 | 왜 없나 |
 | --- | --- |
 | 메신저 게이트웨이 (Telegram/Slack/Discord) | 사내 소스가 사외로 나가는 레인이고, 자식 프로세스로 붙이면 `enforceNetworkAllowlist`가 구조적으로 보지 못합니다. 감사 등록부 #28 참고 |
-| 그룹챗 (여러 봇이 한 방에서 토론) | 현재 그룹 주소는 send 시점에 살아 있는 터미널에서 파생됩니다. 멤버 명부를 가진 영속 방이 아닙니다. Hermes의 3라운드·10메시지 상한 같은 폭주 방지도 함께 설계해야 합니다 |
-| 재시작을 넘기는 정본 대화 | 대화의 저자가 에이전트 CLI라 Orca에 쓰기 경로가 없습니다. 페인이 죽으면 새 세션입니다 |
+| 방 안에서 봇들이 **동시에** 답하기 | 직렬 라운드로빈이 방 기록의 순서를 지킵니다. 동시 실행은 "누가 무엇에 답한 것인가"를 무너뜨리고, 워터마크 델타도 서로 먹습니다 |
+| 방의 크로스 머신 미러링 | §6-1 "가져오지 않은 것" 참고 |
+| 재시작을 넘기는 **1:1** 정본 대화 | 대화의 저자가 에이전트 CLI라 Orca에 쓰기 경로가 없습니다. 페인이 죽으면 새 세션입니다. (그룹 방의 발언 기록은 Orca 소유라 남습니다 — §6-1) |
 | 봇별 자격증명 | 계정 자격증명이 "전역 활성 슬롯 → `~/.claude`로 materialize" 구조라 봇마다 다른 계정으로 동시 실행할 수 없습니다 |
 | 봇의 원격(SSH) 상시 실행 | SSH 모델의 오케스트레이션 제어평면은 클라이언트에 거주합니다. 노트북을 닫으면 원격 봇이 보고할 통로가 없습니다 — `orca serve` peer 모델이 맞습니다 |
 | 폴더 워크스페이스 봇의 대화·루틴 | 실행 대상 해석이 워크트리 id 전제입니다. 앞단에서 명시적으로 거부합니다 |
@@ -208,6 +301,9 @@ pnpm test src/main/automations/service-enterprise-policy.test.ts
 pnpm test src/renderer/src/components/sidebar/bots
 pnpm test src/renderer/src/components/sidebar/Sidebar.test.tsx
 pnpm test src/renderer/src/store/slices/bot-chat.test.ts
+pnpm test src/shared/bot-group-chat-turn-order.test.ts src/shared/bot-group-chat-log.test.ts
+pnpm test src/shared/bot-group-chat-activity.test.ts src/shared/agent-turn-completion.test.ts
+pnpm test src/renderer/src/components/sidebar/bots/group src/renderer/src/components/sidebar/bots/bot-face
 ```
 
 수동 확인(개발 실행):
@@ -219,7 +315,15 @@ pnpm test src/renderer/src/store/slices/bot-chat.test.ts
    헤더 ↗ 로 그 세션을 본 화면에서 확인합니다. 같은 봇에 다시 보내면 **같은 세션**으로 들어가야 합니다.
 5. 봇을 하나 더 만들고, 첫 봇의 입력창에 `@<두번째-핸들> 확인해줘`를 보냅니다 → 두 번째 봇의 세션이 뜨고,
    첫 봇 스레드에는 "…에게 넘김", 두 번째 봇 스레드에는 "…에게서"가 남습니다. 로스터에 읽지 않음 점이 붙습니다.
-6. 봇을 열고 `Routines`의 `+`로 루틴을 만든 뒤, 자동화 페이지에 같은 항목이 보이는지 확인합니다 (같은 레코드입니다).
-7. 정책 확인: `ORCA_ENTERPRISE_POLICY`로 `{"lockdown": true}` 파일을 가리키고 재기동하면
+6. **채팅 뷰**: 설정 → Experimental → `Chat UI`를 켜고 봇을 다시 엽니다 → 같은 세션이 말풍선으로
+   그려져야 합니다. 끄면 터미널로 돌아옵니다. 지원 목록 밖 에이전트(예: gemini) 봇은 켜도 터미널입니다.
+7. **그룹 방**: `Rooms`의 `+` → 같은 프로젝트 봇 2명 선택 → 생성 → 메시지를 보냅니다.
+   멤버마다 `bot:<handle>@<roomId>` 제목의 백그라운드 세션이 뜨고, 진행 표시줄에 경과 시계와
+   `라운드 1/3`이 움직여야 합니다. `@핸들`로 한 명만 지목하면 그 봇만 답해야 합니다.
+   ⚠️ 로컬에서 claude 외 에이전트를 고르려면 `allowedAgents`를 명시한 정책 파일이 필요합니다:
+   `ORCA_ENTERPRISE_POLICY=<리포 밖 경로>/dev-policy.json pnpm dev`
+   (`ORCA_ENTERPRISE_POLICY=off`로는 부족합니다 — `BUILT_IN_AGENT_ALLOWLIST`가 바닥선으로 남습니다.)
+8. 봇을 열고 `Routines`의 `+`로 루틴을 만든 뒤, 자동화 페이지에 같은 항목이 보이는지 확인합니다 (같은 레코드입니다).
+9. 정책 확인: `ORCA_ENTERPRISE_POLICY`로 `{"lockdown": true}` 파일을 가리키고 재기동하면
    봇 상세의 `+`가 사라지고 정책 안내가 뜹니다. 예약된 루틴은 목록에 남되 실행되지 않고,
    실행 기록에 `Blocked by policy`가 남습니다.
