@@ -50,6 +50,14 @@ export type LaunchAgentInNewTabArgs = {
   launchPlatform?: NodeJS.Platform
   /** Called after the prompt is actually delivered to the agent input path. */
   onPromptDelivered?: () => void
+  /**
+   * Force the raw terminal, ignoring `openAgentTabsInChatByDefault`.
+   *
+   * For surfaces that offer terminal and chat as two SEPARATE choices — the tab bar's `+`
+   * menu, whose bot rows are the chat half. There, a hidden setting deciding what the agent
+   * row does is what made "+ → Claude opened a chat window" unexplainable from the menu.
+   */
+  forceTerminalView?: boolean
 }
 
 export type LaunchAgentInNewTabResult = {
@@ -121,7 +129,9 @@ export function launchAgentInNewTab(args: LaunchAgentInNewTabArgs): LaunchAgentI
       getConnectionIdFromState(store, worktreeId)
     )
   }
-  const initialViewModeProps = initialAgentTabViewModeProps(store.settings, initialViewModeOptions)
+  const initialViewModeProps = args.forceTerminalView
+    ? {}
+    : initialAgentTabViewModeProps(store.settings, initialViewModeOptions)
   const startupPlanBase = {
     agent,
     cmdOverrides,
@@ -130,7 +140,11 @@ export function launchAgentInNewTab(args: LaunchAgentInNewTabArgs): LaunchAgentI
     isRemote,
     agentArgs: effectiveAgentArgs,
     agentEnv,
-    sessionOptions: resolveInitialNativeChatSessionOptions(store.settings, initialViewModeOptions)
+    // Same override: chat session options belong to a chat launch, and baking them into a
+    // command line the user asked to be a plain terminal would change what runs.
+    sessionOptions: args.forceTerminalView
+      ? undefined
+      : resolveInitialNativeChatSessionOptions(store.settings, initialViewModeOptions)
   }
   const { startupPlan, pasteDraftAfterLaunch, submitPastedPrompt } = planLaunchAgentStartupPrompt({
     base: startupPlanBase,

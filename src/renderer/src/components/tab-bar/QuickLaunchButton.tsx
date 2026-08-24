@@ -36,6 +36,9 @@ export type QuickLaunchAgentMenuItemsProps = {
   launchSource?: LaunchSource
   /** Called after a prompt is queued into the agent, or immediately for argv prompt launches. */
   onPromptDelivered?: () => void
+  /** Set where terminal and chat are offered as two separate rows (the tab bar `+` menu), so
+   *  an agent row never silently becomes a chat window via `openAgentTabsInChatByDefault`. */
+  forceTerminalView?: boolean
 }
 
 function getCatalogEntry(agent: TuiAgent): { id: TuiAgent; label: string } | null {
@@ -106,7 +109,8 @@ function QuickLaunchAgentMenuItemsInner({
   prompt,
   promptDelivery,
   launchSource,
-  onPromptDelivered
+  onPromptDelivered,
+  forceTerminalView
 }: QuickLaunchAgentMenuItemsProps): React.JSX.Element | null {
   // Why: resolving only the SSH connectionId here made paired-runtime
   // worktrees fall back to LOCAL detection, listing the client's agents
@@ -139,7 +143,8 @@ function QuickLaunchAgentMenuItemsInner({
         ...(prompt !== undefined ? { prompt } : {}),
         ...(promptDelivery !== undefined ? { promptDelivery } : {}),
         ...(launchSource !== undefined ? { launchSource } : {}),
-        ...(onPromptDelivered !== undefined ? { onPromptDelivered } : {})
+        ...(onPromptDelivered !== undefined ? { onPromptDelivered } : {}),
+        ...(forceTerminalView ? { forceTerminalView: true } : {})
       })
       if (!result) {
         toast.error(
@@ -179,7 +184,16 @@ function QuickLaunchAgentMenuItemsInner({
         toast.message(getLaunchWatchdogTimeoutMessage(label))
       })
     },
-    [worktreeId, groupId, onFocusTerminal, prompt, promptDelivery, launchSource, onPromptDelivered]
+    [
+      worktreeId,
+      groupId,
+      onFocusTerminal,
+      prompt,
+      promptDelivery,
+      launchSource,
+      onPromptDelivered,
+      forceTerminalView
+    ]
   )
 
   const enabledDetectedIds = detectedIds ? filterEnabledTuiAgents(detectedIds, disabledAgents) : []

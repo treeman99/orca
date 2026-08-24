@@ -3330,6 +3330,11 @@
           "TabBarQuickCommandHostLoadStatus": {
             "82e294f3ca": "Host unavailable",
             "7c129b08ff": "Loading host…"
+          },
+          "QuickLaunchBotMenuItems": {
+            "8d7334a6cd": "Bot conversations",
+            "eee5681160": "No bots in this project yet",
+            "8edd565f88": "Open {{value0}} as a chat"
           }
         }
       },

@@ -221,7 +221,10 @@ export function useTabBarCreateMenuController({
       agent,
       worktreeId,
       groupId: resolvedGroupId,
-      launchSource: 'tab_bar_quick_launch'
+      launchSource: 'tab_bar_quick_launch',
+      // This menu offers terminal and chat as two separate choices; the chat half is its bot
+      // rows. An agent row here is a session, and a session is a terminal.
+      forceTerminalView: true
     })
     if (!result) {
       toast.error(

@@ -6,7 +6,6 @@ import { useConfirmationDialog } from '@/components/confirmation-dialog-context'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import type { AutomationCreateInput } from '../../../../../shared/automations-types'
 import { getBotRoutineEligibility } from '../../../../../shared/bot-types'
-import { parsePaneKey } from '../../../../../shared/stable-pane-id'
 import BotDetail from './BotDetail'
 import BotEditorDialog from './BotEditorDialog'
 import BotGroupRosterRows from './group/BotGroupRosterRows'
@@ -16,6 +15,7 @@ import { useBotGroupLane } from './group/use-bot-group-lane'
 import BotRoster from './BotRoster'
 import BotRoutineDialog from './BotRoutineDialog'
 import { findLiveBotChatSession, getBotActivityState, getBotLatestReply } from './bot-chat-session'
+import { openBotConversation } from './open-bot-conversation'
 import { buildBotRosterActivity } from './bot-roster-activity'
 import { buildBotRosterGroups } from './bot-roster-groups'
 import { buildBotProjectOptions, findBotProjectOption } from './bot-project-options'
@@ -48,7 +48,6 @@ export function BotsPanel(): React.JSX.Element {
   const collapsedBotProjectIds = useAppStore((s) => s.collapsedBotProjectIds)
   const toggleBotProjectCollapsed = useAppStore((s) => s.toggleBotProjectCollapsed)
   const sendBotMessage = useAppStore((s) => s.sendBotMessage)
-  const startBotSession = useAppStore((s) => s.startBotSession)
   const markBotChatRead = useAppStore((s) => s.markBotChatRead)
   const setActiveWorktree = useAppStore((s) => s.setActiveWorktree)
   const setActiveTabForWorktree = useAppStore((s) => s.setActiveTabForWorktree)
@@ -225,60 +224,10 @@ export function BotsPanel(): React.JSX.Element {
     }
   }
 
-  // Double-click on a roster row, and the ↗ in the detail header, share this: open the bot's
-  // conversation. A bot with no session gets one started rather than a silent no-op.
+  // Double-click on a roster row, and the ↗ in the detail header, share this with the tab
+  // bar's `+` menu, so all three land on the same pane in the same view.
   const openBotChat = async (botId: string): Promise<void> => {
-    const bot = useAppStore.getState().bots.find((entry) => entry.id === botId)
-    if (!bot) {
-      return
-    }
-    const eligibility = getBotRoutineEligibility(bot)
-    if (!eligibility.ok) {
-      toast.error(
-        eligibility.reason === 'folder_workspace'
-          ? translate(
-              'auto.components.sidebar.bots.BotsPanel.c62f019b4e',
-              'That bot is bound to a folder workspace, which cannot run an agent.'
-            )
-          : translate(
-              'auto.components.sidebar.bots.BotsPanel.19d0b7e3ca',
-              'That bot has no workspace yet.'
-            )
-      )
-      return
-    }
-    const { worktreeId } = eligibility
-    const live = findLiveBotChatSession({
-      chatPaneKey: bot.chatPaneKey,
-      botName: bot.name,
-      worktreeId,
-      agentId: bot.agentId,
-      state: useAppStore.getState()
-    })
-    if (live) {
-      setActiveWorktree(worktreeId)
-      setActiveTabForWorktree(worktreeId, live.tabId)
-      // A bot conversation reads as a chat, not a terminal — the transcript view is what the
-      // sidebar thread is an index into.
-      setTabViewMode(live.tabId, 'chat')
-      return
-    }
-    const startedPaneKey = await startBotSession(botId)
-    const started = startedPaneKey ? parsePaneKey(startedPaneKey) : null
-    if (!started) {
-      toast.error(
-        translate(
-          'auto.components.sidebar.bots.BotsPanel.4a8c17f0d3',
-          'Could not reach that bot’s session.'
-        )
-      )
-      return
-    }
-    // Reveal the pane the launch reported, not one re-resolved from state: the agent has not
-    // filed its first status yet, and waiting for it would make the double-click look dead.
-    setActiveWorktree(worktreeId)
-    setActiveTabForWorktree(worktreeId, started.tabId)
-    setTabViewMode(started.tabId, 'chat')
+    await openBotConversation(botId)
   }
 
   const openSelectedSession = useMemo(() => {

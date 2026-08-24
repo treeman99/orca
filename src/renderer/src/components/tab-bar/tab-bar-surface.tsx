@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { QuickLaunchAgentMenuItems } from './QuickLaunchButton'
+import { QuickLaunchBotMenuItems } from './QuickLaunchBotMenuItems'
 import TabBarCreateEntry from './TabBarCreateEntry'
 import { TabStripScrollIndicator } from './TabStripScrollIndicator'
 import { getTabStripScrollMaskClassName } from './tab-strip-scroll-metrics'
@@ -249,6 +250,12 @@ export function renderTabBarSurface({
               <QuickLaunchAgentMenuItems
                 worktreeId={worktreeId}
                 groupId={resolvedGroupId}
+                onFocusTerminal={queueTerminalTabFocusAfterNewTabMenuClose}
+                forceTerminalView
+              />
+              <DropdownMenuSeparator />
+              <QuickLaunchBotMenuItems
+                worktreeId={worktreeId}
                 onFocusTerminal={queueTerminalTabFocusAfterNewTabMenuClose}
               />
             </>

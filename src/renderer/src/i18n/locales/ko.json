@@ -3108,6 +3108,11 @@
           },
           "TerminalTabLeadingIcon": {
             "7ab2964bea": "읽지 않은 에이전트 완료"
+          },
+          "QuickLaunchBotMenuItems": {
+            "8d7334a6cd": "봇 대화",
+            "8edd565f88": "{{value0}} 대화를 채팅으로 열기",
+            "eee5681160": "이 프로젝트에는 아직 봇이 없습니다"
           }
         }
       },
