@@ -127,6 +127,15 @@ describe('one Unix startup dialect', () => {
     }
   })
 
+  it('keeps a backtick literal inside a PowerShell single-quoted run', () => {
+    // PS single quotes are verbatim, so `'a`b'` really is a`b. Folding the backtick ate the
+    // next character, which silently mangled every markdown code span in a launch prompt.
+    for (const value of ['use `git status` first', 'trailing `', '`leading', 'a``b']) {
+      const tokenized = tokenizeStartupCommand(quoteStartupArg(value, 'powershell'), 'powershell')
+      expect(tokenized.ok && tokenized.tokens).toEqual([value])
+    }
+  })
+
   it('keeps the sh-family grammar claims that do hold for fish', () => {
     expect(commandSeparator('posix')).toBe('; ')
     expect(isPosixStartupShell('posix')).toBe(true)

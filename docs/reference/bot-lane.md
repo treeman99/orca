@@ -130,6 +130,15 @@ Hermes는 프로필마다 갈라지지 않는 정본 대화를 고정합니다. 
   말풍선으로 그려 줍니다. 터미널 화면을 읽지 않아도 되고, 사이드바 미리보기의 8000자 상한도
   받지 않습니다. 단 `settings.experimentalNativeChat`이 켜져 있고 에이전트가
   claude/openclaude/codex/grok/omp일 때만입니다. 그 밖에는 평소대로 터미널로 열립니다.
+- **봇 개별 페인은 터미널, 채팅 표면은 방(Room)입니다.** 한때 `openBotConversation`이 페인을
+  `chat`으로 강제했는데, 그러면 봇 N개가 채팅 창 N개가 되어 서로를 못 보고 위임 실패가
+  "그 봇이 자기 창에서 조용해짐"으로만 나타났습니다. 방은 이미 요청받은 구조 그대로입니다 —
+  Orca가 소유한 하나의 기록 + 멤버별 터미널 세션 + 세션에서 읽어 온 답변(§6-1).
+  개별 탭은 손으로 채팅 뷰 토글이 가능하고, 그게 §6-1의 예외 범위를 넓히지 않습니다.
+- **위임이 깨지는 단 하나의 원인은 id 혼동입니다.** `--terminal`은 `terminal list`의 불투명
+  `handle`(`term_…`)만 받는데, 프리앰블이 봇 핸들·제목·런타임 핸들을 모두 `<handle>`로 적어
+  코디네이터가 `bot:빌더`를 넘기고 `terminal_handle_stale`을 받았습니다. 그게 실기에서
+  "터미널 핸들이 변경된 것 같습니다"로 보고된 문구입니다. 프리앰블이 이제 셋을 구분해서 말합니다.
 - **opencode도 챗 뷰를 씁니다.** 다른 에이전트는 세션당 append-only JSONL 한 개라 Orca가
   바이트 오프셋으로 tail 하지만, opencode는 트리로 씁니다 —
   `message/<sessionID>/<msgID>.json`(role만, 본문 없음) + `part/<msgID>/<partID>.json`(본문).

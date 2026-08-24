@@ -16,6 +16,30 @@ export type { ConfluenceConnectionTestResult }
 
 const REQUEST_TIMEOUT_MS = 15_000
 
+/**
+ * Same-origin hops this follows itself before giving up.
+ *
+ * Why manual instead of letting fetch follow: the spec strips `Authorization` when a redirect
+ * CHANGES ORIGIN, and http→https counts. So an install that redirects to its canonical URL
+ * answers the retry with no credential at all, and the user sees a 401 for a token that is
+ * perfectly good. Measured against a local redirect pair — the second hop arrived with
+ * `authorization: null`. Following same-origin hops keeps a context-path or trailing-slash
+ * redirect working; a cross-origin hop is reported with the URL to use instead.
+ */
+const MAX_SAME_ORIGIN_REDIRECTS = 3
+
+function redirectTarget(response: Response, from: string): string | null {
+  const location = response.headers.get('location')
+  if (!location) {
+    return null
+  }
+  try {
+    return new URL(location, from).toString()
+  } catch {
+    return null
+  }
+}
+
 export async function testConfluenceConnection(input: {
   baseUrl: string
   token: string
@@ -35,13 +59,47 @@ export async function testConfluenceConnection(input: {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
-    const response = await (input.fetchImpl ?? fetch)(`${baseUrl}/rest/api/space?limit=1`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json'
-      },
+    const doFetch = input.fetchImpl ?? fetch
+    let requestUrl = `${baseUrl}/rest/api/space?limit=1`
+    let response = await doFetch(requestUrl, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      redirect: 'manual',
       signal: controller.signal
     })
+    for (
+      let hop = 0;
+      hop < MAX_SAME_ORIGIN_REDIRECTS && response.status >= 300 && response.status < 400;
+      hop += 1
+    ) {
+      const target = redirectTarget(response, requestUrl)
+      if (!target) {
+        break
+      }
+      if (new URL(target).origin !== new URL(requestUrl).origin) {
+        const suggested = normalizeConfluenceBaseUrl(target)
+        return {
+          ok: false,
+          reason: 'redirected',
+          // Naming the target is the whole point: following it would drop the token and report
+          // the resulting 401 as a bad credential.
+          message: `That URL redirects to ${new URL(target).origin}, which would discard the token. Use that address as the base URL.`,
+          ...(suggested ? { suggestedBaseUrl: suggested } : {})
+        }
+      }
+      requestUrl = target
+      response = await doFetch(requestUrl, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        redirect: 'manual',
+        signal: controller.signal
+      })
+    }
+    if (response.status >= 300 && response.status < 400) {
+      return {
+        ok: false,
+        reason: 'redirected',
+        message: `That URL keeps redirecting (HTTP ${response.status}). Check the base URL with your Confluence administrator.`
+      }
+    }
     if (response.status === 401 || response.status === 403) {
       return {
         ok: false,

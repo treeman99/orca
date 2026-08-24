@@ -86,7 +86,14 @@ function tokenizeWindowsStartupCommand(
   for (let index = 0; index < value.length; index += 1) {
     const char = value[index]
     const escape = shell === 'cmd' ? '^' : '`'
-    if (char === escape && index + 1 < value.length) {
+    // A PowerShell single-quoted run is VERBATIM: the backtick is an ordinary character in
+    // there, and only `''` escapes. Folding it anyway consumed the following character, so a
+    // round trip through quoteStartupArg (which emits single quotes) silently lost every
+    // backtick — and prompts carry them constantly, in markdown code spans. cmd keeps its own
+    // behaviour: it has no single-quote syntax at all, and that region is already flagged
+    // unmodelable below.
+    const verbatimSingleQuote = shell === 'powershell' && quote === "'"
+    if (char === escape && !verbatimSingleQuote && index + 1 < value.length) {
       // Why: cmd strips `^` and hands the bare byte to the child's parser,
       // which re-splits on whitespace and reopens a quote, and keeps the caret
       // literal inside double quotes — either way the token stops matching

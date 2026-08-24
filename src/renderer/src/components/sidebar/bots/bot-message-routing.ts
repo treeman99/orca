@@ -131,23 +131,38 @@ function buildTeammateSection(args: { self: Bot; roster: readonly Bot[] }): (str
     'Teammates you can hand work to:',
     ...lines,
     '',
-    'Each teammate runs in a terminal titled bot:<handle>, and Orca starts them for you when',
-    'you are given work — so they should already be listed. Find one and send to it:',
+    // Why this is spelled out so pedantically: `--terminal` takes the OPAQUE RUNTIME HANDLE
+    // from `terminal list` (a `term_...` string), not the bot handle and not the title. An
+    // earlier version wrote `--terminal <handle>` for both, so coordinators passed `bot:builder`
+    // or the bare @handle, got `terminal_handle_stale`, and reported "the handle seems to have
+    // changed" — then re-listed and did it again, forever.
+    'Each teammate runs in a terminal TITLED bot:<handle>, and Orca starts them for you when you',
+    'are given work — so they should already be listed. Two different ids are involved, and',
+    'mixing them up is the one mistake that makes this fail:',
+    '',
+    '  - the TITLE is bot:<handle> — that is how you FIND the teammate',
+    '  - the HANDLE is the opaque "handle" field of that row (looks like term_1a2b3c) — that is',
+    '    the only thing --terminal accepts. It is not the bot name and not the title.',
     '',
     '  orca terminal list --json',
-    '  orca terminal send --terminal <handle> --text "<message>" --enter --json',
+    '      # find the row whose "title" is exactly bot:<handle>, then read its "handle" field',
+    '  orca terminal send --terminal <that handle field> --text "<message>" --enter --json',
+    '',
+    'Re-read the handle from a fresh `terminal list` after any restart: it changes when the',
+    'terminal is recreated, and a stale one fails with terminal_handle_stale.',
     '',
     'If a teammate is somehow missing, start it yourself with that exact title:',
     '',
     '  orca terminal create --worktree active --title "bot:<handle>" --command "<agent>" \\',
     "    --background --json      # --background so the user's current tab is left alone",
-    '  orca terminal wait --terminal <handle> --for tui-idle --timeout-ms 120000 --json',
+    '      # then list again and use the new row\'s "handle" field for --terminal',
     '',
     'The title matters: Orca adopts a terminal with that exact title as that bot’s',
     'conversation, so the user sees your delegation in the right place.',
     'Prefix what you send with who you are. Do not forward a message verbatim — say what you',
     'need in your own words, and only when the work is actually theirs.',
-    'If you cannot start a teammate, say so instead of quietly doing their work yourself.'
+    'If you cannot reach a teammate, SAY SO with the error you got instead of retrying silently',
+    'or quietly doing their work yourself.'
   ]
 }
 

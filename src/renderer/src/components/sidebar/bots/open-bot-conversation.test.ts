@@ -50,16 +50,16 @@ function makeState(overrides: Partial<Record<string, unknown>> = {}): Record<str
   }
 }
 
-// The chat view is the whole point of a bot pane, and it is set here on EVERY open — not only
-// on launch. A pane the user toggled to terminal, or one a race kicked back to terminal, has
-// to come back as a chat when they open the bot again.
+// A bot's own pane is its SESSION, so it opens as a terminal — that is where raw agent output
+// and a failed delegation are legible. The chat surface is a room over several bots. Forcing
+// 'chat' here gave every bot its own window and hid exactly the errors the user needed.
 describe('openBotConversation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     state = makeState()
   })
 
-  it('reveals a live pane in chat without launching', async () => {
+  it('reveals a live session pane without launching', async () => {
     const { openBotConversation } = await import('./open-bot-conversation')
 
     const result = await openBotConversation('bot1')
@@ -72,7 +72,7 @@ describe('openBotConversation', () => {
     })
     expect(startBotSession).not.toHaveBeenCalled()
     expect(setActiveTabForWorktree).toHaveBeenCalledWith('repo1::/wt', 'tab1')
-    expect(setTabViewMode).toHaveBeenCalledWith('tab1', 'chat')
+    expect(setTabViewMode).toHaveBeenCalledWith('tab1', 'terminal')
   })
 
   it('starts a session and reveals the pane the launch reported', async () => {
@@ -84,7 +84,7 @@ describe('openBotConversation', () => {
 
     expect(result).toMatchObject({ ok: true, tabId: 'tab2', launched: true })
     // Not re-resolved from state: the agent has not filed its first status yet.
-    expect(setTabViewMode).toHaveBeenCalledWith('tab2', 'chat')
+    expect(setTabViewMode).toHaveBeenCalledWith('tab2', 'terminal')
   })
 
   it('refuses a folder-bound bot instead of opening a dead pane', async () => {

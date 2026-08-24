@@ -25,8 +25,8 @@ export function ChatViewSection(): React.JSX.Element {
   return (
     <Section
       title={translate(
-        'auto.components.sidebar.bots.bot-guide-chat-sections.a1c05e73',
-        '2. Reading a bot as a chat'
+        'auto.components.sidebar.bots.bot-guide-chat-sections.856a3ac497',
+        '2. Where the terminal ends and the chat begins'
       )}
     >
       <ChatViewFigure
@@ -64,45 +64,51 @@ export function ChatViewSection(): React.JSX.Element {
           }
         ]}
         caption={translate(
-          'auto.components.sidebar.bots.bot-guide-chat-sections.1837c5ea',
-          'The same session, drawn two ways. The chat view reads back the transcript the agent wrote to disk — Orca keeps no second copy of it.'
+          'auto.components.sidebar.bots.bot-guide-chat-sections.342658ef95',
+          'One session, drawn two ways. The chat view reads back the transcript the agent wrote to disk — Orca keeps no second copy of it.'
         )}
       />
       <ul className="flex flex-col gap-1">
         <Rule>
           {translate(
-            'auto.components.sidebar.bots.bot-guide-chat-sections.2948d6fb',
-            'A bot conversation runs in an ordinary terminal tab. Switch that tab to the chat view and the same session reads as a bubble thread.'
+            'auto.components.sidebar.bots.bot-guide-chat-sections.b0b56c8a59',
+            'Each bot gets its own SESSION: an ordinary terminal tab running that bot’s agent. Double-click a bot in the roster (or press ↗ in its header) to open it. This is the raw agent output — and the place a failure is actually readable.'
           )}
         </Rule>
         <Rule>
           {translate(
-            'auto.components.sidebar.bots.bot-guide-chat-sections.3a59e70c',
-            'Turn it on in Settings → Experimental → “Chat UI”. With that off, a bot only ever shows as a terminal.'
+            'auto.components.sidebar.bots.bot-guide-chat-sections.6680296971',
+            'The chat surface is a ROOM, not a per-bot window: one bubble thread over SEVERAL bots, built from what their sessions report back. Open it from Rooms at the top of the Bots lane.'
           )}
         </Rule>
         <Rule>
           {translate(
-            'auto.components.sidebar.bots.bot-guide-chat-sections.4b6af81d',
-            'Double-click a bot in the roster, or press ↗ in the bot’s header, and Orca opens that session in the chat view for you.'
+            'auto.components.sidebar.bots.bot-guide-chat-sections.21e8296c78',
+            'Why the split: giving every bot its own chat window meant three bots were three windows, none showing what the others were doing — and a hand-off that failed looked like a bot going quiet.'
           )}
         </Rule>
         <Rule>
           {translate(
-            'auto.components.sidebar.bots.bot-guide-chat-sections.5c7b092e',
-            'Supported agents: claude, openclaude, codex, grok, omp. Any other agent writes a transcript Orca cannot parse, so its tab stays a terminal.'
+            'auto.components.sidebar.bots.bot-guide-chat-sections.0a22ac7a7b',
+            'You can still switch any single tab to the chat view by hand. It is the same session either way; only the drawing changes.'
           )}
         </Rule>
         <Rule>
           {translate(
-            'auto.components.sidebar.bots.bot-guide-chat-sections.6d8c1a3f',
+            'auto.components.sidebar.bots.bot-guide-chat-sections.23741f6ad2',
+            'Turn the view on in Settings → Experimental → “Chat UI”. This build ships it on.'
+          )}
+        </Rule>
+        <Rule>
+          {translate(
+            'auto.components.sidebar.bots.bot-guide-chat-sections.988af498e9',
+            'Supported agents: claude, openclaude, codex, grok, omp, opencode. Any other agent writes a transcript Orca cannot parse, so its tab stays a terminal.'
+          )}
+        </Rule>
+        <Rule>
+          {translate(
+            'auto.components.sidebar.bots.bot-guide-chat-sections.8c13f6136d',
             '⚠️ A bot in a remote (SSH) workspace keeps its transcript on the other host, so the chat view cannot read it. Use the terminal there.'
-          )}
-        </Rule>
-        <Rule>
-          {translate(
-            'auto.components.sidebar.bots.bot-guide-chat-sections.7e9d2b40',
-            'The sidebar thread stays an index either way: what you sent, what another bot handed over, and the one latest reply.'
           )}
         </Rule>
       </ul>

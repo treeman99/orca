@@ -55,8 +55,10 @@ export type ConfluenceConnectionTestResult =
   | { ok: true; displayName: string | null }
   | {
       ok: false
-      reason: 'not_configured' | 'unauthorized' | 'not_found' | 'network'
+      reason: 'not_configured' | 'unauthorized' | 'not_found' | 'redirected' | 'network'
       message: string
+      /** For `redirected`: the base URL to use instead, ready to paste back into the field. */
+      suggestedBaseUrl?: string
     }
 
 /** Whether both halves of the credential are present. */

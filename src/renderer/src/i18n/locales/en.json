@@ -5835,7 +5835,8 @@
             "figRole3": "Writes it up",
             "figSender": "coordinator · chat",
             "figReceiver": "what analyzer receives",
-            "figBody": "Find where the retry logic lives under src/payment"
+            "figBody": "Find where the retry logic lives under src/payment",
+            "r3f": "Two different ids are involved and mixing them up is the one thing that breaks delegation: the TITLE (bot:<handle>) is how a teammate is found, while --terminal takes the opaque \"handle\" field of that row (term_…). If you see a bot say the handle seems to have changed, it used the wrong one."
           },
           "group": {
             "roster": {
@@ -5957,7 +5958,16 @@
             "f615a3ca": "What a room costs, and what it keeps",
             "0726b4db": "⚠️ Every member gets its own session for that room, titled bot:<handle>@<room id> and kept apart from its 1:1 conversation. Four bots in a room means four more agent processes against your quota.",
             "1837c5ec": "Orca stores the room log, so it survives a restart. It records who said what to the room — each bot’s full reasoning still lives in that bot’s own transcript.",
-            "2948d6fd": "Deleting a bot keeps the room. The bot just drops out of the membership."
+            "2948d6fd": "Deleting a bot keeps the room. The bot just drops out of the membership.",
+            "856a3ac497": "2. Where the terminal ends and the chat begins",
+            "342658ef95": "One session, drawn two ways. The chat view reads back the transcript the agent wrote to disk — Orca keeps no second copy of it.",
+            "b0b56c8a59": "Each bot gets its own SESSION: an ordinary terminal tab running that bot’s agent. Double-click a bot in the roster (or press ↗ in its header) to open it. This is the raw agent output — and the place a failure is actually readable.",
+            "6680296971": "The chat surface is a ROOM, not a per-bot window: one bubble thread over SEVERAL bots, built from what their sessions report back. Open it from Rooms at the top of the Bots lane.",
+            "21e8296c78": "Why the split: giving every bot its own chat window meant three bots were three windows, none showing what the others were doing — and a hand-off that failed looked like a bot going quiet.",
+            "0a22ac7a7b": "You can still switch any single tab to the chat view by hand. It is the same session either way; only the drawing changes.",
+            "23741f6ad2": "Turn the view on in Settings → Experimental → “Chat UI”. This build ships it on.",
+            "988af498e9": "Supported agents: claude, openclaude, codex, grok, omp, opencode. Any other agent writes a transcript Orca cannot parse, so its tab stays a terminal.",
+            "8c13f6136d": "⚠️ A bot in a remote (SSH) workspace keeps its transcript on the other host, so the chat view cannot read it. Use the terminal there."
           }
         }
       },

@@ -189,6 +189,12 @@ export function BotGuideDialog({ open, onOpenChange }: BotGuideDialogProps): Rea
                 </Rule>
                 <Rule>
                   {translate(
+                    'auto.components.sidebar.bots.BotGuideDialog.r3f',
+                    'Two different ids are involved and mixing them up is the one thing that breaks delegation: the TITLE (bot:<handle>) is how a teammate is found, while --terminal takes the opaque "handle" field of that row (term_…). If you see a bot say the handle seems to have changed, it used the wrong one.'
+                  )}
+                </Rule>
+                <Rule>
+                  {translate(
                     'auto.components.sidebar.bots.BotGuideDialog.r3e',
                     'A bot with no teammates in its project is told nothing about delegation — it will just do the work.'
                   )}

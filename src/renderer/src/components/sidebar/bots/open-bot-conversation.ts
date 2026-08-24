@@ -1,13 +1,10 @@
-// Revealing a bot's conversation, from wherever the gesture came from.
+// Revealing a bot's SESSION, from wherever the gesture came from.
 //
-// Two callers with the same contract: the roster's double-click, and the `+` menu's bot
-// section in the tab bar. Extracted because the second one is what makes the split honest —
-// a SESSION launched from `+` is always a terminal, so the chat view has to be reachable
-// from the same menu or it only exists in the sidebar.
+// Two callers with the same contract: the roster's double-click, and the `+` menu's bot rows
+// in the tab bar. Extracted so both land on the same pane in the same view.
 //
-// Chat mode is set on the pane every time, not just on launch: the tab persists `viewMode`,
-// so a bot pane a user toggled to terminal comes back as a chat when they open it from the
-// roster again.
+// The mode is set every time, not just on launch: the tab persists `viewMode`, so a pane the
+// user toggled by hand comes back to its session view when they open the bot again.
 
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
@@ -24,9 +21,15 @@ function reveal(worktreeId: string, tabId: string): void {
   const store = useAppStore.getState()
   store.setActiveWorktree(worktreeId)
   store.setActiveTabForWorktree(worktreeId, tabId)
-  // A bot conversation reads as a chat, not a terminal — the transcript view is what the
-  // sidebar thread is an index into.
-  store.setTabViewMode(tabId, 'chat')
+  // A bot's own pane is its SESSION, and a session is a terminal.
+  //
+  // This used to force 'chat' here, which gave every bot its own chat window: N bots meant N
+  // chats, none of which showed what the others were doing, and a delegation failure surfaced
+  // as one bot going quiet in its own window. A room (Rooms in the Bots lane) is the chat
+  // surface — one ordered log over several bots, composed from what their sessions report —
+  // and this pane is where the raw agent output lives, which is where an error is actually
+  // legible. Nothing is lost: the pane can still be toggled to chat by hand.
+  store.setTabViewMode(tabId, 'terminal')
 }
 
 /**
