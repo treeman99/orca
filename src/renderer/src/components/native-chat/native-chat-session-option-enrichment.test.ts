@@ -59,15 +59,37 @@ describe('native chat session option enrichment', () => {
     expect(readNativeChatEnrichedModels('cursor', 'ssh:two')).toBeNull()
   })
 
-  it('falls back permanently to the seed after a failed once-per-host probe', async () => {
+  // A failed probe used to settle the host for the whole app session, so one cold CLI or slow
+  // proxy pinned the STATIC seed — and the seed is a guess about which models the host serves.
+  it('retries a failed probe, then falls back to the seed once the attempts run out', async () => {
     const discover = vi.fn().mockRejectedValue(new Error('offline'))
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      ensureNativeChatModelEnrichment({ agent: 'cursor', hostKey: 'local', discover })
+      await vi.waitFor(() => expect(discover).toHaveBeenCalledTimes(attempt))
+      await Promise.resolve()
+    }
+
+    // Capped: a host that genuinely cannot answer must not re-probe on every pane mount.
+    ensureNativeChatModelEnrichment({ agent: 'cursor', hostKey: 'local', discover })
+    expect(discover).toHaveBeenCalledTimes(3)
+    expect(readNativeChatEnrichedModels('cursor', 'local')).toBeNull()
+  })
+
+  it('adopts a later probe that succeeds after an earlier one came back empty', async () => {
+    const discover = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'gpt-5', label: 'GPT-5', options: [] }])
     ensureNativeChatModelEnrichment({ agent: 'cursor', hostKey: 'local', discover })
     await vi.waitFor(() => expect(discover).toHaveBeenCalledOnce())
     await Promise.resolve()
 
     ensureNativeChatModelEnrichment({ agent: 'cursor', hostKey: 'local', discover })
-    expect(discover).toHaveBeenCalledOnce()
-    expect(readNativeChatEnrichedModels('cursor', 'local')).toBeNull()
+    await vi.waitFor(() =>
+      expect(readNativeChatEnrichedModels('cursor', 'local')).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: 'gpt-5' })])
+      )
+    )
   })
 
   it('does not probe agents whose catalogs have no discovery command', () => {

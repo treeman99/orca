@@ -128,6 +128,9 @@ const CLAUDE_FAST_MODE: CatalogOption = {
 
 export const CLAUDE_SESSION_OPTION_CATALOG: AgentSessionOptionCatalog = {
   supportsWorkerLaunchPreferences: true,
+  // NOT `discoveredModelsAreAuthoritative`: these are ALIASES, and the probe answers with the
+  // picker's values (`opus[1m]`, `claude-fable-5[1m]`). `--model opus` stays valid while absent
+  // from that list, so probe membership cannot decide what to retire here.
   // Why: these ids are Claude CLI aliases that resolve to the newest model of
   // each family on the host's CLI (`opus` is Opus 5 on current CLIs, older
   // Opus on older CLIs), so pinned version labels lie on part of the fleet.

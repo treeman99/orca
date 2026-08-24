@@ -130,6 +130,11 @@ Hermes는 프로필마다 갈라지지 않는 정본 대화를 고정합니다. 
   말풍선으로 그려 줍니다. 터미널 화면을 읽지 않아도 되고, 사이드바 미리보기의 8000자 상한도
   받지 않습니다. 단 `settings.experimentalNativeChat`이 켜져 있고 에이전트가
   claude/openclaude/codex/grok/omp일 때만입니다. 그 밖에는 평소대로 터미널로 열립니다.
+- 상세(루틴·설정) 화면은 사이드바가 좁아지면 잘렸습니다. 원인 두 가지: 아이콘 버튼에
+  `shrink-0`이 없어 라벨 대신 버튼이 줄어들었고, Radix ScrollArea가 뷰포트 자식을
+  `display: table`로 감싸 **내용 폭에 맞춰 늘어나** 컬럼이 사이드바 밖으로 나갔습니다.
+  180px에서 `보내기` 버튼과 루틴 `+`가 아예 화면 밖이었습니다.
+  아이콘 액션은 `BotIconAction`(shrink-0 + 툴팁)으로 통일했습니다.
 - 배경 세션 탭은 `launchAgent`를 **탭에도** 기록합니다(`adopt-agent-background-session-tab.ts`).
   빠뜨리면 첫 훅이 도착하기 전 몇 초 동안 그 페인에 에이전트 정체가 없고, native chat의 leaf
   라우팅이 그 공백을 "에이전트 페인이 아님"으로 읽어 **방금 연 봇 대화를 터미널로 되돌립니다.**

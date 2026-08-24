@@ -2,7 +2,7 @@ import type React from 'react'
 import { ChevronLeft, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { BotFace } from './bot-face/BotFace'
-import { Button } from '@/components/ui/button'
+import { BotIconAction } from './BotIconAction'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { getAgentLabel } from '@/lib/agent-catalog'
 import { cn } from '@/lib/utils'
@@ -108,53 +108,45 @@ export function BotDetail({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mt-2 flex h-8 items-center gap-1 px-2">
-        <Button
-          variant="ghost"
-          size="icon-xs"
+        <BotIconAction
+          label={translate('auto.components.sidebar.bots.BotDetail.f30b96c1a7', 'Back to bots')}
           onClick={onBack}
-          aria-label={translate(
-            'auto.components.sidebar.bots.BotDetail.f30b96c1a7',
-            'Back to bots'
-          )}
         >
           <ChevronLeft className="size-3.5" strokeWidth={2.25} />
-        </Button>
+        </BotIconAction>
         <span className="min-w-0 flex-1 truncate text-xs font-semibold text-muted-foreground/80">
           {bot.name}
         </span>
         {onOpenSession ? (
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={onOpenSession}
-            aria-label={translate(
+          <BotIconAction
+            label={translate(
               'auto.components.sidebar.bots.BotDetail.72c0b19e4d',
               'Open this bot’s session'
             )}
+            onClick={onOpenSession}
           >
             <ExternalLink className="size-3.5" strokeWidth={2.25} />
-          </Button>
+          </BotIconAction>
         ) : null}
-        <Button
-          variant="ghost"
-          size="icon-xs"
+        <BotIconAction
+          label={translate('auto.components.sidebar.bots.BotDetail.24e7b0af53', 'Edit bot')}
           onClick={onEdit}
-          aria-label={translate('auto.components.sidebar.bots.BotDetail.24e7b0af53', 'Edit bot')}
         >
           <Pencil className="size-3.5" strokeWidth={2.25} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
+        </BotIconAction>
+        <BotIconAction
+          label={translate('auto.components.sidebar.bots.BotDetail.b7c1e50d38', 'Delete bot')}
           onClick={onDelete}
-          aria-label={translate('auto.components.sidebar.bots.BotDetail.b7c1e50d38', 'Delete bot')}
         >
           <Trash2 className="size-3.5" strokeWidth={2.25} />
-        </Button>
+        </BotIconAction>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-4 px-3 pb-4">
+      {/* Radix wraps the viewport's child in `display: table`, which sizes to CONTENT — so a
+          narrow sidebar pushed this column past its own edge instead of wrapping inside it.
+          Forcing the wrapper to block is what makes `min-w-0`/`break-words` below take. */}
+      <ScrollArea className="min-h-0 flex-1" viewportClassName="[&>div]:!block">
+        <div className="flex w-full min-w-0 flex-col gap-4 px-3 pb-4">
           <div className="flex items-start gap-2.5">
             <span aria-hidden="true">
               <BotFace bot={bot} size={32} mood={activity === 'working' ? 'work' : 'idle'} />
@@ -221,21 +213,19 @@ export function BotDetail({
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
-              <span className={SECTION_LABEL_CLASS}>
+              <span className={cn(SECTION_LABEL_CLASS, 'min-w-0 truncate')}>
                 {translate('auto.components.sidebar.bots.BotDetail.3a90c47e12', 'Routines')}
               </span>
               {eligibility.ok && !unattendedRunsDisabled ? (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={onAddRoutine}
-                  aria-label={translate(
+                <BotIconAction
+                  label={translate(
                     'auto.components.sidebar.bots.BotDetail.d61b8e0f47',
                     'New routine'
                   )}
+                  onClick={onAddRoutine}
                 >
                   <Plus className="size-3.5" strokeWidth={2.25} />
-                </Button>
+                </BotIconAction>
               ) : null}
             </div>
 

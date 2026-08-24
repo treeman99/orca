@@ -15,8 +15,21 @@ type CatalogEnrichmentEntry = {
   agent: AgentType
   state: 'idle' | 'pending' | 'settled'
   models: CatalogModel[] | null
+  /** Probes that produced nothing. See MAX_DISCOVERY_ATTEMPTS. */
+  failures: number
   listeners: Set<(models: CatalogModel[]) => void>
 }
+
+/**
+ * How many times a host may answer with nothing before the seed stands as the final word.
+ *
+ * A probe that fails once used to settle the host forever, so a single cold CLI, slow proxy or
+ * unauthenticated first run pinned the STATIC seed for the whole app session — and the seed is
+ * a guess, which is how a picker ends up offering a model the fleet does not serve. Retrying
+ * on the next pane mount costs one backgrounded command; the cap keeps a host that genuinely
+ * cannot answer from re-probing on every mount.
+ */
+const MAX_DISCOVERY_ATTEMPTS = 3
 
 const enrichmentByAgentHost = new Map<string, CatalogEnrichmentEntry>()
 
@@ -42,6 +55,7 @@ export function subscribeNativeChatEnrichedModels(
     agent,
     state: 'idle' as const,
     models: null,
+    failures: 0,
     listeners: new Set<(models: CatalogModel[]) => void>()
   }
   entry.listeners.add(listener)
@@ -87,6 +101,7 @@ export function ensureNativeChatModelEnrichment(args: {
     agent: args.agent,
     state: 'idle',
     models: null,
+    failures: 0,
     listeners: new Set()
   }
   entry.state = 'pending'
@@ -97,10 +112,12 @@ export function ensureNativeChatModelEnrichment(args: {
   void args
     .discover()
     .then((discovered) => {
-      entry.state = 'settled'
       if (!discovered || discovered.length === 0) {
+        entry.failures += 1
+        entry.state = entry.failures >= MAX_DISCOVERY_ATTEMPTS ? 'settled' : 'idle'
         return
       }
+      entry.state = 'settled'
       entry.models =
         args.agent === 'claude'
           ? [...discovered]
@@ -112,7 +129,8 @@ export function ensureNativeChatModelEnrichment(args: {
       }
     })
     .catch(() => {
-      entry.state = 'settled'
+      entry.failures += 1
+      entry.state = entry.failures >= MAX_DISCOVERY_ATTEMPTS ? 'settled' : 'idle'
     })
 }
 

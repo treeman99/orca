@@ -258,3 +258,17 @@ export function useLinkRoutingPreferenceDialog(): LinkRoutingPreferenceDialogCon
   }
   return requestPreference
 }
+
+/**
+ * The same context, for callers that must not die without it.
+ *
+ * The terminal reads this to ask "open links in Orca?" ONCE, the first time someone clicks a
+ * link in a pane. That prompt is worth a dialog; it is not worth the terminal. The throwing
+ * hook above sits inside `TerminalPane`, so any run where the context reads null — a stale
+ * module after a hot reload, a surface mounted outside the provider — takes down the whole
+ * `terminal.workbench` boundary and every pane in it while the user is just switching tabs.
+ * Returning null degrades to "cannot ask", which is what a missing prompt already means.
+ */
+export function useOptionalLinkRoutingPreferenceDialog(): LinkRoutingPreferenceDialogContextValue | null {
+  return useContext(LinkRoutingPreferenceDialogContext)
+}
