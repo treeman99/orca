@@ -296,12 +296,6 @@ import type {
   AutomationPrecheckResult,
   AutomationUpdateInput
 } from '../shared/automations-types'
-import type { Bot, BotCreateInput, BotUpdateInput } from '../shared/bot-types'
-import type {
-  BotGroupChat,
-  BotGroupChatCreateInput,
-  BotGroupChatUpdateInput
-} from '../shared/bot-group-chat-types'
 import type { KeybindingActionId, KeybindingFileSnapshot } from '../shared/keybindings'
 import type {
   AiVaultDeleteSessionArgs,
@@ -4876,24 +4870,6 @@ const api = {
   confluence: {
     testConnection: (args?: { baseUrl?: string; token?: string }) =>
       ipcRenderer.invoke('confluence:testConnection', args)
-  },
-
-  bots: {
-    list: (): Promise<Bot[]> => ipcRenderer.invoke('bots:list'),
-    create: (input: BotCreateInput): Promise<Bot> => ipcRenderer.invoke('bots:create', input),
-    update: (args: { id: string; updates: BotUpdateInput }): Promise<Bot> =>
-      ipcRenderer.invoke('bots:update', args),
-    delete: (args: { id: string }): Promise<void> => ipcRenderer.invoke('bots:delete', args)
-  },
-
-  botGroupChats: {
-    list: (): Promise<BotGroupChat[]> => ipcRenderer.invoke('botGroupChats:list'),
-    create: (input: BotGroupChatCreateInput): Promise<BotGroupChat> =>
-      ipcRenderer.invoke('botGroupChats:create', input),
-    update: (args: { id: string; updates: BotGroupChatUpdateInput }): Promise<BotGroupChat> =>
-      ipcRenderer.invoke('botGroupChats:update', args),
-    delete: (args: { id: string }): Promise<void> =>
-      ipcRenderer.invoke('botGroupChats:delete', args)
   },
 
   automations: {

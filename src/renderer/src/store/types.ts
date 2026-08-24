@@ -42,10 +42,6 @@ import type { OrcaProfilesSlice } from './slices/orca-profiles'
 import type { NewIssueDraftSlice } from './slices/new-issue-draft'
 import type { TaskCreationDraftsSlice } from './slices/task-creation-drafts'
 import type { TerminalQuickCommandHostsSlice } from './slices/terminal-quick-command-hosts'
-import type { BotsSlice } from './slices/bots'
-import type { BotChatSlice } from './slices/bot-chat'
-import type { BotGroupChatSlice } from './slices/bot-group-chat'
-import type { LeftSidebarLaneSlice } from './slices/left-sidebar-lane'
 
 export type AppState = RepoSlice &
   SparsePresetsSlice &
@@ -88,8 +84,4 @@ export type AppState = RepoSlice &
   OrcaProfilesSlice &
   NewIssueDraftSlice &
   TaskCreationDraftsSlice &
-  TerminalQuickCommandHostsSlice &
-  BotsSlice &
-  BotChatSlice &
-  BotGroupChatSlice &
-  LeftSidebarLaneSlice
+  TerminalQuickCommandHostsSlice

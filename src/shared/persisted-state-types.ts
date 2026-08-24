@@ -6,8 +6,6 @@ import type {
   SshTarget
 } from './ssh-types'
 import type { Automation, AutomationRun } from './automations-types'
-import type { Bot } from './bot-types'
-import type { BotGroupChat } from './bot-group-chat-types'
 import type { MigrationUnsupportedPtyEntry } from './agent-status-types'
 import type { FeatureInteractionTelemetryBucketState } from './feature-interactions'
 import type { CodexResetCreditAttemptLedger } from './codex-reset-credit-attempt-ledger'
@@ -105,10 +103,6 @@ export type PersistedState = {
   legacyPaneKeyAliasEntries: LegacyPaneKeyAliasEntry[]
   automations: Automation[]
   automationRuns: AutomationRun[]
-  /** Bot roster. Optional so a state file written before the bot lane existed still loads. */
-  bots?: Bot[]
-  /** Group rooms. The one conversation record Orca owns — see bot-group-chat-types.ts. */
-  botGroupChats?: BotGroupChat[]
   onboarding: OnboardingState
   /** Main-owned telemetry de-dupe marker; never exposed through PersistedUIState. */
   featureInteractionTelemetryBuckets?: FeatureInteractionTelemetryBucketState

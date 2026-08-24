@@ -94,9 +94,6 @@ export type AutomationPrecheckResult = {
 
 export type Automation = {
   id: string
-  /** Bot this routine belongs to, or null for a standalone automation. The bot is a label
-   *  on top of this record; the scheduler never reads it. */
-  botId?: string | null
   name: string
   prompt: string
   precheck: AutomationPrecheck | null
@@ -166,7 +163,6 @@ export type AutomationRun = {
 }
 
 export type AutomationCreateInput = {
-  botId?: string | null
   name: string
   prompt: string
   precheck?: AutomationPrecheck | null
@@ -191,7 +187,6 @@ export type AutomationCreateInput = {
 export type AutomationUpdateInput = Partial<
   Pick<
     Automation,
-    | 'botId'
     | 'name'
     | 'prompt'
     | 'precheck'

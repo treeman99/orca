@@ -264,12 +264,11 @@ export function getDefaultSettings(homedir: string): GlobalSettings {
     openLinksInAppPreferencePrompted: false,
     openLinksInAppModifierInverts: false,
     terminalLinkActionPopoverEnabled: true,
-    // Stays false on purpose: the Bots lane switches its OWN panes to chat, and a fleet
-    // install must leave an ordinary session double-click on the raw terminal.
+    // A session opens as a terminal; the chat view is a per-tab toggle, not a launch mode.
     openAgentTabsInChatByDefault: false,
     autoSplitOrchestrationWorkerPanes: false,
-    // Fork default: on. The Bots lane's conversation view renders nothing without it, so a
-    // fresh installer would ship a chat surface that silently falls back to the TUI.
+    // Fork default: on. The terminal/chat toggle is the point — upstream ships it off, which
+    // hides the view behind a setting most users never find.
     experimentalNativeChat: true,
     nativeChatSessionOptions: {},
     openInApplications: [...DEFAULT_OPEN_IN_APPLICATIONS],
@@ -457,7 +456,6 @@ export function getDefaultPersistedState(homedir: string): PersistedState {
     legacyPaneKeyAliasEntries: [],
     automations: [],
     automationRuns: [],
-    bots: [],
     onboarding: getDefaultOnboardingState(),
     featureInteractionTelemetryBuckets: {},
     codexResetCreditAttemptLedger: structuredClone(EMPTY_CODEX_RESET_CREDIT_ATTEMPT_LEDGER)

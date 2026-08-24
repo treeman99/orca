@@ -51,10 +51,6 @@ vi.mock('./WorktreeList', () => ({
   default: () => <div data-testid="worktree-list" />
 }))
 
-vi.mock('./bots/BotsPanel', () => ({
-  default: () => <div data-testid="bots-panel" />
-}))
-
 vi.mock('./SidebarToolbar', () => ({
   default: () => <div data-testid="sidebar-toolbar" />
 }))
@@ -110,11 +106,7 @@ function setSidebarState(settings: GlobalSettings, statusBarVisible = true): voi
     settings,
     sidebarOpen: true,
     sidebarWidth: 320,
-    statusBarVisible,
-    bots: [],
-    unreadBotIds: [],
-    leftSidebarLane: 'sessions',
-    setLeftSidebarLane: vi.fn()
+    statusBarVisible
   }
 }
 
@@ -202,24 +194,6 @@ describe('Sidebar', () => {
     mocks.state = { ...mocks.state, repos: [{ id: 'repo-a' }, { id: 'repo-b' }] }
     view.rerender(sidebarElement())
     expect(fetchAllWorktrees).toHaveBeenCalledTimes(1)
-  })
-
-  // The bot lane is additive: switching to it must not disturb the session list's own
-  // scroll refs, which live above this component and are handed back in unchanged.
-  it('swaps the workspace list for the bot roster without unmounting the sidebar chrome', () => {
-    setSidebarState(getDefaultSettings(tmpdir()))
-    const view = render(sidebarElement())
-    expect(view.queryByTestId('worktree-list')).not.toBeNull()
-    expect(view.queryByTestId('bots-panel')).toBeNull()
-
-    mocks.state = { ...mocks.state, leftSidebarLane: 'bots' }
-    view.rerender(sidebarElement())
-
-    expect(view.queryByTestId('worktree-list')).toBeNull()
-    expect(view.queryByTestId('sidebar-header')).toBeNull()
-    // Nav and the bottom toolbar belong to both lanes and must survive the swap.
-    expect(view.queryByTestId('sidebar-nav')).not.toBeNull()
-    expect(view.queryByTestId('sidebar-toolbar')).not.toBeNull()
   })
 
   it('does not scan all hosts when runtime connection status flaps', () => {
