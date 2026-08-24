@@ -338,6 +338,7 @@ export function getDefaultSettings(homedir: string): GlobalSettings {
     defaultLinearTeamSelection: null,
     opencodeSessionCookie: '',
     confluenceBaseUrl: '',
+    confluenceUsername: '',
     confluenceApiToken: '',
     opencodeWorkspaceId: '',
     minimaxGroupId: '',

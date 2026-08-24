@@ -4868,7 +4868,7 @@ const api = {
   },
 
   confluence: {
-    testConnection: (args?: { baseUrl?: string; token?: string }) =>
+    testConnection: (args?: { baseUrl?: string; token?: string; username?: string }) =>
       ipcRenderer.invoke('confluence:testConnection', args)
   },
 

@@ -67,10 +67,16 @@ function describeAuthRejection(response: Response): string {
   if (seraph.includes('OUT_OF_LICENSE')) {
     return `This account has no Confluence licence seat (HTTP ${status}).`
   }
-  // A Basic/Negotiate challenge means whatever answered does not take bearer tokens — an SSO
-  // proxy in front of Confluence, not Confluence itself.
-  if (/^(basic|negotiate|ntlm)/i.test(challenge)) {
-    return `Something in front of Confluence asked for ${challenge.split(/[\s,]/)[0]} authentication instead of a bearer token (HTTP ${status}). The URL is probably going through an SSO gateway rather than straight to Confluence.`
+  // Corrected: a Basic challenge is NOT evidence of a gateway. Confluence Server/DC answers an
+  // unauthenticated REST request with `WWW-Authenticate: Basic` itself — that is Seraph's
+  // default — so seeing it means only that the bearer token was not accepted. Three things
+  // produce that, and the username field is what resolves the first two.
+  if (/^basic/i.test(challenge)) {
+    return `Confluence did not accept the bearer token and asked for Basic authentication instead (HTTP ${status}). Personal Access Tokens only exist on Confluence Server/DC 7.9 and newer, and a deployment can switch them off — fill in the username field to send the credential as Basic instead. If the username is already set and this persists, a proxy in front of Confluence may be stripping the Authorization header.`
+  }
+  // Negotiate/NTLM is different: Confluence does not issue those, so something else answered.
+  if (/^(negotiate|ntlm)/i.test(challenge)) {
+    return `Something in front of Confluence asked for ${challenge.split(/[\s,]/)[0]} authentication (HTTP ${status}). Confluence itself never issues that challenge, so the URL is going through an SSO gateway rather than straight to Confluence.`
   }
   // No Confluence reason header at all: most likely the request never reached Confluence.
   if (!seraph && !denied) {
@@ -79,9 +85,25 @@ function describeAuthRejection(response: Response): string {
   return `Confluence rejected the token (HTTP ${status}${seraph ? `, ${seraph}` : ''}).`
 }
 
+/**
+ * The Authorization header for this credential.
+ *
+ * A Personal Access Token goes as `Bearer`; that is the only scheme Confluence Server/DC 7.9+
+ * accepts for one. A username means the older path — Basic with username:password — which is
+ * what an install predating PATs (or one with them disabled) advertises in its 401.
+ */
+export function confluenceAuthorizationHeader(token: string, username?: string): string {
+  const user = username?.trim() ?? ''
+  return user
+    ? `Basic ${Buffer.from(`${user}:${token}`, 'utf-8').toString('base64')}`
+    : `Bearer ${token}`
+}
+
 export async function testConfluenceConnection(input: {
   baseUrl: string
   token: string
+  /** Set to authenticate as Basic instead of a bearer PAT. */
+  username?: string
   // Injected so the test suite never reaches the network.
   fetchImpl?: typeof fetch
 }): Promise<ConfluenceConnectionTestResult> {
@@ -111,9 +133,10 @@ export async function testConfluenceConnection(input: {
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
     const doFetch = input.fetchImpl ?? fetch
+    const authorization = confluenceAuthorizationHeader(token, input.username)
     let requestUrl = `${baseUrl}/rest/api/space?limit=1`
     let response = await doFetch(requestUrl, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      headers: { Authorization: authorization, Accept: 'application/json' },
       redirect: 'manual',
       signal: controller.signal
     })
@@ -139,7 +162,7 @@ export async function testConfluenceConnection(input: {
       }
       requestUrl = target
       response = await doFetch(requestUrl, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        headers: { Authorization: authorization, Accept: 'application/json' },
         redirect: 'manual',
         signal: controller.signal
       })

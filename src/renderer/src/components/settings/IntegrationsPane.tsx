@@ -28,7 +28,7 @@ export function IntegrationsPane(): React.JSX.Element {
           <p className="text-xs text-muted-foreground">
             {translate(
               'auto.components.settings.IntegrationsPane.knowledgeDescription',
-              'The company wiki bots can read from.'
+              'The company wiki agents can read from.'
             )}
           </p>
         </div>

@@ -5,5 +5,7 @@ export type ConfluenceApi = {
   testConnection: (args?: {
     baseUrl?: string
     token?: string
+    /** Set to authenticate as Basic; empty sends the token as a bearer PAT. */
+    username?: string
   }) => Promise<ConfluenceConnectionTestResult>
 }

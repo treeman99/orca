@@ -13,12 +13,15 @@ export function registerConfluenceHandlers(store: Store): void {
     // pointing the test at another host.
     async (
       _event,
-      args?: { baseUrl?: string; token?: string }
+      args?: { baseUrl?: string; token?: string; username?: string }
     ): Promise<ConfluenceConnectionTestResult> => {
       const settings = store.getSettings()
       return await testConfluenceConnection({
         baseUrl: args?.baseUrl?.trim() || (settings.confluenceBaseUrl ?? ''),
-        token: args?.token?.trim() || (settings.confluenceApiToken ?? '')
+        token: args?.token?.trim() || (settings.confluenceApiToken ?? ''),
+        // Draft-first like the other two: the pane tests what the user just typed, and an
+        // empty draft field means "keep what is stored" rather than "send Basic with no user".
+        username: args?.username?.trim() || (settings.confluenceUsername ?? '')
       })
     }
   )

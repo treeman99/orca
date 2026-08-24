@@ -352,6 +352,15 @@ export type GlobalSettings = {
   confluenceBaseUrl?: string
   /** Confluence personal access token, sent as `Authorization: Bearer`. Encrypted at rest. */
   confluenceApiToken?: string
+  /**
+   * Username for Basic auth. Empty means the token is a Personal Access Token sent as
+   * `Authorization: Bearer`.
+   *
+   * Why both schemes: PATs only exist on Confluence Server/DC 7.9+. An older mirror — and a
+   * deployment with PATs turned off — takes username + password over Basic, which is exactly
+   * what those servers advertise in the 401 challenge.
+   */
+  confluenceUsername?: string
   /** Optional OpenCode Go workspace ID override; when set, skips the workspaces lookup and fetches usage directly. */
   opencodeWorkspaceId: string
   /** Optional MiniMax group id. When empty, the usage fetcher extracts minimax_group_id_v2 from the cookie. */

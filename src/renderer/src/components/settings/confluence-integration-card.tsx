@@ -28,6 +28,7 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
   const updateSettings = useAppStore((s) => s.updateSettings)
 
   const savedUrl = settings?.confluenceBaseUrl ?? ''
+  const savedUsername = settings?.confluenceUsername ?? ''
   const hasToken = Boolean(settings?.confluenceApiToken)
   const configured = isConfluenceConfigured({
     confluenceBaseUrl: savedUrl,
@@ -35,6 +36,7 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
   })
 
   const [url, setUrl] = useState(savedUrl)
+  const [username, setUsername] = useState(savedUsername)
   // The saved token is never shown back. An empty field means "keep what is stored"; the
   // Disconnect button is the only way to clear it, so a stray focus cannot wipe a credential.
   const [token, setToken] = useState('')
@@ -45,8 +47,13 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
     setUrl(savedUrl)
   }, [savedUrl])
 
+  useEffect(() => {
+    setUsername(savedUsername)
+  }, [savedUsername])
+
   const urlProblem = describeConfluenceBaseUrl(url)
-  const dirty = url.trim() !== savedUrl || token.trim().length > 0
+  const dirty =
+    url.trim() !== savedUrl || username.trim() !== savedUsername || token.trim().length > 0
   const canSave = dirty && !urlProblem
 
   // Save, then immediately prove it works. A credential nobody exercised is a bot failure
@@ -57,8 +64,10 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
     }
     const nextUrl = normalizeConfluenceBaseUrl(url)
     const nextToken = token.trim()
+    const nextUsername = username.trim()
     updateSettings({
       confluenceBaseUrl: nextUrl,
+      confluenceUsername: nextUsername,
       ...(nextToken ? { confluenceApiToken: nextToken } : {})
     })
     setToken('')
@@ -69,6 +78,7 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
       // store back here would test whatever was stored a moment ago.
       const outcome = await window.api.confluence.testConnection({
         baseUrl: nextUrl,
+        username: nextUsername,
         ...(nextToken ? { token: nextToken } : {})
       })
       setResult(
@@ -93,8 +103,9 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
   }
 
   const disconnect = (): void => {
-    updateSettings({ confluenceBaseUrl: '', confluenceApiToken: '' })
+    updateSettings({ confluenceBaseUrl: '', confluenceUsername: '', confluenceApiToken: '' })
     setToken('')
+    setUsername('')
     setResult(null)
   }
 
@@ -104,7 +115,7 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
       name={translate('auto.components.settings.confluence.title', 'Confluence')}
       description={translate(
         'auto.components.settings.confluence.description',
-        'Self-hosted Confluence (Server / Data Center). Bots read pages from here.'
+        'Self-hosted Confluence (Server / Data Center). Agents read pages from here.'
       )}
       statusLabel={
         configured
@@ -136,8 +147,39 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
         </div>
 
         <div className="flex flex-col gap-1.5">
+          <Label htmlFor="confluence-username">
+            {translate('auto.components.settings.confluence.usernameLabel', 'Username (optional)')}
+          </Label>
+          <Input
+            id="confluence-username"
+            value={username}
+            spellCheck={false}
+            autoComplete="off"
+            placeholder={translate(
+              'auto.components.settings.confluence.usernamePlaceholder',
+              'Leave empty for a personal access token'
+            )}
+            onChange={(event) => {
+              setUsername(event.target.value)
+              setResult(null)
+            }}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            {translate(
+              'auto.components.settings.confluence.usernameHelp',
+              'Only for a Confluence older than 7.9, or one with personal access tokens turned off — those take a username and password over Basic auth. Filling this in switches the credential below from a bearer token to Basic.'
+            )}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
           <Label htmlFor="confluence-token">
-            {translate('auto.components.settings.confluence.tokenLabel', 'Personal access token')}
+            {username.trim()
+              ? translate('auto.components.settings.confluence.passwordLabel', 'Password')
+              : translate(
+                  'auto.components.settings.confluence.tokenLabel',
+                  'Personal access token'
+                )}
           </Label>
           <Input
             id="confluence-token"
@@ -164,10 +206,15 @@ export function ConfluenceIntegrationCard(): React.JSX.Element {
                   'auto.components.settings.confluence.tokenStored',
                   'A token is stored. Leave this empty to keep it, or paste a new one to replace it.'
                 )
-              : translate(
-                  'auto.components.settings.confluence.tokenHelp',
-                  'Sent as a bearer token. Stored on this machine and encrypted where the OS supports it.'
-                )}
+              : username.trim()
+                ? translate(
+                    'auto.components.settings.confluence.basicHelp',
+                    'Sent as Basic auth with the username above. Stored on this machine and encrypted where the OS supports it.'
+                  )
+                : translate(
+                    'auto.components.settings.confluence.tokenHelp',
+                    'Sent as a bearer token. Stored on this machine and encrypted where the OS supports it.'
+                  )}
           </p>
         </div>
 

@@ -98,7 +98,7 @@ describe('testConfluenceConnection', () => {
     ).toMatchObject({ reason: 'unauthorized' })
   })
 
-  // The three 401s that look identical from outside but need different fixes.
+  // The 401s that look identical from outside but need different fixes.
   it('names a CAPTCHA lockout rather than blaming the token', async () => {
     const fetchImpl = vi.fn(
       async () =>
@@ -118,13 +118,30 @@ describe('testConfluenceConnection', () => {
     expect((result as { message: string }).message).toMatch(/CAPTCHA/i)
   })
 
-  it('points at a gateway when the challenge is not a bearer scheme', async () => {
+  // Confluence Server/DC answers an unauthenticated REST call with `WWW-Authenticate: Basic`
+  // itself — Seraph's default. An earlier version read that as proof of a gateway and sent
+  // people hunting their network instead of their credential, which is the wrong half.
+  it('reads a Basic challenge as a rejected token, not as a gateway', async () => {
     const fetchImpl = vi.fn(
       async () =>
         new Response(null, {
           status: 401,
-          headers: { 'www-authenticate': 'Negotiate' }
+          headers: { 'www-authenticate': 'Basic realm="Atlassian Confluence"' }
         })
+    )
+    const message = (await testConfluenceConnection({
+      baseUrl: BASE,
+      token: 'tok',
+      fetchImpl: fetchImpl as unknown as typeof fetch
+    })) as { message: string }
+    expect(message.message).toMatch(/username/i)
+    expect(message.message).not.toMatch(/gateway/i)
+  })
+
+  // Negotiate is different: Confluence never issues it, so something else really did answer.
+  it('points at a gateway for a challenge Confluence never issues', async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response(null, { status: 401, headers: { 'www-authenticate': 'Negotiate' } })
     )
     const result = await testConfluenceConnection({
       baseUrl: BASE,
@@ -132,6 +149,30 @@ describe('testConfluenceConnection', () => {
       fetchImpl: fetchImpl as unknown as typeof fetch
     })
     expect((result as { message: string }).message).toMatch(/Negotiate/)
+  })
+
+  it('sends Basic when a username is set, and Bearer when it is not', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ results: [] }))
+    await testConfluenceConnection({
+      baseUrl: BASE,
+      token: 'pw',
+      username: ' alice ',
+      fetchImpl: fetchImpl as unknown as typeof fetch
+    })
+    const [, basic] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+    expect((basic.headers as Record<string, string>).Authorization).toBe(
+      `Basic ${Buffer.from('alice:pw', 'utf-8').toString('base64')}`
+    )
+
+    fetchImpl.mockClear()
+    await testConfluenceConnection({
+      baseUrl: BASE,
+      token: 'pat',
+      username: '   ',
+      fetchImpl: fetchImpl as unknown as typeof fetch
+    })
+    const [, bearer] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit]
+    expect((bearer.headers as Record<string, string>).Authorization).toBe('Bearer pat')
   })
 
   it('says a bare 401 was probably not answered by Confluence at all', async () => {

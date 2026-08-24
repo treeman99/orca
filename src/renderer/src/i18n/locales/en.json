@@ -11381,7 +11381,12 @@
           "savedNote": "Saved.",
           "urlPlaceholder": "https://confluence-mirror.samsungds.net",
           "testOkSpace": "Connected. Example space: {{value0}}",
-          "testOk": "Connected."
+          "testOk": "Connected.",
+          "usernameLabel": "Username (optional)",
+          "usernamePlaceholder": "Leave empty for a personal access token",
+          "usernameHelp": "Only for a Confluence older than 7.9, or one with personal access tokens turned off — those take a username and password over Basic auth. Filling this in switches the credential below from a bearer token to Basic.",
+          "passwordLabel": "Password",
+          "basicHelp": "Sent as Basic auth with the username above. Stored on this machine and encrypted where the OS supports it."
         }
       },
       "right": {
