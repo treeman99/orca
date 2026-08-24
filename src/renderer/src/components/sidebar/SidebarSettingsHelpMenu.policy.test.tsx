@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
 
 const UNRESTRICTED = {
   allowedAgents: null,
+  allowedModels: null,
   lockdown: false,
   disableAutoUpdate: false,
   disableCloudRelay: false,

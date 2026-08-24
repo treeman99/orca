@@ -10,6 +10,7 @@ import type { EnterprisePolicyView } from '../../../shared/enterprise-policy-vie
 
 const UNRESTRICTED: EnterprisePolicyView = {
   allowedAgents: null,
+  allowedModels: null,
   lockdown: false,
   disableAutoUpdate: false,
   disableCloudRelay: false,

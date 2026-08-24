@@ -9,6 +9,7 @@
 export type EnterprisePolicyView = {
   /** Agent ids the UI may offer, or null for no restriction (upstream behavior). */
   allowedAgents: readonly string[] | null
+  allowedModels: readonly string[] | null
   /** Master corporate lockdown switch, for surfaces that key off it directly. */
   lockdown: boolean
   /** Hide every update affordance: menu items, settings rows, the update card. */
@@ -46,6 +47,7 @@ export type EnterprisePolicyView = {
 /** Every key the view carries. A field added above fails to compile until it is listed. */
 export const ENTERPRISE_POLICY_VIEW_KEYS = [
   'allowedAgents',
+  'allowedModels',
   'lockdown',
   'disableAutoUpdate',
   'disableCloudRelay',
@@ -77,6 +79,7 @@ export function toEnterprisePolicyView(
 ): EnterprisePolicyView {
   return {
     allowedAgents: policy.allowedAgents,
+    allowedModels: policy.allowedModels,
     lockdown: policy.lockdown,
     disableAutoUpdate: policy.disableAutoUpdate,
     disableCloudRelay: policy.disableCloudRelay,

@@ -2,6 +2,8 @@ import {
   getAgentSessionOptionCatalog,
   type CatalogModel
 } from '../../../../shared/agent-session-option-catalog'
+import { filterModelsByPolicy } from '../../../../shared/corporate-agent-access'
+import { readEnterprisePolicyAllowedModels } from '@/enterprise/enterprise-policy-access'
 import type { AgentType } from '../../../../shared/agent-status-types'
 import type {
   SessionOptionDescriptor,
@@ -93,7 +95,16 @@ export function createNativeChatPtySessionOptions(
   if (untrackRetiredModel()) {
     writeNativeChatSessionOptionCache(args.scopeKey, record)
   }
-  const activeModels = (): CatalogModel[] => withTrackedNativeChatModel(catalog, models, record)
+  // The policy gate sits HERE, on the way to the picker, rather than at the catalog seed or the
+  // probe: both of those describe what the agent binary knows, while `allowedModels` describes
+  // what this fleet's gateway will actually serve. Filtering at the source would also lose the
+  // distinction on a machine with no policy, where the two are the same thing.
+  const activeModels = (): CatalogModel[] =>
+    filterModelsByPolicy(
+      withTrackedNativeChatModel(catalog, models, record),
+      (model) => model.id,
+      readEnterprisePolicyAllowedModels()
+    )
   let snapshot = buildNativeChatSessionOptionSnapshot({
     catalog,
     models: activeModels(),

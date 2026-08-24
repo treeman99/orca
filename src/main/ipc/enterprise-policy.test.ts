@@ -22,6 +22,7 @@ import type { EnterprisePolicyView } from '../../shared/enterprise-policy-view'
 
 const VIEW_FIELDS = [
   'allowedAgents',
+  'allowedModels',
   'disableAgentInstallSuggestions',
   'disableAutoUpdate',
   'disableCloudRelay',
@@ -64,6 +65,7 @@ describe('registerEnterprisePolicyHandlers', () => {
     registerEnterprisePolicyHandlers(() => makeEnterprisePolicy())
     expect(invokeGet()).toEqual({
       allowedAgents: null,
+      allowedModels: null,
       lockdown: false,
       disableAutoUpdate: false,
       disableCloudRelay: false,
@@ -88,6 +90,7 @@ describe('registerEnterprisePolicyHandlers', () => {
     registerEnterprisePolicyHandlers(() => makeLockdownPolicy())
     expect(invokeGet()).toEqual({
       allowedAgents: null,
+      allowedModels: null,
       lockdown: true,
       disableAutoUpdate: true,
       disableCloudRelay: true,

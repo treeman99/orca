@@ -11,6 +11,7 @@ import type { EnterprisePolicyView } from '../../../shared/enterprise-policy-vie
 
 const UNRESTRICTED: EnterprisePolicyView = {
   allowedAgents: null,
+  allowedModels: null,
   lockdown: false,
   disableAutoUpdate: false,
   disableCloudRelay: false,
@@ -62,6 +63,11 @@ function subscribe(listener: () => void): () => void {
 /** The agent-restriction list, or null when unrestricted. Safe to read outside React. */
 export function getPolicyAllowedAgents(): readonly string[] | null {
   return current.allowedAgents
+}
+
+/** The model-restriction list, or null when unrestricted. Safe to read outside React. */
+export function readEnterprisePolicyAllowedModels(): readonly string[] | null {
+  return current.allowedModels
 }
 
 /** The cached policy, for the pure search catalogs that cannot call a hook. */

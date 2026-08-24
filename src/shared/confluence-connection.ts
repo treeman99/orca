@@ -4,7 +4,27 @@
 // what a usable value is. A URL that only fails at request time is a token the user believes
 // is configured.
 
-/** Trailing slashes and a pasted `/wiki` or REST path are stripped; the base is the origin. */
+/**
+ * Path segments that mean "you are now inside the wiki UI", not "this is the base".
+ *
+ * Why this list rather than just stripping the REST suffix: the natural thing to paste is the
+ * page you are looking at. `…/display/TEAM/Build+Guide` kept its whole path, so the probe
+ * called `…/display/TEAM/Build+Guide/rest/api/space` — which an SSO-fronted install answers
+ * with a login challenge, i.e. **401 for a perfectly good token**. Everything BEFORE the first
+ * of these is kept, because that is where a real context path (`/confluence`) lives.
+ */
+const CONFLUENCE_UI_PATH_SEGMENTS = new Set([
+  'display',
+  'pages',
+  'spaces',
+  'wiki',
+  'label',
+  'plugins',
+  'rest',
+  'x'
+])
+
+/** Trailing slashes, a pasted page/REST path, and any query or fragment are stripped. */
 export function normalizeConfluenceBaseUrl(value: string): string {
   const trimmed = value.trim()
   if (!trimmed) {
@@ -12,10 +32,17 @@ export function normalizeConfluenceBaseUrl(value: string): string {
   }
   try {
     const url = new URL(trimmed)
-    // Server/DC installs are usually at the origin, but a mirror can sit under a context path
-    // (…/confluence). Keep the path, drop only the REST suffix people paste from docs.
-    const path = url.pathname.replace(/\/+$/, '').replace(/\/rest\/api.*$/, '')
-    return `${url.origin}${path}`
+    const segments = url.pathname.split('/').filter(Boolean)
+    const kept: string[] = []
+    for (const segment of segments) {
+      // `*.action` is Confluence's own UI/servlet layer (login.action, viewpage.action, …) and
+      // is never part of a base URL.
+      if (CONFLUENCE_UI_PATH_SEGMENTS.has(segment.toLowerCase()) || segment.endsWith('.action')) {
+        break
+      }
+      kept.push(segment)
+    }
+    return kept.length > 0 ? `${url.origin}/${kept.join('/')}` : url.origin
   } catch {
     return trimmed.replace(/\/+$/, '')
   }

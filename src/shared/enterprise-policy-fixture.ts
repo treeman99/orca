@@ -31,6 +31,7 @@ const UNLOCKED: EnterprisePolicy = {
   githubEnterpriseHost: null,
   updateReleaseRepository: null,
   allowedAgents: null,
+  allowedModels: null,
   sourcePath: null,
   warnings: []
 }

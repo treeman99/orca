@@ -22,6 +22,22 @@ describe('normalizeConfluenceBaseUrl', () => {
     )
   })
 
+  // The 401 nobody could explain: the natural thing to paste is the page you are looking at,
+  // and that whole path used to survive — so the probe called
+  // `…/display/TEAM/Guide/rest/api/space`, which an SSO-fronted install answers with a login
+  // challenge. A good token, a 401, and nothing pointing at the URL.
+  it.each([
+    ['https://wiki.example.net/display/TEAM/Build+Guide', 'https://wiki.example.net'],
+    ['https://wiki.example.net/pages/viewpage.action?pageId=12345', 'https://wiki.example.net'],
+    ['https://wiki.example.net/spaces/TEAM/pages/12345', 'https://wiki.example.net'],
+    ['https://wiki.example.net/login.action?os_destination=%2F', 'https://wiki.example.net'],
+    ['https://wiki.example.net/wiki', 'https://wiki.example.net'],
+    // A real context path still survives — it is what comes BEFORE the wiki UI.
+    ['https://wiki.example.net/confluence/display/TEAM/Page', 'https://wiki.example.net/confluence']
+  ])('reduces a pasted page URL %s to its base', (pasted, expected) => {
+    expect(normalizeConfluenceBaseUrl(pasted)).toBe(expected)
+  })
+
   it('leaves an unparseable value alone rather than inventing one', () => {
     expect(normalizeConfluenceBaseUrl('  wiki.example.net/  ')).toBe('wiki.example.net')
     expect(normalizeConfluenceBaseUrl('   ')).toBe('')

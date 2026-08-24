@@ -6,6 +6,7 @@ import type { Repo } from '../../../../shared/repo-types'
 
 const UNRESTRICTED: EnterprisePolicyView = {
   allowedAgents: null,
+  allowedModels: null,
   lockdown: false,
   disableAutoUpdate: false,
   disableCloudRelay: false,

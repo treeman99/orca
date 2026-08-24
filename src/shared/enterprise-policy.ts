@@ -165,6 +165,19 @@ export type EnterprisePolicy = {
    * agents — they ride the allowed agent's picker — so they need no entry here.
    */
   allowedAgents: readonly string[] | null
+  /**
+   * Model ids a user may select inside an allowed agent (e.g. "opus", "sonnet"). `null` means
+   * no restriction.
+   *
+   * Why this cannot be solved by probing the CLI: the model picker lists what the agent BINARY
+   * knows, and whether the corporate gateway actually serves a given model is a separate fact
+   * that only surfaces when a request is refused mid-turn. So a fleet whose gateway carries a
+   * narrower set still saw every model offered, picked one, and failed later with no
+   * explanation. Matching is by prefix on the id so a version-qualified id (`opus[1m]`) is
+   * covered by the family entry (`opus`) — the CLI's aliases and its exact names are the same
+   * model, and a fleet should not have to enumerate every spelling.
+   */
+  allowedModels: readonly string[] | null
   /** Absolute path of the policy file in effect, or null when none was found. */
   sourcePath: string | null
   /** Admin-facing complaints about the document (unknown keys, wrong types). */
@@ -205,6 +218,7 @@ const KNOWN_KEYS: ReadonlySet<string> = new Set<string>([
   'githubEnterpriseHost',
   'updateReleaseRepository',
   'allowedAgents',
+  'allowedModels',
   'allowedNetworkHosts',
   // Retired: the self-hosted model lane was removed. Still accepted so a deployed
   // policy file that still carries it does not start reporting an unknown key.
@@ -411,6 +425,7 @@ export function resolveEnterprisePolicy(
     normalizeHost(env.GH_HOST) ??
     normalizeHost(ghConfigHost())
   const allowedAgents = readAgentAllowlist(effective, 'allowedAgents', warnings)
+  const allowedModels = readAgentAllowlist(effective, 'allowedModels', warnings)
   const allowed = new Set(readHostList(effective, 'allowedNetworkHosts', warnings))
   if (githubEnterpriseHost) {
     allowed.add(githubEnterpriseHost)
@@ -429,6 +444,7 @@ export function resolveEnterprisePolicy(
       warnings
     ),
     allowedAgents,
+    allowedModels,
     sourcePath,
     warnings
   }

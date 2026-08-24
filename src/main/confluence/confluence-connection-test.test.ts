@@ -98,6 +98,65 @@ describe('testConfluenceConnection', () => {
     ).toMatchObject({ reason: 'unauthorized' })
   })
 
+  // The three 401s that look identical from outside but need different fixes.
+  it('names a CAPTCHA lockout rather than blaming the token', async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(null, {
+          status: 401,
+          headers: {
+            'x-authentication-denied-reason': 'CAPTCHA_CHALLENGE; login-url=/login.action'
+          }
+        })
+    )
+    const result = await testConfluenceConnection({
+      baseUrl: BASE,
+      token: 'tok',
+      fetchImpl: fetchImpl as unknown as typeof fetch
+    })
+    expect(result).toMatchObject({ reason: 'unauthorized' })
+    expect((result as { message: string }).message).toMatch(/CAPTCHA/i)
+  })
+
+  it('points at a gateway when the challenge is not a bearer scheme', async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(null, {
+          status: 401,
+          headers: { 'www-authenticate': 'Negotiate' }
+        })
+    )
+    const result = await testConfluenceConnection({
+      baseUrl: BASE,
+      token: 'tok',
+      fetchImpl: fetchImpl as unknown as typeof fetch
+    })
+    expect((result as { message: string }).message).toMatch(/Negotiate/)
+  })
+
+  it('says a bare 401 was probably not answered by Confluence at all', async () => {
+    const fetchImpl = vi.fn(async () => new Response(null, { status: 401 }))
+    const result = await testConfluenceConnection({
+      baseUrl: BASE,
+      token: 'tok',
+      fetchImpl: fetchImpl as unknown as typeof fetch
+    })
+    expect((result as { message: string }).message).toMatch(/gateway/i)
+  })
+
+  // A token copied across a line wrap fails as an ordinary 401, which sends people hunting the
+  // wrong thing — catch it before the request.
+  it('rejects a token with whitespace inside without calling out', async () => {
+    const fetchImpl = vi.fn()
+    const result = await testConfluenceConnection({
+      baseUrl: BASE,
+      token: 'abc def',
+      fetchImpl: fetchImpl as unknown as typeof fetch
+    })
+    expect((result as { message: string }).message).toMatch(/line wrap|unbroken/i)
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
   it('refuses to call anything when half the credential is missing', async () => {
     const fetchImpl = vi.fn()
     expect(

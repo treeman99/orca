@@ -25,3 +25,39 @@ export function filterAgentsByPolicy<T>(
   }
   return items.filter((item) => allowedAgents.includes(agentIdOf(item)))
 }
+
+/**
+ * True when `modelId` may be offered under the policy's `allowedModels`.
+ *
+ * Prefix match, not equality: the same model appears under several spellings depending on which
+ * surface named it — a CLI alias (`opus`), the picker's version-qualified value (`opus[1m]`),
+ * and the resolved API id (`claude-opus-5`). A fleet should express the family once, so an
+ * entry matches an id that starts with it. `null` means no restriction.
+ */
+export function isModelAllowedByPolicy(
+  modelId: string,
+  allowedModels: readonly string[] | null | undefined
+): boolean {
+  if (allowedModels == null) {
+    return true
+  }
+  const id = modelId.trim().toLowerCase()
+  return allowedModels.some((allowed) => {
+    const prefix = allowed.trim().toLowerCase()
+    return prefix.length > 0 && id.startsWith(prefix)
+  })
+}
+
+/** Keep only the models the policy permits. An allowlist that matches nothing is ignored
+ *  rather than obeyed: an empty picker is a broken app, and the admin gets a warning path. */
+export function filterModelsByPolicy<T>(
+  models: readonly T[],
+  modelIdOf: (model: T) => string,
+  allowedModels: readonly string[] | null | undefined
+): T[] {
+  if (allowedModels == null) {
+    return [...models]
+  }
+  const kept = models.filter((model) => isModelAllowedByPolicy(modelIdOf(model), allowedModels))
+  return kept.length > 0 ? kept : [...models]
+}

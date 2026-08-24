@@ -40,6 +40,45 @@ function redirectTarget(response: Response, from: string): string | null {
   }
 }
 
+/**
+ * Turn a 401/403 into something the user can act on.
+ *
+ * "The server rejected the token" is where diagnosis stopped, and it is the least useful thing
+ * to say: the token is usually fine and something else denied the request. Confluence answers
+ * with its own reason headers (Seraph, its auth filter), and reading them back separates the
+ * three cases that look identical from outside — a genuinely bad token, an account locked
+ * behind a CAPTCHA after failed logins, and an SSO/gateway in front that never let the request
+ * reach Confluence at all.
+ */
+function describeAuthRejection(response: Response): string {
+  const status = response.status
+  const seraph = response.headers.get('x-seraph-loginreason')?.trim().toUpperCase() ?? ''
+  const denied = response.headers.get('x-authentication-denied-reason')?.trim() ?? ''
+  const challenge = response.headers.get('www-authenticate')?.trim() ?? ''
+
+  // Confluence locks an account into a CAPTCHA after repeated failures, and EVERY API call then
+  // fails with 401 no matter how good the token is. Only a browser login clears it.
+  if (denied.toUpperCase().includes('CAPTCHA') || seraph.includes('AUTHENTICATED_FAILED')) {
+    return `Confluence is challenging this account with a CAPTCHA (HTTP ${status}). Sign in to Confluence in a browser once, complete the challenge, then test again.`
+  }
+  if (seraph.includes('AUTHENTICATION_DENIED')) {
+    return `Confluence denied the login (HTTP ${status}${denied ? `, ${denied}` : ''}). This is an account restriction rather than a bad token — ask your Confluence administrator.`
+  }
+  if (seraph.includes('OUT_OF_LICENSE')) {
+    return `This account has no Confluence licence seat (HTTP ${status}).`
+  }
+  // A Basic/Negotiate challenge means whatever answered does not take bearer tokens — an SSO
+  // proxy in front of Confluence, not Confluence itself.
+  if (/^(basic|negotiate|ntlm)/i.test(challenge)) {
+    return `Something in front of Confluence asked for ${challenge.split(/[\s,]/)[0]} authentication instead of a bearer token (HTTP ${status}). The URL is probably going through an SSO gateway rather than straight to Confluence.`
+  }
+  // No Confluence reason header at all: most likely the request never reached Confluence.
+  if (!seraph && !denied) {
+    return `The request was rejected with HTTP ${status}, and the response carries none of Confluence's own auth headers — so it was probably answered by a gateway in front of it, not by Confluence. Check the URL with your administrator.`
+  }
+  return `Confluence rejected the token (HTTP ${status}${seraph ? `, ${seraph}` : ''}).`
+}
+
 export async function testConfluenceConnection(input: {
   baseUrl: string
   token: string
@@ -53,6 +92,18 @@ export async function testConfluenceConnection(input: {
       ok: false,
       reason: 'not_configured',
       message: 'Enter both the base URL and a token first.'
+    }
+  }
+
+  // Caught before the request because the server's answer would be an indistinguishable 401:
+  // a token copied out of a wrapped mail or wiki cell carries a newline or space in the middle,
+  // and trimming the ends does not save it.
+  if (/\s/.test(token)) {
+    return {
+      ok: false,
+      reason: 'unauthorized',
+      message:
+        'That token has a space or line break inside it — it was probably copied across a line wrap. Paste it again as one unbroken string.'
     }
   }
 
@@ -104,7 +155,7 @@ export async function testConfluenceConnection(input: {
       return {
         ok: false,
         reason: 'unauthorized',
-        message: `The server rejected the token (HTTP ${response.status}).`
+        message: describeAuthRejection(response)
       }
     }
     if (!response.ok) {

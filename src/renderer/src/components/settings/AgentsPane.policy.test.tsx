@@ -12,6 +12,7 @@ import type { TuiAgent } from '../../../../shared/tui-agent'
 
 const UNRESTRICTED: EnterprisePolicyView = {
   allowedAgents: null,
+  allowedModels: null,
   lockdown: false,
   disableAutoUpdate: false,
   disableCloudRelay: false,
