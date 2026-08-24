@@ -130,6 +130,13 @@ Hermes는 프로필마다 갈라지지 않는 정본 대화를 고정합니다. 
   말풍선으로 그려 줍니다. 터미널 화면을 읽지 않아도 되고, 사이드바 미리보기의 8000자 상한도
   받지 않습니다. 단 `settings.experimentalNativeChat`이 켜져 있고 에이전트가
   claude/openclaude/codex/grok/omp일 때만입니다. 그 밖에는 평소대로 터미널로 열립니다.
+- **opencode도 챗 뷰를 씁니다.** 다른 에이전트는 세션당 append-only JSONL 한 개라 Orca가
+  바이트 오프셋으로 tail 하지만, opencode는 트리로 씁니다 —
+  `message/<sessionID>/<msgID>.json`(role만, 본문 없음) + `part/<msgID>/<partID>.json`(본문).
+  tail 할 파일이 없으므로 전용 리더가 트리를 통째로 읽고, 변경 시 창을 **교체**합니다
+  (`opencode-transcript-store.ts` / `-watch.ts`). 정렬 키는 id입니다 — `step-start` 파트에는
+  타임스탬프가 아예 없고, 실측상 id 사전순이 곧 생성순입니다.
+  훅이 경로를 안 주므로 grok·omp처럼 **로컬 전용**입니다: Model-A SSH 세션은 터미널로 남습니다.
 - 상세(루틴·설정) 화면은 사이드바가 좁아지면 잘렸습니다. 원인 두 가지: 아이콘 버튼에
   `shrink-0`이 없어 라벨 대신 버튼이 줄어들었고, Radix ScrollArea가 뷰포트 자식을
   `display: table`로 감싸 **내용 폭에 맞춰 늘어나** 컬럼이 사이드바 밖으로 나갔습니다.

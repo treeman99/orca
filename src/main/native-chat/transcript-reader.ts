@@ -15,6 +15,7 @@ import {
   decodeOmpTranscriptLine
 } from './transcript-line-decoders'
 import { decodeTranscriptStream } from './transcript-stream-lines'
+import { readOpenCodeTranscript } from './opencode-transcript-store'
 
 export type ReadTranscriptResult =
   | {
@@ -42,6 +43,11 @@ export async function readNativeChatTranscript(
   sessionId: string,
   options: ReadTranscriptOptions = {}
 ): Promise<ReadTranscriptResult> {
+  // opencode has no transcript FILE to resolve — its session is a storage tree, so it skips the
+  // path/tail machinery entirely and reads the tree. See opencode-transcript-store.ts.
+  if (resolveNativeChatTranscriptAgent(agent) === 'opencode') {
+    return readOpenCodeTranscript({ sessionId })
+  }
   let filePath: string | null
   try {
     filePath = options.filePath ?? (await resolveSessionFilePath(agent, sessionId, options))

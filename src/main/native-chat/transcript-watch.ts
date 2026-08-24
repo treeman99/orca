@@ -11,6 +11,8 @@ import type {
   SubscribeNativeChatTranscriptArgs
 } from './transcript-watch-contract'
 import { nativeChatLineDecoderForAgent } from './transcript-tail-reader'
+import { resolveNativeChatTranscriptAgent } from '../../shared/native-chat-agent-support'
+import { subscribeOpenCodeTranscript } from './opencode-transcript-watch'
 import { WslTranscriptFsError, wslTranscriptFsRefusal } from './wsl-transcript-fs-gate'
 
 export { readNativeChatTranscriptTail } from './transcript-tail-reader'
@@ -208,6 +210,11 @@ export async function subscribeNativeChatTranscript(
   setupSignal?: AbortSignal
 ): Promise<NativeChatTranscriptSubscription> {
   setupSignal?.throwIfAborted()
+  // opencode has no file to tail — its own subscriber watches the storage tree and replaces the
+  // window when it changes. See opencode-transcript-watch.ts.
+  if (resolveNativeChatTranscriptAgent(args.agent) === 'opencode') {
+    return subscribeOpenCodeTranscript(args)
+  }
   const decode = nativeChatLineDecoderForAgent(args.agent)
   if (!decode) {
     // Nothing watchable — return a no-op teardown so callers can unconditionally

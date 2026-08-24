@@ -12,6 +12,7 @@ import {
   decodeOmpTranscriptLine
 } from './transcript-line-decoders'
 import { transcriptFallbackId } from './transcript-fallback-id'
+import { readOpenCodeTranscript } from './opencode-transcript-store'
 import {
   nativeChatTurnLifecycleDecoderForAgent,
   type NativeChatTurnLifecycleDecoder
@@ -230,6 +231,17 @@ export async function readNativeChatTranscriptTail(
     }
   | { error: string; notFound?: true }
 > {
+  // opencode has no transcript file, so there is nothing to tail by offset: read the window off
+  // its storage tree instead. `hasMore` is false because the window is taken from the newest
+  // messages directly rather than paged backwards through bytes.
+  if (resolveNativeChatTranscriptAgent(args.agent) === 'opencode') {
+    const result = await readOpenCodeTranscript({
+      sessionId: args.sessionId,
+      limit: args.limit,
+      ...(signal ? { signal } : {})
+    })
+    return 'error' in result ? result : { ...result, hasMore: false, beforeOffset: 0 }
+  }
   const decode = nativeChatLineDecoderForAgent(args.agent)
   const decodeLifecycle = nativeChatTurnLifecycleDecoderForAgent(args.agent)
   if (!decode) {
