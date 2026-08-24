@@ -3,7 +3,6 @@ import {
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
   BOT_TITLE_MAX_LENGTH,
-  DEFAULT_BOT_AVATAR,
   type Bot,
   type BotCreateInput,
   type BotUpdateInput
@@ -42,7 +41,9 @@ export function createBot(operations: BotRosterOperations, input: BotCreateInput
     name: clamp(input.name, BOT_NAME_MAX_LENGTH) || 'Untitled bot',
     title: clamp(input.title ?? '', BOT_TITLE_MAX_LENGTH),
     description: clamp(input.description ?? '', BOT_DESCRIPTION_MAX_LENGTH),
-    avatarEmoji: input.avatarEmoji?.trim() || DEFAULT_BOT_AVATAR,
+    // Empty means "draw the generated face" and is a real value; coercing it to an emoji
+    // here is what made a deliberate 🤖 indistinguishable from no choice at all.
+    avatarEmoji: input.avatarEmoji?.trim() ?? '',
     agentId: input.agentId,
     workspaceKey,
     // A project without a workspace is meaningless to the routine lane, and a workspace
@@ -94,7 +95,8 @@ export function updateBot(
       defined.description === undefined
         ? current.description
         : clamp(defined.description, BOT_DESCRIPTION_MAX_LENGTH),
-    avatarEmoji: defined.avatarEmoji?.trim() || current.avatarEmoji,
+    avatarEmoji:
+      defined.avatarEmoji === undefined ? current.avatarEmoji : defined.avatarEmoji.trim(),
     workspaceKey,
     projectId: workspaceKey ? (projectId ?? null) : null,
     chatPaneKey,

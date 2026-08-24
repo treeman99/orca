@@ -112,6 +112,21 @@ describe('one Unix startup dialect', () => {
     expect(quoteStartupArg('', 'posix')).toBe(`''`)
   })
 
+  it('escapes the curly quotes PowerShell also treats as string delimiters', () => {
+    // PowerShell's tokenizer accepts \u2018\u2019\u201A\u201B as single quotes, so one
+    // typographic apostrophe in a prompt used to end the literal and hand the rest of the
+    // text to the parser — a parse error deep inside the prompt, not at the launch line.
+    expect(quoteStartupArg('that bot\u2019s conversation, so the user', 'powershell')).toBe(
+      "'that bot\u2019\u2019s conversation, so the user'"
+    )
+    for (const quote of ["'", '\u2018', '\u2019', '\u201A', '\u201B']) {
+      const quoted = quoteStartupArg(`a${quote}b`, 'powershell')
+      expect(quoted).toBe(`'a${quote}${quote}b'`)
+      // Nothing but the wrapper is left unpaired, so the literal runs to the end.
+      expect(quoted.slice(1, -1).match(/['\u2018\u2019\u201A\u201B]/g)?.length ?? 0).toBe(2)
+    }
+  })
+
   it('keeps the sh-family grammar claims that do hold for fish', () => {
     expect(commandSeparator('posix')).toBe('; ')
     expect(isPosixStartupShell('posix')).toBe(true)

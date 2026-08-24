@@ -26,7 +26,6 @@ import {
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
   BOT_TITLE_MAX_LENGTH,
-  DEFAULT_BOT_AVATAR,
   botHandle,
   type Bot,
   type BotCreateInput,
@@ -34,6 +33,7 @@ import {
 } from '../../../../../shared/bot-types'
 import type { TuiAgent } from '../../../../../shared/tui-agent'
 import type { BotProjectOption } from './bot-project-options'
+import { BotFace } from './bot-face/BotFace'
 
 const UNBOUND_VALUE = '__unbound__'
 
@@ -61,7 +61,9 @@ function draftFromBot(bot: Bot | null, fallbackAgent: TuiAgent): EditorDraft {
     name: bot?.name ?? '',
     title: bot?.title ?? '',
     description: bot?.description ?? '',
-    avatarEmoji: bot?.avatarEmoji ?? DEFAULT_BOT_AVATAR,
+    // Empty, not DEFAULT_BOT_AVATAR: the roster draws a generated face for a bot with no
+    // avatar, so seeding an emoji here would show a selection the roster ignores.
+    avatarEmoji: bot?.avatarEmoji ?? '',
     agentId: bot?.agentId ?? fallbackAgent,
     projectId: bot?.projectId ?? null
   }
@@ -139,6 +141,26 @@ export function BotEditorDialog({
               {translate('auto.components.sidebar.bots.BotEditorDialog.7e35c1d0fa', 'Avatar')}
             </Label>
             <div className="flex flex-wrap gap-1">
+              <button
+                type="button"
+                aria-label={translate(
+                  'auto.components.sidebar.bots.BotEditorDialog.707e53e784',
+                  'Generated face'
+                )}
+                aria-pressed={draft.avatarEmoji === ''}
+                onClick={() => setDraft((current) => ({ ...current, avatarEmoji: '' }))}
+                className={cn(
+                  'flex size-8 items-center justify-center rounded-md border transition-colors focus-visible:ring-1 focus-visible:ring-ring',
+                  draft.avatarEmoji === ''
+                    ? 'border-ring bg-accent'
+                    : 'border-transparent hover:bg-accent/50'
+                )}
+              >
+                <BotFace
+                  bot={{ id: 'avatar-preview', name: draft.name, avatarEmoji: '' }}
+                  size={20}
+                />
+              </button>
               {BOT_AVATAR_CHOICES.map((emoji) => (
                 <button
                   key={emoji}

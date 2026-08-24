@@ -15,6 +15,14 @@ describe('getDefaultSettings', () => {
     )
   })
 
+  // Fork gate: the Bots lane's conversation view is dead without the flag, and an ordinary
+  // session double-click must still land on the raw terminal. An upstream rebase that
+  // resolves either line the other way breaks one of those two, silently.
+  it('ships the Chat UI on but leaves ordinary agent tabs on the terminal', () => {
+    expect(getDefaultSettings('/tmp').experimentalNativeChat).toBe(true)
+    expect(getDefaultSettings('/tmp').openAgentTabsInChatByDefault).toBe(false)
+  })
+
   it('enables gitignored file decorations by default', () => {
     expect(getDefaultSettings('/tmp').showGitIgnoredFiles).toBe(true)
   })

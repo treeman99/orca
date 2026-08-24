@@ -264,9 +264,13 @@ export function getDefaultSettings(homedir: string): GlobalSettings {
     openLinksInAppPreferencePrompted: false,
     openLinksInAppModifierInverts: false,
     terminalLinkActionPopoverEnabled: true,
+    // Stays false on purpose: the Bots lane switches its OWN panes to chat, and a fleet
+    // install must leave an ordinary session double-click on the raw terminal.
     openAgentTabsInChatByDefault: false,
     autoSplitOrchestrationWorkerPanes: false,
-    experimentalNativeChat: false,
+    // Fork default: on. The Bots lane's conversation view renders nothing without it, so a
+    // fresh installer would ship a chat surface that silently falls back to the TUI.
+    experimentalNativeChat: true,
     nativeChatSessionOptions: {},
     openInApplications: [...DEFAULT_OPEN_IN_APPLICATIONS],
     rightSidebarOpenByDefault: true,

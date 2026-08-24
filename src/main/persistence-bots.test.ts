@@ -47,9 +47,22 @@ describe('Store bot roster', () => {
 
     const bots = store.listBots()
     expect(bots.map((bot) => bot.name)).toEqual(['Alpha', 'Zeta'])
-    expect(bots[0].avatarEmoji).toBeTruthy()
+    // No avatar asked for means the generated face, and empty is how that is stored — the
+    // roster would otherwise draw a face while the editor showed a 🤖 nobody picked.
+    expect(bots[0].avatarEmoji).toBe('')
     expect(bots[0].workspaceKey).toBeNull()
     expect(bots[0].projectId).toBeNull()
+  })
+
+  it('stores the avatar exactly as picked, including a cleared one', async () => {
+    const store = await createStore()
+    const bot = store.createBot({ name: 'Zeta', agentId: 'claude', avatarEmoji: '🤖' })
+    expect(bot.avatarEmoji).toBe('🤖')
+
+    expect(store.updateBot(bot.id, { title: 'Watcher' }).avatarEmoji).toBe('🤖')
+    // Back to the generated face: an omitted field keeps the current avatar, so clearing has
+    // to be an explicit empty string rather than a falsy value the update coerces away.
+    expect(store.updateBot(bot.id, { avatarEmoji: '' }).avatarEmoji).toBe('')
   })
 
   it('drops a malformed workspace key instead of storing it', async () => {

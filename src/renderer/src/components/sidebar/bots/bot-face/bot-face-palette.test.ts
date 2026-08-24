@@ -137,8 +137,10 @@ describe('prefersEmojiAvatar', () => {
     expect(prefersEmojiAvatar('🦺')).toBe(true)
   })
 
-  it('treats the seeded default as "no choice made"', () => {
-    expect(prefersEmojiAvatar(DEFAULT_BOT_AVATAR)).toBe(false)
+  // The regression: 🤖 is both the first tile and the old seed, so excluding it drew a
+  // generated face for a bot whose editor showed 🤖 as the selection.
+  it('keeps the first tile when the user clicks it', () => {
+    expect(prefersEmojiAvatar(DEFAULT_BOT_AVATAR)).toBe(true)
   })
 
   it('treats an empty or missing avatar as "no choice made"', () => {

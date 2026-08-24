@@ -6,6 +6,10 @@ import {
   formatBotToBotMessage,
   parseBotMention
 } from './bot-message-routing'
+import {
+  quoteStartupArg,
+  tokenizeStartupCommand
+} from '../../../../../shared/tui-agent-startup-shell'
 
 const makeBot = (overrides: Partial<Bot> = {}): Bot => ({
   id: 'bot1',
@@ -138,5 +142,21 @@ describe('buildBotTeammatePreamble', () => {
 describe('botSessionTitle', () => {
   it('is the discovery key teammates search for', () => {
     expect(botSessionTitle(checker)).toBe('bot:release-checker')
+  })
+})
+
+// The preamble is launched as ONE argv entry on Windows, where PowerShell re-parses the line.
+// It carries prose — apostrophes, commas, backticks in the command examples — so a quoting hole
+// surfaces as `Missing argument in parameter list` at a line number inside the prompt, which
+// reads as an agent failure rather than a launch one.
+describe('preamble survives the shells it is launched through', () => {
+  const preamble = buildBotSessionPreamble({
+    self: makeBot({ description: 'Watch the release branch and don\u2019t touch main.' }),
+    roster
+  })
+
+  it.each(['powershell', 'posix', 'cmd'] as const)('round-trips through %s quoting', (shell) => {
+    const tokenized = tokenizeStartupCommand(quoteStartupArg(preamble, shell), shell)
+    expect(tokenized.ok && tokenized.tokens).toEqual([preamble])
   })
 })

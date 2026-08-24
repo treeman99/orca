@@ -2,7 +2,6 @@
 // the same name always draws the same face, on every machine and across restarts.
 
 import { BOT_FACE_SHAPES, type BotFaceShape } from './bot-face-geometry'
-import { DEFAULT_BOT_AVATAR } from '../../../../../../shared/bot-types'
 
 /**
  * Ten bodies picked to clear both themes: every entry keeps >=2.4:1 against the light sidebar
@@ -101,11 +100,11 @@ export function botFaceCatchlightFill(bodyColor: string): string {
 /**
  * An avatar the user actually picked wins over the generated face.
  *
- * The editor seeds every new bot with DEFAULT_BOT_AVATAR, so that value alone is not a choice —
- * anything else in the field was typed or clicked by a person and must not be thrown away when
- * generated faces land.
+ * Empty is the ONLY "no choice" value. An earlier version also excluded DEFAULT_BOT_AVATAR
+ * because the editor seeded it — which meant picking 🤖 deliberately drew a generated face
+ * instead, and the editor kept showing 🤖 as the selection. The seed is now empty, so the
+ * field says exactly what the person chose.
  */
 export function prefersEmojiAvatar(avatarEmoji: string | null | undefined): boolean {
-  const emoji = avatarEmoji?.trim() ?? ''
-  return emoji.length > 0 && emoji !== DEFAULT_BOT_AVATAR
+  return (avatarEmoji?.trim() ?? '').length > 0
 }

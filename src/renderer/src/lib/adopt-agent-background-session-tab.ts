@@ -6,6 +6,7 @@ import { createBrowserUuid } from '@/lib/browser-uuid'
 import { retireProvider, retireUnownedTerminal } from '@/lib/retire-unowned-background-terminal'
 import { isTerminalTabPresent } from '@/store/slices/terminal-tab-retirement'
 import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
+import type { TuiAgent } from '../../../shared/tui-agent'
 
 type Store = ReturnType<typeof useAppStore.getState>
 type RegisterArgs = Parameters<Store['registerAgentLaunchConfig']>
@@ -65,6 +66,8 @@ export async function adoptAgentBackgroundSessionTab(args: {
   runtimeTerminalHandle: string | null
   onRetire: () => void
   title?: string
+  /** The agent this session launched, so chat-capability does not have to wait on hooks. */
+  launchAgent?: TuiAgent
 }): Promise<{
   tab: ReturnType<Store['createTab']>
   paneKey: PaneKey
@@ -98,7 +101,11 @@ export async function adoptAgentBackgroundSessionTab(args: {
     id: reservedTabId,
     initialPtyId: ptyId,
     activate: false,
-    recordInteraction: false
+    recordInteraction: false,
+    // Without this the tab carries no agent identity until the first hook lands, and the
+    // native-chat route reads that gap as "not an agent pane" — a bot pane opened in chat
+    // gets kicked back to terminal seconds after it opens.
+    ...(args.launchAgent ? { launchAgent: args.launchAgent } : {})
   })
   const paneKey = args.paneKey
   store.registerAgentLaunchConfig(paneKey, args.launchConfig, launchRegistration)

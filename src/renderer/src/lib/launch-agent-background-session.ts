@@ -223,6 +223,7 @@ export async function launchAgentBackgroundSession(
     }
     const adopted = await adoptAgentBackgroundSessionTab({
       store,
+      launchAgent: agent,
       worktreeId,
       reservedTabId,
       ptyId,

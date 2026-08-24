@@ -5,6 +5,7 @@ import {
   initialAgentTabViewModeProps
 } from './native-chat-initial-view-mode'
 import { isNativeChatTranscriptLocalReadable } from './native-chat-transcript-readability'
+import { getDefaultSettings } from '../../../shared/constants'
 
 describe('decideInitialAgentTabViewMode', () => {
   it("returns 'chat' when native chat and the opt-in default setting are on", () => {
@@ -15,6 +16,19 @@ describe('decideInitialAgentTabViewMode', () => {
         agent: 'codex'
       })
     ).toBe('chat')
+  })
+
+  // Fork gate: the Chat UI ships on, so this predicate is the only thing keeping an ordinary
+  // session double-click on the terminal. Bots switch their own panes explicitly instead.
+  it('leaves a session on the terminal under the shipped defaults', () => {
+    const settings = getDefaultSettings('/tmp')
+    expect(
+      decideInitialAgentTabViewMode({
+        experimentalNativeChat: settings.experimentalNativeChat,
+        openAgentTabsInChatByDefault: settings.openAgentTabsInChatByDefault,
+        agent: 'claude'
+      })
+    ).toBeUndefined()
   })
 
   it('returns undefined when native chat is disabled', () => {

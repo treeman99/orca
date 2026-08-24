@@ -109,7 +109,11 @@ describe('launchAgentBackgroundSession', () => {
       id: tabId,
       initialPtyId: 'pty-1',
       activate: false,
-      recordInteraction: false
+      recordInteraction: false,
+      // Recorded on the TAB, not just the spawn: without it the pane has no agent identity
+      // until the first hook lands, and the native-chat route reads that gap as "not an agent
+      // pane" and kicks a bot conversation back to the terminal seconds after it opens.
+      launchAgent: 'claude'
     })
     expect(mockDispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -5725,7 +5725,8 @@
             "31ac6e5470": "This project has no checkout yet. The bot saves, but it cannot chat or run routines until the project has one.",
             "7a0c1e94b6": "Cancel",
             "c81f0d3a25": "Save",
-            "4f9b2c60ad": "Create bot"
+            "4f9b2c60ad": "Create bot",
+            "707e53e784": "Generated face"
           },
           "BotRoster": {
             "5c81e0a72f": "Bots",

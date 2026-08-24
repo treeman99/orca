@@ -25,6 +25,42 @@ export type StartupCommandTokens =
   | { ok: true; tokens: string[]; spans: CommandTokenSpan[] }
   | { ok: false; error: string }
 
+/**
+ * Every character PowerShell's tokenizer accepts as a single-quote delimiter.
+ *
+ * Not a nicety: `CharTraits.IsSingleQuote` treats the three curly variants exactly like `'`,
+ * so ONE typographic apostrophe anywhere in a prompt — “that bot’s conversation” — closes the
+ * literal early and hands the remaining lines to the parser as code. The symptom is a parse
+ * error citing a line deep inside the prompt text (`Missing argument in parameter list` on the
+ * first comma that follows), which reads as an agent bug rather than a quoting one.
+ * The double-quote family needs no counterpart here: this branch never emits `"`.
+ */
+const POWERSHELL_SINGLE_QUOTES = /['\u2018\u2019\u201A\u201B]/g
+
+/** The same set as a plain string: `.test` on a `/g` regex carries `lastIndex` between calls. */
+const POWERSHELL_SINGLE_QUOTE_CHARS = "'\u2018\u2019\u201A\u201B"
+
+/**
+ * Which delimiter this character opens or closes, or null when it is ordinary text.
+ *
+ * PowerShell's tokenizer treats the curly single quotes as `'`, so a template carrying one
+ * opens a string there whether or not Orca models it — and the span this returns would then
+ * splice arguments into the middle of a literal. cmd has no single-quote syntax at all, so
+ * only the ASCII pair is recognised there (and flagged as unmodelable below).
+ */
+function startupQuoteKind(char: string, shell: WindowsStartupShell): "'" | '"' | null {
+  if (char.length !== 1) {
+    return null
+  }
+  if (char === '"') {
+    return '"'
+  }
+  if (char === "'") {
+    return "'"
+  }
+  return shell === 'powershell' && POWERSHELL_SINGLE_QUOTE_CHARS.includes(char) ? "'" : null
+}
+
 /** True when an odd run of backslashes precedes this quote, which makes it a
  * literal byte to the child's CommandLineToArgvW parser rather than a
  * delimiter — so cmd's word boundaries stop matching this tokenizer's. */
@@ -86,10 +122,14 @@ function tokenizeWindowsStartupCommand(
         quote === '"' &&
         char === '$' &&
         (value[index + 1] === '(' || value[index + 1] === '{')
-      if (char === quote) {
+      if (startupQuoteKind(char, shell) === quote) {
         divergesFromShell ||= shell === 'cmd' && char === '"' && hasOddBackslashRun(value, index)
-        if (shell === 'powershell' && quote === "'" && value[index + 1] === "'") {
-          token += "'"
+        if (
+          shell === 'powershell' &&
+          quote === "'" &&
+          startupQuoteKind(value[index + 1] ?? '', shell) === "'"
+        ) {
+          token += char
           index += 1
         } else {
           quote = null
@@ -100,9 +140,10 @@ function tokenizeWindowsStartupCommand(
       tokenStarted = true
       continue
     }
-    if (char === "'" || char === '"') {
+    const opens = startupQuoteKind(char, shell)
+    if (opens) {
       divergesFromShell ||= shell === 'cmd' && char === '"' && hasOddBackslashRun(value, index)
-      quote = char
+      quote = opens
       // Why: cmd.exe has no single-quote syntax, so this tokenizer's grouping
       // of a single-quoted region diverges from what cmd actually parses;
       // flag the token so consumers treat it as unmodelable.
@@ -217,7 +258,8 @@ function quotePortableUnixArg(value: string): string {
 
 export function quoteStartupArg(value: string, shell: AgentStartupShell): string {
   if (shell === 'powershell') {
-    return `'${value.replace(/'/g, "''")}'`
+    // Doubling is the escape for all four: the scanner pairs any two adjacent members.
+    return `'${value.replace(POWERSHELL_SINGLE_QUOTES, '$&$&')}'`
   }
   if (shell === 'cmd') {
     return `"${value.replace(/([\^&|<>()%!"])/g, '^$1')}"`

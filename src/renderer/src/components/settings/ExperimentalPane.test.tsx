@@ -224,7 +224,8 @@ describe('ExperimentalPane', () => {
 
   it('shows Chat UI default-mode as a child setting only when Chat UI is enabled', async () => {
     const updateSettings = vi.fn()
-    const disabledSettings = getDefaultSettings('/tmp')
+    // Explicitly off: the fork ships Chat UI on, so the defaults no longer render this state.
+    const disabledSettings = { ...getDefaultSettings('/tmp'), experimentalNativeChat: false }
     const disabledMarkup = renderToStaticMarkup(
       <ExperimentalPane settings={disabledSettings} updateSettings={vi.fn()} />
     )
