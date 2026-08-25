@@ -9,5 +9,5 @@ export type TerminalPaneGroupPlacement = {
   coordinatorTabId: string
 }
 
-/** Auto-split worker columns beyond this many stack the newest worker as a tab instead. */
-export const ORCHESTRATION_WORKER_PANE_MAX_GROUPS = 3
+/** The worker column stops splitting here; further workers become tabs spread across these panes. */
+export const ORCHESTRATION_WORKER_PANE_MAX_GROUPS = 4

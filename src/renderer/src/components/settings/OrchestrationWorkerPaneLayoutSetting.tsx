@@ -32,7 +32,7 @@ export function OrchestrationWorkerPaneLayoutSetting(): React.JSX.Element {
         label={title}
         description={translate(
           'auto.components.settings.OrchestrationWorkerPaneLayoutSetting.rowDescription',
-          'Workers started in the coordinator’s own worktree open in a column to its right, stacking downward for up to three panes; later workers become tabs in the last one. Workers dispatched to another worktree are unaffected.'
+          'Workers started in the coordinator’s own worktree open in a column to its right, stacking downward for up to four panes; later workers become tabs, filling those panes from the top down. Workers dispatched to another worktree are unaffected.'
         )}
         control={
           <SettingsSwitch

@@ -156,13 +156,14 @@ describe('claimOrchestrationWorkerPaneGroup', () => {
     expect(store.getState().activeGroupIdByWorktree[WORKTREE_ID]).toBe('g-coord')
   })
 
-  it('stacks the second and third workers down the column with even ratios', () => {
+  it('stacks workers two through four down the column with even ratios', () => {
     const store = createTestStore()
     seedCoordinator(store)
 
     const first = dispatchWorker(store, 'tab-worker-1')
     const second = dispatchWorker(store, 'tab-worker-2')
     const third = dispatchWorker(store, 'tab-worker-3')
+    const fourth = dispatchWorker(store, 'tab-worker-4')
 
     expect(store.getState().layoutByWorktree[WORKTREE_ID]).toEqual({
       type: 'split',
@@ -176,31 +177,55 @@ describe('claimOrchestrationWorkerPaneGroup', () => {
           type: 'split',
           direction: 'vertical',
           first: { type: 'leaf', groupId: second },
-          second: { type: 'leaf', groupId: third },
-          ratio: 0.5
+          second: {
+            type: 'split',
+            direction: 'vertical',
+            first: { type: 'leaf', groupId: third },
+            second: { type: 'leaf', groupId: fourth },
+            ratio: 0.5
+          },
+          ratio: 1 / 3
         },
-        ratio: 1 / 3
+        ratio: 0.25
       },
       ratio: 0.5
     })
   })
 
-  it('stops splitting at three worker panes and reuses the last group', () => {
+  it('stops splitting at four panes and fills them from the top down', () => {
     const store = createTestStore()
     seedCoordinator(store)
 
-    dispatchWorker(store, 'tab-worker-1')
-    dispatchWorker(store, 'tab-worker-2')
-    const third = dispatchWorker(store, 'tab-worker-3')
-    const layoutAfterThird = store.getState().layoutByWorktree[WORKTREE_ID]
+    const column = [1, 2, 3, 4].map((n) => dispatchWorker(store, `tab-worker-${n}`))
+    const layoutAfterFourth = store.getState().layoutByWorktree[WORKTREE_ID]
 
-    expect(
-      claimOrchestrationWorkerPaneGroup(store, {
-        worktreeId: WORKTREE_ID,
-        paneGroupPlacement: PLACEMENT
-      })
-    ).toBe(third)
-    expect(store.getState().layoutByWorktree[WORKTREE_ID]).toEqual(layoutAfterThird)
+    // The fifth worker joins the *top* pane, not the bottom one it used to bury.
+    expect([5, 6, 7, 8, 9].map((n) => dispatchWorker(store, `tab-worker-${n}`))).toEqual([
+      ...column,
+      column[0]
+    ])
+    expect(store.getState().layoutByWorktree[WORKTREE_ID]).toEqual(layoutAfterFourth)
+  })
+
+  it('refills the pane a worker was closed in before moving on', () => {
+    const store = createTestStore()
+    seedCoordinator(store)
+
+    const column = [1, 2, 3, 4].map((n) => dispatchWorker(store, `tab-worker-${n}`))
+    for (const n of [5, 6, 7, 8]) {
+      dispatchWorker(store, `tab-worker-${n}`)
+    }
+    // Close the second pane's original worker; that pane is now the lightest.
+    store.setState((state) => ({
+      unifiedTabsByWorktree: {
+        ...state.unifiedTabsByWorktree,
+        [WORKTREE_ID]: (state.unifiedTabsByWorktree[WORKTREE_ID] ?? []).filter(
+          (tab) => tab.id !== 'tab-worker-2'
+        )
+      }
+    }))
+
+    expect(dispatchWorker(store, 'tab-worker-10')).toBe(column[1])
   })
 
   it('starts a fresh column once the tracked worker tabs are gone', () => {

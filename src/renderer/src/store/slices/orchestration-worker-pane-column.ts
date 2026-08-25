@@ -4,7 +4,8 @@ import type { TerminalPaneGroupPlacement } from '../../../../shared/terminal-pan
 import type { TabSplitDirection } from './tabs'
 import {
   buildWorkerStackRatioUpdates,
-  resolveOrchestrationWorkerPanePlacement
+  resolveOrchestrationWorkerPanePlacement,
+  type WorkerPaneGroup
 } from './orchestration-worker-pane-layout'
 
 /**
@@ -41,17 +42,17 @@ function findTerminalTab(tabs: readonly Tab[], tabId: string): Tab | undefined {
   )
 }
 
-function resolveLiveWorkerGroupIds(
+function resolveLiveWorkerGroups(
   state: WorkerPaneColumnState,
   worktreeId: string,
   coordinatorTabId: string,
   coordinatorGroupId: string
-): string[] {
+): WorkerPaneGroup[] {
   const tabs = state.unifiedTabsByWorktree[worktreeId] ?? []
   const liveGroupIds = new Set((state.groupsByWorktree[worktreeId] ?? []).map((group) => group.id))
   const trackedTabIds = workerTabIdsByCoordinatorTabId.get(coordinatorTabId) ?? []
   const survivingTabIds: string[] = []
-  const groupIds: string[] = []
+  const groups: WorkerPaneGroup[] = []
   for (const workerTabId of trackedTabIds) {
     const tab = findTerminalTab(tabs, workerTabId)
     if (!tab) {
@@ -61,14 +62,19 @@ function resolveLiveWorkerGroupIds(
     if (tab.groupId === coordinatorGroupId || !liveGroupIds.has(tab.groupId)) {
       continue
     }
-    if (!groupIds.includes(tab.groupId)) {
-      groupIds.push(tab.groupId)
+    // Why only tracked workers count: a terminal the user dragged into a worker
+    // pane is not our load, and letting it skew the balance strands that pane.
+    const existing = groups.find((group) => group.groupId === tab.groupId)
+    if (existing) {
+      existing.workerTabCount += 1
+      continue
     }
+    groups.push({ groupId: tab.groupId, workerTabCount: 1 })
   }
   if (survivingTabIds.length !== trackedTabIds.length) {
     workerTabIdsByCoordinatorTabId.set(coordinatorTabId, survivingTabIds)
   }
-  return groupIds
+  return groups
 }
 
 /**
@@ -93,7 +99,7 @@ export function claimOrchestrationWorkerPaneGroup(
   if (!coordinatorTab) {
     return undefined
   }
-  const workerGroupIds = resolveLiveWorkerGroupIds(
+  const workerGroups = resolveLiveWorkerGroups(
     state,
     args.worktreeId,
     coordinatorTabId,
@@ -101,7 +107,7 @@ export function claimOrchestrationWorkerPaneGroup(
   )
   const placement = resolveOrchestrationWorkerPanePlacement({
     coordinatorGroupId: coordinatorTab.groupId,
-    workerGroupIds
+    workerGroups
   })
   if (placement.kind === 'existing-group') {
     return placement.groupId
@@ -119,7 +125,7 @@ export function claimOrchestrationWorkerPaneGroup(
   }
   for (const update of buildWorkerStackRatioUpdates(
     store.getState().layoutByWorktree[args.worktreeId],
-    [...workerGroupIds, createdGroupId]
+    [...workerGroups.map((group) => group.groupId), createdGroupId]
   )) {
     state.setTabGroupSplitRatio(args.worktreeId, update.nodePath, update.ratio)
   }
