@@ -205,6 +205,8 @@ export type GlobalSettings = {
   openAgentTabsInChatByDefault?: boolean
   /** Opt-in: orchestration workers started in the coordinator's own worktree open in a split column beside it instead of as tabs in the active group. */
   autoSplitOrchestrationWorkerPanes?: boolean
+  /** How tall that worker column may grow before workers share panes as tabs; clamped on read, so an out-of-range value degrades instead of breaking the layout. */
+  orchestrationMaxWorkerPanes?: number
   /** Experimental native chat surface for Claude/Codex sessions; off by default. */
   experimentalNativeChat?: boolean
   /** Last explicit native-chat model + option selections; live panes need an applied/dispatched record before showing a value. */

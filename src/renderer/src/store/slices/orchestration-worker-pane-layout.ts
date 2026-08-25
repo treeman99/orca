@@ -1,5 +1,5 @@
 import type { TabGroupLayoutNode } from '../../../../shared/tab-types'
-import { ORCHESTRATION_WORKER_PANE_MAX_GROUPS } from '../../../../shared/terminal-pane-placement'
+import { DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS } from '../../../../shared/terminal-pane-placement'
 
 /**
  * Pure layout math for the orchestration worker column: the coordinator keeps
@@ -36,7 +36,7 @@ export function resolveOrchestrationWorkerPanePlacement(args: {
   workerGroups: readonly WorkerPaneGroup[]
   maxGroups?: number
 }): WorkerPanePlacement {
-  const maxGroups = args.maxGroups ?? ORCHESTRATION_WORKER_PANE_MAX_GROUPS
+  const maxGroups = args.maxGroups ?? DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS
   const lastWorkerGroup = args.workerGroups.at(-1)
   if (!lastWorkerGroup) {
     return { kind: 'split', sourceGroupId: args.coordinatorGroupId, direction: 'right' }

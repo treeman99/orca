@@ -228,6 +228,50 @@ describe('claimOrchestrationWorkerPaneGroup', () => {
     expect(dispatchWorker(store, 'tab-worker-10')).toBe(column[1])
   })
 
+  it('stops at the pane count the user chose instead of the default four', () => {
+    const store = createTestStore()
+    seedCoordinator(store, { orchestrationMaxWorkerPanes: 2 })
+
+    const first = dispatchWorker(store, 'tab-worker-1')
+    const second = dispatchWorker(store, 'tab-worker-2')
+
+    expect(store.getState().layoutByWorktree[WORKTREE_ID]).toEqual({
+      type: 'split',
+      direction: 'horizontal',
+      first: { type: 'leaf', groupId: 'g-coord' },
+      second: {
+        type: 'split',
+        direction: 'vertical',
+        first: { type: 'leaf', groupId: first },
+        second: { type: 'leaf', groupId: second },
+        ratio: 0.5
+      },
+      ratio: 0.5
+    })
+    // The column is already full at two, so the cycle starts back at the top.
+    expect([3, 4, 5].map((n) => dispatchWorker(store, `tab-worker-${n}`))).toEqual([
+      first,
+      second,
+      first
+    ])
+  })
+
+  it('clamps a hand-edited pane count rather than stranding the column', () => {
+    const store = createTestStore()
+    seedCoordinator(store, { orchestrationMaxWorkerPanes: 0 })
+
+    const only = dispatchWorker(store, 'tab-worker-1')
+
+    expect(dispatchWorker(store, 'tab-worker-2')).toBe(only)
+    expect(store.getState().layoutByWorktree[WORKTREE_ID]).toEqual({
+      type: 'split',
+      direction: 'horizontal',
+      first: { type: 'leaf', groupId: 'g-coord' },
+      second: { type: 'leaf', groupId: only },
+      ratio: 0.5
+    })
+  })
+
   it('starts a fresh column once the tracked worker tabs are gone', () => {
     const store = createTestStore()
     seedCoordinator(store)

@@ -19,6 +19,7 @@ import { getDefaultSourceControlAiSettings } from './source-control-ai'
 import { DEFAULT_APP_ICON_ID } from './app-icon'
 import { DEFAULT_OPEN_IN_APPLICATIONS } from './open-in-applications'
 import { DEFAULT_BROWSER_PAGE_ZOOM_LEVEL } from './browser-page-zoom'
+import { DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS } from './terminal-pane-placement'
 import { DEFAULT_DISABLED_TUI_AGENTS } from './tui-agent-selection'
 import { DEFAULT_TUI_AGENT_ARGS, DEFAULT_TUI_AGENT_ENV } from './tui-agent-launch-defaults'
 import { UI_LANGUAGE_SYSTEM } from './ui-language'
@@ -267,6 +268,7 @@ export function getDefaultSettings(homedir: string): GlobalSettings {
     // A session opens as a terminal; the chat view is a per-tab toggle, not a launch mode.
     openAgentTabsInChatByDefault: false,
     autoSplitOrchestrationWorkerPanes: false,
+    orchestrationMaxWorkerPanes: DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS,
     // Fork default: on. The terminal/chat toggle is the point — upstream ships it off, which
     // hides the view behind a setting most users never find.
     experimentalNativeChat: true,

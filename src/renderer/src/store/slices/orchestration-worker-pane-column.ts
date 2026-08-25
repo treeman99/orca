@@ -1,6 +1,9 @@
 import type { Tab, TabGroup, TabGroupLayoutNode } from '../../../../shared/tab-types'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
-import type { TerminalPaneGroupPlacement } from '../../../../shared/terminal-pane-placement'
+import {
+  resolveOrchestrationWorkerPaneMaxGroups,
+  type TerminalPaneGroupPlacement
+} from '../../../../shared/terminal-pane-placement'
 import type { TabSplitDirection } from './tabs'
 import {
   buildWorkerStackRatioUpdates,
@@ -107,7 +110,8 @@ export function claimOrchestrationWorkerPaneGroup(
   )
   const placement = resolveOrchestrationWorkerPanePlacement({
     coordinatorGroupId: coordinatorTab.groupId,
-    workerGroups
+    workerGroups,
+    maxGroups: resolveOrchestrationWorkerPaneMaxGroups(state.settings?.orchestrationMaxWorkerPanes)
   })
   if (placement.kind === 'existing-group') {
     return placement.groupId

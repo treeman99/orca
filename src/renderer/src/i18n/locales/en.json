@@ -11363,7 +11363,10 @@
         "OrchestrationWorkerPaneLayoutSetting": {
           "title": "Split worker panes automatically",
           "description": "Lay dispatched workers out beside the coordinator instead of stacking them as tabs.",
-          "rowDescription": "Workers started in the coordinator’s own worktree open in a column to its right, stacking downward for up to four panes; later workers become tabs, filling those panes from the top down. Workers dispatched to another worktree are unaffected."
+          "rowDescription": "Workers started in the coordinator’s own worktree open in a column to its right; once the column is full, later workers become tabs, filling those panes from the top down. Workers dispatched to another worktree are unaffected.",
+          "maxPanesLabel": "Maximum panes",
+          "maxPanesDescription": "How tall the column may grow before workers start sharing panes. Every extra pane leaves each agent fewer rows — below roughly 20 a TUI reflows and gets hard to read.",
+          "maxPanesAriaLabel": "Maximum worker panes"
         },
         "confluence": {
           "title": "Confluence",
