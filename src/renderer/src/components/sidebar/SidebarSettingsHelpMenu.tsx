@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import {
   BookOpen,
+  BookOpenText,
   CircleHelp,
   ExternalLink,
   Github,
@@ -29,9 +30,11 @@ import { showOnboardingFromRenderer } from '../onboarding/show-onboarding-event'
 import { SetupGuideProgressRing } from '../setup-guide/SetupGuideProgressRing'
 import { useSetupGuideProgress } from '../setup-guide/use-setup-guide-progress'
 import { translate } from '@/i18n/i18n'
+import { lazyWithRetry } from '@/lib/lazy-with-retry'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 
 // Lazy: the guide and its figures never load for a user who does not open it.
+const UsageGuideDialog = lazyWithRetry(() => import('./usage-guide/UsageGuideDialog'))
 
 const DOCS_URL = 'https://www.onorca.dev/docs'
 const CHANGELOG_URL = 'https://onorca.dev/changelog'
@@ -86,6 +89,7 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
 
   const settingsShortcut = useShortcutKeyDetails('app.settings')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [usageGuideOpen, setUsageGuideOpen] = useState(false)
   const [showAdminOptions, setShowAdminOptions] = useState(false)
   const [isRestartingOrca, setIsRestartingOrca] = useState(false)
   const lastShowOnboardingAtRef = React.useRef(0)
@@ -205,6 +209,11 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
           </TooltipContent>
         </Tooltip>
         <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-52">
+          {/* Always offered: the guide is this fork's own document, not a vendor link. */}
+          <DropdownMenuItem onSelect={() => setUsageGuideOpen(true)}>
+            <BookOpenText className="size-3.5" />
+            {translate('auto.components.sidebar.SidebarSettingsHelpMenu.usageGuide', '사용 가이드')}
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={openShortcutsSettings}>
             <Keyboard className="size-3.5" />
@@ -308,6 +317,13 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Outside the menu: the dropdown unmounts on select, which would close the dialog with it. */}
+      <React.Suspense fallback={null}>
+        {usageGuideOpen ? (
+          <UsageGuideDialog open={usageGuideOpen} onOpenChange={setUsageGuideOpen} />
+        ) : null}
+      </React.Suspense>
     </div>
   )
 }
