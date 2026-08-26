@@ -63,10 +63,10 @@ import {
   sweepRestoredSubagentsWithoutLiveAgent
 } from './agent-hooks/restored-subagent-liveness-sweep'
 import {
-  applyAgentStatusHooksEnabled,
   isAgentStatusHooksEnabled,
   removeManagedAgentHooks
 } from './agent-hooks/managed-agent-hook-controls'
+import { applyAgentStatusHooksEnabledUnderEnterprisePolicy } from './agent-hooks/enterprise-agent-hook-policy'
 import { initCohortClassifier } from './telemetry/cohort-classifier'
 import { initOnboardingCohortClassifier } from './telemetry/onboarding-cohort-classifier'
 import { resolveConsent } from './telemetry/consent'
@@ -2904,7 +2904,7 @@ void app.whenReady().then(async () => {
     // Why: check the persisted off switch before any auto-install so removed hooks don't silently reappear on launch.
     if (isAgentStatusHooksEnabled(store.getSettings())) {
       const managedHookStore = store
-      void applyAgentStatusHooksEnabled(true, managedHookStore.getSettings(), {
+      void applyAgentStatusHooksEnabledUnderEnterprisePolicy(true, managedHookStore.getSettings(), {
         shouldHydrateShellPath: app.isPackaged,
         onInstallError: recordManagedHookInstallFailure,
         shouldContinue: (agent) => {

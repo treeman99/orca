@@ -1,5 +1,6 @@
 import type { SFTPWrapper } from 'ssh2'
 import type { AgentHookInstallStatus, AgentHookTarget } from '../../shared/agent-hook-types'
+import { isAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 import { ampHookService } from '../amp/hook-service'
 import { claudeHookService } from '../claude/hook-service'
 import { codexHookService } from '../codex/hook-service'
@@ -91,6 +92,11 @@ export async function installRemoteManagedAgentHooks(
   const results: AgentHookInstallStatus[] = []
   for (const [agent, install] of REMOTE_MANAGED_HOOK_INSTALLERS) {
     if (!allowedAgents.has(agent)) {
+      continue
+    }
+    // Why: same corporate `allowedAgents` gate as the local install path. Sweeping launchers
+    // already on the remote host is out of scope — this only stops new ones being written.
+    if (!isAgentAllowedByEnterprisePolicy(agent)) {
       continue
     }
     // Why: relay requests can disappear during reconnect; do not start more

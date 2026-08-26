@@ -17,15 +17,18 @@ import {
 export { MANAGED_AGENT_HOOK_INSTALLERS } from './managed-agent-hook-registry'
 export { prepareManagedCodexHomeBeforeShellLaunch } from '../codex/managed-home-shell-preflight'
 
-type ManagedHookSettings = Partial<
+export type ManagedHookSettings = Partial<
   Pick<GlobalSettings, 'agentCmdOverrides' | 'disabledTuiAgents'>
 > | null
 
-type InstallOptions = {
+export type InstallOptions = {
   shouldHydrateShellPath?: boolean
   onInstallError?: (agent: AgentHookTarget, error: unknown) => void
   shouldContinue?: (agent: AgentHookTarget) => boolean
   agents?: readonly AgentHookTarget[]
+  /** Agents an administrator's policy forbids. Injected rather than read here: this module is
+   *  compiled into the electron-free `orca` CLI slice, and the policy reader needs electron. */
+  blockedAgents?: readonly AgentHookTarget[]
 }
 
 type RemoveOptions = {
@@ -63,6 +66,8 @@ function skippedStatus(
   }
 }
 
+const POLICY_BLOCKED_DETAIL = "Agent is not permitted by your organization's Orca policy."
+
 function selectedInstallers(options: InstallOptions): readonly ManagedAgentHookInstaller[] {
   if (!options.agents) {
     return MANAGED_AGENT_HOOK_INSTALLERS
@@ -95,8 +100,13 @@ function runInstaller(
 // current before any gating; creating new ones remains install()'s presence-gated job.
 async function refreshExistingManagedScripts(options: InstallOptions): Promise<void> {
   const allowed = options.agents ? new Set(options.agents) : null
+  const blocked = new Set(options.blockedAgents ?? [])
   for (const [agent, refresh] of MANAGED_AGENT_HOOK_SCRIPT_REFRESHERS) {
     if (allowed !== null && !allowed.has(agent)) {
+      continue
+    }
+    // Why: refreshing rewrites a launcher the policy says may never run.
+    if (blocked.has(agent)) {
       continue
     }
     try {
@@ -114,7 +124,10 @@ export async function installManagedAgentHooks(
   await refreshExistingManagedScripts(options)
   const installers = selectedInstallers(options)
   const disabled = new Set(normalizeDisabledTuiAgents(settings?.disabledTuiAgents))
-  const enabledInstallers = installers.filter(([agent]) => !disabled.has(agent))
+  const blocked = new Set(options.blockedAgents ?? [])
+  const enabledInstallers = installers.filter(
+    ([agent]) => !disabled.has(agent) && !blocked.has(agent)
+  )
   const targets = enabledInstallers.flatMap(([agent]) => {
     const target = getManagedAgentHookTarget(agent)
     return target ? [target] : []
@@ -126,16 +139,23 @@ export async function installManagedAgentHooks(
     })
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
-    return installers.map(([agent]) =>
-      disabled.has(agent)
+    return installers.map(([agent]) => {
+      if (blocked.has(agent)) {
+        return skippedStatus(agent, 'agent_blocked_by_policy', POLICY_BLOCKED_DETAIL)
+      }
+      return disabled.has(agent)
         ? skippedStatus(agent, 'agent_disabled', 'Agent is disabled in Settings.')
         : skippedStatus(agent, 'cli_presence_unknown', detail)
-    )
+    })
   }
 
   const results: AgentHookInstallStatus[] = []
   for (const entry of installers) {
     const [agent] = entry
+    if (blocked.has(agent)) {
+      results.push(skippedStatus(agent, 'agent_blocked_by_policy', POLICY_BLOCKED_DETAIL))
+      continue
+    }
     if (disabled.has(agent)) {
       results.push(skippedStatus(agent, 'agent_disabled', 'Agent is disabled in Settings.'))
       continue

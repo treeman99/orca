@@ -582,7 +582,7 @@ import {
   markCursorWorkspaceTrusted
 } from '../agent-trust-presets'
 import { markRemoteAgentWorkspaceTrusted } from '../remote-agent-trust-presets'
-import { applyAgentStatusHooksEnabled } from '../agent-hooks/managed-agent-hook-controls'
+import { applyAgentStatusHooksEnabledUnderEnterprisePolicy } from '../agent-hooks/enterprise-agent-hook-policy'
 import { recordManagedHookInstallFailure } from '../agent-hooks/install-telemetry'
 import {
   isWindowsAbsolutePathLike,
@@ -3935,18 +3935,22 @@ export class OrcaRuntimeService {
       if (!settings) {
         return
       }
-      await applyAgentStatusHooksEnabled(settings.agentStatusHooksEnabled !== false, settings, {
-        shouldHydrateShellPath: app.isPackaged,
-        onInstallError: recordManagedHookInstallFailure,
-        shouldContinue: (agent) => {
-          const current = this.store?.getSettings()
-          return (
-            current !== undefined &&
-            current.agentStatusHooksEnabled !== false &&
-            !current.disabledTuiAgents?.includes(agent)
-          )
+      await applyAgentStatusHooksEnabledUnderEnterprisePolicy(
+        settings.agentStatusHooksEnabled !== false,
+        settings,
+        {
+          shouldHydrateShellPath: app.isPackaged,
+          onInstallError: recordManagedHookInstallFailure,
+          shouldContinue: (agent) => {
+            const current = this.store?.getSettings()
+            return (
+              current !== undefined &&
+              current.agentStatusHooksEnabled !== false &&
+              !current.disabledTuiAgents?.includes(agent)
+            )
+          }
         }
-      })
+      )
     })
     this.managedHookReconciliationTail = reconciliation.catch(() => {})
     return reconciliation

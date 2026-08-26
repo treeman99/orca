@@ -12,7 +12,7 @@ import { track } from '../telemetry/client'
 import { SETTINGS_CHANGED_WHITELIST, type SettingsChangedKey } from '../../shared/telemetry-events'
 import type { AgentAwakeService } from '../agent-awake-service'
 import { sanitizeFloatingWorkspaceDirectorySetting } from './floating-workspace-directory'
-import { applyAgentStatusHooksEnabled } from '../agent-hooks/managed-agent-hook-controls'
+import { applyAgentStatusHooksEnabledUnderEnterprisePolicy } from '../agent-hooks/enterprise-agent-hook-policy'
 import { recordManagedHookInstallFailure } from '../agent-hooks/install-telemetry'
 import { applyElectronProxySettings } from '../network/proxy-settings'
 import { normalizeProxyBypassRules, normalizeProxyUrl } from '../../shared/network-proxy'
@@ -210,17 +210,21 @@ export function registerSettingsHandlers(
         !haveSameDisabledTuiAgents(before.disabledTuiAgents, result.disabledTuiAgents))
     if (hookSettingChanged) {
       try {
-        await applyAgentStatusHooksEnabled(result.agentStatusHooksEnabled, result, {
-          shouldHydrateShellPath: app.isPackaged,
-          onInstallError: recordManagedHookInstallFailure,
-          shouldContinue: (agent) => {
-            const settings = store.getSettings()
-            return (
-              settings.agentStatusHooksEnabled !== false &&
-              !settings.disabledTuiAgents.includes(agent)
-            )
+        await applyAgentStatusHooksEnabledUnderEnterprisePolicy(
+          result.agentStatusHooksEnabled,
+          result,
+          {
+            shouldHydrateShellPath: app.isPackaged,
+            onInstallError: recordManagedHookInstallFailure,
+            shouldContinue: (agent) => {
+              const settings = store.getSettings()
+              return (
+                settings.agentStatusHooksEnabled !== false &&
+                !settings.disabledTuiAgents.includes(agent)
+              )
+            }
           }
-        })
+        )
       } catch (error) {
         console.warn('[settings] failed to reconcile managed agent hooks:', error)
       }

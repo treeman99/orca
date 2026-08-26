@@ -24,6 +24,9 @@ export type AgentHookTarget = (typeof AGENT_HOOK_TARGETS)[number]
 export type AgentHookInstallState = 'installed' | 'not_installed' | 'partial' | 'error' | 'skipped'
 
 export type AgentHookInstallSkipReason =
+  // Why: distinct from `agent_disabled` (the user's own toggle) — an administrator's
+  // `allowedAgents` policy blocked it, so Settings must not offer to turn it back on.
+  | 'agent_blocked_by_policy'
   | 'agent_disabled'
   | 'cli_not_found'
   | 'cli_presence_unknown'
