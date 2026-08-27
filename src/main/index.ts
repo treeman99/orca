@@ -99,6 +99,9 @@ import { OrcaRuntimeService, type RuntimeWorktreeLifecycleEvent } from './runtim
 import { ArtifactCloudService } from './artifacts/artifact-cloud-service'
 import { SkillCloudService } from './skills/skill-cloud-service'
 import { recoverPendingSkillTransactions } from './skills/skill-transaction-startup-recovery'
+// Fork: the orchestration guide routes bundled quality skills into worker specs by name, so a
+// corporate install must place them without anyone running `orca skills install` by hand.
+import { runBundledSkillAutoInstall } from './skills/bundled-skill-auto-install-startup'
 import { isArtifactSharingEnabled } from '../shared/artifact-sharing-gate'
 import { loadAgentSessionClaimSigner } from './runtime/agent-session-claim-identity'
 import {
@@ -2481,6 +2484,9 @@ void app.whenReady().then(async () => {
       }
     })
     .catch((error) => console.warn('[skills] startup transaction recovery failed:', error))
+  // After recovery, so a half-written placement from a previous run is repaired before this
+  // reconcile hashes it. Never awaited: startup must not wait on agent-home filesystem I/O.
+  void runBundledSkillAutoInstall()
   // Why: cohort-classifier reads repo count synchronously at every emit, so hydrate it here — before any IPC handler or window can trigger track().
   initCohortClassifier(store)
   initOnboardingCohortClassifier(store)

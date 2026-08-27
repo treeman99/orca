@@ -428,7 +428,7 @@ Orca 자신의 에이전트 스킬(`orca-cli`, `computer-use`, `orchestration`, 
 
 **차단 지점**: 명령 문자열을 만드는 유일한 초크포인트 `src/shared/agent-feature-install-commands.ts` — 설치/업데이트를 인쇄하는 7개 UI 표면(설정 CLI/Browser Use/Linear/에뮬레이터, 피처월, 피처팁 터미널, 온보딩)이 전부 이 한 곳을 지납니다. 업데이트 실행기는 `src/main/skills/skill-update-run.ts`에서 `npx` 대신 이 빌드의 CLI를 스폰합니다.
 
-**스킬 본문은 패키지에 함께 실립니다.** `skills/` 트리(SKILL.md 8개, 44KB)가 `extraResources`로 `Resources/skills/packages`에 복사됩니다 — 프레시니스 매니페스트(`Resources/skills/current-manifest.json`)와 같은 리소스 루트입니다. 설치는 그 바이트를 에이전트 홈(`~/.agents/skills`, `~/.claude/skills`, `~/.codex/skills`, …)으로 복사하고, `~/.agents/.skill-lock.json`에 설치 기록을 남깁니다(업데이트 자격 판정이 이 락을 읽습니다).
+**스킬 본문은 패키지에 함께 실립니다.** `skills/` 트리(SKILL.md 13개 + 참조·라이선스 파일, 27개 파일 168KB)가 `extraResources`로 `Resources/skills/packages`에 복사됩니다 — 프레시니스 매니페스트(`Resources/skills/current-manifest.json`)와 같은 리소스 루트입니다. 설치는 그 바이트를 에이전트 홈(`~/.agents/skills`, `~/.claude/skills`, `~/.codex/skills`, …)으로 복사하고, `~/.agents/.skill-lock.json`에 설치 기록을 남깁니다(업데이트 자격 판정이 이 락을 읽습니다).
 
 **왜 정책 스위치가 아닌가.** 스위치를 켜면 스킬 설치가 *불가능해질* 뿐입니다. 필요한 것은 차단이 아니라 **같은 일을 망 없이 하는 것**이었고, 오프라인 경로는 사내·비사내 어느 플릿에서도 손해가 없습니다(같은 바이트를, 더 빠르게, 버전이 어긋날 여지 없이).
 
@@ -448,6 +448,57 @@ git grep -n "from: 'skills'" -- config/electron-builder.config.cjs
 회귀 방지 테스트: `src/shared/agent-feature-install-commands.test.ts`(인쇄되는 모든 명령에 `npx`/`github.com`/`http` 부재), `src/shared/bundled-skill-install.test.ts`(설치된 바이트의 git tree sha가 동봉 매니페스트와 일치 — 어긋나면 설치 직후부터 "알 수 없는 내용"으로 표시됩니다), `src/main/skills/bundled-skill-install-root-parity.test.ts`(설치 대상 디렉터리가 프레시니스 스캐너가 보는 홈 루트와 정확히 일치).
 
 **⚠️ 잔여**: 사용자가 커뮤니티 `skills` CLI를 **직접** 설치해 쓰는 것은 Orca가 막지 않습니다(그건 #1과 같은 사각지대 — 사용자가 터미널에서 실행하는 임의의 도구입니다). 이 항목이 보장하는 것은 **Orca가 스스로 그 명령을 인쇄하거나 실행하지 않는다**는 것입니다.
+
+---
+
+## 3.3 번들에 추가된 서드파티 품질 스킬 5종 (✅ 신설 — 나가는 목적지 증가 없음)
+
+§3.2의 번들 스킬 레인에 **제3자가 만든 엔지니어링 규율 스킬 5종**을 추가로 실었습니다.
+오케스트레이션 가이드가 워커 spec에 이름으로 주입하는 스킬들이고, 상세는
+[`bundled-quality-skills.md`](./bundled-quality-skills.md)에 있습니다.
+
+| 스킬 | 상류 | 라이선스 |
+| --- | --- | --- |
+| `verification-before-completion` | obra/superpowers | MIT |
+| `test-driven-development` | obra/superpowers | MIT |
+| `systematic-debugging` | obra/superpowers | MIT |
+| `karpathy-guidelines` | multica-ai/andrej-karpathy-skills | MIT |
+| `claude-md-improver` | Anthropic `claude-md-management` 플러그인 | Apache-2.0 |
+
+**나가는 것: 없습니다.** 바이트는 빌드 시점에 리포에 벤더링되어 패키지에 동봉되므로, 설치·실행
+어느 시점에도 받아올 것이 없습니다. 플러그인 마켓플레이스도, `npx`도, MCP 서버도 관여하지
+않습니다. 이것이 이 스킬들이 사내 배포판에 들어갈 수 있는 유일한 근거이므로 문서의 주장이 아니라
+**테스트로 고정**했습니다 — `config/scripts/bundled-quality-skills.test.mjs`가
+`skills/<name>/**`의 모든 파일에서 `https?://`·`WebFetch`·`WebSearch`·`mcp__`·`curl`·`wget`·
+`uvx`·`npx `·`pip install`·`npm install`을 금지합니다. 예외 2건(상류 라이선스 본문의 정본 URL,
+`claude-md-improver`가 CLAUDE.md에 써 넣을 Quick Start 예시 안의 `npm install` 문자열)은 그
+테스트에 명시적 허용목록으로 적혀 있어 조용히 넓어질 수 없습니다.
+
+**⚠️ 새로 생기는 것: 사용자 홈에 대한 쓰기.** `src/main/skills/bundled-skill-auto-install.ts`가
+앱 시작 시 번들 스킬을 에이전트 스킬 홈(`~/.agents/skills`, 그리고 홈이 이미 존재하는
+`~/.claude`·`~/.codex` 등)에 배치합니다. 네트워크 표면은 아니지만 **Orca 바깥 디렉터리에 대한
+자동 쓰기**이므로 감사 대상으로 적어 둡니다. 경계는 세 가지입니다.
+
+- **패키지된 빌드에서만** 동작합니다(`app.isPackaged`). 개발 체크아웃은 아무것도 쓰지 않습니다.
+- **없거나, 우리가 쓴 뒤 아무도 손대지 않은 사본만** 갱신합니다. 판정은
+  `~/.agents/.skill-lock.json`에 기록된 git tree sha와 디스크 내용의 대조이고, 일치하지 않으면
+  `kept-user-copy`로 두고 지나갑니다. 사용자가 고친 스킬도, `npx skills add`로 들어온 사본도
+  덮지 않습니다.
+- **쓰는 대상은 스킬 디렉터리뿐**입니다. 설정 파일, 훅, 자격증명은 건드리지 않습니다.
+
+회귀 방지 테스트: `src/main/skills/bundled-skill-auto-install.test.ts`(다섯 가지 배치 판정 각각과
+개발 빌드 제외), `config/scripts/bundled-quality-skills.test.mjs`(네트워크 부재 + 상류 출처 표기).
+
+**검증**:
+
+```bash
+# 번들되는 스킬 본문에 URL이 없어야 합니다 (LICENSE 본문만 예외).
+git grep -nE "https?://|WebFetch|WebSearch|mcp__|curl |wget |uvx |npx " -- skills/   | grep -v '/LICENSE:'
+# 남는 것은 claude-md-improver의 npm install 2줄뿐이어야 하고, 둘 다 예시 문자열입니다.
+
+# 자동 설치가 패키지된 빌드로 한정되는지
+git grep -n "app.isPackaged" -- src/main/skills/bundled-skill-auto-install-startup.ts
+```
 
 ---
 
