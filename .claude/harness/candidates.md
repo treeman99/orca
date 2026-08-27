@@ -20,4 +20,14 @@
 
 ---
 
-<!-- 후보 없음 -->
+### C-001 · scope: fork-sync · 관측 1회 · 2026-08-27
+
+upstream이 리포 게이트(ratchet)를 추가하면 그 게이트는 **upstream 파일이 아니라 포크 파일에서 먼저
+터진다**. 머지 후 `pnpm lint`가 처음 보는 `check:*` 스크립트에서 실패하면, 베이스라인/허용목록에
+포크 파일을 더하기 전에 **그 게이트가 요구하는 구조로 포크 코드를 옮길 수 있는지 먼저 보라** —
+v1.4.190의 `check:runtime-electron-ratchet`은 베이스라인이 비어 있어야 하는 게이트였고,
+`enterprise-policy-file.ts`의 `electron.app` 하나를 `shared/app-environment` 포트로 바꾸자
+정책을 읽는 런타임 그래프 모듈 6개가 함께 해결됐다. 허용목록 추가는 그렇게 해도 남는 것에만 쓰고,
+추가할 때는 그 줄이 왜 남는지(타입 전용 import인지 실제 spawn인지)를 파일 안에 적어라.
+출처: task_7b98d919c9a2 이후 코디네이터 실측 (v1.4.190 머지)
+
