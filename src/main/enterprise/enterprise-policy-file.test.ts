@@ -10,19 +10,16 @@ vi.mock('node:fs', () => ({
 // `checkout.root` empty means "no checkout default resolvable", which is what every
 // case except the dev-run ones wants — otherwise the fork's own resources/ policy
 // would join the search in an unpackaged build and change unrelated expectations.
-const { electronApp, checkout } = vi.hoisted(() => {
-  const checkout = { root: '' }
-  return {
-    checkout,
-    electronApp: {
-      getPath: () => '/home/dev/.config/Orca',
-      getAppPath: () => checkout.root,
-      isPackaged: false
-    }
-  }
-})
-vi.mock('electron', () => ({ app: electronApp }))
+// The loader reads the host port, not electron's `app`, so the runtime stays bootable
+// on plain Node. Installing a fake here is what mocking `electron` used to do.
+const checkout = { root: '' }
+const hostEnvironment = {
+  getPath: () => '/home/dev/.config/Orca',
+  getAppPath: () => checkout.root,
+  isPackaged: false
+}
 
+import { installFakeAppEnvironment } from '../../../config/scripts/vitest-host-ports-setup'
 import {
   ENTERPRISE_POLICY_PATH_ENV,
   enterprisePolicySearchPaths,
@@ -69,10 +66,18 @@ function enoent(): never {
 }
 
 beforeEach(() => {
+  // Must be inside beforeEach: config/scripts/vitest-host-ports-setup.ts installs a
+  // default host environment in its own beforeEach, which runs first and would
+  // otherwise replace a module-scope install.
+  installFakeAppEnvironment({
+    getPath: () => hostEnvironment.getPath(),
+    getAppPath: () => hostEnvironment.getAppPath(),
+    isPackaged: () => hostEnvironment.isPackaged
+  })
   resetEnterprisePolicyCacheForTests()
   readFileSyncMock.mockReset()
   readFileSyncMock.mockImplementation(enoent)
-  electronApp.isPackaged = false
+  hostEnvironment.isPackaged = false
   checkout.root = ''
   stubResourcesPath(undefined)
 })
@@ -366,7 +371,7 @@ describe('getEnterprisePolicy', () => {
   })
 
   it('lets a packaged build keep a machine-wide policy that the user tried to switch off', () => {
-    electronApp.isPackaged = true
+    hostEnvironment.isPackaged = true
     vi.stubEnv(ENTERPRISE_POLICY_PATH_ENV, 'off')
     readFileSyncMock.mockImplementation((target: string) =>
       target === machineWidePath() ? '{ "lockdown": true }' : enoent()
@@ -382,7 +387,7 @@ describe('getEnterprisePolicy', () => {
   describe('built-in agent allowlist floor', () => {
     beforeEach(() => {
       vi.stubGlobal('ORCA_BUNDLED_MAIN_BUILD', true)
-      electronApp.isPackaged = true
+      hostEnvironment.isPackaged = true
       stubResourcesPath(RESOURCES_DIR)
     })
 
@@ -429,7 +434,7 @@ describe('getEnterprisePolicy', () => {
   // Under vitest the constant is absent, which is what keeps the floor out of the ~47 upstream
   // PTY cases whose electron mock sets `isPackaged: true` for unrelated reasons.
   it('stays out of a run that is not an electron-vite bundle', () => {
-    electronApp.isPackaged = true
+    hostEnvironment.isPackaged = true
     stubResourcesPath(RESOURCES_DIR)
     readFileSyncMock.mockImplementation(enoent)
 
@@ -440,7 +445,7 @@ describe('getEnterprisePolicy', () => {
   // fleet-deployment step. These cases pin the two bypasses that would undo that.
   describe('with a bundled default policy (packaged build)', () => {
     beforeEach(() => {
-      electronApp.isPackaged = true
+      hostEnvironment.isPackaged = true
       stubResourcesPath(RESOURCES_DIR)
     })
 

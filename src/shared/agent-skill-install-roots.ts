@@ -46,7 +46,11 @@ export const AGENT_SKILL_INSTALL_ROOTS: readonly AgentSkillInstallRoot[] = [
   { rootId: 'home-continue', segments: ['.continue', 'skills'], agentKey: 'continue' },
   // Why '.trae-cn': Orca detects trae by `traecli`, an alias only TRAE CN ships.
   { rootId: 'home-trae', segments: ['.trae-cn', 'skills'], agentKey: 'trae-cn' },
-  { rootId: 'home-aug', segments: ['.augment', 'skills'], agentKey: 'augment' }
+  { rootId: 'home-aug', segments: ['.augment', 'skills'], agentKey: 'augment' },
+  // v1.4.190 added Hermes to discovery. Known gap: discovery also honours HERMES_HOME and,
+  // on Windows, prefers %LOCALAPPDATA%\\hermes\\skills when that directory exists. This list is
+  // home-relative segments by design, so an offline install targets the dotfolder either way.
+  { rootId: 'home-hermes', segments: ['.hermes', 'skills'], agentKey: 'hermes-agent' }
 ]
 
 export function agentSkillInstallRootPath(homeDir: string, root: AgentSkillInstallRoot): string {

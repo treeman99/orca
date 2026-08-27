@@ -6,7 +6,7 @@
 // polling, and let gh open the browser itself (its cross-platform default). The
 // credential lands in gh's own keyring — the app stores nothing here.
 
-import { spawn } from 'node:child_process'
+import { runProcess } from '../../shared/child-process/run-process'
 import type * as NodePty from 'node-pty'
 import type {
   GithubEnterpriseLoginProgress,
@@ -143,39 +143,32 @@ export async function runGithubEnterpriseTokenLogin(
   if (!token.trim()) {
     return { ok: false, reason: 'failed', message: 'Empty token' }
   }
-  return new Promise<GithubEnterpriseLoginResult>((resolve) => {
-    let stderr = ''
-    let settled = false
-    const settle = (result: GithubEnterpriseLoginResult): void => {
-      if (!settled) {
-        settled = true
-        resolve(result)
-      }
+  // Why runProcess and not a bare spawn: it is the chokepoint that pins windowsHide and
+  // Windows argv quoting (src/shared/child-process). It also writes stdin and closes it,
+  // which is exactly how `--with-token` reads the token.
+  try {
+    const result = await runProcess({
+      program: 'gh',
+      args: ['auth', 'login', '--hostname', host, '--git-protocol', 'https', '--with-token'],
+      env: { ...process.env, GH_NO_UPDATE_NOTIFIER: '1' },
+      input: `${token.trim()}\n`
+    })
+    if (result.code === 0) {
+      return { ok: true, account: null }
     }
-
-    const child = spawn(
-      'gh',
-      ['auth', 'login', '--hostname', host, '--git-protocol', 'https', '--with-token'],
-      { env: { ...process.env, GH_NO_UPDATE_NOTIFIER: '1' } }
-    )
-    // ENOENT (gh missing) surfaces here rather than throwing from spawn.
-    child.on('error', (error) =>
-      settle({ ok: false, reason: 'gh-unavailable', message: error.message })
-    )
-    child.stderr?.on('data', (chunk) => {
-      stderr += String(chunk)
-    })
-    child.on('close', (code) => {
-      if (code === 0) {
-        settle({ ok: true, account: null })
-        return
-      }
-      settle({
-        ok: false,
-        reason: 'failed',
-        message: stderr.trim() || `gh exited with code ${code}`
-      })
-    })
-    child.stdin?.end(`${token.trim()}\n`)
-  })
+    return {
+      ok: false,
+      reason: 'failed',
+      message:
+        result.stderr.trim() ||
+        (result.timedOut ? 'gh auth login timed out' : `gh exited with code ${result.code}`)
+    }
+  } catch (error) {
+    // runProcess rejects on the spawn error itself — ENOENT here means gh is missing.
+    return {
+      ok: false,
+      reason: 'gh-unavailable',
+      message: error instanceof Error ? error.message : String(error)
+    }
+  }
 }

@@ -68,6 +68,7 @@ vi.mock('../enterprise/enterprise-policy-file', () => ({
 }))
 
 import { registerPtyHandlers, setLocalPtyProvider } from './pty'
+import { setPtyHostBindings } from './pty-host-bindings'
 import type { IPtyProvider } from '../providers/types'
 
 const handlers = new Map<string, (...args: unknown[]) => unknown>()
@@ -127,6 +128,17 @@ beforeEach(() => {
   })
   onMock.mockImplementation((channel: string, handler: (...a: unknown[]) => unknown) => {
     handlers.set(channel, handler)
+  })
+  // Upstream v1.4.190 registers against injected host surfaces instead of importing
+  // `ipcMain`, so mocking the electron module alone no longer reaches the handlers.
+  setPtyHostBindings({
+    ipc: {
+      handle: handleMock,
+      on: onMock,
+      removeHandler: removeHandlerMock,
+      removeAllListeners: removeAllListenersMock
+    } as never,
+    power: { on: vi.fn() }
   })
   policyState.current = makeEnterprisePolicy()
   ptyController = null

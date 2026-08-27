@@ -64,6 +64,9 @@ vi.mock('../pty/windows-environment-path', () => ({
 vi.mock('./ssh', () => ({
   getActiveMultiplexer: getActiveMultiplexerMock
 }))
+vi.mock('../ssh/ssh-target-registry', () => ({
+  getActiveMultiplexer: getActiveMultiplexerMock
+}))
 
 import { registerPreflightHandlers } from './preflight'
 import { resetPreflightMocks, type HandlerMap } from './preflight-test-harness'

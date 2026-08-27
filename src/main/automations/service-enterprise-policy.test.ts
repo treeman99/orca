@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import type { Repo } from '../../shared/repo-types'
 import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 import { AutomationService } from './service'
+import { installFakeAppEnvironment } from '../../../config/scripts/vitest-host-ports-setup'
 
 const testState = { dir: '' }
 const getEnterprisePolicyMock = vi.fn(() => makeEnterprisePolicy())
@@ -29,6 +30,9 @@ vi.mock('electron', () => ({
 
 async function createStore() {
   vi.resetModules()
+  // Why: userData resolves through AppEnvironment now; point it at this file's temp dir
+  // (same line as upstream's service.test.ts — the electron mock alone is inert).
+  installFakeAppEnvironment({ getPath: () => testState.dir })
   const { Store, initDataPath } = await import('../persistence')
   initDataPath()
   return new Store()

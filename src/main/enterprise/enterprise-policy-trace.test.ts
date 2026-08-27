@@ -12,15 +12,16 @@ vi.mock('node:fs', () => ({
   readFileSync: (target: string, encoding: string) => readFileSyncMock(target, encoding)
 }))
 
-const { electronApp } = vi.hoisted(() => ({
-  electronApp: { getPath: () => '/home/dev/.config/Orca', isPackaged: false }
-}))
-vi.mock('electron', () => ({ app: electronApp }))
+// The loader reads the host port, not electron's `app`, so the runtime stays
+// bootable on plain Node. Installing a fake here is what mocking `electron` used to do.
+const hostEnvironment = { getPath: () => '/home/dev/.config/Orca', isPackaged: false }
 
+import { installFakeAppEnvironment } from '../../../config/scripts/vitest-host-ports-setup'
 import {
   ENTERPRISE_POLICY_PATH_ENV,
   resetEnterprisePolicyCacheForTests
 } from './enterprise-policy-file'
+
 import { recordEnterprisePolicyTrace } from './enterprise-policy-trace'
 import { _resetTracerForTests, setActiveSink } from '../observability/tracer'
 
@@ -54,11 +55,18 @@ function recordedPolicySpan(): SpanRecord {
 }
 
 beforeEach(() => {
+  // Must be inside beforeEach: config/scripts/vitest-host-ports-setup.ts installs a
+  // default host environment in its own beforeEach, which runs first.
+  installFakeAppEnvironment({
+    getPath: () => hostEnvironment.getPath(),
+    getAppPath: () => '',
+    isPackaged: () => hostEnvironment.isPackaged
+  })
   pushed.length = 0
   resetEnterprisePolicyCacheForTests()
   readFileSyncMock.mockReset()
   readFileSyncMock.mockImplementation(enoent)
-  electronApp.isPackaged = false
+  hostEnvironment.isPackaged = false
   vi.spyOn(process.stderr, 'write').mockReturnValue(true)
   installRecordingSink()
 })

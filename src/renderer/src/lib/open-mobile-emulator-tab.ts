@@ -18,6 +18,7 @@ import {
 } from './simulator-pane-shutdown-scheduler'
 import { isMobileEmulatorAvailable } from './mobile-emulator-availability'
 import { assertClientCreationActionAvailable } from './client-creation-action-policy'
+import { LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
 
 type OpenMobileEmulatorTabOptions = {
   targetGroupId?: string
@@ -63,7 +64,7 @@ export async function openMobileEmulatorTab(
     return null
   }
   assertClientCreationActionAvailable(store, worktreeId, 'mobile-emulator')
-  const existingTab = getSimulatorTabForWorktree(worktreeId)
+  const existingTab = getSimulatorTabForWorktree(worktreeId, LOCAL_EXECUTION_HOST_ID)
   if (existingTab) {
     return existingTab.id
   }
@@ -81,7 +82,8 @@ export async function openMobileEmulatorTab(
     return ensureSimulatorTab(worktreeId, {
       placement: options.placement ?? 'rightSplit',
       targetGroupId,
-      surfacePane: true
+      surfacePane: true,
+      executionHostId: LOCAL_EXECUTION_HOST_ID
     })
   }
   beginManualSimulatorLaunch(worktreeId)
@@ -91,7 +93,8 @@ export async function openMobileEmulatorTab(
     const tabId = ensureSimulatorTab(worktreeId, {
       placement: options.placement ?? 'rightSplit',
       targetGroupId,
-      surfacePane: true
+      surfacePane: true,
+      executionHostId: LOCAL_EXECUTION_HOST_ID
     })
     if (!tabId) {
       return null

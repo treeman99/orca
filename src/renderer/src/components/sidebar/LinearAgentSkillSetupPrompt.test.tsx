@@ -71,7 +71,7 @@ vi.mock('../settings/CliSkillRuntimeSetup', () => ({
     runtime: { runtime: string; wslDistro?: string | null }
   ) =>
     runtime.runtime === 'wsl'
-      ? `wsl.exe${runtime.wslDistro ? ` -d '${runtime.wslDistro}'` : ''} -- bash -lc '${command}'`
+      ? `wsl.exe${runtime.wslDistro ? ` -d '${runtime.wslDistro}'` : ''} --exec bash -lc '${command}'`
       : command,
   ensureWslCliAvailableForAgentSkillTerminal: mocks.ensureWslCli,
   getWslCliDistroRequest: (runtime?: { runtime: string; wslDistro?: string | null }) =>
@@ -348,7 +348,7 @@ describe('LinearAgentSkillSetupPrompt', () => {
     expect(mocks.panelProps.at(-1)).toEqual(
       expect.objectContaining({
         installedCommand:
-          "wsl.exe -d 'Fedora' -- bash -lc 'orca skills update --skill orca-linear'",
+          "wsl.exe -d 'Fedora' --exec bash -lc 'orca skills update --skill orca-linear'",
         terminalShellOverride: 'powershell.exe',
         getPrerequisiteStatus: expect.any(Function)
       })

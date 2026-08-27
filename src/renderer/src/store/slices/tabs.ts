@@ -37,6 +37,7 @@ import { createBrowserUuid } from '@/lib/browser-uuid'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
+import { getActiveExecutionHostIdForWorktree } from '@/lib/unified-tab-host-ownership'
 import { getEnterprisePolicyView } from '../../enterprise/enterprise-policy-access'
 import {
   addAdditionalValidWorkspaceKeys,
@@ -75,6 +76,7 @@ export type TabsSlice = {
         Tab,
         | 'id'
         | 'entityId'
+        | 'executionHostId'
         | 'label'
         | 'generatedLabel'
         | 'quickCommandLabel'
@@ -101,6 +103,7 @@ export type TabsSlice = {
         Tab,
         | 'id'
         | 'entityId'
+        | 'executionHostId'
         | 'label'
         | 'generatedLabel'
         | 'quickCommandLabel'
@@ -862,11 +865,14 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
 
       const shouldActivate = init?.activate ?? true
       const createdAt = Date.now()
+      const executionHostId =
+        init?.executionHostId ?? getActiveExecutionHostIdForWorktree(state, worktreeId)
       created = {
         id,
         entityId: init?.entityId ?? id,
         groupId: group.id,
         worktreeId,
+        ...(executionHostId ? { executionHostId } : {}),
         contentType,
         label:
           init?.label ?? (contentType === 'terminal' ? `Terminal ${existingTabs.length + 1}` : id),
@@ -935,11 +941,14 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
         state.layoutByWorktree[worktreeId] ??
         ({ type: 'leaf', groupId: target.sourceGroupId } as const)
       const createdAt = Date.now()
+      const executionHostId =
+        init?.executionHostId ?? getActiveExecutionHostIdForWorktree(state, worktreeId)
       const createdTab: Tab = {
         id,
         entityId: init?.entityId ?? id,
         groupId: newGroupId,
         worktreeId,
+        ...(executionHostId ? { executionHostId } : {}),
         contentType,
         label:
           init?.label ?? (contentType === 'terminal' ? `Terminal ${existingTabs.length + 1}` : id),
@@ -1650,6 +1659,7 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
       activeTabId: null,
       tabOrder: []
     }
+    const shouldActivate = opts?.activate !== false
     set((state) => {
       const existing = state.groupsByWorktree[worktreeId] ?? []
       const currentLayout =
@@ -1666,10 +1676,14 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
           ...state.layoutByWorktree,
           [worktreeId]: replaceLeaf(currentLayout, sourceGroupId, replacement)
         },
-        activeGroupIdByWorktree:
-          opts?.activate === false
-            ? state.activeGroupIdByWorktree
-            : { ...state.activeGroupIdByWorktree, [worktreeId]: newGroupId }
+        ...(shouldActivate
+          ? {
+              activeGroupIdByWorktree: {
+                ...state.activeGroupIdByWorktree,
+                [worktreeId]: newGroupId
+              }
+            }
+          : {})
       }
     })
     if (opts?.recordInteraction !== false) {
@@ -1972,6 +1986,7 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
     const { tab, worktreeId } = foundTab
     return get().createUnifiedTab(worktreeId, tab.contentType, {
       entityId: init?.entityId ?? tab.entityId,
+      executionHostId: tab.executionHostId,
       label: init?.label ?? tab.label,
       generatedLabel: init?.generatedLabel ?? tab.generatedLabel,
       quickCommandLabel: init?.quickCommandLabel ?? tab.quickCommandLabel,

@@ -18,7 +18,7 @@
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { app } from 'electron'
+import { getAppEnvironment, hasAppEnvironment } from '../../shared/app-environment'
 import { parse as parseJsonc, type ParseError } from 'jsonc-parser'
 import {
   applyBuiltInAgentAllowlist,
@@ -215,9 +215,12 @@ function readPolicyDocument(candidates: string[]): LoadedDocument | null {
 
 function currentUserDataDir(): string | null {
   try {
-    return app?.getPath?.('userData') ?? null
+    // Why the host port and not electron's `app`: the Orca runtime must stay bootable on
+    // plain Node (config/scripts/check-runtime-electron-ratchet.mjs), and this resolver
+    // sits in its import graph through every policy gate.
+    return hasAppEnvironment() ? getAppEnvironment().getPath('userData') : null
   } catch {
-    // Electron is absent (unit tests) or userData is not resolvable yet.
+    // No host environment installed (unit tests) or userData is not resolvable yet.
     return null
   }
 }
@@ -226,7 +229,7 @@ function currentUserDataDir(): string | null {
 // machine-wide policy; `isPackaged` is the one signal a standard user cannot set.
 function environmentMayOverridePolicy(): boolean {
   try {
-    return app?.isPackaged !== true
+    return !hasAppEnvironment() || !getAppEnvironment().isPackaged()
   } catch {
     return true
   }
@@ -256,9 +259,9 @@ const DEV_MAIN_BUNDLE_DIR = path.join('out', 'main')
 
 function devCheckoutPolicyPath(): string | null {
   try {
-    const appPath = app?.getAppPath?.()
+    const appPath = hasAppEnvironment() ? getAppEnvironment().getAppPath() : null
     if (!appPath) {
-      // Electron is absent (unit tests): no checkout default, so the suite stays upstream.
+      // No host environment (unit tests): no checkout default, so the suite stays upstream.
       return null
     }
     const checkoutRoot = appPath.endsWith(DEV_MAIN_BUNDLE_DIR)
@@ -338,7 +341,7 @@ export function getEnterprisePolicy(): EnterprisePolicy {
   searchedPaths = candidates
   const loaded = readPolicyDocument(candidates)
   const baselined = applyBundledBaseline(loaded, bundledPath)
-  // Why a build constant instead of `allowEnvOverride`/`app.isPackaged`: 19 test files mock
+  // Why a build constant instead of `allowEnvOverride`/`isPackaged()`: 19 test files mock
   // `isPackaged: true` for unrelated reasons, and the floor would then block `codex` in the
   // upstream PTY cases. `ORCA_BUNDLED_MAIN_BUILD` only exists in an electron-vite bundle, so
   // it is true for packaged builds and `pnpm dev` and absent under vitest — and unlike an

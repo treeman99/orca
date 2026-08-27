@@ -114,7 +114,15 @@ export function buildSkillCommandForRuntime(
   // avoiding raw multiline and nested quotes at the copy/paste boundary.
   const encodedScript = encodeWslLoginShellScript(normalizedCommand)
   const visibleCommand = normalizedCommand.replace(/[\r\n]+/g, ' ')
-  const shellScript = `eval "\`printf %s ${encodedScript} | base64 -d\`"`
+  // Why $(...) and not a backtick eval: PowerShell treats ` as its own escape
+  // character, so the old `eval "\`printf ...\`"` had the payload's quotes
+  // interacting with two escaping layers and dash saw `case  in` -- the
+  // `word unexpected (expecting "in")` in #14292. Credit: #14785.
+  //
+  // Why not a plain pipe into sh: that hands the payload the pipe as its stdin,
+  // so a setup command that reads input gets base64 remnants instead. Command
+  // substitution runs in a subshell and leaves the terminal's stdin intact.
+  const shellScript = `sh -c "$(printf %s ${encodedScript} | base64 -d)"`
   // Why --exec: `--` makes wsl.exe expand $name in the argv it forwards to the guest.
   const wslCommand = `wsl.exe${distroArg} --exec sh -c ${quotePowerShellNativeArgument(shellScript)}`
   // Why: scope Legacy argv parsing to this invocation so Windows PowerShell

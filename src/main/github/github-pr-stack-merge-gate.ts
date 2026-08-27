@@ -1,5 +1,5 @@
 import type { GitHubPRStack } from '../../shared/github/pull-request-types'
-import { translateMain } from '../i18n/main-i18n'
+import { translateInRuntime } from '../i18n/main-translation-port'
 
 /**
  * Whether the caller has shown the user which pull requests a stack merge would
@@ -40,12 +40,12 @@ export function buildUnconfirmedGitHubPRStackMergeError(
   // keys, which these catalogs do not carry.
   const prCount = stackMergeCount(stack)
   return prCount === 1
-    ? translateMain(
+    ? translateInRuntime(
         'github.stackMerge.confirmationRequiredSingle',
         'Pull request #{{pr}} belongs to a GitHub stack, so merging it here goes through GitHub stack merge and takes {{prCount}} pull request. Merge it from the review sidebar in Orca desktop, which shows exactly which pull requests are included before you confirm.',
         { pr: prNumber, prCount }
       )
-    : translateMain(
+    : translateInRuntime(
         'github.stackMerge.confirmationRequiredMultiple',
         'Pull request #{{pr}} belongs to a GitHub stack, so merging it here would merge {{prCount}} pull requests atomically. Merge it from the review sidebar in Orca desktop, which shows exactly which pull requests are included before you confirm.',
         { pr: prNumber, prCount }

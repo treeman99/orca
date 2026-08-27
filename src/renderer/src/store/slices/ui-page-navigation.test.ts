@@ -666,6 +666,24 @@ describe('createUISlice space navigation', () => {
     expect(store.getState().activeView).toBe('tasks')
   })
 
+  it('records and rewinds Skills visits on close', () => {
+    const store = createUIStore()
+    store.setState({ worktreesByRepo: { 'repo-1': [makeWorktree('a')] } })
+
+    store.getState().recordWorktreeVisit('a')
+    store.getState().openSkillsPage()
+    expect(store.getState().worktreeNavHistory).toEqual(['a', 'skills'])
+    expect(store.getState().worktreeNavHistoryIndex).toBe(1)
+
+    store.getState().closeSkillsPage()
+    expect(store.getState().activeView).toBe('terminal')
+    expect(store.getState().worktreeNavHistoryIndex).toBe(0)
+  })
+
+  // Dropped from upstream v1.4.190: its Artifacts nav-history cases and the shared-skill-link
+  // case assert pages this fork removes (ARTIFACT_SHARING_REMOVED, openSkillShare). The
+  // refusal is asserted above instead. They come back on every sync — delete them again.
+
   it('does not restore a persisted Artifacts view on startup', () => {
     // A machine last left on the page has 'artifacts' on disk; hydration must not remount it.
     const store = createUIStore()

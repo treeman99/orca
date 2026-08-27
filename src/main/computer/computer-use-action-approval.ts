@@ -8,15 +8,15 @@
 // Fails closed: with no window to parent a dialog to (headless `orca serve`, a CLI-only
 // session), the action is refused rather than performed unattended.
 
-import { BrowserWindow, dialog } from 'electron'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
-import { translateMain } from '../i18n/main-i18n'
+import { getRuntimeDesktopSurface } from '../runtime/runtime-desktop-surface'
 import { RuntimeClientError } from './runtime-client-error'
 
 export const COMPUTER_USE_ACTION_DENIED = 'computer_use_action_denied'
 
-type ApprovalDialog = typeof dialog.showMessageBox
-type WindowSource = () => BrowserWindow | null
+// The prompt itself lives in the desktop surface (src/main/host/), so this module —
+// which the Orca runtime reaches through sidecar-client — never imports `electron`.
+type ConfirmAction = (detail: string) => Promise<'allowed' | 'denied' | 'no-window'>
 
 // Serialized so a burst of actions asks one question at a time instead of stacking
 // modals the user cannot tell apart.
@@ -72,7 +72,7 @@ export function requiresComputerUseApproval(): boolean {
 export function requireComputerUseApproval(
   method: string,
   params: unknown,
-  deps: { showMessageBox?: ApprovalDialog; getWindow?: WindowSource } = {}
+  deps: { confirm?: ConfirmAction } = {}
 ): Promise<void> | undefined {
   if (!requiresComputerUseApproval()) {
     return undefined
@@ -83,45 +83,23 @@ export function requireComputerUseApproval(
 async function askForComputerUseApproval(
   method: string,
   params: unknown,
-  deps: { showMessageBox?: ApprovalDialog; getWindow?: WindowSource }
+  deps: { confirm?: ConfirmAction }
 ): Promise<void> {
-  const getWindow =
-    deps.getWindow ??
-    (() => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null)
-  const window = getWindow()
-  if (!window) {
+  const confirm =
+    deps.confirm ??
+    ((detail: string) => getRuntimeDesktopSurface().confirmComputerUseAction(detail))
+  const ask = pending.then(() => confirm(describeAction(method, params)))
+  // Chain on settle, not on success, so one rejected prompt cannot wedge the queue.
+  pending = ask.catch(() => undefined)
+
+  const verdict = await ask
+  if (verdict === 'no-window') {
     throw new RuntimeClientError(
       COMPUTER_USE_ACTION_DENIED,
       'Computer Use needs your confirmation, and there is no Orca window to ask in.'
     )
   }
-
-  const show = deps.showMessageBox ?? dialog.showMessageBox
-  const ask = pending.then(() =>
-    show(window, {
-      type: 'question',
-      // Deny is both the default button and the Esc/close result: a dismissed prompt
-      // must never read as consent.
-      buttons: [
-        translateMain('computerUse.approval.deny', 'Deny'),
-        translateMain('computerUse.approval.allow', 'Allow')
-      ],
-      defaultId: 0,
-      cancelId: 0,
-      noLink: true,
-      title: translateMain('computerUse.approval.title', 'Allow agent to control your computer?'),
-      message: translateMain(
-        'computerUse.approval.message',
-        'An agent wants to act on an app outside Orca.'
-      ),
-      detail: describeAction(method, params)
-    })
-  )
-  // Chain on settle, not on success, so one rejected prompt cannot wedge the queue.
-  pending = ask.catch(() => undefined)
-
-  const { response } = await ask
-  if (response !== 1) {
+  if (verdict !== 'allowed') {
     throw new RuntimeClientError(COMPUTER_USE_ACTION_DENIED, 'You denied this Computer Use action.')
   }
 }

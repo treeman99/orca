@@ -1,0 +1,53 @@
+import type { BrowserWindow, IpcMainEvent } from 'electron'
+
+/**
+ * The desktop facilities `OrcaRuntimeService` uses, which a Node host does not have.
+ *
+ * Three sites, all optional by nature: a native notification toast, a lookup of the
+ * authoritative renderer window, and one ipcMain channel used only by the
+ * renderer-backed tab-create fallback. With no renderer that fallback is unreachable —
+ * `createTerminal` already takes the background spawn branch when there is no
+ * authoritative window (#10333) — so a Node host needs none of them.
+ *
+ * Defaults are inert rather than throwing, for the same reason as the PTY bindings: a
+ * host with no desktop legitimately has nothing here, and that is not a downgrade.
+ * Where absence IS user-visible — a notification that would have been shown — the
+ * runtime already routes to paired clients, which is the better destination anyway.
+ */
+
+export type RuntimeDesktopSurface = {
+  /** Show a native notification. Returns false when the host cannot, so callers can say so. */
+  showNotification(input: { title: string; body: string }): boolean
+  /** The renderer window with this id, or null when there is no desktop. */
+  findWindowById(id: number): BrowserWindow | null
+  onIpc(channel: string, listener: (event: IpcMainEvent, ...args: never[]) => void): void
+  removeIpcListener(channel: string, listener: (...args: never[]) => void): void
+  /**
+   * Ask the person at the keyboard to approve one mutating Computer Use action.
+   *
+   * Fork addition. `'no-window'` means there is nobody to ask — a headless `orca serve`
+   * or a Node host — and the caller must read it as a refusal, never as consent. The
+   * prompt itself (dialog, buttons, translated copy) belongs to the desktop
+   * implementation so the runtime graph stays free of `electron`.
+   */
+  confirmComputerUseAction(detail: string): Promise<'allowed' | 'denied' | 'no-window'>
+}
+
+const inertDesktopSurface: RuntimeDesktopSurface = {
+  showNotification: () => false,
+  findWindowById: () => null,
+  onIpc: () => {},
+  removeIpcListener: () => {},
+  // Fails closed: no desktop means no one to confirm with, so the action is refused.
+  confirmComputerUseAction: async () => 'no-window'
+}
+
+let current: RuntimeDesktopSurface = inertDesktopSurface
+
+export function setRuntimeDesktopSurface(surface: RuntimeDesktopSurface | null): void {
+  current = surface ?? inertDesktopSurface
+}
+
+export function getRuntimeDesktopSurface(): RuntimeDesktopSurface {
+  return current
+}

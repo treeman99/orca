@@ -29,6 +29,7 @@ export default defineConfig({
     setupFiles: [
       // Why: happy-dom drops MutationObserver callbacks on GC; keep them alive like a browser does.
       resolve('config/scripts/happy-dom-mutation-observer-retention.ts'),
+      resolve('config/scripts/vitest-host-ports-setup.ts'),
       // Why: the corporate policy file is ambient process state; see the setup file.
       resolve('config/vitest-enterprise-policy-isolation.ts')
     ],

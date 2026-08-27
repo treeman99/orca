@@ -23,7 +23,8 @@ export function git(dir: string, args: string[]): string {
   return execFileSync('git', [...IDENTITY, ...args], {
     cwd: dir,
     stdio: 'pipe',
-    encoding: 'utf8'
+    encoding: 'utf8',
+    windowsHide: true
   })
 }
 

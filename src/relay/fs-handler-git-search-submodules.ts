@@ -29,7 +29,7 @@ const gitExec: GitExec = (args, cwd) =>
     execFile(
       'git',
       args,
-      { cwd, env: buildRelayGitEnv(), encoding: 'utf-8' },
+      { cwd, env: buildRelayGitEnv(), encoding: 'utf-8', windowsHide: true },
       (error, stdout, stderr) => {
         if (error) {
           reject(error)
@@ -58,7 +58,8 @@ export const relaySubmoduleSearchHost: SubmoduleSearchHost = {
       spawn('git', gitArgs, {
         cwd,
         env: buildRelayGitEnv(),
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true
       })
     )
   }
