@@ -32,6 +32,12 @@ same way in POSIX shells, PowerShell, and cmd.exe.
 If the selected executable cannot run, report its exact error and stop. Do not fall through
 to another executable, which could silently target a different Orca build.
 
+The guide also carries this build's **Quality Skill Routing**: which of the bundled
+engineering-discipline skills (`verification-before-completion`, `karpathy-guidelines`,
+`test-driven-development`, `systematic-debugging`, `claude-md-improver`) belong in a given
+task's `--spec`, and the ordering that makes them work under dispatch. Do not compose a
+spec from memory of this stub — read the guide.
+
 ## Load the full guide before running Orca commands
 
 ```text

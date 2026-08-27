@@ -1059,6 +1059,22 @@
             "identitySha256": "9ca228137b9a442b98c761aa07adecc2265708132ab175ad7e22b163fdc0bd7f"
           }
         ]
+      },
+      {
+        "releaseRevision": 29,
+        "packageDigest": "19ed0626794f7a40f7d4f04c86dfe2415e735b2b07ff22cfb7a419e61009e004",
+        "gitTreeSha": "c9ea6b043049d4d414b5c0c9d6a705a0177fd29d",
+        "files": [
+          {
+            "path": "SKILL.md",
+            "size": 4622,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "c899b10f36bb19ca708c6dfe47992738b5353735dc887c4e7b2c5294f559583e",
+            "textNormalizedSha256": "c899b10f36bb19ca708c6dfe47992738b5353735dc887c4e7b2c5294f559583e",
+            "identitySha256": "c899b10f36bb19ca708c6dfe47992738b5353735dc887c4e7b2c5294f559583e"
+          }
+        ]
       }
     ],
     "mobile-fit-debug": [
@@ -1775,6 +1791,222 @@
             "exactSha256": "a7ae9a0d22b8bc14a6cb3bdb6fc6ebf1f11cc25ab489d1cc63928bd025d7dddc",
             "textNormalizedSha256": "a7ae9a0d22b8bc14a6cb3bdb6fc6ebf1f11cc25ab489d1cc63928bd025d7dddc",
             "identitySha256": "a7ae9a0d22b8bc14a6cb3bdb6fc6ebf1f11cc25ab489d1cc63928bd025d7dddc"
+          }
+        ]
+      }
+    ],
+    "claude-md-improver": [
+      {
+        "releaseRevision": 1,
+        "packageDigest": "0bca2e6e6482b1fff18de3bb26cbf1d75c7f11933083a5fd73f13828e9685de5",
+        "gitTreeSha": "6ba12056c0b2f5b5dad73cb72120270e2763a500",
+        "files": [
+          {
+            "path": "LICENSE",
+            "size": 11358,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+            "textNormalizedSha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+            "identitySha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+          },
+          {
+            "path": "SKILL.md",
+            "size": 6665,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "1ee89940b0f3a1dfece2df5e8e44cd106b61e993c786b80fb4bebf65e64b8392",
+            "textNormalizedSha256": "1ee89940b0f3a1dfece2df5e8e44cd106b61e993c786b80fb4bebf65e64b8392",
+            "identitySha256": "1ee89940b0f3a1dfece2df5e8e44cd106b61e993c786b80fb4bebf65e64b8392"
+          },
+          {
+            "path": "references/quality-criteria.md",
+            "size": 2617,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "383def16b05dca948297dd1acb33f007cb1b1b2c368454d424c5634348a8bab1",
+            "textNormalizedSha256": "383def16b05dca948297dd1acb33f007cb1b1b2c368454d424c5634348a8bab1",
+            "identitySha256": "383def16b05dca948297dd1acb33f007cb1b1b2c368454d424c5634348a8bab1"
+          },
+          {
+            "path": "references/templates.md",
+            "size": 3687,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "de0aa3ac30120a0c77f9cd82738a75ed8326864f98feb89356a253f2deaf3ab0",
+            "textNormalizedSha256": "de0aa3ac30120a0c77f9cd82738a75ed8326864f98feb89356a253f2deaf3ab0",
+            "identitySha256": "de0aa3ac30120a0c77f9cd82738a75ed8326864f98feb89356a253f2deaf3ab0"
+          },
+          {
+            "path": "references/update-guidelines.md",
+            "size": 3197,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "02a158d6ca41a0ab702a67a213e92205f09c073cea53796633251bc62fd7ec55",
+            "textNormalizedSha256": "02a158d6ca41a0ab702a67a213e92205f09c073cea53796633251bc62fd7ec55",
+            "identitySha256": "02a158d6ca41a0ab702a67a213e92205f09c073cea53796633251bc62fd7ec55"
+          }
+        ]
+      }
+    ],
+    "karpathy-guidelines": [
+      {
+        "releaseRevision": 1,
+        "packageDigest": "cab20254bd41b4998b59b4dea490cee1cb265cba3b02186775800946e42c1b8e",
+        "gitTreeSha": "affb0dc23d1c839e829243a1e8b5028a597abe1a",
+        "files": [
+          {
+            "path": "LICENSE",
+            "size": 1105,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "050250f6fb3d07ca88e22b1b2daa49c94890c841687e014c1131518a50246eb6",
+            "textNormalizedSha256": "050250f6fb3d07ca88e22b1b2daa49c94890c841687e014c1131518a50246eb6",
+            "identitySha256": "050250f6fb3d07ca88e22b1b2daa49c94890c841687e014c1131518a50246eb6"
+          },
+          {
+            "path": "SKILL.md",
+            "size": 3168,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "906de9aa2b67a39956523d3603de0552f6a0cbe143e4071d668beb0fd1492256",
+            "textNormalizedSha256": "906de9aa2b67a39956523d3603de0552f6a0cbe143e4071d668beb0fd1492256",
+            "identitySha256": "906de9aa2b67a39956523d3603de0552f6a0cbe143e4071d668beb0fd1492256"
+          }
+        ]
+      }
+    ],
+    "systematic-debugging": [
+      {
+        "releaseRevision": 1,
+        "packageDigest": "d1fa1a3d8c3b7a3d52b31010b447327ecbb4f274a7ff06fbf682ef255e5ddf1d",
+        "gitTreeSha": "957c0e4ba14463b01937d139af4a86c2bc41a6a4",
+        "files": [
+          {
+            "path": "LICENSE",
+            "size": 1070,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+            "textNormalizedSha256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+            "identitySha256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400"
+          },
+          {
+            "path": "SKILL.md",
+            "size": 10932,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "80867a8467434b15972f76bbd50c426b319aab1b80aed5247574d91bb6ef14f1",
+            "textNormalizedSha256": "80867a8467434b15972f76bbd50c426b319aab1b80aed5247574d91bb6ef14f1",
+            "identitySha256": "80867a8467434b15972f76bbd50c426b319aab1b80aed5247574d91bb6ef14f1"
+          },
+          {
+            "path": "condition-based-waiting-example.md",
+            "size": 5161,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "50be618d801ee7b3dd356d7e937eb1b5d13e59c15eda1721e54a1b2454f49726",
+            "textNormalizedSha256": "50be618d801ee7b3dd356d7e937eb1b5d13e59c15eda1721e54a1b2454f49726",
+            "identitySha256": "50be618d801ee7b3dd356d7e937eb1b5d13e59c15eda1721e54a1b2454f49726"
+          },
+          {
+            "path": "condition-based-waiting.md",
+            "size": 3516,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "cb1f1bb7d93604bc5f2263ca830c9fed21f5aef97e6274c7065485f08cd31113",
+            "textNormalizedSha256": "cb1f1bb7d93604bc5f2263ca830c9fed21f5aef97e6274c7065485f08cd31113",
+            "identitySha256": "cb1f1bb7d93604bc5f2263ca830c9fed21f5aef97e6274c7065485f08cd31113"
+          },
+          {
+            "path": "defense-in-depth.md",
+            "size": 3650,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "1e175fb86fc357e58c6aebf5441e481e1b7868b4380c0456b63a17eefbd18ba7",
+            "textNormalizedSha256": "1e175fb86fc357e58c6aebf5441e481e1b7868b4380c0456b63a17eefbd18ba7",
+            "identitySha256": "1e175fb86fc357e58c6aebf5441e481e1b7868b4380c0456b63a17eefbd18ba7"
+          },
+          {
+            "path": "find-polluter.sh",
+            "size": 2002,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "9e73da2eacde1c26a94554f3c25c8f892ec5ba75a8851f1c826337aaa89ce5a6",
+            "textNormalizedSha256": "9e73da2eacde1c26a94554f3c25c8f892ec5ba75a8851f1c826337aaa89ce5a6",
+            "identitySha256": "9e73da2eacde1c26a94554f3c25c8f892ec5ba75a8851f1c826337aaa89ce5a6"
+          },
+          {
+            "path": "root-cause-tracing.md",
+            "size": 5319,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "e74a91f3807a46e6933a9f63491ac8e82f5024de1d03f94209be74c0a9b12000",
+            "textNormalizedSha256": "e74a91f3807a46e6933a9f63491ac8e82f5024de1d03f94209be74c0a9b12000",
+            "identitySha256": "e74a91f3807a46e6933a9f63491ac8e82f5024de1d03f94209be74c0a9b12000"
+          }
+        ]
+      }
+    ],
+    "test-driven-development": [
+      {
+        "releaseRevision": 1,
+        "packageDigest": "87cba8c4e21c6186e93d663fbb7a1836546cedd702d5d6f587d5f8a6b963697e",
+        "gitTreeSha": "1698f124cd48e7affba0693eccd280c83a20dd8f",
+        "files": [
+          {
+            "path": "LICENSE",
+            "size": 1070,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+            "textNormalizedSha256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+            "identitySha256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400"
+          },
+          {
+            "path": "SKILL.md",
+            "size": 9517,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "b0eb9c08e551d46e54643ef7183d6e3be05913b71c9f57fc6855ab9b53e18a24",
+            "textNormalizedSha256": "b0eb9c08e551d46e54643ef7183d6e3be05913b71c9f57fc6855ab9b53e18a24",
+            "identitySha256": "b0eb9c08e551d46e54643ef7183d6e3be05913b71c9f57fc6855ab9b53e18a24"
+          },
+          {
+            "path": "writing-good-tests.md",
+            "size": 8268,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "51471c853306ff92ca8bb41dcaea05f31c0e46b03651f8f3c99754b7172f4ae1",
+            "textNormalizedSha256": "51471c853306ff92ca8bb41dcaea05f31c0e46b03651f8f3c99754b7172f4ae1",
+            "identitySha256": "51471c853306ff92ca8bb41dcaea05f31c0e46b03651f8f3c99754b7172f4ae1"
+          }
+        ]
+      }
+    ],
+    "verification-before-completion": [
+      {
+        "releaseRevision": 1,
+        "packageDigest": "54ca8f381fd3fd85617b41bd032d417f07bccbf7eb5e3ebcfef535f58633267e",
+        "gitTreeSha": "573094be09b27bf1d35098a01719888fa74935a6",
+        "files": [
+          {
+            "path": "LICENSE",
+            "size": 1070,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+            "textNormalizedSha256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+            "identitySha256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400"
+          },
+          {
+            "path": "SKILL.md",
+            "size": 4198,
+            "executable": false,
+            "classification": "text",
+            "exactSha256": "0149526960882cfb076ea6c46bfdd7e5f66e3726b85a3ba90defdf5cf6caa454",
+            "textNormalizedSha256": "0149526960882cfb076ea6c46bfdd7e5f66e3726b85a3ba90defdf5cf6caa454",
+            "identitySha256": "0149526960882cfb076ea6c46bfdd7e5f66e3726b85a3ba90defdf5cf6caa454"
           }
         ]
       }
