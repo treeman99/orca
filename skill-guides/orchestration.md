@@ -380,10 +380,6 @@ Wait for `tui-idle` before dispatching. Always pass `--timeout-ms`; real coding 
 
 ## Agent Guidance
 
-- Before `worker_done`, a worker runs the task's verification command and reads its output. A
-  `worker_done` carrying `--outcome succeeded` settles the Task and Dispatch automatically, so an
-  unverified success claim is not a wrong sentence in a report — it is wrong state nobody rechecks.
-  When the spec's `[QUALITY]` block names `verification-before-completion`, this is that rule.
 - Workers with a valid live preamble must send `worker_done` exactly once from their own terminal with an explicit `--outcome succeeded` or `--outcome failed`:
   `orca orchestration send --type worker_done --subject "<short status>" --body "<3-sentence summary: what you did, what you found, what's left>" --task-id <task_id> --dispatch-id <dispatch_id> --outcome succeeded --files-modified "path/a" --report-path "<optional>" --json`
 - A failed outcome is still a terminal report, but Orca records both the Dispatch and Task as failed. Never encode failure only in the subject/body.
@@ -392,8 +388,6 @@ Wait for `tui-idle` before dispatching. Always pass `--timeout-ms`; real coding 
   `orca orchestration send --type heartbeat --subject "alive" --payload '{"taskId":"<task_id>","dispatchId":"<dispatch_id>","phase":"implementing"}' --json`
 - If blocked before completion, use `ask`; use `escalation` only when ownership is valid and the coordinator must intervene.
 - Treat preambles inherited through terminal history or full handoffs as stale unless the current prompt explicitly keeps that coordinator in the loop.
-- Coordinators re-run the verification themselves before accepting a `worker_done` and before
-  `worker-release`. A worker's success report is a claim; the command's fresh output is the evidence.
 - Coordinators must account for every settled worker terminal before waiting again or ending the turn: immediately reuse the exact worker for a new Dispatch, explicitly retain it at the user's request with `worker-retain`, or run `worker-release`. Do not leave a completed worker live merely to inspect output; released workers remain readable through `worker-read`.
 - Coordinators should use `task-list --ready` as external memory, dispatch parallel waves, and avoid dependency chains deeper than 3-4 steps.
 
@@ -406,56 +400,6 @@ orca orchestration task-create --spec "Fix the login button CSS" --json
 orca orchestration dispatch --task <task_id> --to <handle> --inject --json
 orca orchestration check --wait --types worker_done,escalation,question --timeout-ms 900000 --json
 ```
-
-## Quality Skill Routing
-
-Orca bundles five engineering-discipline skills beside this one. They ship in the build, install
-through the same offline installer, and reach no network. Route them into worker specs the way the
-rule ledger routes rules: **per Task, by what the task is** — never all five at once.
-
-| Task shape | Skills to name in `--spec` |
-| --- | --- |
-| every dispatched task | `verification-before-completion`, `karpathy-guidelines` |
-| writes code or changes behaviour | add `test-driven-development` |
-| a bug, a failing test, or unexplained behaviour | add `systematic-debugging` |
-| review-only, research, inventory | nothing beyond the two universal ones |
-
-- **Name the skill; do not rely on auto-trigger.** A worker's entire prompt is the injected preamble
-  plus the TASK block, and a `@codex`/`@gemini`/`@opencode` worker never loads a Claude plugin skill
-  at all. Append a `[QUALITY]` heading to `--spec` that names the selected skills.
-- **Verification belongs before `worker_done`, not after.** `verification-before-completion` is the
-  one skill that must reach every worker: a `worker_done` carrying `--outcome succeeded` settles the
-  Task and Dispatch automatically, so there is no later gate to catch a premature report. The spec
-  must order it explicitly — run the verification command, read its output, then report.
-- **Translate "stop and ask" into `ask`.** `karpathy-guidelines` rule 1 and `systematic-debugging`
-  both tell an agent to stop and ask when something is unclear, and a worker that opens a local
-  prompt hangs forever (BEHAVIOR RULE #1 in its own preamble). Say it in the `[QUALITY]` block:
-  unclear means `orca orchestration ask`, never AskUserQuestion.
-- **The coordinator owes the same discipline.** Before accepting a `worker_done` and before
-  `worker-release`, re-run that task's verification command yourself. A worker's success report is
-  not evidence; `verification-before-completion` names this exact failure, and it binds you reading
-  reports as much as the worker writing them.
-- **`claude-md-improver` is coordinator-only.** Never dispatch it to a worker. Use it at the ledger
-  boundary, after the last worker settles: when a settled candidate is a project-wide fact rather
-  than a task-scoped rule, its quality criteria decide whether that fact belongs in `CLAUDE.md`. The
-  ledger's own rule still binds — nothing lands in `CLAUDE.md` or `AGENTS.md` without a user decision.
-- **Skip this section entirely for a full handoff.** There is no Task, no spec, and no coordinator
-  waiting, so the receiving agent owns its own quality bar.
-
-Append the block verbatim, naming only the selected skills:
-
-```text
-[QUALITY]
-Apply these installed skills to this task, by name: verification-before-completion,
-karpathy-guidelines, test-driven-development.
-Order: finish the work, then run the task's verification command and read its output,
-then send worker_done. Never report success you have not just observed.
-Anything unclear or blocking goes to `orca orchestration ask` — never AskUserQuestion,
-which opens a prompt your coordinator cannot see.
-```
-
-If a worker reports that a named skill is not installed, treat it as an environment fault, not a
-task failure: `orca skills install --skill <name>` fixes it from this build with no network.
 
 ## Project Rule Ledger
 
@@ -474,6 +418,6 @@ Read `.claude/harness/rules.md` once, before the first `task-create`.
 
 ## Next Action
 
-Coordinator: confirm `orca status --json`, create or bind a Run, read `.claude/harness/rules.md` when that directory exists, inspect `task-list`/`dispatch-show` if inheriting state, then use the explicit supervised loop (`task-create` -> `worker-start` -> `check --wait`). Compose every `--spec` with its `[QUALITY]` block (see Quality Skill Routing) and any matching `[PROJECT RULES]` blocks before dispatching. Use low-level terminal creation plus `dispatch --inject` only when the composed start does not express the needed topology. After every accepted `worker_done`, either transfer the exact terminal to an immediate follow-up Dispatch or run `worker-release` before the next wait.
+Coordinator: confirm `orca status --json`, create or bind a Run, read `.claude/harness/rules.md` when that directory exists, inspect `task-list`/`dispatch-show` if inheriting state, then use the explicit supervised loop (`task-create` -> `worker-start` -> `check --wait`). Use low-level terminal creation plus `dispatch --inject` only when the composed start does not express the needed topology. After every accepted `worker_done`, either transfer the exact terminal to an immediate follow-up Dispatch or run `worker-release` before the next wait.
 
-Worker: if the current prompt contains a live dispatch preamble, do the task, apply every skill the `[QUALITY]` block names, use `ask` for blocking questions, run the verification command and read its output, and only then send `worker_done` once with the required payload. If the preamble is stale or absent, do not send lifecycle messages; inspect state or treat the prompt as an ordinary handoff.
+Worker: if the current prompt contains a live dispatch preamble, do the task, use `ask` for blocking questions, and send `worker_done` once with the required payload. If the preamble is stale or absent, do not send lifecycle messages; inspect state or treat the prompt as an ordinary handoff.

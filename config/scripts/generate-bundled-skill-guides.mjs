@@ -15,16 +15,7 @@ const CANONICAL_GUIDE_NAMES = [
   'orca-emulator-android',
   'orca-linear',
   'orca-per-workspace-env',
-  'orchestration',
-  // Fork: vendored third-party engineering-discipline skills the orchestration guide routes
-  // into worker specs. They are NOT stub topics — a worker must read the whole skill, and
-  // `orca skills get` is not reachable from every agent we dispatch to. See
-  // docs/reference/bundled-quality-skills.md.
-  'claude-md-improver',
-  'karpathy-guidelines',
-  'systematic-debugging',
-  'test-driven-development',
-  'verification-before-completion'
+  'orchestration'
 ]
 
 // Why: old discovery stubs can outlive a rename indefinitely, so aliases are
@@ -37,12 +28,7 @@ const GUIDE_ALIASES = {
   'orca-emulator-android': [],
   'orca-linear': [],
   'orca-per-workspace-env': [],
-  orchestration: [],
-  'claude-md-improver': [],
-  'karpathy-guidelines': [],
-  'systematic-debugging': [],
-  'test-driven-development': [],
-  'verification-before-completion': []
+  orchestration: []
 }
 
 // Why: a stubbed topic ships a hybrid discovery stub as its installable projection while

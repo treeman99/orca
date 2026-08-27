@@ -121,7 +121,6 @@ docs/**
 !docs/reference/wsl-command-execution.md
 !docs/reference/xterm-patch-regeneration.md
 !docs/reference/bot-lane.md
-!docs/reference/bundled-quality-skills.md
 
 # Stably CLI (only docs/ are tracked)
 .stably/*
