@@ -7,11 +7,13 @@ import {
   File,
   FilePlus,
   Files,
+  FolderOpen,
   FolderPlus,
   Globe,
   ListCollapse,
   Pencil,
   Search,
+  Settings2,
   SquareTerminal,
   Trash2
 } from 'lucide-react'
@@ -20,7 +22,10 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
-  ContextMenuShortcut
+  ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger
 } from '@/components/ui/context-menu'
 import { useAppStore } from '@/store'
 import { useShortcutLabel } from '@/hooks/useShortcutLabel'
@@ -38,6 +43,12 @@ import {
   shouldShowViewFileAction
 } from './file-explorer-row-action-visibility'
 import { copyFileToOsClipboard, downloadRemoteFile } from './file-explorer-row-file-transfer'
+import { openOpenInAppsSettings } from '@/components/sidebar/WorktreeOpenInMenu'
+import { useOpenInPathEntries } from '@/components/open-in-path/use-open-in-path-entries'
+import {
+  getOpenInPathEntryIcon,
+  OpenInPathEntryLabel
+} from '@/components/open-in-path/open-in-path-entry-row'
 
 const isMac = navigator.userAgent.includes('Mac')
 const isLinux = navigator.userAgent.includes('Linux')
@@ -140,6 +151,7 @@ export function FileExplorerRowContextMenu({
   const handleCopyFile = useCallback(() => {
     void copyFileToOsClipboard(node, connectionId)
   }, [connectionId, node])
+  const openInPath = useOpenInPathEntries({ path: node.path, connectionId })
 
   return (
     <ContextMenuContent
@@ -269,6 +281,34 @@ export function FileExplorerRowContextMenu({
           ) : null}
         </ContextMenuItem>
       )}
+      <ContextMenuSeparator />
+      <ContextMenuSub>
+        <ContextMenuSubTrigger disabled={!openInPath.hasPath}>
+          <FolderOpen />
+          {translate('auto.components.sidebar.WorktreeOpenInMenu.8009ab69a6', 'Open in')}
+        </ContextMenuSubTrigger>
+        <ContextMenuSubContent className="w-52 bg-[rgba(255,255,255,0.82)] dark:bg-[rgba(0,0,0,0.72)]">
+          {openInPath.entries.map((entry) => (
+            <ContextMenuItem
+              key={entry.id}
+              onSelect={() => openInPath.openEntry(entry)}
+              disabled={entry.disabled}
+            >
+              {getOpenInPathEntryIcon(entry)}
+              <OpenInPathEntryLabel label={entry.label} metadata={entry.metadata} />
+            </ContextMenuItem>
+          ))}
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={openOpenInAppsSettings}>
+            <Settings2 />
+            {translate(
+              'auto.components.sidebar.WorktreeOpenInMenu.1417fd8380',
+              'Customize apps...'
+            )}
+          </ContextMenuItem>
+        </ContextMenuSubContent>
+      </ContextMenuSub>
+      <ContextMenuSeparator />
       <ContextMenuItem
         onSelect={() => {
           const state = useAppStore.getState()

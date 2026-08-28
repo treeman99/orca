@@ -136,6 +136,7 @@ vi.mock('@/components/editor/markdown-preview-controls', () => ({
 }))
 
 vi.mock('@/lib/local-path-open-guard', () => ({
+  isLocalPathOpenBlocked: () => false,
   showLocalPathOpenBlockedToast: vi.fn()
 }))
 

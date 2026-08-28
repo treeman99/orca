@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react'
-import { ExternalLink, FolderOpen } from 'lucide-react'
+import { FolderOpen, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   DropdownMenuItem,
@@ -11,9 +11,13 @@ import {
 import { useAppStore } from '@/store'
 import { isLocalPathOpenBlocked, showLocalPathOpenBlockedToast } from '@/lib/local-path-open-guard'
 import { getLocalFileManagerLabel } from '@/lib/local-file-manager-label'
-import { OpenInApplicationIcon } from '@/lib/open-in-app-catalog'
 import { getExternalEditorOpenCapability } from '@/lib/external-editor-open-capability'
 import { NO_OPEN_IN_APPLICATIONS } from '@/lib/open-in-application-selection'
+import { settingsForRuntimeOwner } from '@/runtime/runtime-client-target'
+import {
+  getOpenInPathEntryIcon,
+  OpenInPathEntryLabel
+} from '@/components/open-in-path/open-in-path-entry-row'
 import type { ShellOpenExternalEditorResult } from '../../../../shared/shell-open-types'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { OpenInApplication } from '../../../../shared/ui-chrome-types'
@@ -247,8 +251,13 @@ export async function openWorktreePath(args: {
   worktreePath: string
   connectionId?: string | null
   command?: string
+  /** Runtime that owns `worktreePath`; omit to judge against the active one. */
+  runtimeEnvironmentId?: string | null
 }): Promise<void> {
-  const settings = useAppStore.getState().settings
+  const settings = settingsForRuntimeOwner(
+    useAppStore.getState().settings,
+    args.runtimeEnvironmentId
+  )
   if (args.target === 'file-manager') {
     if (isLocalPathOpenBlocked(settings, { connectionId: args.connectionId ?? null })) {
       showLocalPathOpenBlockedToast()
@@ -324,22 +333,11 @@ export function WorktreeOpenInMenuItems({
             }}
             disabled={disabled || availability.disabled}
           >
-            {entry.target === 'file-manager' ? (
-              <FolderOpen className="size-3.5" />
-            ) : entry.command ? (
-              <OpenInApplicationIcon application={{ command: entry.command }} size={14} />
-            ) : (
-              <ExternalLink className="size-3.5" />
-            )}
-            <span className="min-w-0 truncate">
-              {labelPrefix}
-              {entry.label}
-            </span>
-            {availability.metadata ? (
-              <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
-                {availability.metadata}
-              </span>
-            ) : null}
+            {getOpenInPathEntryIcon(entry)}
+            <OpenInPathEntryLabel
+              label={`${labelPrefix}${entry.label}`}
+              metadata={availability.metadata}
+            />
           </DropdownMenuItem>
         )
       })}
@@ -374,6 +372,7 @@ export function WorktreeOpenInSubMenu({
           onSelect={openOpenInAppsSettings}
           disabled={disabled}
         >
+          <Settings2 className="size-3.5" />
           {translate('auto.components.sidebar.WorktreeOpenInMenu.1417fd8380', 'Customize apps...')}
         </DropdownMenuItem>
       </DropdownMenuSubContent>

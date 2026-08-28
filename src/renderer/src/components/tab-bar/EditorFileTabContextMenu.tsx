@@ -3,12 +3,14 @@ import {
   CopyX,
   ExternalLink,
   Eye,
+  FolderOpen,
   ListX,
   PanelLeftClose,
   PanelRightClose,
   Pencil,
   Pin,
   PinOff,
+  Settings2,
   X
 } from 'lucide-react'
 import {
@@ -17,16 +19,29 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { useAppStore } from '@/store'
 import { showLocalPathOpenBlockedToast } from '@/lib/local-path-open-guard'
+import { openOpenInAppsSettings } from '@/components/sidebar/WorktreeOpenInMenu'
+import { useOpenInPathEntries } from '@/components/open-in-path/use-open-in-path-entries'
+import {
+  getOpenInPathEntryIcon,
+  OpenInPathEntryLabel
+} from '@/components/open-in-path/open-in-path-entry-row'
 import { useOptionalShortcutLabel } from '@/hooks/useShortcutLabel'
 import type { OpenFile } from '../../store/slices/editor'
 import { shouldBlockEditorTabLocalOpen } from './editor-tab-local-open-guard'
+import { canOpenEditorTabPathInApp } from './editor-tab-open-in-eligibility'
 import { translate } from '@/i18n/i18n'
 import { TabWorkspaceLayoutMenuSection } from './TabWorkspaceLayoutMenuSection'
-import { TAB_CONTEXT_MENU_CONTENT_CLASS } from './tab-context-menu-sizing'
+import {
+  TAB_CONTEXT_MENU_CONTENT_CLASS,
+  TAB_CONTEXT_SUBMENU_CONTENT_CLASS
+} from './tab-context-menu-sizing'
 
 const isMac = navigator.userAgent.includes('Mac')
 const isLinux = navigator.userAgent.includes('Linux')
@@ -105,6 +120,12 @@ export function EditorFileTabContextMenu({
   const renameShortcut = useOptionalShortcutLabel('tab.rename')
   const closeShortcut = useOptionalShortcutLabel('tab.close')
   const closeAllShortcut = useOptionalShortcutLabel('tab.closeAll')
+  const canOpenInApp = canOpenEditorTabPathInApp(file)
+  const openInPath = useOpenInPathEntries({
+    path: canOpenInApp ? file.filePath : null,
+    connectionId: repoConnectionId,
+    runtimeEnvironmentId: file.runtimeEnvironmentId
+  })
 
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
@@ -233,6 +254,34 @@ export function EditorFileTabContextMenu({
           )}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        {canOpenInApp ? (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger disabled={!openInPath.hasPath}>
+              <FolderOpen className="size-3.5" />
+              {translate('auto.components.sidebar.WorktreeOpenInMenu.8009ab69a6', 'Open in')}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className={TAB_CONTEXT_SUBMENU_CONTENT_CLASS}>
+              {openInPath.entries.map((entry) => (
+                <DropdownMenuItem
+                  key={entry.id}
+                  onSelect={() => openInPath.openEntry(entry)}
+                  disabled={entry.disabled}
+                >
+                  {getOpenInPathEntryIcon(entry)}
+                  <OpenInPathEntryLabel label={entry.label} metadata={entry.metadata} />
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={openOpenInAppsSettings}>
+                <Settings2 className="size-3.5" />
+                {translate(
+                  'auto.components.sidebar.WorktreeOpenInMenu.1417fd8380',
+                  'Customize apps...'
+                )}
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        ) : null}
         <DropdownMenuItem
           onSelect={() => {
             if (

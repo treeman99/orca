@@ -1,6 +1,6 @@
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { isLocalPathOpenBlocked } from '@/lib/local-path-open-guard'
-import { settingsForRuntimeOwner } from '@/runtime/runtime-rpc-client'
+import { settingsForRuntimeOwner } from '@/runtime/runtime-client-target'
 
 export function shouldBlockEditorTabLocalOpen(
   settings: Pick<GlobalSettings, 'activeRuntimeEnvironmentId'> | null | undefined,

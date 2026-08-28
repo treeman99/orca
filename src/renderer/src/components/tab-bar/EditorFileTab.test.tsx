@@ -86,6 +86,12 @@ vi.mock('lucide-react', () => ({
   ExternalLink: function ExternalLink(props: Record<string, unknown>) {
     return { type: 'ExternalLink', props }
   },
+  FolderOpen: function FolderOpen(props: Record<string, unknown>) {
+    return { type: 'FolderOpen', props }
+  },
+  Settings2: function Settings2(props: Record<string, unknown>) {
+    return { type: 'Settings2', props }
+  },
   Eye: function Eye(props: Record<string, unknown>) {
     return { type: 'Eye', props }
   },
@@ -217,6 +223,7 @@ vi.mock('@/components/editor/markdown-preview-controls', () => ({
 }))
 
 vi.mock('@/lib/local-path-open-guard', () => ({
+  isLocalPathOpenBlocked: () => false,
   shouldBlockEditorTabLocalOpen: () => false,
   showLocalPathOpenBlockedToast: vi.fn()
 }))

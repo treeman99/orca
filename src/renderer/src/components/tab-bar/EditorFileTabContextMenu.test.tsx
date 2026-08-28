@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { OpenFile } from '../../store/slices/editor'
 
 const shortcutLabelMock = vi.hoisted(() => vi.fn())
+const { openInExternalEditorMock, openPathMock, mockSettings } = vi.hoisted(() => ({
+  openInExternalEditorMock: vi.fn(),
+  openPathMock: vi.fn(),
+  mockSettings: {
+    activeRuntimeEnvironmentId: null as string | null,
+    openInApplications: [{ id: 'vscode', label: 'VS Code', command: 'code' }]
+  }
+}))
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: function DropdownMenu(props: { children?: unknown }) {
@@ -61,6 +70,12 @@ vi.mock('lucide-react', () => ({
   Eye: function Eye(props: Record<string, unknown>) {
     return { type: 'Eye', props }
   },
+  FolderOpen: function FolderOpen(props: Record<string, unknown>) {
+    return { type: 'FolderOpen', props }
+  },
+  Settings2: function Settings2(props: Record<string, unknown>) {
+    return { type: 'Settings2', props }
+  },
   ListX: function ListX(props: Record<string, unknown>) {
     return { type: 'ListX', props }
   },
@@ -100,47 +115,46 @@ vi.mock('@/hooks/useShortcutLabel', () => ({
   useOptionalShortcutLabel: shortcutLabelMock
 }))
 
-const useAppStoreMock = Object.assign(
-  (
-    selector: (state: {
-      settings: Record<string, unknown>
-      unifiedTabsByWorktree: Record<string, unknown[]>
-      groupsByWorktree: Record<string, unknown[]>
-    }) => unknown
-  ) =>
-    selector({
-      settings: {},
-      unifiedTabsByWorktree: {
-        'wt-1': [{ id: 'tab-1', groupId: 'group-1' }]
-      },
-      groupsByWorktree: {
-        'wt-1': [{ id: 'group-1', tabOrder: ['tab-1', 'tab-2'] }]
-      }
-    }),
-  {
-    getState: () => ({
-      settings: {},
-      unifiedTabsByWorktree: {
-        'wt-1': [{ id: 'tab-1', groupId: 'group-1' }]
-      },
-      groupsByWorktree: {
-        'wt-1': [{ id: 'group-1', tabOrder: ['tab-1', 'tab-2'] }]
-      }
-    })
+function mockStoreState(): {
+  settings: Record<string, unknown>
+  unifiedTabsByWorktree: Record<string, unknown[]>
+  groupsByWorktree: Record<string, unknown[]>
+} {
+  return {
+    settings: mockSettings,
+    unifiedTabsByWorktree: {
+      'wt-1': [{ id: 'tab-1', groupId: 'group-1' }]
+    },
+    groupsByWorktree: {
+      'wt-1': [{ id: 'group-1', tabOrder: ['tab-1', 'tab-2'] }]
+    }
   }
+}
+
+const useAppStoreMock = Object.assign(
+  (selector: (state: ReturnType<typeof mockStoreState>) => unknown) => selector(mockStoreState()),
+  { getState: mockStoreState }
 )
 
 vi.mock('@/store', () => ({
   useAppStore: useAppStoreMock
 }))
 
-vi.mock('@/lib/local-path-open-guard', () => ({
+vi.mock('sonner', () => ({
+  toast: { error: vi.fn() }
+}))
+
+vi.mock('@/lib/open-in-app-catalog', () => ({
+  OpenInApplicationIcon: () => null
+}))
+
+vi.mock('@/lib/local-path-open-guard', async () => ({
+  ...(await vi.importActual('@/lib/local-path-open-guard')),
   showLocalPathOpenBlockedToast: vi.fn()
 }))
 
-vi.mock('./editor-tab-local-open-guard', () => ({
-  shouldBlockEditorTabLocalOpen: () => false
-}))
+// Why: kept real so the "Open in" submenu can be asserted against the same
+// runtime-owner verdict the sibling "Reveal in Finder" item already uses.
 
 type ReactElementLike = {
   type: unknown
@@ -203,7 +217,15 @@ function extractText(node: unknown): string {
   return el.props && 'children' in el.props ? extractText(el.props.children) : ''
 }
 
-async function renderMenu(): Promise<unknown> {
+async function renderMenu(
+  overrides: {
+    repoConnectionId?: string | null
+    fileRuntimeEnvironmentId?: string | null
+    filePath?: string
+    mode?: OpenFile['mode']
+    diffSource?: OpenFile['diffSource']
+  } = {}
+): Promise<unknown> {
   const module = await import('./EditorFileTabContextMenu')
   return module.EditorFileTabContextMenu({
     open: true,
@@ -211,12 +233,14 @@ async function renderMenu(): Promise<unknown> {
     file: {
       id: 'file-1',
       tabId: 'tab-1',
-      filePath: '/repo/foo.ts',
+      filePath: overrides.filePath ?? '/repo/foo.ts',
       relativePath: 'foo.ts',
       worktreeId: 'wt-1',
+      runtimeEnvironmentId: overrides.fileRuntimeEnvironmentId ?? null,
       language: 'typescript',
       isDirty: false,
-      mode: 'edit'
+      mode: overrides.mode ?? 'edit',
+      diffSource: overrides.diffSource
     },
     unifiedTabId: 'tab-1',
     groupId: 'group-1',
@@ -228,7 +252,7 @@ async function renderMenu(): Promise<unknown> {
     canRename: true,
     canShowMarkdownPreview: false,
     resolvedLanguage: 'typescript',
-    repoConnectionId: null,
+    repoConnectionId: overrides.repoConnectionId ?? null,
     skipMenuFocusRestoreRef: { current: false },
     onOpenChange: vi.fn(),
     onActivate: vi.fn(),
@@ -319,5 +343,202 @@ describe('EditorFileTabContextMenu close-all shortcut', () => {
     expect(closeAllItem).toBeTruthy()
     expect(findElementsByType(closeAllItem, 'DropdownMenuShortcut')).toHaveLength(0)
     expect(findElementsByType(tree, 'DropdownMenuShortcut')).toHaveLength(0)
+  })
+})
+
+describe('EditorFileTabContextMenu open-in submenu', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    shortcutLabelMock.mockReturnValue(null)
+    mockSettings.activeRuntimeEnvironmentId = null
+    mockSettings.openInApplications = [{ id: 'vscode', label: 'VS Code', command: 'code' }]
+    openInExternalEditorMock.mockReset()
+    openInExternalEditorMock.mockResolvedValue({ ok: true })
+    vi.stubGlobal('navigator', { userAgent: 'Mac' })
+    vi.stubGlobal('window', {
+      api: {
+        shell: { openInExternalEditor: openInExternalEditorMock },
+        ui: { writeClipboardText: vi.fn() }
+      }
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function findOpenInItem(tree: unknown, label: string): ReactElementLike | undefined {
+    return findElementsByType(tree, 'DropdownMenuItem').find(
+      (item) => extractText(item.props.children) === label
+    )
+  }
+
+  it('renders every configured launcher plus the local file manager', async () => {
+    mockSettings.openInApplications = [
+      { id: 'vscode', label: 'VS Code', command: 'code' },
+      { id: 'cursor', label: 'Cursor', command: 'cursor' }
+    ]
+
+    const tree = expandNode(await renderMenu())
+
+    expect(findOpenInItem(tree, 'VS Code')).toBeTruthy()
+    expect(findOpenInItem(tree, 'Cursor')).toBeTruthy()
+    expect(findOpenInItem(tree, 'Finder')).toBeTruthy()
+    expect(findOpenInItem(tree, 'Customize apps...')).toBeTruthy()
+  })
+
+  it('opens the tab file path with the launcher command', async () => {
+    const tree = expandNode(await renderMenu())
+
+    const vsCodeItem = findOpenInItem(tree, 'VS Code')
+    expect(vsCodeItem?.props.disabled).toBe(false)
+    const onSelect = vsCodeItem?.props.onSelect as (() => void) | undefined
+    onSelect?.()
+    await Promise.resolve()
+
+    expect(openInExternalEditorMock).toHaveBeenCalledWith({
+      path: '/repo/foo.ts',
+      command: 'code',
+      connectionId: null
+    })
+  })
+
+  it('keeps VS Code available for an SSH repo and marks it remote', async () => {
+    const tree = expandNode(await renderMenu({ repoConnectionId: 'ssh-1' }))
+
+    const vsCodeItem = findOpenInItem(tree, 'VS CodeRemote SSH')
+    expect(vsCodeItem?.props.disabled).toBe(false)
+    const onSelect = vsCodeItem?.props.onSelect as (() => void) | undefined
+    onSelect?.()
+    await Promise.resolve()
+
+    expect(openInExternalEditorMock).toHaveBeenCalledWith({
+      path: '/repo/foo.ts',
+      command: 'code',
+      connectionId: 'ssh-1'
+    })
+  })
+
+  it('disables local launchers for a file owned by another runtime', async () => {
+    const tree = expandNode(await renderMenu({ fileRuntimeEnvironmentId: 'runtime-1' }))
+
+    expect(findOpenInItem(tree, 'VS CodeLocal only')?.props.disabled).toBe(true)
+    expect(findOpenInItem(tree, 'FinderLocal only')?.props.disabled).toBe(true)
+    expect(openInExternalEditorMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('EditorFileTabContextMenu open-in runtime owner', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    shortcutLabelMock.mockReturnValue(null)
+    mockSettings.activeRuntimeEnvironmentId = null
+    mockSettings.openInApplications = [{ id: 'vscode', label: 'VS Code', command: 'code' }]
+    openInExternalEditorMock.mockReset()
+    openInExternalEditorMock.mockResolvedValue({ ok: true })
+    openPathMock.mockReset()
+    vi.stubGlobal('navigator', { userAgent: 'Mac' })
+    vi.stubGlobal('window', {
+      api: {
+        shell: { openInExternalEditor: openInExternalEditorMock, openPath: openPathMock },
+        ui: { writeClipboardText: vi.fn() }
+      }
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function findItem(tree: unknown, label: string): ReactElementLike | undefined {
+    return findElementsByType(tree, 'DropdownMenuItem').find(
+      (item) => extractText(item.props.children) === label
+    )
+  }
+
+  // Why: settingsForRuntimeOwner treats an explicit null owner as local, so a local
+  // file stays openable while a remote runtime is active. Reveal in Finder already
+  // honoured that; the submenu used to disagree by preferring the active runtime.
+  it('keeps a local-owned file openable while a remote runtime is active', async () => {
+    mockSettings.activeRuntimeEnvironmentId = 'runtime-1'
+
+    const tree = expandNode(await renderMenu({ fileRuntimeEnvironmentId: null }))
+
+    expect(findItem(tree, 'VS Code')?.props.disabled).toBe(false)
+    expect(findItem(tree, 'Finder')?.props.disabled).toBe(false)
+
+    const reveal = findItem(tree, 'Reveal in Finder')
+    expect(reveal).toBeTruthy()
+    ;(reveal?.props.onSelect as (() => void) | undefined)?.()
+    expect(openPathMock).toHaveBeenCalledWith('/repo/foo.ts')
+
+    // Why: openWorktreePath re-checks the guard on click, so an enabled row that
+    // still toasted would be the same disagreement one layer down.
+    ;(findItem(tree, 'VS Code')?.props.onSelect as (() => void) | undefined)?.()
+    await Promise.resolve()
+    expect(openInExternalEditorMock).toHaveBeenCalledWith({
+      path: '/repo/foo.ts',
+      command: 'code',
+      connectionId: null
+    })
+  })
+
+  it('blocks both entry points for a file owned by another runtime', async () => {
+    const tree = expandNode(await renderMenu({ fileRuntimeEnvironmentId: 'runtime-1' }))
+
+    expect(findItem(tree, 'VS CodeLocal only')?.props.disabled).toBe(true)
+    expect(findItem(tree, 'FinderLocal only')?.props.disabled).toBe(true)
+
+    const reveal = findItem(tree, 'Reveal in Finder')
+    expect(reveal).toBeTruthy()
+    ;(reveal?.props.onSelect as (() => void) | undefined)?.()
+    expect(openPathMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('EditorFileTabContextMenu open-in tab eligibility', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    shortcutLabelMock.mockReturnValue(null)
+    mockSettings.activeRuntimeEnvironmentId = null
+    mockSettings.openInApplications = [{ id: 'vscode', label: 'VS Code', command: 'code' }]
+    vi.stubGlobal('navigator', { userAgent: 'Mac' })
+    vi.stubGlobal('window', {
+      api: {
+        shell: { openInExternalEditor: openInExternalEditorMock, openPath: openPathMock },
+        ui: { writeClipboardText: vi.fn() }
+      }
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function hasOpenInSubmenu(tree: unknown): boolean {
+    return findElementsByType(tree, 'DropdownMenuSubTrigger').some(
+      (trigger) => extractText(trigger.props.children) === 'Open in'
+    )
+  }
+
+  it.each([
+    ['edit' as const, undefined],
+    ['markdown-preview' as const, undefined],
+    ['diff' as const, 'unstaged' as const]
+  ])('offers the submenu for a %s tab backed by a real file', async (mode, diffSource) => {
+    expect(hasOpenInSubmenu(expandNode(await renderMenu({ mode, diffSource })))).toBe(true)
+  })
+
+  // Why: these tabs park the worktree root or a synthetic id in filePath, so the
+  // launcher would open the whole worktree (or fail) instead of the tab's subject.
+  it.each([
+    ['conflict-review' as const, undefined],
+    ['check-details' as const, undefined],
+    ['diff' as const, 'combined-all' as const],
+    ['diff' as const, 'combined-uncommitted' as const],
+    ['diff' as const, 'combined-branch' as const],
+    ['diff' as const, 'combined-commit' as const]
+  ])('hides the submenu for a %s tab with no real file path', async (mode, diffSource) => {
+    expect(hasOpenInSubmenu(expandNode(await renderMenu({ mode, diffSource })))).toBe(false)
   })
 })
