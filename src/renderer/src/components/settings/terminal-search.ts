@@ -64,6 +64,7 @@ export {
 
 type TerminalAppearanceSearchOptions = {
   showWarpImport?: boolean
+  showGhosttyImport?: boolean
 }
 
 const getTerminalAppearanceSearchEntriesWithoutWarp = createLocalizedCatalog(
@@ -74,8 +75,7 @@ const getTerminalAppearanceSearchEntriesWithoutWarp = createLocalizedCatalog(
     ...getTerminalThemeTargetSearchEntries(),
     ...getTerminalDarkThemeSearchEntries(),
     ...getTerminalLightThemeSearchEntries(),
-    ...getTerminalWindowSearchEntries(),
-    ...getTerminalGhosttyImportSearchEntries()
+    ...getTerminalWindowSearchEntries()
   ]
 )
 
@@ -92,9 +92,15 @@ const getTerminalAppearanceSearchEntriesWithWarp = createLocalizedCatalog(
 export function getTerminalAppearanceSearchEntries(
   options: TerminalAppearanceSearchOptions = {}
 ): SettingsSearchEntry[] {
-  return (options.showWarpImport ?? true)
-    ? getTerminalAppearanceSearchEntriesWithWarp()
-    : getTerminalAppearanceSearchEntriesWithoutWarp()
+  const base =
+    (options.showWarpImport ?? true)
+      ? getTerminalAppearanceSearchEntriesWithWarp()
+      : getTerminalAppearanceSearchEntriesWithoutWarp()
+  // Why: the search index must mirror the visible controls, and Ghostty ships no
+  // Windows build — see isGhosttyImportAvailable in TerminalAppearanceSection.
+  return (options.showGhosttyImport ?? true)
+    ? [...base, ...getTerminalGhosttyImportSearchEntries()]
+    : base
 }
 
 export function getTerminalPaneSearchEntries(platform: {

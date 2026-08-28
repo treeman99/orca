@@ -165,6 +165,17 @@ describe('getTerminalPaneSearchEntries', () => {
     expect(webEntries.some((entry) => entry.title === 'Import from Ghostty')).toBe(true)
   })
 
+  it('omits the Ghostty import appearance entry when the host has no Ghostty build', () => {
+    const otherEntries = getAppearancePaneSearchEntries({ showGhosttyImport: true })
+    const windowsEntries = getAppearancePaneSearchEntries({ showGhosttyImport: false })
+
+    expect(otherEntries.some((entry) => entry.title === 'Import from Ghostty')).toBe(true)
+    expect(windowsEntries.some((entry) => entry.title === 'Import from Ghostty')).toBe(false)
+    expect(matchesSettingsSearch('ghostty', windowsEntries)).toBe(false)
+    // Why: the Warp entry is a separate axis and must survive the Ghostty gate.
+    expect(windowsEntries.some((entry) => entry.title === 'Import from Warp')).toBe(true)
+  })
+
   it('includes the system tray appearance entry only when desktop tray controls are shown', () => {
     const desktopEntries = getAppearancePaneSearchEntries({ showSystemTray: true })
     const webEntries = getAppearancePaneSearchEntries({ showSystemTray: false })

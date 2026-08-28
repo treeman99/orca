@@ -480,6 +480,9 @@ export function buildSettingsNavigationMetadata({
       icon: Palette,
       searchEntries: getAppearancePaneSearchEntries({
         showWarpImport: showDesktopOnlySettings,
+        // Why: Ghostty has no Windows build; the web client keeps the entry because
+        // its platform is the browser's, not the host that reads the config.
+        showGhosttyImport: !(showDesktopOnlySettings && isWindows),
         showSystemTray: showDesktopOnlySettings && isWindows,
         showMenuBarIcon: showDesktopOnlySettings && isMac
       }),

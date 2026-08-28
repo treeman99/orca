@@ -491,6 +491,63 @@ describe('TerminalAppearanceSection ghostty import wiring', () => {
     expect(findButtons(element).some((button) => button.text === 'Import from Ghostty')).toBe(true)
   })
 
+  it('hides the Ghostty import button on a Windows desktop host', () => {
+    vi.stubGlobal('window', {
+      location: { pathname: '/index.html' },
+      api: { platform: { get: () => ({ platform: 'win32' }) } }
+    })
+
+    const element = TerminalAppearanceSection({
+      settings: {} as never,
+      updateSettings: () => {},
+      systemPrefersDark: true,
+      terminalFontSuggestions: [],
+      ghostty: ghosttyMock,
+      warpThemes: warpThemesMock
+    })
+
+    expect(findButtons(element).some((button) => button.text === 'Import from Ghostty')).toBe(false)
+  })
+
+  it('leaves typography collapsed for Ghostty searches on a Windows desktop host', () => {
+    mockSettingsSearchQuery = 'ghostty'
+    vi.stubGlobal('window', {
+      location: { pathname: '/index.html' },
+      api: { platform: { get: () => ({ platform: 'win32' }) } }
+    })
+
+    const element = TerminalAppearanceSection({
+      settings: {} as never,
+      updateSettings: () => {},
+      systemPrefersDark: true,
+      terminalFontSuggestions: [],
+      ghostty: ghosttyMock,
+      warpThemes: warpThemesMock
+    })
+
+    expect(findButtons(element).some((button) => button.text === 'Import from Ghostty')).toBe(false)
+    expect(findComponentByTypeName(element, 'TerminalFontSizeSetting')).toBeNull()
+  })
+
+  it('keeps the Ghostty import button for a Windows browser on a paired web client', () => {
+    vi.stubGlobal('window', {
+      __ORCA_WEB_CLIENT__: true,
+      location: { pathname: '/web-index.html' },
+      api: { platform: { get: () => ({ platform: 'win32' }) } }
+    })
+
+    const element = TerminalAppearanceSection({
+      settings: {} as never,
+      updateSettings: () => {},
+      systemPrefersDark: true,
+      terminalFontSuggestions: [],
+      ghostty: ghosttyMock,
+      warpThemes: warpThemesMock
+    })
+
+    expect(findButtons(element).some((button) => button.text === 'Import from Ghostty')).toBe(true)
+  })
+
   it('opens typography advanced inside the typography section for advanced searches', () => {
     mockSettingsSearchQuery = 'line height'
 

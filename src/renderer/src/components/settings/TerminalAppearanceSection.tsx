@@ -35,6 +35,7 @@ import type { UseGhosttyImportReturn } from './useGhosttyImport'
 import { WarpThemeImportModal } from './WarpThemeImportModal'
 import type { UseWarpThemeImportReturn } from './useWarpThemeImport'
 import { isWebClientLocation } from '@/hooks/useSettingsNavigationMetadata'
+import { isGhosttyImportAvailable } from './ghostty-import-availability'
 import ghosttyIcon from '../../../../../resources/ghostty.svg'
 import { translate } from '@/i18n/i18n'
 
@@ -87,7 +88,8 @@ export function TerminalAppearanceSection({
   const darkThemeSearchEntries = getTerminalDarkThemeSearchEntries()
   const lightThemeSearchEntries = getTerminalLightThemeSearchEntries()
   const terminalTypographyEntries = getTerminalTypographySearchEntries()
-  const ghosttyImportEntries = getTerminalGhosttyImportSearchEntries()
+  const ghosttyImportAvailable = isGhosttyImportAvailable()
+  const ghosttyImportEntries = ghosttyImportAvailable ? getTerminalGhosttyImportSearchEntries() : []
   const themeCatalogSearchEntries = [
     ...getTerminalThemeTargetSearchEntries(),
     ...darkThemeSearchEntries,
@@ -123,7 +125,8 @@ export function TerminalAppearanceSection({
     primaryTypographyMatches ||
     typographyMatches ||
     ghosttyImportMatches
-  const showGhosttyImport = !isSearching || forceVisiblePrimary || ghosttyImportMatches
+  const showGhosttyImport =
+    ghosttyImportAvailable && (!isSearching || forceVisiblePrimary || ghosttyImportMatches)
   const showTypographyAdvancedDisclosure = !isSearching || typographyMatches
 
   const advancedGroups = [
