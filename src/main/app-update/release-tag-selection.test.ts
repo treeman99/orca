@@ -68,10 +68,12 @@ describe('selectLatestStableRelease', () => {
   it('carries the release page URL through', () => {
     const selected = selectLatestStableRelease([
       candidate('v1.5.0', {
-        releaseUrl: 'https://github.samsungds.net/DPI/Orcads/releases/tag/v1.5.0'
+        releaseUrl: 'https://github.samsungds.net/daegun-kim/Orca_ds/releases/tag/v1.5.0'
       })
     ])
-    expect(selected?.releaseUrl).toBe('https://github.samsungds.net/DPI/Orcads/releases/tag/v1.5.0')
+    expect(selected?.releaseUrl).toBe(
+      'https://github.samsungds.net/daegun-kim/Orca_ds/releases/tag/v1.5.0'
+    )
   })
 })
 
@@ -81,7 +83,7 @@ describe('parseReleaseListing', () => {
       parseReleaseListing([
         {
           tag_name: 'v1.4.186',
-          html_url: 'https://github.samsungds.net/DPI/Orcads/releases/tag/v1.4.186',
+          html_url: 'https://github.samsungds.net/daegun-kim/Orca_ds/releases/tag/v1.4.186',
           draft: false,
           prerelease: false
         }
@@ -89,7 +91,7 @@ describe('parseReleaseListing', () => {
     ).toEqual([
       {
         tag: 'v1.4.186',
-        releaseUrl: 'https://github.samsungds.net/DPI/Orcads/releases/tag/v1.4.186',
+        releaseUrl: 'https://github.samsungds.net/daegun-kim/Orca_ds/releases/tag/v1.4.186',
         draft: false,
         prerelease: false
       }

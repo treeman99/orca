@@ -19,7 +19,7 @@ import {
 } from './release-tag-selection'
 
 /** Where this fork's builds are published. Overridable via `updateReleaseRepository`. */
-export const DEFAULT_RELEASE_REPOSITORY = 'DPI/Orcads'
+export const DEFAULT_RELEASE_REPOSITORY = 'daegun-kim/Orca_ds'
 
 // One page is plenty: releases and tags both come back newest-first, and a build
 // more than 30 releases behind still sees the newest entry on that page.
@@ -44,7 +44,7 @@ export type GhApiReader = (path: string, host: string) => Promise<unknown>
  * it. `policyHost` already folds in `GH_HOST` and gh's own `hosts.yml`.
  *
  * Vendor SaaS is refused outright rather than queried — this fork must not add a
- * github.com call, and `github.com/DPI/Orcads` is somebody else's repository.
+ * github.com call, and `github.com/daegun-kim/Orca_ds` is somebody else's repository.
  */
 export function resolveEnterpriseReleaseHost(): string | null {
   const policy = getEnterprisePolicy()

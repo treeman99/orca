@@ -17,7 +17,7 @@
   // 사내 GHES 릴리스 태그를 읽어 "새 버전이 있습니다" 팝업만 띄우는 레인입니다 (docs §3-2).
   // 자동 다운로드도 설치도 자가교체도 없고, electron-updater는 여전히 의존성이 아닙니다.
   // ⚠️ lockdown: true 아래에서는 이 줄을 지우면 상속되어 다시 켜집니다(=레인 차단) — 명시적 false여야 합니다.
-  // 조회 대상은 githubEnterpriseHost의 DPI/Orcads. 다른 저장소를 보게 하려면 updateReleaseRepository를 적으세요.
+  // 조회 대상은 githubEnterpriseHost의 daegun-kim/Orca_ds. 다른 저장소를 보게 하려면 updateReleaseRepository를 적으세요.
   "disableAutoUpdate": false,
   "disableStarNag": true, // github.com SaaS로 나가는 star 조회/쓰기
   "disableCloudRelay": true, // Orca Cloud 로그인 + 모바일 페어링 릴레이

@@ -54,6 +54,12 @@ describe('resolveEnterpriseReleaseHost', () => {
 })
 
 describe('resolveReleaseRepository', () => {
+  // Why: pinned literally — an upstream rebase resolving the constant away would
+  // otherwise point the fleet at somebody else's repository with a green suite.
+  it('defaults to the coordinate this fork publishes to', () => {
+    expect(DEFAULT_RELEASE_REPOSITORY).toBe('daegun-kim/Orca_ds')
+  })
+
   it("falls back to the build's own coordinate", () => {
     expect(resolveReleaseRepository()).toBe(DEFAULT_RELEASE_REPOSITORY)
   })
@@ -70,14 +76,14 @@ describe('releasePageUrl', () => {
   const release = { tag: 'v1.5.0', version: '1.5.0', releaseUrl: null }
 
   it('builds the corporate release page when the API gave none', () => {
-    expect(releasePageUrl(release, HOST, 'DPI/Orcads')).toBe(
-      `https://${HOST}/DPI/Orcads/releases/tag/v1.5.0`
+    expect(releasePageUrl(release, HOST, 'daegun-kim/Orca_ds')).toBe(
+      `https://${HOST}/daegun-kim/Orca_ds/releases/tag/v1.5.0`
     )
   })
 
   it("keeps the API's own URL when it is on the host we asked", () => {
-    const url = `https://${HOST}/DPI/Orcads/releases/tag/v1.5.0`
-    expect(releasePageUrl({ ...release, releaseUrl: url }, HOST, 'DPI/Orcads')).toBe(url)
+    const url = `https://${HOST}/daegun-kim/Orca_ds/releases/tag/v1.5.0`
+    expect(releasePageUrl({ ...release, releaseUrl: url }, HOST, 'daegun-kim/Orca_ds')).toBe(url)
   })
 
   it('discards an html_url pointing at another origin', () => {
@@ -85,9 +91,9 @@ describe('releasePageUrl', () => {
       releasePageUrl(
         { ...release, releaseUrl: 'https://github.com/stablyai/orca/releases/tag/v1.5.0' },
         HOST,
-        'DPI/Orcads'
+        'daegun-kim/Orca_ds'
       )
-    ).toBe(`https://${HOST}/DPI/Orcads/releases/tag/v1.5.0`)
+    ).toBe(`https://${HOST}/daegun-kim/Orca_ds/releases/tag/v1.5.0`)
   })
 })
 
@@ -105,7 +111,7 @@ describe('lookupLatestEnterpriseRelease', () => {
       stdout: JSON.stringify([
         {
           tag_name: 'v1.5.0',
-          html_url: `https://${HOST}/DPI/Orcads/releases/tag/v1.5.0`,
+          html_url: `https://${HOST}/daegun-kim/Orca_ds/releases/tag/v1.5.0`,
           draft: false,
           prerelease: false
         }
@@ -116,10 +122,10 @@ describe('lookupLatestEnterpriseRelease', () => {
     expect(result).toMatchObject({
       outcome: 'found',
       host: HOST,
-      releaseUrl: `https://${HOST}/DPI/Orcads/releases/tag/v1.5.0`
+      releaseUrl: `https://${HOST}/daegun-kim/Orca_ds/releases/tag/v1.5.0`
     })
     expect(ghExecFileAsyncMock).toHaveBeenCalledWith(
-      ['api', 'repos/DPI/Orcads/releases?per_page=30'],
+      ['api', 'repos/daegun-kim/Orca_ds/releases?per_page=30'],
       expect.objectContaining({ host: HOST })
     )
   })

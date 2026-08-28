@@ -154,7 +154,7 @@
 | `disableSpellcheck` | boolean | = `lockdown` | `webPreferences.spellcheck`를 끄는 지점 **5곳**: 메인 창(`src/main/window/createMainWindow.ts:306`), `will-attach-webview` 게스트(`:494`), 대시보드 팝아웃 창(`src/main/window/dashboard-popout-window.ts:181`), 오프스크린 브라우저 백엔드(`src/main/browser/offscreen-browser-backend.ts:45`), PDF 내보내기 WebContents(`src/main/lib/html-to-pdf.ts:46`) |
 | `enforceNetworkAllowlist` | boolean | **`false`** (lockdown이어도) | 호스트 허용목록 하드 게이트 (`src/main/enterprise/enterprise-network-guard.ts`) |
 | `allowedNetworkHosts` | string[] | `[]` + GHES 호스트 | 위 게이트가 켜졌을 때만 의미 있음 (`src/shared/enterprise-policy.ts:369-372`) |
-| `updateReleaseRepository` | string | `null` → 빌드 상수 `DPI/Orcads` | §3.0의 릴리스 조회 대상 `OWNER/REPO`. `lockdown`을 상속하지 않습니다(스위치가 아니라 값). URL이나 호스트는 받지 않습니다 — 붙여 넣은 릴리스 페이지 링크가 조회 대상을 `githubEnterpriseHost` 밖으로 돌리지 못하게 `OWNER/REPO` 형식만 통과시키고, 형식이 어긋나면 경고 후 빌드 기본값이 그대로 섭니다 (`src/shared/enterprise-policy.ts`의 `readRepositoryCoordinate`) |
+| `updateReleaseRepository` | string | `null` → 빌드 상수 `daegun-kim/Orca_ds` | §3.0의 릴리스 조회 대상 `OWNER/REPO`. `lockdown`을 상속하지 않습니다(스위치가 아니라 값). URL이나 호스트는 받지 않습니다 — 붙여 넣은 릴리스 페이지 링크가 조회 대상을 `githubEnterpriseHost` 밖으로 돌리지 못하게 `OWNER/REPO` 형식만 통과시키고, 형식이 어긋나면 경고 후 빌드 기본값이 그대로 섭니다 (`src/shared/enterprise-policy.ts`의 `readRepositoryCoordinate`) |
 
 동작 규칙:
 
@@ -381,7 +381,7 @@ UI 표면도 함께 사라졌습니다 — 앱/Help 메뉴, 트레이, 사이드
 
 | 항목 | 사실 |
 | --- | --- |
-| **목적지** | `https://<githubEnterpriseHost>/api/v3/repos/<updateReleaseRepository>/releases?per_page=30`, 그리고 비어 있거나 404일 때만 `…/tags?per_page=30`. 기본 좌표는 `DPI/Orcads`, 기본 호스트는 정책의 `githubEnterpriseHost`. **벤더 호스트는 코드에서 거부합니다** — 해석 결과가 `github.com`/`api.github.com`이면 조회 자체를 하지 않습니다(`resolveEnterpriseReleaseHost()`의 `isVendorGitHubHost` 검사) |
+| **목적지** | `https://<githubEnterpriseHost>/api/v3/repos/<updateReleaseRepository>/releases?per_page=30`, 그리고 비어 있거나 404일 때만 `…/tags?per_page=30`. 기본 좌표는 `daegun-kim/Orca_ds`, 기본 호스트는 정책의 `githubEnterpriseHost`. **벤더 호스트는 코드에서 거부합니다** — 해석 결과가 `github.com`/`api.github.com`이면 조회 자체를 하지 않습니다(`resolveEnterpriseReleaseHost()`의 `isVendorGitHubHost` 검사) |
 | **누가 소켓을 여는가** | Orca가 아니라 **`gh` 자식 프로세스**입니다(`ghExecFileAsync(['api', …], { host })`). 새 HTTP 클라이언트도 새 토큰 저장소도 만들지 않았고, 자격증명은 `gh` 자신의 키링에 있는 기존 GHES 토큰입니다 |
 | **나가는 내용** | 인증된 GET 두 종뿐입니다. 요청 본문 없음, 쿼리에 실리는 사용자·머신·워크스페이스 정보 없음, 실행 중인 버전을 서버에 알리지 않습니다(비교는 전부 로컬) |
 | **주기** | 핸들러 등록 60초 뒤 1회, 이후 6시간 간격. 렌더러가 `appUpdate:check`로 즉시 확인을 요청할 수도 있습니다 |

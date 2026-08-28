@@ -163,16 +163,17 @@ describe('resolveEnterprisePolicy — updateReleaseRepository', () => {
 
   it('reads an OWNER/REPO coordinate', () => {
     expect(
-      resolveEnterprisePolicy({ updateReleaseRepository: 'DPI/Orcads' }).updateReleaseRepository
-    ).toBe('DPI/Orcads')
+      resolveEnterprisePolicy({ updateReleaseRepository: 'daegun-kim/Orca_ds' })
+        .updateReleaseRepository
+    ).toBe('daegun-kim/Orca_ds')
   })
 
   it('refuses anything that is not OWNER/REPO', () => {
     for (const raw of [
-      'https://github.samsungds.net/DPI/Orcads',
+      'https://github.samsungds.net/daegun-kim/Orca_ds',
       'DPI',
-      'DPI/Orcads/extra',
-      'DPI /Orcads',
+      'daegun-kim/Orca_ds/extra',
+      'daegun-kim /Orca_ds',
       42
     ]) {
       const policy = resolveEnterprisePolicy({ updateReleaseRepository: raw })
@@ -186,7 +187,9 @@ describe('resolveEnterprisePolicy — updateReleaseRepository', () => {
   })
 
   it('is a known key, so a deployed file carrying it warns about nothing', () => {
-    expect(resolveEnterprisePolicy({ updateReleaseRepository: 'DPI/Orcads' }).warnings).toEqual([])
+    expect(
+      resolveEnterprisePolicy({ updateReleaseRepository: 'daegun-kim/Orca_ds' }).warnings
+    ).toEqual([])
   })
 })
 

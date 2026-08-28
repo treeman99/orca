@@ -32,7 +32,7 @@ function foundRelease(tag: string, version: string): ReleaseLookupResult {
     outcome: 'found',
     host: HOST,
     release: { tag, version, releaseUrl: null },
-    releaseUrl: `https://${HOST}/DPI/Orcads/releases/tag/${tag}`
+    releaseUrl: `https://${HOST}/daegun-kim/Orca_ds/releases/tag/${tag}`
   }
 }
 
@@ -113,7 +113,7 @@ describe('status', () => {
       currentVersion: '1.4.186',
       latestVersion: '1.5.0',
       releaseTag: 'v1.5.0',
-      releaseUrl: `https://${HOST}/DPI/Orcads/releases/tag/v1.5.0`,
+      releaseUrl: `https://${HOST}/daegun-kim/Orca_ds/releases/tag/v1.5.0`,
       dismissed: false
     })
     expect(broadcast).toHaveBeenCalledTimes(1)
