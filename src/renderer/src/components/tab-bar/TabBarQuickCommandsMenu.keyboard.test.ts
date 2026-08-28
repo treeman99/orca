@@ -98,6 +98,7 @@ vi.mock('@/i18n/i18n', () => ({
 }))
 
 vi.mock('lucide-react', () => ({
+  SquareArrowOutUpRight: () => null,
   ChevronDown: () => null,
   Play: () => null,
   Plus: () => null

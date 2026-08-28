@@ -74,6 +74,7 @@ const useAppStoreMock = vi.fn(
       sshConnectionStates: Map<string, { remotePlatform?: NodeJS.Platform }>
       worktreesByRepo: typeof appStoreSnapshot.worktreesByRepo
       unifiedTabsByWorktree: Record<string, unknown[]>
+      poppedOutTabIds: string[]
       activeGroupIdByWorktree: Record<string, string>
       detectedAgentIds: string[] | null
       localDetectedAgentIdsByContext: Record<string, string[] | null>
@@ -103,6 +104,7 @@ const useAppStoreMock = vi.fn(
       sshConnectionStates: appStoreSnapshot.sshConnectionStates,
       worktreesByRepo: appStoreSnapshot.worktreesByRepo,
       unifiedTabsByWorktree: appStoreSnapshot.unifiedTabsByWorktree,
+      poppedOutTabIds: [],
       activeGroupIdByWorktree: appStoreSnapshot.activeGroupIdByWorktree,
       detectedAgentIds: appStoreSnapshot.detectedAgentIds,
       localDetectedAgentIdsByContext: appStoreSnapshot.localDetectedAgentIdsByContext,

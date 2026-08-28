@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useAppStore } from '@/store'
 import type { GitFileStatus } from '../../../../shared/git-status-types'
 import type { Tab } from '../../../../shared/tab-types'
 import type { TabBarProps } from './tab-bar-props'
@@ -94,16 +95,29 @@ export function useTabBarItemProjection({
       unifiedTabByVisibleId
     ]
   )
-  const sortableIds = useMemo(() => orderedItems.map((item) => item.id), [orderedItems])
+  const poppedOutTabIds = useAppStore((state) => state.poppedOutTabIds)
+  // Why: a detached tab keeps its store entry so its panes stay alive; it just
+  // must not appear in this window's strip while another window renders it.
+  const visibleItems = useMemo(() => {
+    if (poppedOutTabIds.length === 0) {
+      return orderedItems
+    }
+    const detached = new Set(poppedOutTabIds)
+    return orderedItems.filter((item) => {
+      const unifiedTab = unifiedTabByVisibleId.get(item.id)
+      return !unifiedTab || !detached.has(unifiedTab.id)
+    })
+  }, [orderedItems, poppedOutTabIds, unifiedTabByVisibleId])
+  const sortableIds = useMemo(() => visibleItems.map((item) => item.id), [visibleItems])
   const activeIndicator =
     hoveredTabInsertion?.groupId === resolvedGroupId ? hoveredTabInsertion : null
   const dropIndicatorByVisibleId = useMemo(
-    () => buildTabDropIndicators(orderedItems, activeIndicator),
-    [activeIndicator, orderedItems]
+    () => buildTabDropIndicators(visibleItems, activeIndicator),
+    [activeIndicator, visibleItems]
   )
   const activeVisibleTabId = useMemo(
     () =>
-      findActiveVisibleTabId(orderedItems, {
+      findActiveVisibleTabId(visibleItems, {
         activeTabId,
         activeFileId,
         activeBrowserTabId,
@@ -116,22 +130,22 @@ export function useTabBarItemProjection({
       activeSimulatorTabId,
       activeTabId,
       activeTabType,
-      orderedItems
+      visibleItems
     ]
   )
   const tabStripLayoutKey = useMemo(
     () =>
       buildTabStripLayoutKey(
-        orderedItems,
+        visibleItems,
         generatedTabTitlesEnabled,
         expandedPaneByTabId,
         statusByRelativePath
       ),
-    [expandedPaneByTabId, generatedTabTitlesEnabled, orderedItems, statusByRelativePath]
+    [expandedPaneByTabId, generatedTabTitlesEnabled, visibleItems, statusByRelativePath]
   )
 
   return {
-    orderedItems,
+    orderedItems: visibleItems,
     sortableIds,
     dropIndicatorByVisibleId,
     activeVisibleTabId,

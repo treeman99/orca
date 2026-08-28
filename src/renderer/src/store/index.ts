@@ -5,6 +5,7 @@ import { createSparsePresetsSlice } from './slices/sparse-presets'
 import { createWorktreeSlice } from './slices/worktrees'
 import { createTerminalSlice } from './slices/terminals'
 import { createTabsSlice } from './slices/tabs'
+import { createTabPopoutSlice } from './slices/tab-popout'
 import { createUISlice } from './slices/ui'
 import { createSettingsSlice } from './slices/settings'
 import { createKeybindingsSlice } from './slices/keybindings'
@@ -66,6 +67,7 @@ export const useAppStore = create<AppState>()((...a) => {
     ...createWorktreeSlice(...a),
     ...createTerminalSlice(...a),
     ...createTabsSlice(...a),
+    ...createTabPopoutSlice(...a),
     ...createUISlice(...a),
     ...createSettingsSlice(...a),
     ...createKeybindingsSlice(...a),

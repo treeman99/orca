@@ -2,6 +2,7 @@ import { BrowserWindow, ipcMain, webContents, type WebContents } from 'electron'
 import type { Store } from '../persistence'
 import type { PersistedUIState } from '../../shared/persisted-ui-state-types'
 import { isFeatureInteractionId } from '../../shared/feature-interactions'
+import { isTabPopoutRenderer } from '../window/tab-popout-renderer-trust'
 
 let trustedUIRendererWebContentsId: number | null = null
 
@@ -93,7 +94,8 @@ export function registerUIHandlers(
   ipcMain.on('ui:performNativeSelectionAction', (event, action: unknown) => {
     if (
       !isTrustedUIRenderer(event.sender) &&
-      options.isDashboardPopoutRenderer?.(event.sender) !== true
+      options.isDashboardPopoutRenderer?.(event.sender) !== true &&
+      !isTabPopoutRenderer(event.sender)
     ) {
       return
     }

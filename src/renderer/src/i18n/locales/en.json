@@ -16244,7 +16244,8 @@
         "SortableTabContextMenu": {
           "switchToTerminalView": "Switch to terminal view",
           "switchToChatView": "Switch to chat view",
-          "closeTabsToLeft": "Close Tabs To The Left"
+          "closeTabsToLeft": "Close Tabs To The Left",
+          "moveToNewWindow": "Move to New Window"
         },
         "BrowserTab": {
           "closeOthers": "Close Others",
@@ -16253,6 +16254,11 @@
         "EditorFileTabContextMenu": {
           "closeOthers": "Close Others",
           "closeTabsToLeft": "Close Tabs To The Left"
+        },
+        "TabPopoutMenuSection": {
+          "moveToNewWindow": "Move to New Window",
+          "moveToWindow": "Move to Window",
+          "newWindow": "New Window"
         }
       }
     },
@@ -16700,5 +16706,18 @@
       "notice": "ripgrep is not installed, so search is using a limited git-based fallback.",
       "skippedSubmodules": "These submodules were skipped because the file filter has no equivalent inside them: {{value0}}"
     }
+  },
+  "tabPopout": {
+    "loading": "Opening tab…",
+    "unavailable": "This tab is no longer detached. You can close this window.",
+    "returnToMainWindow": "Return to main window",
+    "unsupportedTabType": "Only terminal tabs can be detached right now.",
+    "paneUnavailable": "This pane has no live terminal. Close the window to return the tab.",
+    "noPanes": "This tab has no terminal panes to show.",
+    "recoverableError": {
+      "title": "This tab hit an error.",
+      "description": "The detached tab could not finish rendering. Retry to remount it, or close the window to return the tab."
+    },
+    "returnTab": "Return tab to main window"
   }
 }

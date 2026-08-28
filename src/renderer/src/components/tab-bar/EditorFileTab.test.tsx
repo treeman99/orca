@@ -58,6 +58,7 @@ vi.mock('@dnd-kit/sortable', () => ({
 }))
 
 vi.mock('lucide-react', () => ({
+  SquareArrowOutUpRight: () => null,
   ArrowDown: function ArrowDown(props: Record<string, unknown>) {
     return { type: 'ArrowDown', props }
   },

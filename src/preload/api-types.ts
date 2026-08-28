@@ -23,6 +23,7 @@ import type { BrowserApi } from './api/browser-api'
 import type { CliApi } from './api/cli-install-api'
 import type { CrashReportsApi } from './api/crash-report-api'
 import type { DashboardApi, TerminalPreviewApi } from './api/dashboard-api'
+import type { TabPopoutApi } from './api/tab-popout-api'
 import type { EmulatorApi } from './api/emulator-api'
 import type { AppUpdateApi } from './api/app-update-api'
 import type { EnterprisePolicyApi, GatewayApi, GithubEnterpriseApi } from './api/enterprise-api'
@@ -109,6 +110,7 @@ export type PreloadApi = {
   notifications: NotificationsApi
   onboarding: OnboardingApi
   dashboard: DashboardApi
+  tabPopout: TabPopoutApi
   terminalPreview: TerminalPreviewApi
   macosTccPrompts: MacosTccPromptsApi
   developerPermissions: DeveloperPermissionsApi

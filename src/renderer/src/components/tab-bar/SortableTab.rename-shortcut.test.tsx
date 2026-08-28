@@ -13,6 +13,9 @@ const storeState = vi.hoisted(
     retainedAgentsByPaneKey: Record<string, unknown>
     renamingTabId: string | null
     keybindings: Record<string, unknown>
+    tabPopoutWindows: unknown[]
+    poppedOutTabIds: string[]
+    popOutTab: ReturnType<typeof vi.fn>
     repos: unknown[]
     setRenamingTabId: ReturnType<typeof vi.fn>
     terminalLayoutsByTabId: Record<string, unknown>
@@ -25,6 +28,9 @@ const storeState = vi.hoisted(
     retainedAgentsByPaneKey: {},
     renamingTabId: null as string | null,
     keybindings: {},
+    tabPopoutWindows: [],
+    poppedOutTabIds: [],
+    popOutTab: vi.fn(),
     repos: [],
     setRenamingTabId: vi.fn((tabId: string | null) => {
       storeState.renamingTabId = tabId
@@ -122,6 +128,7 @@ vi.mock('lucide-react', () => ({
   X: function X(props: Record<string, unknown>) {
     return { type: 'X', props }
   },
+  SquareArrowOutUpRight: () => null,
   SquareTerminal: function SquareTerminal(props: Record<string, unknown>) {
     return { type: 'SquareTerminal', props }
   }

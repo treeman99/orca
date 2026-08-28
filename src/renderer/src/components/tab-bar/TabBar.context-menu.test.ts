@@ -23,6 +23,7 @@ const useAppStoreMock = vi.fn(
       repos: never[]
       worktreesByRepo: Record<string, never[]>
       unifiedTabsByWorktree: Record<string, unknown[]>
+      poppedOutTabIds: string[]
       activeGroupIdByWorktree: Record<string, string>
       pinTab: typeof pinTabMock
       unpinTab: typeof unpinTabMock
@@ -39,6 +40,7 @@ const useAppStoreMock = vi.fn(
       repos: [],
       worktreesByRepo: {},
       unifiedTabsByWorktree: appStoreSnapshot.unifiedTabsByWorktree,
+      poppedOutTabIds: [],
       activeGroupIdByWorktree: appStoreSnapshot.activeGroupIdByWorktree,
       pinTab: pinTabMock,
       unpinTab: unpinTabMock,

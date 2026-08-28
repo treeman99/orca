@@ -11,6 +11,7 @@ import type { AssertNoMissingKeys, AssertNoMissingValues } from './ui-state-sche
 type MainOwnedUIState =
   | 'trayMinimizeNoticeShown'
   | 'dashboardPopoutBounds'
+  | 'tabPopoutBounds'
   | '_expandedWorktreeCardPropertiesDefaulted'
   | '_jiraIssueWorktreeCardPropertyDefaulted'
   | 'starNagBaselineAgents'

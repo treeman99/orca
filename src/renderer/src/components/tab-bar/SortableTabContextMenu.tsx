@@ -21,6 +21,7 @@ import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import { useAppStore } from '../../store'
 import { formatShortcutLabel, useOptionalShortcutLabel } from '@/hooks/useShortcutLabel'
 import { translate } from '@/i18n/i18n'
+import { TabPopoutMenuSection } from './TabPopoutMenuSection'
 import { TerminalTabSplitMenuSection } from './TerminalTabSplitMenuSection'
 import { TAB_CONTEXT_MENU_CONTENT_CLASS } from './tab-context-menu-sizing'
 
@@ -189,6 +190,8 @@ export function SortableTabContextMenu({
             </DropdownMenuItem>
           </>
         ) : null}
+        <DropdownMenuSeparator />
+        <TabPopoutMenuSection unifiedTabId={unifiedTabId} />
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onTogglePin}>
           {isPinned ? (

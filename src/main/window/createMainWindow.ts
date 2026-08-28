@@ -57,6 +57,7 @@ import { clearTrustedUIRendererWebContentsId, setTrustedUIRendererWebContentsId 
 import { resolveWindowCloseAction } from './window-close-decision'
 import { rectHasVisibleAreaOnAnyDisplay } from './window-bounds-validation'
 import { closeDashboardPopout } from './dashboard-popout-window'
+import { closeAllTabPopoutWindows } from './tab-popout-window'
 import { installPrivilegedWindowNavigationPolicy } from './privileged-window-navigation'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { isMacosTahoeOrNewer } from './macos-tahoe-release'
@@ -1154,6 +1155,8 @@ export function createMainWindow(
     // alongside so it never orphans as a lone window after the app window is
     // gone (e.g. on macOS where the app stays alive after the window closes).
     closeDashboardPopout()
+    // Why: same for detached tab windows — their store owner is this renderer.
+    closeAllTabPopoutWindows()
     clearInitialRevealFallbackTimer()
     clearQuitRendererAckTimer()
     // Why: default-deny the Cmd+B carve-out after the window is gone so a stale-true flag can't leak into later state.

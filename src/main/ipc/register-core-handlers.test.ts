@@ -164,6 +164,10 @@ vi.mock('../window/dashboard-popout-window', () => ({
   isDashboardPopoutRenderer: isDashboardPopoutRendererMock
 }))
 
+vi.mock('./tab-popout', () => ({
+  registerTabPopoutHandlers: vi.fn()
+}))
+
 vi.mock('./terminal-preview', () => ({
   registerTerminalPreviewHandlers: registerTerminalPreviewHandlersMock
 }))

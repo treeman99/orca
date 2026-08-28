@@ -27,8 +27,9 @@ import { installPreviewTerminalAppMenuClipboard } from './preview-terminal-app-m
 import type { TerminalPreviewDataPayload } from '../../../../shared/terminal-preview'
 
 const PREVIEW_SCROLLBACK_ROWS = 24
-// Why: main only ever serializes PREVIEW_SCROLLBACK_ROWS of history into this
-// terminal, so the pane's user-configured scrollback would only cost memory.
+// Why: the xterm buffer only needs to hold what main serializes into it, so the
+// pane's user-configured scrollback would only cost memory. Detached tab windows
+// ask for far more history than the dashboard's peek, hence the max() below.
 const PREVIEW_SCROLLBACK_BUFFER_ROWS = 1000
 const FALLBACK_COLS = 80
 const FALLBACK_ROWS = 24
@@ -52,12 +53,15 @@ function clamp(value: number, min: number, max: number): number {
 export function AgentTerminalPreview({
   ptyId,
   terminalInput = null,
-  className
+  className,
+  scrollbackRows = PREVIEW_SCROLLBACK_ROWS
 }: {
   ptyId: string
   /** Host-input facts relayed with the card; null routes bytes by client OS. */
   terminalInput?: DashboardCardTerminalInput | null
   className?: string
+  /** History rows to request. The dashboard peeks; a detached tab wants real scrollback. */
+  scrollbackRows?: number
 }): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Terminal | null>(null)
@@ -69,6 +73,7 @@ export function AgentTerminalPreview({
   const settingsRef = useRef(settings)
   const macOptionAsAltRef = useRef(macOptionAsAlt)
   const terminalInputRef = useRef(terminalInput)
+  const scrollbackRowsRef = useRef(scrollbackRows)
   const { terminalTheme, terminalMode } = useMemo(() => {
     if (!settings) {
       return { terminalTheme: null, terminalMode: 'dark' as const }
@@ -92,7 +97,8 @@ export function AgentTerminalPreview({
     settingsRef.current = settings
     macOptionAsAltRef.current = macOptionAsAlt
     terminalInputRef.current = terminalInput
-  }, [settings, macOptionAsAlt, terminalInput])
+    scrollbackRowsRef.current = scrollbackRows
+  }, [settings, macOptionAsAlt, terminalInput, scrollbackRows])
 
   useEffect(() => {
     setPtyGone(false)
@@ -288,7 +294,7 @@ export function AgentTerminalPreview({
             themeMode: terminalMode,
             cols: clamp(snap.cols ?? FALLBACK_COLS, 2, 500),
             rows: clamp(snap.rows ?? FALLBACK_ROWS, 2, 200),
-            scrollback: PREVIEW_SCROLLBACK_BUFFER_ROWS
+            scrollback: Math.max(PREVIEW_SCROLLBACK_BUFFER_ROWS, scrollbackRowsRef.current)
           })
         )
         try {
@@ -349,7 +355,7 @@ export function AgentTerminalPreview({
       }
       refreshInFlight = true
       const connection = await window.api.terminalPreview.connect(ptyId, {
-        scrollbackRows: PREVIEW_SCROLLBACK_ROWS
+        scrollbackRows: scrollbackRowsRef.current
       })
       if (disposed) {
         return

@@ -3,6 +3,7 @@ import './assets/main.css'
 import { StrictMode, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DashboardPopoutRoot } from './components/dashboard-popout/DashboardPopoutRoot'
+import { TabPopoutRoot } from './components/tab-popout/TabPopoutRoot'
 import { RecoverableRenderErrorBoundary } from './components/error-boundaries/RecoverableRenderErrorBoundary'
 import {
   installRendererCrashDiagnostics,
@@ -21,7 +22,9 @@ import { getOrCreateRendererRoot } from './lib/react-renderer-root'
 // theme, i18n, error boundary) rather than inheriting anything from the main
 // window. It shares the preload/window.api but not the DOM or JS context.
 recordRendererCrashBreadcrumb('popout_bootstrap_started', { dev: import.meta.env.DEV })
-installRendererCrashDiagnostics('dashboard-popout')
+installRendererCrashDiagnostics(
+  new URLSearchParams(window.location.search).get('win') ? 'tab-popout' : 'dashboard-popout'
+)
 
 function applyPopoutAppearance(settings: GlobalSettings | null): void {
   applyDocumentTheme(settings?.theme ?? 'system', { disableTransitions: false })
@@ -93,8 +96,27 @@ function PopoutSettingsSync(): null {
   return null
 }
 
+// Why: popout.html serves two window kinds — the dashboard and a detached tab.
+// The query decides which root mounts; everything else in this bootstrap is shared.
+const detachedWindowKey = new URLSearchParams(window.location.search).get('win')
+
 function PopoutRoot(): React.JSX.Element {
   useTranslation()
+  if (detachedWindowKey) {
+    return (
+      <RecoverableRenderErrorBoundary
+        boundaryId="tab-popout.root"
+        surface="tab-popout"
+        title={translate('tabPopout.recoverableError.title', 'This tab hit an error.')}
+        description={translate(
+          'tabPopout.recoverableError.description',
+          'The detached tab could not finish rendering. Retry to remount it, or close the window to return the tab.'
+        )}
+      >
+        <TabPopoutRoot />
+      </RecoverableRenderErrorBoundary>
+    )
+  }
   return (
     <RecoverableRenderErrorBoundary
       boundaryId="dashboard-popout.root"

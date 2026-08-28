@@ -14979,7 +14979,8 @@
         "SortableTabContextMenu": {
           "switchToTerminalView": "terminal 보기로 전환",
           "switchToChatView": "채팅 보기로 전환",
-          "closeTabsToLeft": "왼쪽으로 탭 닫기"
+          "closeTabsToLeft": "왼쪽으로 탭 닫기",
+          "moveToNewWindow": "새 창으로 분리"
         },
         "BrowserTab": {
           "closeOthers": "다른 탭 닫기",
@@ -14988,6 +14989,11 @@
         "EditorFileTabContextMenu": {
           "closeOthers": "다른 탭 닫기",
           "closeTabsToLeft": "왼쪽으로 탭 닫기"
+        },
+        "TabPopoutMenuSection": {
+          "moveToNewWindow": "새 창으로 분리",
+          "moveToWindow": "창으로 보내기",
+          "newWindow": "새 창"
         }
       }
     },
@@ -15196,5 +15202,18 @@
       "notice": "ripgrep이 설치되어 있지 않아 기능이 제한된 git 기반 검색을 사용 중입니다.",
       "skippedSubmodules": "파일 필터를 서브모듈 기준으로 변환할 수 없어 다음 서브모듈은 검색하지 않았습니다: {{value0}}"
     }
+  },
+  "tabPopout": {
+    "loading": "탭을 여는 중…",
+    "unavailable": "이 탭은 더 이상 분리되어 있지 않습니다. 창을 닫아도 됩니다.",
+    "returnToMainWindow": "메인 창으로 되돌리기",
+    "unsupportedTabType": "현재는 터미널 탭만 분리할 수 있습니다.",
+    "paneUnavailable": "이 화면에는 실행 중인 터미널이 없습니다. 창을 닫으면 탭이 되돌아갑니다.",
+    "noPanes": "이 탭에는 표시할 터미널 화면이 없습니다.",
+    "recoverableError": {
+      "title": "이 탭에서 오류가 발생했습니다.",
+      "description": "분리된 탭을 표시하지 못했습니다. 다시 시도하거나 창을 닫아 탭을 되돌리세요."
+    },
+    "returnTab": "탭을 메인 창으로 되돌리기"
   }
 }

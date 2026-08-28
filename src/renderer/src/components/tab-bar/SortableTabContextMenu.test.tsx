@@ -13,7 +13,10 @@ const storeMock = vi.hoisted(() => ({
   state: {
     keybindings: {},
     unifiedTabsByWorktree: {},
-    groupsByWorktree: {}
+    groupsByWorktree: {},
+    tabPopoutWindows: [],
+    poppedOutTabIds: [],
+    popOutTab: vi.fn()
   } as Record<string, unknown>
 }))
 
@@ -63,6 +66,7 @@ vi.mock('lucide-react', () => ({
   Pencil: () => null,
   Pin: () => null,
   PinOff: () => null,
+  SquareArrowOutUpRight: () => null,
   SquareTerminal: () => null,
   X: () => null
 }))
@@ -152,6 +156,9 @@ beforeEach(() => {
   storeMock.dropUnifiedTab.mockReset()
   storeMock.state = {
     keybindings: {},
+    tabPopoutWindows: [],
+    poppedOutTabIds: [],
+    popOutTab: vi.fn(),
     dropUnifiedTab: storeMock.dropUnifiedTab,
     groupsByWorktree: {
       'wt-1': [

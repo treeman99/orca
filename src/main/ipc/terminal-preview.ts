@@ -5,6 +5,7 @@ import type {
 } from '../../shared/terminal-preview'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { isDashboardPopoutRenderer } from '../window/dashboard-popout-window'
+import { isTabPopoutRenderer } from '../window/tab-popout-renderer-trust'
 import { isTrustedUIRenderer } from './ui'
 import {
   TERMINAL_PREVIEW_OUTPUT_BATCH_MAX_BYTES,
@@ -17,11 +18,14 @@ function isValidPtyId(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= PREVIEW_ID_MAX_LENGTH
 }
 
-// Why: the preview dialog has two hosts — the pop-out window and the main
-// renderer's in-window overlay. The trusted UI renderer already has full PTY
-// access through the regular terminal channels, so admitting it adds no reach.
+// Why: the preview transport has three hosts — the dashboard pop-out, a
+// detached tab window, and the main renderer's in-window overlay. The trusted UI
+// renderer already has full PTY access through the regular terminal channels, so
+// admitting it adds no reach.
 function isTerminalPreviewRenderer(sender: WebContents): boolean {
-  return isDashboardPopoutRenderer(sender) || isTrustedUIRenderer(sender)
+  return (
+    isDashboardPopoutRenderer(sender) || isTabPopoutRenderer(sender) || isTrustedUIRenderer(sender)
+  )
 }
 /** Pop-out terminal transport with an atomic snapshot/live boundary. */
 export function registerTerminalPreviewHandlers(runtime: OrcaRuntimeService): void {
