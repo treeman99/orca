@@ -169,6 +169,7 @@ export function TerminalErrorToast({
 
   return (
     <div
+      data-terminal-error-toast
       style={{
         position: 'absolute',
         bottom: 12,

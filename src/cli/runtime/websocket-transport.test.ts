@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WebSocketServer } from 'ws'
 import { encodePairingOffer, type PairingOffer } from '../../shared/pairing'
+import type { RuntimeStatus } from '../../shared/runtime-types'
 import {
   decrypt,
   deriveSharedKey,
@@ -18,6 +19,7 @@ import { addEnvironmentFromPairingCode } from './environments'
 import { RuntimeClientError } from './types'
 import {
   AGENT_SESSION_BOUNDARY_RUNTIME_CAPABILITY,
+  AUTOMATION_OWNER_FENCING_RUNTIME_CAPABILITY,
   MIN_COMPATIBLE_RUNTIME_CLIENT_VERSION,
   RUNTIME_PROTOCOL_VERSION,
   SESSION_TAB_CLOSE_INTENT_RUNTIME_CAPABILITY,
@@ -70,7 +72,8 @@ describe('CLI remote WebSocket transport', () => {
           AGENT_SESSION_BOUNDARY_RUNTIME_CAPABILITY,
           SKILL_INSTALL_RESULT_V2_CAPABILITY,
           WORKTREE_VISIBILITY_DEFAULTS_RUNTIME_CAPABILITY,
-          WORKTREE_VISIBILITY_SOURCE_DEFAULTS_RUNTIME_CAPABILITY
+          WORKTREE_VISIBILITY_SOURCE_DEFAULTS_RUNTIME_CAPABILITY,
+          AUTOMATION_OWNER_FENCING_RUNTIME_CAPABILITY
         ]
       })
     )
@@ -85,7 +88,14 @@ describe('CLI remote WebSocket transport', () => {
   it('accepts a bare pairing payload as well as the orca URL wrapper', async () => {
     const runtime = await startTestRuntime('runtime-ws-2', {
       appVersion: '1.5.0',
-      capabilities: [SESSION_TAB_CLOSE_INTENT_RUNTIME_CAPABILITY]
+      capabilities: [SESSION_TAB_CLOSE_INTENT_RUNTIME_CAPABILITY],
+      degradations: [
+        {
+          code: 'browser_unavailable',
+          capability: 'browser.headless.v1',
+          message: 'Browser automation is unavailable.'
+        }
+      ]
     })
     servers.push(runtime)
     const offer: PairingOffer = {
@@ -107,7 +117,8 @@ describe('CLI remote WebSocket transport', () => {
     expect(status.result.runtime.runtimeId).toBe('runtime-ws-2')
     expect(status.result.runtime).toMatchObject({
       appVersion: '1.5.0',
-      capabilities: [SESSION_TAB_CLOSE_INTENT_RUNTIME_CAPABILITY]
+      capabilities: [SESSION_TAB_CLOSE_INTENT_RUNTIME_CAPABILITY],
+      degradations: [expect.objectContaining({ code: 'browser_unavailable' })]
     })
   })
 
@@ -232,6 +243,7 @@ async function startTestRuntime(
     desktopWindowStatus?: 'available' | 'openable' | 'initializing' | 'blocked'
     appVersion?: string
     capabilities?: string[]
+    degradations?: RuntimeStatus['degradations']
   } = {}
 ): Promise<TestRuntime> {
   const serverKeyPair = generateKeyPair()
@@ -302,7 +314,8 @@ async function startTestRuntime(
                   statusOverrides.minCompatibleRuntimeClientVersion ??
                   MIN_COMPATIBLE_RUNTIME_CLIENT_VERSION,
                 appVersion: statusOverrides.appVersion,
-                capabilities: statusOverrides.capabilities
+                capabilities: statusOverrides.capabilities,
+                degradations: statusOverrides.degradations
               },
               _meta: { runtimeId }
             }

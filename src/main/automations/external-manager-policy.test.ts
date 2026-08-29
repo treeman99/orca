@@ -10,7 +10,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as Fs from 'node:fs'
 import type * as FsPromises from 'node:fs/promises'
 import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
-import type { Store } from '../persistence'
 import type * as SshTargetRegistryModule from '../ssh/ssh-target-registry'
 
 type SshTargetRegistry = typeof SshTargetRegistryModule
@@ -27,8 +26,14 @@ const execFileMock = vi.hoisted(() =>
 const existsSyncMock = vi.hoisted(() => vi.fn(() => true))
 const getEnterprisePolicyMock = vi.hoisted(() => vi.fn())
 const requestMock = vi.hoisted(() => vi.fn(async () => ({ jobs: [] })))
+// v1.4.191 moved the PATH probe from child_process.execFile to the shared runProcess
+// helper. Spy on that one: an execFile-only assertion would pass with the gate deleted.
+const runProcessMock = vi.hoisted(() =>
+  vi.fn(async () => ({ code: 0, stdout: '', stderr: '', timedOut: false }))
+)
 
 vi.mock('child_process', () => ({ execFile: execFileMock }))
+vi.mock('../../shared/child-process/run-process', () => ({ runProcess: runProcessMock }))
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof Fs>('fs')
   return { ...actual, existsSync: existsSyncMock }
@@ -51,17 +56,49 @@ vi.mock('../ssh/ssh-target-registry', async () => {
 
 import {
   createExternalAutomation,
-  listExternalAutomationManagers,
+  createScopedExternalAutomations,
   listExternalAutomationRuns,
   runExternalAutomationAction,
   updateExternalAutomation
 } from './external-manager'
+import { ExternalAutomationManagerCache } from './external-automation-manager-cache'
+import { ExternalAutomationProbeScheduler } from './external-automation-probe-scheduler'
+import type { ExternalAutomationProvider } from '../../shared/automations-types'
+import type { DesktopSshTargetRegistry } from './external-automation-owner-guard'
 
-const store = {
+// v1.4.191 replaced `listExternalAutomationManagers(store)` with a scoped, cached
+// resolver. Drive the real one: the gate has to hold on the path the IPC layer uses,
+// not on a helper kept alive for this test.
+const registry = {
   getSshTargets: () => [
-    { id: 'ssh-1', connectionId: 'ssh-1', label: 'host', host: 'host', user: 'dev' }
-  ]
-} as unknown as Store
+    { id: 'ssh-1', connectionId: 'ssh-1', label: 'host', host: 'host', user: 'dev', generation: 1 }
+  ],
+  getSshTarget: (id: string) =>
+    id === 'ssh-1'
+      ? { id, connectionId: id, label: 'host', host: 'host', user: 'dev', generation: 1 }
+      : null
+} as unknown as DesktopSshTargetRegistry
+
+async function discoveredProviders(
+  providers: readonly ExternalAutomationProvider[] = ['hermes', 'openclaw']
+): Promise<ExternalAutomationProvider[]> {
+  const scoped = createScopedExternalAutomations({
+    registry,
+    scheduler: new ExternalAutomationProbeScheduler(),
+    cache: new ExternalAutomationManagerCache()
+  })
+  const found: ExternalAutomationProvider[] = []
+  for (const provider of providers) {
+    const entry = await scoped.listManager({
+      provider,
+      owner: { authority: { kind: 'desktop' }, selector: { kind: 'self' } }
+    } as Parameters<typeof scoped.listManager>[0])
+    if (entry.manager) {
+      found.push(entry.manager.provider)
+    }
+  }
+  return found
+}
 
 const localTarget = { type: 'local' } as const
 
@@ -69,14 +106,16 @@ describe('external automations under enterprise policy', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     existsSyncMock.mockReturnValue(true)
+    runProcessMock.mockResolvedValue({ code: 0, stdout: '', stderr: '', timedOut: false })
     requestMock.mockResolvedValue({ jobs: [] })
     getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
   })
 
   it('discovers no provider under a bare lockdown, and probes nothing', async () => {
     getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
-    await expect(listExternalAutomationManagers(store)).resolves.toEqual([])
+    await expect(discoveredProviders()).resolves.toEqual([])
     // The PATH probe and the ~/.hermes read are both refused, not merely ignored.
+    expect(runProcessMock).not.toHaveBeenCalled()
     expect(execFileMock).not.toHaveBeenCalled()
     expect(requestMock).not.toHaveBeenCalled()
   })
@@ -85,7 +124,7 @@ describe('external automations under enterprise policy', () => {
     getEnterprisePolicyMock.mockReturnValue(
       makeEnterprisePolicy({ allowedAgents: ['claude', 'opencode'] })
     )
-    await expect(listExternalAutomationManagers(store)).resolves.toEqual([])
+    await expect(discoveredProviders()).resolves.toEqual([])
     expect(requestMock).not.toHaveBeenCalled()
   })
 
@@ -95,9 +134,9 @@ describe('external automations under enterprise policy', () => {
     getEnterprisePolicyMock.mockReturnValue(
       makeEnterprisePolicy({ allowedAgents: ['claude', 'hermes'] })
     )
-    const managers = await listExternalAutomationManagers(store)
-    expect(managers.map((manager) => manager.provider)).toContain('hermes')
-    expect(managers.map((manager) => manager.provider)).not.toContain('openclaw')
+    const providers = await discoveredProviders()
+    expect(providers).toContain('hermes')
+    expect(providers).not.toContain('openclaw')
   })
 
   it.each([
@@ -156,6 +195,7 @@ describe('external automations under enterprise policy', () => {
     async (_name, call) => {
       getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
       await expect(call()).rejects.toThrow(/disabled by an enterprise policy/)
+      expect(runProcessMock).not.toHaveBeenCalled()
       expect(execFileMock).not.toHaveBeenCalled()
     }
   )

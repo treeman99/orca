@@ -180,7 +180,9 @@ export function createOrFocusDashboardPopout(
       // Why: this window's own session does not inherit the main window's spellcheck gate, so it would fetch hunspell dictionaries from a Google CDN under lockdown.
       spellcheck: !getEnterprisePolicy().disableSpellcheck,
       // Why: the dashboard is plain DOM — no <webview> guests — so keep the
-      // guest-embedding surface off for this window.
+      // guest-embedding surface off for this window. For the same reason it is
+      // deliberately not stamped with the browser-host id: no guest of ours can
+      // run here, so every client-placed page is a mirror to this renderer.
       webviewTag: false
     }
   })

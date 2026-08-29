@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubHeadlessReact, stubShallowSelector } from './tab-bar-windows-shell-launch-render-stubs'
 
 const appStoreSnapshot: {
   activeTabId: string | null
@@ -51,22 +52,7 @@ const useAppStoreMock = vi.fn(
     })
 )
 
-vi.mock('react', async () => {
-  const actual = await vi.importActual<typeof import('react')>('react') // eslint-disable-line @typescript-eslint/consistent-type-imports -- vi.importActual requires inline import()
-  return {
-    ...actual,
-    memo: <T>(component: T) => component,
-    useEffect: () => {},
-    useLayoutEffect: () => {},
-    useCallback: <T>(callback: T) => callback,
-    useMemo: <T>(factory: () => T) => factory(),
-    useRef: <T>(current: T) => ({ current }),
-    useState: <T>(initial: T) => [initial, vi.fn()] as const
-  }
-})
-
-// The headless React mock above stubs hooks, so zustand's useShallow (which
-// calls useRef) has no dispatcher; make it a pass-through like the store mock.
+vi.mock('react', async () => await stubHeadlessReact())
 // The headless React mock above has no dispatcher, so the policy view's
 // useSyncExternalStore cannot run. Unrestricted is the upstream default these cases
 // assert against; the allowlist's own behaviour is covered in agent-policy-gating.test.ts.
@@ -76,9 +62,7 @@ vi.mock('@/enterprise/enterprise-policy-access', () => ({
   getPolicyAllowedAgents: () => null
 }))
 
-vi.mock('zustand/react/shallow', () => ({
-  useShallow: (selector: unknown) => selector
-}))
+vi.mock('zustand/react/shallow', () => stubShallowSelector())
 
 vi.mock('lucide-react', async () => (await import('./lucide-icon-stub-fixture')).stubEveryIcon())
 

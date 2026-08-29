@@ -17,6 +17,9 @@ const { verifyPackagedPluginResources } = require('./scripts/verify-packaged-plu
 const {
   verifyPackagedEnterprisePolicy
 } = require('./scripts/verify-packaged-enterprise-policy.cjs')
+const {
+  verifyPackagedNodePtyJobOwnership
+} = require('./scripts/verify-packaged-node-pty-job-ownership.cjs')
 const { verifySkillsCliRuntime } = require('./scripts/verify-skills-cli-runtime.cjs')
 const { verifyPackagedSkillPackages } = require('./scripts/verify-packaged-skill-packages.cjs')
 
@@ -295,6 +298,13 @@ module.exports = {
     const archEnumByNodeArch = { ia32: 0, x64: 1, armv7l: 2, arm64: 3 }
     const hostArchEnum = archEnumByNodeArch[process.arch]
     const canExecuteTargetArch = context.arch === hostArchEnum || context.arch === 4
+    if (context.electronPlatformName === 'win32') {
+      if (process.platform === 'win32' && canExecuteTargetArch) {
+        verifyPackagedNodePtyJobOwnership(resourcesDir)
+      } else {
+        console.log('[verify-packaged-node-pty] skipped cross-platform or cross-arch package')
+      }
+    }
     verifySkillsCliRuntime(join(resourcesDir, 'app.asar.unpacked', 'out'), resourcesDir, {
       executeCommands: canExecuteTargetArch
     })

@@ -1,7 +1,7 @@
 import { waitForPromiseWithSignal } from '../../shared/abort-signal-reason'
 import { getPreferredPairingOffer } from '../../shared/runtime-environments'
+import { ELECTRON_REMOTE_RUNTIME_CLIENT_CAPABILITIES } from '../../shared/protocol-version'
 import { resolveEnvironment, markEnvironmentUsed } from '../../shared/runtime-environment-store'
-import { isOrchestrationMutation } from '../../shared/orchestration-rpc-contract'
 import type {
   RuntimeOrchestrationEnvelope,
   RuntimeRpcResponse
@@ -31,10 +31,14 @@ import {
   resetSharedControlSupport,
   supportsSharedControl
 } from './runtime-environment-shared-control-support'
+import { assertRemoteOrcaServerAllowed, remoteOrcaServerRefusal } from '../enterprise/remote-orca-server-guard'
 import {
-  assertRemoteOrcaServerAllowed,
-  remoteOrcaServerRefusal
-} from '../enterprise/remote-orca-server-guard'
+  shouldKeepDedicatedSubscriptionSocket,
+  shouldUseCachedRequestConnection,
+  shouldUseOneShotRequest,
+  shouldUseSharedControlEnvelope,
+  shouldUseSharedControlSubscription
+} from './runtime-environment-transport-selection'
 
 const DEFAULT_REMOTE_RUNTIME_TIMEOUT_MS = 15_000
 
@@ -60,7 +64,10 @@ export async function getRuntimeEnvironmentStatus(
       pairing,
       'status.get',
       undefined,
-      timeoutMs ?? DEFAULT_REMOTE_RUNTIME_TIMEOUT_MS
+      timeoutMs ?? DEFAULT_REMOTE_RUNTIME_TIMEOUT_MS,
+      undefined,
+      undefined,
+      ELECTRON_REMOTE_RUNTIME_CLIENT_CAPABILITIES
     )
   } catch (error) {
     // Why: the status UI needs shared-control diagnostics most when the
@@ -140,7 +147,8 @@ export async function callRuntimeEnvironment(
             params,
             effectiveTimeoutMs,
             envelope,
-            options?.signal
+            options?.signal,
+            ELECTRON_REMOTE_RUNTIME_CLIENT_CAPABILITIES
           )
           markEnvironmentUsedFromResponse(userDataPath, currentEnvironment.id, response)
           return response
@@ -185,7 +193,8 @@ export async function callRuntimeEnvironment(
           params,
           effectiveTimeoutMs,
           sharedControlEnvelope,
-          options?.signal
+          options?.signal,
+          ELECTRON_REMOTE_RUNTIME_CLIENT_CAPABILITIES
         )
         markEnvironmentUsedFromResponse(userDataPath, currentEnvironment.id, response)
         return response
@@ -271,7 +280,8 @@ export async function subscribeRuntimeEnvironment(
       method,
       params,
       effectiveTimeoutMs,
-      callbacksWithMarkUsed
+      callbacksWithMarkUsed,
+      { clientCapabilities: ELECTRON_REMOTE_RUNTIME_CLIENT_CAPABILITIES }
     )
   } catch (error) {
     if (error instanceof Error) {
@@ -289,38 +299,4 @@ function markEnvironmentUsedFromResponse(
   if (response.ok === true) {
     markEnvironmentUsed(userDataPath, environmentId, { runtimeId: response._meta.runtimeId })
   }
-}
-
-function shouldUseCachedRequestConnection(method: string): boolean {
-  return method === 'terminal.send' || method === 'terminal.updateViewport'
-}
-
-function shouldUseSharedControlEnvelope(
-  method: string,
-  params: unknown,
-  envelope: RuntimeOrchestrationEnvelope | undefined
-): RuntimeOrchestrationEnvelope | undefined {
-  return envelope && method.startsWith('orchestration.') && !isOrchestrationMutation(method, params)
-    ? envelope
-    : undefined
-}
-
-function shouldUseOneShotRequest(method: string): boolean {
-  // Why: snapshot recovery must remain available while a retained shared-control stream is reconnecting after a HUB restart.
-  return method === 'session.tabs.list' || method === 'session.tabs.listAll'
-}
-
-function shouldKeepDedicatedSubscriptionSocket(method: string): boolean {
-  return method === 'browser.screencast' || method === 'terminal.multiplex'
-}
-
-function shouldUseSharedControlSubscription(method: string): boolean {
-  return (
-    method === 'runtime.clientEvents.subscribe' ||
-    method === 'session.tabs.subscribe' ||
-    method === 'session.tabs.subscribeAll' ||
-    method === 'accounts.subscribe' ||
-    method === 'notifications.subscribe' ||
-    method === 'files.watch'
-  )
 }

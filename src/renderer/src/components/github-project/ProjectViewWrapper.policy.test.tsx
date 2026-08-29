@@ -18,7 +18,8 @@ vi.mock('@/enterprise/enterprise-policy-access', () => ({
   useEnterprisePolicyView: () => policyState as unknown as EnterprisePolicyView
 }))
 
-import { ViewTabStrip } from './ProjectViewWrapper'
+// Upstream moved this out of ProjectViewWrapper and renamed it; the gate is unchanged.
+import { ProjectViewTabStrip as ViewTabStrip } from './ProjectViewStates'
 
 const views = [
   { id: 'v1', name: 'Roadmap', number: 1, layout: 'ROADMAP_LAYOUT' }

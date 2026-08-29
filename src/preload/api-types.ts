@@ -24,6 +24,7 @@ import type { CliApi } from './api/cli-install-api'
 import type { CrashReportsApi } from './api/crash-report-api'
 import type { DashboardApi, TerminalPreviewApi } from './api/dashboard-api'
 import type { TabPopoutApi } from './api/tab-popout-api'
+import type { DocPreviewApi } from './api/doc-preview-api'
 import type { EmulatorApi } from './api/emulator-api'
 import type { AppUpdateApi } from './api/app-update-api'
 import type { EnterprisePolicyApi, GatewayApi, GithubEnterpriseApi } from './api/enterprise-api'
@@ -126,6 +127,7 @@ export type PreloadApi = {
   session: WorkspaceSessionApi['session']
   remoteWorkspace: WorkspaceSessionApi['remoteWorkspace']
   notebook: FilesystemApi['notebook']
+  docPreview: DocPreviewApi['docPreview']
   stats: StatsApi
   memory: MemoryApi
   claudeUsage: ClaudeUsageApi
@@ -161,6 +163,7 @@ export type { AppUpdateApi } from './api/app-update-api'
 export type { ConfluenceApi } from './api/confluence-api'
 export type { ClaudeUsageApi, CodexUsageApi, OpenCodeUsageApi } from './api/agent-usage-api'
 export type { AiVaultApi } from './api/ai-vault-api'
+export type { AutomationsApi, ExternalAutomationManagerResult } from './api/automation-api'
 export type { AppApi } from './api/app-api'
 export type { BrowserApi, DetectedBrowserInfo, DetectedBrowserProfileInfo } from './api/browser-api'
 export type { EmulatorApi } from './api/emulator-api'

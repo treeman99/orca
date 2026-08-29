@@ -28,3 +28,20 @@ export function assertAgentAllowedByEnterprisePolicy(agent: string): void {
     )
   }
 }
+
+/**
+ * The allowlist refusal as a failure *result* rather than a throw: the source-control
+ * text-generation entry points already report agent problems this way, and the panel
+ * renders `error` inline.
+ */
+export function agentBlockedByPolicyResult(
+  agentId: string
+): { success: false; error: string } | null {
+  if (isAgentAllowedByEnterprisePolicy(agentId)) {
+    return null
+  }
+  return {
+    success: false,
+    error: `Agent "${agentId}" is not permitted by your organization's Orca policy.`
+  }
+}

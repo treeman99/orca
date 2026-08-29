@@ -33,3 +33,18 @@ export function unattendedAgentRunRefusal(trigger: AutomationRunTrigger): string
   }
   return isUnattendedAgentRunDisabled() ? UNATTENDED_AGENT_RUN_DISABLED_BY_POLICY : null
 }
+
+/**
+ * The refusal as an automation-run update. Kept beside the guard so `service.ts` states the
+ * policy in one line at its dispatch chokepoint.
+ */
+export function unattendedAgentRunSkip(
+  trigger: Parameters<typeof unattendedAgentRunRefusal>[0],
+  run: { id: string },
+  automation: { workspaceId: string | null }
+): { runId: string; status: 'skipped_policy'; workspaceId: string | null; error: string } | null {
+  const refusal = unattendedAgentRunRefusal(trigger)
+  return refusal
+    ? { runId: run.id, status: 'skipped_policy', workspaceId: automation.workspaceId, error: refusal }
+    : null
+}

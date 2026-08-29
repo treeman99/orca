@@ -10,13 +10,27 @@ import {
 } from '../../shared/automations-types'
 import type { ClaudeUsageStore } from '../claude-usage/store'
 import type { CodexUsageStore } from '../codex-usage/store'
-import { runAutomationPrecheck } from './precheck-runner'
-import { resolveAutomationRunTarget } from './run-target-resolution'
+import { resolveAutomationRunTarget, type AutomationRunTargetResult } from './run-target-resolution'
 import { collectAutomationRunUsage } from './run-usage-collection'
 import type { HeadlessAutomationDispatcher } from './headless-dispatch'
 import { clearAutomationDispatchTokens, createAutomationDispatchToken } from './dispatch-tokens'
-import { unattendedAgentRunRefusal } from '../enterprise/unattended-agent-run-guard'
-import { requestHeadlessAutomationDispatch } from './headless-dispatch-request'
+import { unattendedAgentRunSkip } from '../enterprise/unattended-agent-run-guard'
+import { runAutomationPrecheckForTarget } from './automation-precheck-for-target'
+import { runHeadlessAutomationDispatch } from './headless-dispatch-runner'
+import {
+  AutomationRunCompletionWatcher,
+  type AutomationRunTerminalObserver
+} from './run-completion-watcher'
+import { createAutomationRunWriter, type AutomationRunWriter } from './automation-run-writer'
+import {
+  describeScheduledRefusal,
+  recordRefusedAutomationRun,
+  NO_DISPATCH_HOST
+} from './dispatch-refusal'
+import type {
+  AutomationsChangedPayload,
+  PublishAutomationsChanged
+} from '../../shared/runtime-client-events'
 
 const DEFAULT_TICK_MS = 60 * 1000
 
@@ -31,6 +45,13 @@ export class AutomationService {
   private readonly codexUsage: CodexUsageStore | null
   private readonly allowRemoteHostScheduling: boolean
   private readonly headlessDispatcher: HeadlessAutomationDispatcher | null
+  private readonly publish: PublishAutomationsChanged | null
+  private readonly runs: AutomationRunWriter
+  private readonly completionWatcher: AutomationRunCompletionWatcher | null
+  /** Installed by desktop IPC registration, where external probes live; null on
+   *  runtime servers. Orca's own automation traffic parks queued external
+   *  probes behind this lease, whichever transport carried it. */
+  externalProbePriority: (<T>(run: () => T) => T) | null = null
 
   constructor(
     store: Store,
@@ -40,6 +61,8 @@ export class AutomationService {
       codexUsage?: CodexUsageStore
       allowRemoteHostScheduling?: boolean
       headlessDispatcher?: HeadlessAutomationDispatcher
+      terminalObserver?: AutomationRunTerminalObserver
+      onAutomationsChanged?: PublishAutomationsChanged
     } = {}
   ) {
     this.store = store
@@ -48,6 +71,22 @@ export class AutomationService {
     this.codexUsage = opts.codexUsage ?? null
     this.allowRemoteHostScheduling = opts.allowRemoteHostScheduling ?? false
     this.headlessDispatcher = opts.headlessDispatcher ?? null
+    this.publish = opts.onAutomationsChanged ?? null
+    this.runs = createAutomationRunWriter(store, this.publish)
+    this.completionWatcher = opts.terminalObserver
+      ? new AutomationRunCompletionWatcher({
+          observer: opts.terminalObserver,
+          readRun: (automationId, runId) =>
+            this.store.listAutomationRuns(automationId).find((entry) => entry.id === runId) ?? null,
+          markDispatchResult: (result) => this.markDispatchResult(result)
+        })
+      : null
+  }
+
+  /** CRUD callers publish through the service so every authority write lands on
+   *  the same local + runtime client-event pair. */
+  publishAutomationsChanged(payload: AutomationsChangedPayload = {}): void {
+    this.publish?.(payload)
   }
 
   setWebContents(webContents: WebContents | null): void {
@@ -57,6 +96,9 @@ export class AutomationService {
 
   setRendererReady(): void {
     this.rendererReady = true
+    // Why: the renderer publishes the desktop window graph, so only after it
+    // attaches can an unresolvable pane mean a lost terminal rather than "not yet".
+    this.completionWatcher?.markTerminalSurfaceReady()
     void this.evaluateDueRuns()
   }
 
@@ -67,14 +109,19 @@ export class AutomationService {
     this.timer = setInterval(() => {
       void this.evaluateDueRuns()
     }, this.tickMs)
+    this.completionWatcher?.reconcileRetainedRuns(this.store.listAutomationRuns())
     // Why: headless serve never gets a renderer-ready IPC, but due runs still
     // need the same startup catch-up pass desktop gets after renderer attach.
     if (this.rendererReady || this.headlessDispatcher) {
+      // Serve adopts its daemon PTYs and publishes its graph before start(), so
+      // its terminal surface is already as answerable as it will get.
+      this.completionWatcher?.markTerminalSurfaceReady()
       void this.evaluateDueRuns()
     }
   }
 
   stop(): void {
+    this.completionWatcher?.dispose()
     if (!this.timer) {
       return
     }
@@ -87,8 +134,21 @@ export class AutomationService {
     if (!automation) {
       throw new Error('Automation not found.')
     }
-    const run = this.store.createAutomationRun(automation, Date.now(), 'manual')
-    return await this.requestDispatch(automation, run)
+    const run = this.runs.createRun(automation, Date.now(), 'manual')
+    return await this.requestDispatch(automation, run, this.resolveTarget(automation))
+  }
+
+  /** The run-history row doc:94 pairs with the typed refusal an execute fence throws. */
+  recordRefusedRun(automationId: string): void {
+    const automation = this.store.listAutomations().find((entry) => entry.id === automationId)
+    if (automation) {
+      recordRefusedAutomationRun({
+        store: this.store,
+        runs: this.runs,
+        automation,
+        allowRemoteHostScheduling: this.allowRemoteHostScheduling
+      })
+    }
   }
 
   async runPrecheck(automationId: string, runId: string): Promise<AutomationPrecheckResult | null> {
@@ -103,39 +163,19 @@ export class AutomationService {
     if (run.trigger !== 'scheduled' || !automation.precheck) {
       return null
     }
-    const target = resolveAutomationRunTarget(this.store, automation, {
-      allowRemoteHostScheduling: this.allowRemoteHostScheduling
-    })
-    if (!target.ok) {
-      return {
-        command: automation.precheck.command,
-        exitCode: null,
-        timedOut: false,
-        durationMs: 0,
-        stdout: '',
-        stderr: '',
-        stdoutTruncated: false,
-        stderrTruncated: false,
-        error: target.error,
-        startedAt: Date.now(),
-        completedAt: Date.now()
-      }
-    }
-    return await runAutomationPrecheck({
-      precheck: automation.precheck,
-      target:
-        automation.executionTargetType === 'ssh'
-          ? { type: 'ssh', cwd: target.cwd, connectionId: automation.executionTargetId }
-          : { type: 'local', cwd: target.cwd }
-    })
+    return await runAutomationPrecheckForTarget(automation, this.resolveTarget(automation))
   }
 
   async markDispatchResult(result: AutomationDispatchResult): Promise<AutomationRun> {
-    const run = this.store.updateAutomationRun(result)
+    const run = this.runs.updateRun(result)
     clearAutomationDispatchTokens(run.automationId, run.id)
     if (!isFinalAutomationRunStatus(run.status)) {
+      if (run.status === 'dispatched') {
+        this.completionWatcher?.watch(run)
+      }
       return run
     }
+    this.completionWatcher?.forget(run.id)
     // Why: the renderer's mark-completed effect can re-fire for the same run
     // before refresh() flips its status snapshot off 'dispatched'. Re-running
     // collectRunUsage advances the attribution window and can rewrite an
@@ -154,7 +194,7 @@ export class AutomationService {
     if (!this.store.listAutomationRuns(run.automationId).some((entry) => entry.id === run.id)) {
       return run
     }
-    return this.store.updateAutomationRun({
+    return this.runs.updateRun({
       runId: run.id,
       status: run.status,
       workspaceId: run.workspaceId,
@@ -188,11 +228,11 @@ export class AutomationService {
       this.store.advanceAutomationNextRun(automation.id, now)
       return
     }
-    const run = this.store.createAutomationRun(automation, scheduledFor)
     const graceMs = automation.missedRunGraceMinutes * 60 * 1000
     if (now - scheduledFor > graceMs) {
-      this.store.updateAutomationRun({
-        runId: run.id,
+      const missed = this.runs.createRun(automation, scheduledFor)
+      this.runs.updateRun({
+        runId: missed.id,
         status: 'skipped_missed',
         workspaceId: automation.workspaceId,
         error: 'Orca was unavailable during the missed-run grace window.'
@@ -201,57 +241,76 @@ export class AutomationService {
       return
     }
 
-    await this.requestDispatch(automation, run)
+    // Resolved before the run exists: a refusal repeats every occurrence, and a
+    // */5 automation would otherwise write ~288 identical rows a day — past
+    // retention, which would evict the automation's real history.
+    const target = this.resolveTarget(automation)
+    const refusal = describeScheduledRefusal({ target, canDispatch: this.canDispatch() })
+    if (refusal && this.runs.repeatSkip(automation.id, refusal, scheduledFor)) {
+      this.store.advanceAutomationNextRun(automation.id, now)
+      return
+    }
+
+    await this.requestDispatch(automation, this.runs.createRun(automation, scheduledFor), target)
     this.store.advanceAutomationNextRun(automation.id, now)
+  }
+
+  private resolveTarget(automation: Automation): AutomationRunTargetResult {
+    return resolveAutomationRunTarget(this.store, automation, {
+      allowRemoteHostScheduling: this.allowRemoteHostScheduling
+    })
+  }
+
+  private canDispatchToRenderer(): boolean {
+    const webContents = this.webContents
+    return Boolean(webContents && !webContents.isDestroyed() && this.rendererReady)
+  }
+
+  /** Headless serve counts: it launches runs with no window at all. */
+  private canDispatch(): boolean {
+    return this.canDispatchToRenderer() || Boolean(this.headlessDispatcher)
   }
 
   private async requestDispatch(
     automation: Automation,
-    run: AutomationRun
+    run: AutomationRun,
+    target: AutomationRunTargetResult
   ): Promise<AutomationRun> {
-    // Before target resolution, not after: a refused run must leave no trace of having
-    // looked at the workspace, and both the tick and the headless dispatcher land here.
-    const policyRefusal = unattendedAgentRunRefusal(run.trigger)
-    if (policyRefusal) {
-      return this.store.updateAutomationRun({
-        runId: run.id,
-        status: 'skipped_policy',
-        workspaceId: automation.workspaceId,
-        error: policyRefusal
-      })
+    // First in the one chokepoint both the tick and runNow reach, so a refused run is
+    // decided before any dispatcher is consulted.
+    const policySkip = unattendedAgentRunSkip(run.trigger, run, automation)
+    if (policySkip) {
+      return this.runs.updateRun(policySkip)
     }
-    const target = resolveAutomationRunTarget(this.store, automation, {
-      allowRemoteHostScheduling: this.allowRemoteHostScheduling
-    })
     if (!target.ok) {
-      return this.store.updateAutomationRun({
+      return this.runs.updateRun({
         runId: run.id,
         status: 'skipped_unavailable',
         workspaceId: automation.workspaceId,
         error: target.error
       })
     }
-    const webContents = this.webContents
-    if (!webContents || webContents.isDestroyed() || !this.rendererReady) {
+    if (!this.canDispatchToRenderer()) {
       if (this.headlessDispatcher) {
-        return await requestHeadlessAutomationDispatch(
-          {
-            store: this.store,
-            dispatcher: this.headlessDispatcher,
-            runPrecheck: (automationId, runId) => this.runPrecheck(automationId, runId),
-            markDispatchResult: (result) => this.markDispatchResult(result)
-          },
-          { automation, run, target }
-        )
+        return await runHeadlessAutomationDispatch({
+          automation,
+          run,
+          target,
+          dispatcher: this.headlessDispatcher,
+          runs: this.runs,
+          runPrecheck: () => this.runPrecheck(automation.id, run.id),
+          markDispatchResult: (result) => this.markDispatchResult(result),
+          watchRun: (dispatched) => this.completionWatcher?.watch(dispatched)
+        })
       }
-      return this.store.updateAutomationRun({
+      return this.runs.updateRun({
         runId: run.id,
         status: 'skipped_unavailable',
         workspaceId: automation.workspaceId,
-        error: 'No Orca window was available to launch the automation.'
+        error: NO_DISPATCH_HOST
       })
     }
-    const updated = this.store.updateAutomationRun({
+    const updated = this.runs.updateRun({
       runId: run.id,
       status: 'dispatching',
       workspaceId: automation.workspaceId,
@@ -262,7 +321,7 @@ export class AutomationService {
       run: updated,
       dispatchToken: createAutomationDispatchToken(automation.id, updated.id)
     }
-    webContents.send('automations:dispatchRequested', payload)
+    this.webContents?.send('automations:dispatchRequested', payload)
     return updated
   }
 }
