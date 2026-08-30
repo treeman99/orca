@@ -46,7 +46,7 @@ describe('ensure-native-runtime', () => {
       expect(log).toContain('pnpm exec node-gyp rebuild\n')
       expect(log).toContain(join('node_modules', 'node-pty'))
       if (process.platform === 'linux') {
-        expect(log).toContain('cxxflags=-std=gnu++2a\n')
+        expect(log).toMatch(/^cxxflags=(?:.*\s)?-std=gnu\+\+2a$/m)
       }
       expect(log.split('\n').filter((line) => line.startsWith('node-pty child '))).toEqual([
         expect.stringMatching(/^node-pty child (?:conpty|pty) marker=false$/),

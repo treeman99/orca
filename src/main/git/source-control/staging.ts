@@ -2,7 +2,7 @@ import type { GitRuntimeOptions } from '../git-runtime-options'
 import { gitOptionsForWorktree } from '../git-runtime-options'
 import { gitExecFileAsync } from '../runner'
 import { invalidateGitReadCaches } from './git-read-cache-invalidation'
-import { BULK_CHUNK_SIZE, literalPathspec } from './git-pathspec'
+import { bulkPathspecCommands, literalPathspec } from './git-pathspec'
 import { isUnbornHeadGitError } from '../../../shared/git-unborn-head-error'
 
 /**
@@ -79,12 +79,8 @@ export async function bulkStageFiles(
     return
   }
   try {
-    for (let i = 0; i < filePaths.length; i += BULK_CHUNK_SIZE) {
-      const chunk = filePaths.slice(i, i + BULK_CHUNK_SIZE)
-      await gitExecFileAsync(
-        ['add', '--', ...chunk.map((filePath) => literalPathspec(filePath, options))],
-        gitOptionsForWorktree(worktreePath, options)
-      )
+    for (const args of bulkPathspecCommands(['add', '--'], filePaths, worktreePath, options)) {
+      await gitExecFileAsync(args, gitOptionsForWorktree(worktreePath, options))
     }
   } finally {
     invalidateGitReadCaches()
@@ -104,13 +100,15 @@ export async function bulkUnstageFiles(
     return
   }
   try {
-    for (let i = 0; i < filePaths.length; i += BULK_CHUNK_SIZE) {
-      const chunk = filePaths.slice(i, i + BULK_CHUNK_SIZE)
-      await unstagePathspecs(
-        worktreePath,
-        chunk.map((filePath) => literalPathspec(filePath, options)),
-        options
-      )
+    const commands = bulkPathspecCommands(
+      ['restore', '--staged', '--'],
+      filePaths,
+      worktreePath,
+      options
+    )
+    for (const args of commands) {
+      // Take upstream's byte-budget chunking, but keep every chunk on the unborn-HEAD fallback.
+      await unstagePathspecs(worktreePath, args.slice(3), options)
     }
   } finally {
     invalidateGitReadCaches()

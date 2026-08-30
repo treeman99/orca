@@ -56,6 +56,8 @@ type NavigationHandlers = {
 function installFakeWebContents(): NavigationHandlers {
   const handlers = {} as NavigationHandlers
   installPrivilegedWindowNavigationPolicy({
+    // v1.4.192 consults the current document to let a same-origin reload through.
+    getURL: () => 'file:///app/index.html',
     setWindowOpenHandler: (fn: NavigationHandlers['windowOpen']) => {
       handlers.windowOpen = fn
     },

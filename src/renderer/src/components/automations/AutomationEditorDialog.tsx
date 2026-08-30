@@ -73,8 +73,10 @@ type AutomationEditorDialogProps = {
   worktrees: Worktree[]
   settings: GlobalSettings | null
   draft: AutomationDraft
-  /** Present only while creating an Orca automation; editing keeps the record's captured owner. */
+  /** Present only while creating an Orca automation. */
   createDestination?: AutomationCreateDestinationControl
+  /** Present only while editing an Orca automation; selecting another host moves the record. */
+  editDestination?: AutomationCreateDestinationControl
   /** Why a save was refused. Belongs here rather than on the page: this dialog covers it. */
   notice?: AutomationActionNotice | null
   onNoticeRecover?: (action: AutomationHostRecoveryAction) => void
@@ -106,6 +108,7 @@ export function AutomationEditorDialog({
   settings,
   draft,
   createDestination,
+  editDestination,
   notice,
   onNoticeRecover,
   onNoticeDismiss,
@@ -134,6 +137,7 @@ export function AutomationEditorDialog({
   const isCreateMode = !isEditing && !isEditingExternal
   const isHermesCreate = isCreateMode && isHermesTarget
   const catalog = useAgentCatalog()
+  const destination = isCreateMode ? createDestination : editDestination
   const visibleAgents = React.useMemo(() => {
     const enabledIds = new Set(
       filterEnabledTuiAgents(
@@ -200,8 +204,7 @@ export function AutomationEditorDialog({
             onDismiss={() => onOpenChange(false)}
           />
           <AutomationEditorSettingsSidebar
-            isCreateMode={isCreateMode}
-            createDestination={createDestination}
+            destination={destination}
             isHermesTarget={isHermesTarget}
             isHermesCreate={isHermesCreate}
             repos={repos}

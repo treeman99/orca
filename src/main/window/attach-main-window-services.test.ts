@@ -17,6 +17,8 @@ const {
   registerWorktreeHandlersMock,
   registerPtyHandlersMock,
   hydrateLocalPtyRegistryAtBootMock,
+  setWorktreeBaseDirectoryWatcherSyncContextMock,
+  scheduleWorktreeBaseDirectoryWatcherSyncMock,
   browserManagerUnregisterAllMock,
   runWorktreeChangeInvalidatorsMock,
   acknowledgePendingTccPromptNoticeMock,
@@ -39,6 +41,8 @@ const {
   registerWorktreeHandlersMock: vi.fn(),
   registerPtyHandlersMock: vi.fn(),
   hydrateLocalPtyRegistryAtBootMock: vi.fn(),
+  setWorktreeBaseDirectoryWatcherSyncContextMock: vi.fn(),
+  scheduleWorktreeBaseDirectoryWatcherSyncMock: vi.fn(),
   browserManagerUnregisterAllMock: vi.fn(),
   runWorktreeChangeInvalidatorsMock: vi.fn(),
   acknowledgePendingTccPromptNoticeMock: vi.fn(),
@@ -94,6 +98,11 @@ vi.mock('../ipc/pty', () => ({
 
 vi.mock('../memory/hydrate-local-pty-registry', () => ({
   hydrateLocalPtyRegistryAtBoot: hydrateLocalPtyRegistryAtBootMock
+}))
+
+vi.mock('../ipc/worktree-base-directory-watcher', () => ({
+  setWorktreeBaseDirectoryWatcherSyncContext: setWorktreeBaseDirectoryWatcherSyncContextMock,
+  scheduleWorktreeBaseDirectoryWatcherSync: scheduleWorktreeBaseDirectoryWatcherSyncMock
 }))
 
 vi.mock('../browser/browser-manager', () => ({
@@ -200,26 +209,7 @@ function getClosedHandlers(mainWindowOnMock: MockFn): (() => void)[] {
 
 describe('attachMainWindowServices', () => {
   beforeEach(() => {
-    onMock.mockReset()
-    removeAllListenersMock.mockReset()
-    removeListenerMock.mockReset()
-    handleMock.mockReset()
-    removeHandlerMock.mockReset()
-    setPermissionRequestHandlerMock.mockReset()
-    setPermissionCheckHandlerMock.mockReset()
-    systemPreferencesAskForMediaAccessMock.mockReset()
-    systemPreferencesGetMediaAccessStatusMock.mockReset()
-    registerRepoHandlersMock.mockReset()
-    setRepoRemoteClientNotifierMock.mockReset()
-    setWorktreeCatalogRemoteClientNotifierMock.mockReset()
-    registerWorktreeHandlersMock.mockReset()
-    registerPtyHandlersMock.mockReset()
-    hydrateLocalPtyRegistryAtBootMock.mockReset()
-    browserManagerUnregisterAllMock.mockReset()
-    acknowledgePendingTccPromptNoticeMock.mockReset()
-    consumePendingTccPromptNoticeMock.mockReset()
-    dismissTccPromptNoticeMock.mockReset()
-    releasePendingTccPromptNoticeMock.mockReset()
+    vi.resetAllMocks()
     systemPreferencesAskForMediaAccessMock.mockResolvedValue(true)
     systemPreferencesGetMediaAccessStatusMock.mockReturnValue('granted')
   })
@@ -881,5 +871,22 @@ describe('attachMainWindowServices', () => {
       title: undefined,
       identity
     })
+  })
+
+  it('keeps deferred worktree watcher setup inside the service boundary', async () => {
+    const mainWindow = createMainWindow()
+    const store = createStore()
+
+    vi.useFakeTimers()
+    try {
+      attachMainWindowServices(mainWindow as never, store, createRuntime() as never)
+
+      expect(setWorktreeBaseDirectoryWatcherSyncContextMock).toHaveBeenCalledWith(store, mainWindow)
+      expect(scheduleWorktreeBaseDirectoryWatcherSyncMock).toHaveBeenCalledWith(store, mainWindow)
+
+      await vi.advanceTimersByTimeAsync(100)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

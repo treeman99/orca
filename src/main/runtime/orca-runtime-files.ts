@@ -70,13 +70,12 @@ import {
   markdownDocumentsFromRelativePaths
 } from '../ipc/markdown-documents'
 import {
-  buildRgArgs,
   createAccumulator,
   DEFAULT_SEARCH_MAX_RESULTS,
   finalize,
-  ingestRgJsonLine,
   SEARCH_TIMEOUT_MS
 } from '../../shared/text-search'
+import { buildRgArgs, ingestRgJsonLine } from '../../shared/text-search-ripgrep'
 import type { Store } from '../persistence'
 import {
   getSshFilesystemProvider,

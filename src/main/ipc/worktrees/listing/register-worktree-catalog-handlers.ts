@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { isFolderRepo } from '../../../../shared/repo-kind'
+import { getRepoExecutionHostId, type ExecutionHostId } from '../../../../shared/execution-host'
 import { getSshGitProvider } from '../../../providers/ssh-git-dispatch'
 import { pruneLineageForMissingRepoWorktrees } from '../../../worktree-lineage-pruning'
 import { EMPTY_RETIRED_NAME_REGISTRY } from '../../../../shared/worktree/retired-name-registry'
@@ -21,6 +22,8 @@ import {
   warnOnce
 } from './worktree-listing-diagnostics'
 import type { WorktreeIpcContext } from '../worktree-ipc-context'
+import { readAllWorktreeMetaForHost } from '../../../persistence/host-qualified-worktree-meta'
+import type { WorktreeMeta } from '../../../../shared/worktree/meta-types'
 
 const WORKTREE_LIST_ALL_CONCURRENCY = 8
 
@@ -49,15 +52,43 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
 
   ipcMain.handle('worktrees:listAll', async () => {
     const repos = store.getRepos()
-    const sshWorktreeMetaIndex = repos.some((repo) => repo.connectionId)
-      ? createSshWorktreeMetaIndex(Object.entries(store.getAllWorktreeMeta()))
-      : new Map()
+    const legacyMetadata =
+      typeof store.getAllWorktreeMetaForHost === 'function' ? undefined : store.getAllWorktreeMeta()
+    const metadataByHost = new Map<ExecutionHostId, Record<string, WorktreeMeta>>()
+    const metadataForRepo = (repo: (typeof repos)[number]): Record<string, WorktreeMeta> => {
+      const hostId = getRepoExecutionHostId(repo)
+      const cached = metadataByHost.get(hostId)
+      if (cached) {
+        return cached
+      }
+      const metadata =
+        typeof store.getAllWorktreeMetaForHost === 'function'
+          ? store.getAllWorktreeMetaForHost(hostId)
+          : readAllWorktreeMetaForHost({ getAllWorktreeMeta: () => legacyMetadata ?? {} }, hostId)
+      metadataByHost.set(hostId, metadata)
+      return metadata
+    }
+    const sshMetaIndexByHost = new Map<
+      ExecutionHostId,
+      ReturnType<typeof createSshWorktreeMetaIndex>
+    >()
+    const sshMetaIndexForRepo = (repo: (typeof repos)[number]) => {
+      const hostId = getRepoExecutionHostId(repo)
+      const cached = sshMetaIndexByHost.get(hostId)
+      if (cached) {
+        return cached
+      }
+      const index = createSshWorktreeMetaIndex(Object.entries(metadataForRepo(repo)))
+      sshMetaIndexByHost.set(hostId, index)
+      return index
+    }
 
     // Why: each local repo listing can spawn `git worktree list`; cap fan-out so large fleets don't start unbounded subprocesses.
     const results = await mapWithConcurrency(repos, WORKTREE_LIST_ALL_CONCURRENCY, async (repo) => {
       try {
         let gitWorktrees
         let freshScan = true
+        let safeToAuthorize = true
         if (isFolderRepo(repo)) {
           return listVisibleFolderWorkspaces(store, repo)
         } else if (repo.connectionId) {
@@ -68,7 +99,7 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
               `${repo.connectionId}:${repo.id}`,
               `[worktrees] SSH git provider unavailable; skipping worktree list for repo "${repo.displayName}" (${repo.id}) at ${repo.path} on connection ${repo.connectionId}`
             )
-            return listDisconnectedSshWorktrees(store, repo, sshWorktreeMetaIndex)
+            return listDisconnectedSshWorktrees(store, repo, sshMetaIndexForRepo(repo))
           }
           loggedUnavailableSshGitProviders.delete(`${repo.connectionId}:${repo.id}`)
           try {
@@ -80,21 +111,25 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
               `[worktrees] failed to list worktrees for repo "${repo.displayName}" (${repo.id}) at ${repo.path}`,
               err
             )
-            return listDisconnectedSshWorktrees(store, repo, sshWorktreeMetaIndex)
+            return listDisconnectedSshWorktrees(store, repo, sshMetaIndexForRepo(repo))
           }
         } else {
           const scan = await listDetectedGitWorktrees(store, repo)
           gitWorktrees = scan.gitWorktrees
           freshScan = scan.fresh
+          safeToAuthorize = scan.safeToAuthorize
+        }
+        if (safeToAuthorize) {
+          rememberLocalWorktreeRoots(store, repo, gitWorktrees)
         }
         if (freshScan) {
-          rememberLocalWorktreeRoots(store, repo, gitWorktrees)
           pruneLineageForMissingRepoWorktrees(store, repo, gitWorktrees)
         }
         loggedWorktreeListFailures.delete(`${repo.id}:${repo.path}`)
-        return buildDetectedGitWorktrees(store, repo, gitWorktrees)
+        const metadata = metadataForRepo(repo)
+        return buildDetectedGitWorktrees(store, repo, gitWorktrees, metadata)
           .filter((worktree) => worktree.visible)
-          .map((worktree) => stampAndMergeVisibleDetectedWorktree(store, repo, worktree))
+          .map((worktree) => stampAndMergeVisibleDetectedWorktree(store, repo, worktree, metadata))
       } catch (err) {
         warnOnce(
           loggedWorktreeListFailures,
@@ -123,13 +158,17 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
     if (!repo) {
       return []
     }
+    const allMeta = repo.connectionId
+      ? readAllWorktreeMetaForHost(store, getRepoExecutionHostId(repo))
+      : undefined
     const sshWorktreeMetaIndex = repo.connectionId
-      ? createSshWorktreeMetaIndex(Object.entries(store.getAllWorktreeMeta()))
+      ? createSshWorktreeMetaIndex(Object.entries(allMeta ?? {}))
       : new Map()
 
     try {
       let gitWorktrees
       let freshScan = true
+      let safeToAuthorize = true
       if (isFolderRepo(repo)) {
         return listVisibleFolderWorkspaces(store, repo)
       } else if (repo.connectionId) {
@@ -158,15 +197,19 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
         const scan = await listDetectedGitWorktrees(store, repo)
         gitWorktrees = scan.gitWorktrees
         freshScan = scan.fresh
+        safeToAuthorize = scan.safeToAuthorize
+      }
+      if (safeToAuthorize) {
+        rememberLocalWorktreeRoots(store, repo, gitWorktrees)
       }
       if (freshScan) {
-        rememberLocalWorktreeRoots(store, repo, gitWorktrees)
         pruneLineageForMissingRepoWorktrees(store, repo, gitWorktrees)
       }
       loggedWorktreeListFailures.delete(`${repo.id}:${repo.path}`)
-      return buildDetectedGitWorktrees(store, repo, gitWorktrees)
+      const metadata = allMeta ?? readAllWorktreeMetaForHost(store, getRepoExecutionHostId(repo))
+      return buildDetectedGitWorktrees(store, repo, gitWorktrees, metadata)
         .filter((worktree) => worktree.visible)
-        .map((worktree) => stampAndMergeVisibleDetectedWorktree(store, repo, worktree))
+        .map((worktree) => stampAndMergeVisibleDetectedWorktree(store, repo, worktree, metadata))
     } catch (err) {
       warnOnce(
         loggedWorktreeListFailures,

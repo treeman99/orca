@@ -32,13 +32,12 @@ import type { SshMutationExpectation } from '../../shared/ssh-types'
 import { sortDirEntries } from '../../shared/file-name-sort'
 import { assertSshMutationExpectation } from '../ssh/ssh-connection-generation'
 import {
-  buildRgArgs,
   createAccumulator,
   DEFAULT_SEARCH_MAX_RESULTS,
   finalize,
-  ingestRgJsonLine,
   SEARCH_TIMEOUT_MS
 } from '../../shared/text-search'
+import { buildRgArgs, ingestRgJsonLine } from '../../shared/text-search-ripgrep'
 import {
   getStatus,
   getSubmoduleStatus,

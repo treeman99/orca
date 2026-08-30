@@ -1,7 +1,7 @@
 import { shell, type WebContents } from 'electron'
-import { is } from '@electron-toolkit/utils'
 import { normalizeExternalBrowserUrl } from '../../shared/browser-url'
 import { isEnterpriseBlockedVendorLink } from '../enterprise/enterprise-vendor-link-guard'
+import { isRendererDocumentNavigation } from './renderer-document-navigation'
 
 // The other half of the `disableVendorLinks` chokepoint: a plain `<a href>` in the
 // renderer (the terminal error toast's "file an issue") never reaches shell:openUrl.
@@ -24,19 +24,14 @@ export function installPrivilegedWindowNavigationPolicy(contents: WebContents): 
   })
 
   contents.on('will-navigate', (event, url) => {
+    // Why: location.reload() is a renderer-initiated navigation, so blocking it here
+    // silently kills the lazy-chunk recovery reload with no unload-prevented signal.
+    // Supersedes the fork's old dev-origin allowance — same-origin only, dev and prod alike.
+    if (isRendererDocumentNavigation(contents.getURL(), url)) {
+      return
+    }
     const externalUrl = normalizeExternalBrowserUrl(url)
     if (externalUrl) {
-      if (is.dev && process.env.ELECTRON_RENDERER_URL) {
-        try {
-          const target = new URL(externalUrl)
-          const allowed = new URL(process.env.ELECTRON_RENDERER_URL)
-          if (target.origin === allowed.origin) {
-            return
-          }
-        } catch {
-          // Fall through and block malformed navigation targets.
-        }
-      }
       openExternalUnlessBlockedByPolicy(externalUrl)
     }
     event.preventDefault()

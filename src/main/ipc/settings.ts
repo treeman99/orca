@@ -214,6 +214,7 @@ export function registerSettingsHandlers(
           result.agentStatusHooksEnabled,
           result,
           {
+            userInitiated: true,
             shouldHydrateShellPath: app.isPackaged,
             onInstallError: recordManagedHookInstallFailure,
             shouldContinue: (agent) => {

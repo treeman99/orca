@@ -153,7 +153,8 @@ describe('submodule diff routing', () => {
 
     expect(gitExecFileAsyncBufferMock).toHaveBeenCalledWith(['show', ':lib/main.dart'], {
       cwd: SUBMODULE,
-      maxBuffer: 10 * 1024 * 1024
+      maxBuffer: 10 * 1024 * 1024,
+      preferWslDirectGit: true
     })
     expect(readFileMock).toHaveBeenCalledWith(path.join(SUBMODULE, 'lib/main.dart'))
     expect(result.kind).toBe('text')

@@ -16,7 +16,6 @@ const { materializeRelocatedDaemonHostMock } = vi.hoisted(() => ({
   materializeRelocatedDaemonHostMock: vi.fn<() => { execPath: string; entryPath: string } | null>()
 }))
 
-vi.mock('electron', () => moduleFactories.electron())
 vi.mock('fs', () => moduleFactories.fs())
 vi.mock('child_process', async (importOriginal) =>
   moduleFactories.childProcess(await importOriginal<Record<string, unknown>>())

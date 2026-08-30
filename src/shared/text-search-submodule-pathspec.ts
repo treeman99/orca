@@ -8,7 +8,7 @@
  * glob that has no exact submodule-relative equivalent makes the caller skip
  * that submodule and say so — a wrong result set is worse than a missing one.
  */
-import { splitSearchGlobPatterns } from './text-search'
+import { splitSearchGlobPatterns } from './text-search-glob-patterns'
 
 /** Result of translating one glob into a submodule's coordinates. */
 type TranslatedGlob =

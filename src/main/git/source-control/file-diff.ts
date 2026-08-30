@@ -3,7 +3,8 @@ import type { GitDiffResult } from '../../../shared/git-diff-compare-types'
 import { stableInFlightKey } from '../../../shared/in-flight-promise-dedupe'
 import type { GitRuntimeOptions } from '../git-runtime-options'
 import { gitRuntimeOptionsKey } from './git-runtime-options-cache-key'
-import { gitDiffReadDedupe } from './git-read-cache-invalidation'
+import { gitDiffReadDedupe, settledDiffCache } from './git-read-cache-invalidation'
+import { readWorktreeDiffStamp } from './worktree-diff-stamp'
 import { buildDiffResult } from './diff-result'
 import {
   readGitBlobAtIndexPath,
@@ -28,19 +29,66 @@ export async function getDiff(
   compareAgainstHead = false,
   options: GitRuntimeOptions = {}
 ): Promise<GitDiffResult> {
-  // Why: register the dedupe synchronously (before any await) so concurrent identical reads coalesce.
-  return gitDiffReadDedupe.run(
-    stableInFlightKey([
-      'diff',
+  const readKey = stableInFlightKey([
+    'diff',
+    worktreePath,
+    filePath,
+    staged,
+    compareAgainstHead,
+    ...gitRuntimeOptionsKey(options)
+  ])
+  // Why: register the dedupe synchronously (before any await) so concurrent identical reads
+  // coalesce — including on the settled-cache lookup, which is itself I/O.
+  return gitDiffReadDedupe.run(readKey, () =>
+    loadDiffThroughSettledCache(
+      readKey,
       worktreePath,
       filePath,
       staged,
       compareAgainstHead,
-      ...gitRuntimeOptionsKey(options)
-    ]),
-    () => loadDiff(worktreePath, filePath, staged, compareAgainstHead, options)
+      options
+    )
   )
 }
+
+/**
+ * Serve a settled diff when the git state it was built from is provably
+ * unchanged, otherwise read and — only if the read proved everything it touched
+ * — record it under the stamp taken *before* the read.
+ *
+ * Stamping first is what makes staleness impossible: anything that moves during
+ * or after the read leaves the stored stamp behind, so the next lookup misses.
+ */
+async function loadDiffThroughSettledCache(
+  readKey: string,
+  worktreePath: string,
+  filePath: string,
+  staged: boolean,
+  compareAgainstHead: boolean,
+  options: GitRuntimeOptions
+): Promise<GitDiffResult> {
+  // Why before the stamp read: the stamp is itself several awaited stats, and a mutation that
+  // lands entirely inside that window would otherwise leave the fence covering only the git read.
+  const readGeneration = settledDiffCache.beginRead()
+  // A staged diff compares HEAD to the index, so the working tree is not one of its inputs.
+  const stamp = await readWorktreeDiffStamp(worktreePath, filePath, !staged)
+  const cached = settledDiffCache.get(readKey, stamp)
+  if (cached) {
+    return cached
+  }
+  const loaded = await loadDiff(worktreePath, filePath, staged, compareAgainstHead, options)
+  if (loaded.reusable) {
+    settledDiffCache.set(readKey, stamp, loaded.result, readGeneration)
+  }
+  return loaded.result
+}
+
+/**
+ * `reusable` is false when the result cannot be proven to describe the stamped
+ * state: a submodule route, whose inputs live in another repo and are stamped by
+ * that repo's own read, or a blob read that failed rather than proving absence.
+ */
+type LoadedDiff = { result: GitDiffResult; reusable: boolean }
 
 async function loadDiff(
   worktreePath: string,
@@ -48,7 +96,7 @@ async function loadDiff(
   staged: boolean,
   compareAgainstHead: boolean,
   options: GitRuntimeOptions
-): Promise<GitDiffResult> {
+): Promise<LoadedDiff> {
   // Why: gitlink paths can't be read as blobs, so route submodule diffs explicitly (root → pointer, inner → recurse).
   const submodulePaths = await listSubmodulePaths(worktreePath, options)
   if (submodulePaths.length > 0) {
@@ -58,13 +106,15 @@ async function loadDiff(
       const submoduleWorktreePath = resolveSubmoduleWorktreePath(worktreePath, matchedSubmodule)
       const normalizedFilePath = filePath.replace(/\\/g, '/').replace(/\/+$/, '')
       if (normalizedFilePath === matchedSubmodule) {
-        return buildSubmodulePointerDiff(
-          worktreePath,
-          matchedSubmodule,
-          staged,
-          compareAgainstHead,
-          options,
-          submoduleWorktreePath
+        return notReusable(
+          await buildSubmodulePointerDiff(
+            worktreePath,
+            matchedSubmodule,
+            staged,
+            compareAgainstHead,
+            options,
+            submoduleWorktreePath
+          )
         )
       }
       const innerPath = normalizedFilePath.slice(matchedSubmodule.length + 1)
@@ -72,7 +122,10 @@ async function loadDiff(
       // `git status`, so its diff is the submodule's own working-tree diff. Preferring the
       // parent's recorded-gitlink→HEAD range here is what made a list of the user's edits
       // open someone else's committed change.
-      return getDiff(submoduleWorktreePath, innerPath, staged, compareAgainstHead, options)
+      // The inner read stamps and caches against the submodule's own repo state.
+      return notReusable(
+        await getDiff(submoduleWorktreePath, innerPath, staged, compareAgainstHead, options)
+      )
     }
   }
 
@@ -81,6 +134,7 @@ async function loadDiff(
   let originalIsBinary = false
   let modifiedIsBinary = false
   let modifiedDeleted = false
+  let readFailed = false
 
   try {
     if (staged) {
@@ -95,6 +149,7 @@ async function loadDiff(
       modifiedContent = rightBlob.content
       modifiedIsBinary = rightBlob.isBinary
       modifiedDeleted = !rightBlob.exists
+      readFailed = leftBlob.failed === true || rightBlob.failed === true
     } else {
       // The left chain (index→HEAD) is sequential within itself, but the working
       // tree read is a plain fs read that does not depend on it.
@@ -109,9 +164,11 @@ async function loadDiff(
       modifiedContent = workingTreeBlob.content
       modifiedIsBinary = workingTreeBlob.isBinary
       modifiedDeleted = !workingTreeBlob.exists
+      readFailed = leftBlob.failed === true || workingTreeBlob.failed === true
     }
   } catch {
     // Fallback
+    readFailed = true
   }
 
   const result = buildDiffResult(
@@ -123,7 +180,11 @@ async function loadDiff(
   )
   // Why: mark a proven deletion so previewers don't mistake a read failure's empty side for one.
   if (result.kind === 'binary' && modifiedDeleted) {
-    return { ...result, modifiedDeleted: true }
+    return { result: { ...result, modifiedDeleted: true }, reusable: !readFailed }
   }
-  return result
+  return { result, reusable: !readFailed }
+}
+
+function notReusable(result: GitDiffResult): LoadedDiff {
+  return { result, reusable: false }
 }
