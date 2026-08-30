@@ -32,6 +32,7 @@ import {
 } from 'node:fs'
 import { platform as osPlatform } from 'node:os'
 import { join, resolve } from 'node:path'
+import { ensureWindowsProcessTreeBuildSource } from './ensure-windows-process-tree-source.mjs'
 
 const projectDir = process.cwd()
 let cliOptions
@@ -130,6 +131,12 @@ if (!ignoreModules.includes('cpu-features')) {
       process.exit(1)
     }
   }
+}
+
+// The patched binding.gyp includes headers from deps/node-addon-api, and only
+// this staging step creates that directory -- node-gyp otherwise dies on napi.h.
+if (rebuildPlatform === 'win32' && modulesToRebuild.includes('@vscode/windows-process-tree')) {
+  ensureWindowsProcessTreeBuildSource(projectDir)
 }
 
 try {

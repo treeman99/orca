@@ -26,15 +26,17 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
-  readSync,
-  writeFileSync
+  readSync
 } from 'node:fs'
-import { createRequire } from 'node:module'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { RELAY_WINDOWS_PROCESS_TREE_FILENAME } from '../../src/shared/relay-artifacts.ts'
+import {
+  ensureWindowsProcessTreeBuildSource,
+  windowsProcessTreePackageDir
+} from './ensure-windows-process-tree-source.mjs'
 
 const ROOT = resolve(import.meta.dirname, '..', '..')
-const PACKAGE_DIR = join(ROOT, 'node_modules', '@vscode', 'windows-process-tree')
+const PACKAGE_DIR = windowsProcessTreePackageDir(ROOT)
 const SUPPORTED_ARCHES = ['x64', 'arm64']
 
 /** PE `IMAGE_FILE_HEADER.Machine` values, so a cross-build cannot silently emit host arch. */
@@ -88,58 +90,6 @@ function assertPatchApplied() {
   }
 }
 
-// pnpm can materialize this CRLF package without applying its patch. Repair the
-// load-bearing build settings before node-gyp so the release build stays safe.
-function applyWindowsProcessTreeBuildFixes() {
-  const bindingPath = join(PACKAGE_DIR, 'binding.gyp')
-  const processPath = join(PACKAGE_DIR, 'src', 'process.cc')
-  const nodeAddonApiDir = dirname(
-    createRequire(join(PACKAGE_DIR, 'package.json')).resolve('node-addon-api/package.json')
-  )
-  const stagedHeaderDir = join(PACKAGE_DIR, 'deps', 'node-addon-api')
-  let bindingGyp = readFileSync(bindingPath, 'utf8')
-  let processCc = readFileSync(processPath, 'utf8')
-  const originalBinding = bindingGyp
-  const originalProcess = processCc
-
-  for (const dynamicDependency of [
-    String.raw`<!(node -p \"require('node-addon-api').targets\"):node_addon_api_except`,
-    String.raw`<!(node -p \"require.resolve('node-addon-api/node_addon_api.gyp')\"):node_addon_api_except`,
-    '../../node-addon-api/node_addon_api.gyp:node_addon_api_except'
-  ]) {
-    bindingGyp = bindingGyp.replace(`"${dynamicDependency}",`, '')
-  }
-  bindingGyp = bindingGyp.replace(
-    '"include_dirs": []',
-    '"include_dirs": ["deps/node-addon-api"],\n          "defines": ["NAPI_CPP_EXCEPTIONS", "_HAS_EXCEPTIONS=1"]'
-  )
-  if (!bindingGyp.includes('"ExceptionHandling": 1')) {
-    bindingGyp = bindingGyp.replace(
-      '"VCCLCompilerTool": {',
-      '"VCCLCompilerTool": {\n              "ExceptionHandling": 1,'
-    )
-  }
-  bindingGyp = bindingGyp.replace(
-    /\r?\n\s*"msvs_configuration_attributes": \{\s*"SpectreMitigation": "Spectre"\s*\},?/s,
-    ''
-  )
-  processCc = processCc.replace(/process_count < 1024 && /, '')
-
-  if (bindingGyp !== originalBinding) {
-    writeFileSync(bindingPath, bindingGyp)
-  }
-  if (processCc !== originalProcess) {
-    writeFileSync(processPath, processCc)
-  }
-  mkdirSync(stagedHeaderDir, { recursive: true })
-  for (const header of ['napi.h', 'napi-inl.h', 'napi-inl.deprecated.h']) {
-    copyFileSync(join(nodeAddonApiDir, header), join(stagedHeaderDir, header))
-  }
-  if (bindingGyp !== originalBinding || processCc !== originalProcess) {
-    console.warn('[windows-process-tree] Repaired un-applied pnpm patch hunks before build.')
-  }
-}
-
 /** Read the PE machine field, so an arm64 request cannot ship an x64 binary. */
 function readPeMachine(binaryPath) {
   const fd = openSync(binaryPath, 'r')
@@ -166,7 +116,7 @@ function main() {
   if (!existsSync(PACKAGE_DIR)) {
     throw new Error(`${PACKAGE_DIR} is missing. Run pnpm install first.`)
   }
-  applyWindowsProcessTreeBuildFixes()
+  ensureWindowsProcessTreeBuildSource(ROOT)
   assertPatchApplied()
 
   console.log(`[windows-process-tree] building ${arch} from ${PACKAGE_DIR}`)

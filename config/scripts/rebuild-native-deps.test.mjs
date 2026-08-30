@@ -24,6 +24,9 @@ const sourceMoveModulePath = fileURLToPath(
 const sourceNodePtyJobOwnershipPath = fileURLToPath(
   new URL('./node-pty-job-ownership.cjs', import.meta.url)
 )
+const sourceEnsureWindowsProcessTreePath = fileURLToPath(
+  new URL('./ensure-windows-process-tree-source.mjs', import.meta.url)
+)
 
 describe('rebuild-native-deps Electron install fallback', () => {
   it('continues non-strict postinstall when Electron retry download fails', () => {
@@ -350,6 +353,10 @@ function mkTempProject() {
   copyFileSync(
     sourceNodePtyJobOwnershipPath,
     join(projectDir, 'config', 'scripts', 'node-pty-job-ownership.cjs')
+  )
+  copyFileSync(
+    sourceEnsureWindowsProcessTreePath,
+    join(projectDir, 'config', 'scripts', 'ensure-windows-process-tree-source.mjs')
   )
   return projectDir
 }
