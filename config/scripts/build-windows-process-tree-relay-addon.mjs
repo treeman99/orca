@@ -94,7 +94,7 @@ function applyWindowsProcessTreeBuildFixes() {
   const bindingPath = join(PACKAGE_DIR, 'binding.gyp')
   const processPath = join(PACKAGE_DIR, 'src', 'process.cc')
   const nodeAddonApiDir = dirname(
-    createRequire(import.meta.url).resolve('node-addon-api/package.json')
+    createRequire(join(PACKAGE_DIR, 'package.json')).resolve('node-addon-api/package.json')
   )
   const stagedHeaderDir = join(PACKAGE_DIR, 'deps', 'node-addon-api')
   let bindingGyp = readFileSync(bindingPath, 'utf8')

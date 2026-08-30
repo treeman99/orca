@@ -1058,6 +1058,8 @@ const api = {
       telemetry?: { agent_kind: AgentKind; launch_source: LaunchSource; request_kind: RequestKind }
     }): Promise<{
       id: string
+      /** Which lifetime of `id` this reply named; absent when the execution host predates the field. */
+      incarnationId?: string
       launchConfig?: SleepingAgentLaunchConfig
       snapshot?: string
       snapshotCols?: number
@@ -1066,6 +1068,7 @@ const api = {
       snapshotFrameAnsi?: string
       snapshotFrameRestoreAnsi?: string
       snapshotKittyKeyboardFlags?: number
+      snapshotTerminalOwner?: 'shell'
       snapshotSeq?: number
       isReattach?: boolean
       isAlternateScreen?: boolean
@@ -1188,6 +1191,7 @@ const api = {
       scrollbackAnsi?: string
       pendingEscapeTailAnsi?: string
       kittyKeyboardFlags?: number
+      terminalOwner?: 'shell'
     } | null> => ipcRenderer.invoke('pty:getMainBufferSnapshot', { id, opts }),
 
     getRendererDeliveryDebugSnapshot: (): Promise<{
@@ -1302,10 +1306,23 @@ const api = {
       ipcRenderer.invoke('pty:sideEffectSnapshot', { id }),
 
     onExit: (
-      callback: (data: { id: string; code: number; preserveRendererBinding?: boolean }) => void
+      callback: (data: {
+        id: string
+        code: number
+        preserveRendererBinding?: boolean
+        /** Which lifetime of `id` died; absent when the execution host predates the field. */
+        incarnationId?: string
+      }) => void
     ): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, data: { id: string; code: number }) =>
-        callback(data)
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        data: {
+          id: string
+          code: number
+          preserveRendererBinding?: boolean
+          incarnationId?: string
+        }
+      ) => callback(data)
       ipcRenderer.on('pty:exit', listener)
       return () => ipcRenderer.removeListener('pty:exit', listener)
     },

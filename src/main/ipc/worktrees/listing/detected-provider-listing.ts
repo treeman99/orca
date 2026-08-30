@@ -24,6 +24,8 @@ import {
   rememberLocalWorktreeRoots
 } from './detected-worktree-scan-cache'
 import { loggedWorktreeListFailures, warnOnce } from './worktree-listing-diagnostics'
+import { readAllWorktreeMetaForHost } from '../../../persistence/host-qualified-worktree-meta'
+import { getRepoExecutionHostId } from '../../../../shared/execution-host'
 
 export async function listDetectedWorktreesForCapturedRepo(
   store: Store,
@@ -36,13 +38,17 @@ export async function listDetectedWorktreesForCapturedRepo(
     providerAbort?.signal.aborted
       ? ({ providerAbortStatus: providerAbort.status() } as const)
       : undefined
+  const allMeta = isFolderRepo(repo)
+    ? undefined
+    : readAllWorktreeMetaForHost(store, getRepoExecutionHostId(repo))
   const sshWorktreeMetaIndex = repo.connectionId
-    ? createSshWorktreeMetaIndex(Object.entries(store.getAllWorktreeMeta()))
+    ? createSshWorktreeMetaIndex(Object.entries(allMeta ?? {}))
     : new Map()
 
   try {
     let gitWorktrees: GitWorktreeInfo[]
     let freshScan = true
+    let safeToAuthorize = true
     if (isFolderRepo(repo)) {
       if (!isCurrent()) {
         return null
@@ -92,6 +98,7 @@ export async function listDetectedWorktreesForCapturedRepo(
       const scan = await listDetectedGitWorktrees(store, repo)
       gitWorktrees = scan.gitWorktrees
       freshScan = scan.fresh
+      safeToAuthorize = scan.safeToAuthorize
     }
     const aborted = abortedResult()
     if (aborted) {
@@ -109,8 +116,10 @@ export async function listDetectedWorktreesForCapturedRepo(
         worktrees: []
       }
     }
-    if (freshScan) {
+    if (safeToAuthorize) {
       rememberLocalWorktreeRoots(store, repo, gitWorktrees)
+    }
+    if (freshScan) {
       pruneLineageForMissingRepoWorktrees(store, repo, gitWorktrees)
     }
     loggedWorktreeListFailures.delete(`${repo.id}:${repo.path}`)
@@ -118,7 +127,7 @@ export async function listDetectedWorktreesForCapturedRepo(
       repoId: repo.id,
       authoritative: true,
       source: 'git',
-      worktrees: buildDetectedGitWorktrees(store, repo, gitWorktrees)
+      worktrees: buildDetectedGitWorktrees(store, repo, gitWorktrees, allMeta)
     }
   } catch (err) {
     const aborted = abortedResult()
