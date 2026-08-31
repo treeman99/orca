@@ -44,7 +44,9 @@ export type GhApiReader = (path: string, host: string) => Promise<unknown>
  * it. `policyHost` already folds in `GH_HOST` and gh's own `hosts.yml`.
  *
  * Vendor SaaS is refused outright rather than queried — this fork must not add a
- * github.com call, and `github.com/daegun-kim/Orca_ds` is somebody else's repository.
+ * github.com call, and the release coordinate is corporate-only anyway: builds are
+ * published to the GHES host, not to the public repository the source is pushed to,
+ * so the same OWNER/REPO on github.com would not be this build's releases.
  */
 export function resolveEnterpriseReleaseHost(): string | null {
   const policy = getEnterprisePolicy()
