@@ -19,6 +19,11 @@ export type WorkerEffect = {
   terminalId?: string
   surface?: 'visible' | 'background'
   warning?: string
+  /** Coordinator tab the renderer may anchor a worker column to. */
+  paneAnchorTabId?: string
+  /** Why no worker column was requested. Without this a worker that lands as a tab
+   *  in the coordinator's group looks identical to the auto-split preference being off. */
+  paneAnchorSkipped?: 'coordinator-pane-unresolved' | 'worker-worktree-differs' | 'new-worktree'
 }
 
 export type WorkerSetupReceipt = {
@@ -62,6 +67,8 @@ export async function createExistingWorktreeWorkerTerminal(args: {
   effects: WorkerEffect[]
   /** Coordinator tab the renderer may anchor a worker column to. Same-worktree dispatches only. */
   coordinatorTabId?: string
+  /** Set when no anchor is passed, so the omission is visible in the dispatch effects. */
+  paneAnchorSkipped?: WorkerEffect['paneAnchorSkipped']
 }): Promise<{ handle: string; warning?: string }> {
   const terminal = await args.runtime.createTerminal(`id:${args.worktreeId}`, {
     // Why: the agent id is not a shell command — `cursor` resolves to the Cursor
@@ -88,7 +95,12 @@ export async function createExistingWorktreeWorkerTerminal(args: {
     action: 'created',
     id: terminal.handle,
     surface: terminal.surface,
-    warning: terminal.warning
+    warning: terminal.warning,
+    ...(args.coordinatorTabId
+      ? { paneAnchorTabId: args.coordinatorTabId }
+      : args.paneAnchorSkipped
+        ? { paneAnchorSkipped: args.paneAnchorSkipped }
+        : {})
   })
   return { handle: terminal.handle, warning: terminal.warning }
 }
@@ -201,7 +213,8 @@ export async function createWorkerWorktree(args: {
       action: terminal.handle === terminalHandle ? 'reused_agent_terminal' : 'created',
       id: terminal.handle,
       tabId: terminal.tabId,
-      leafId: terminal.leafId
+      leafId: terminal.leafId,
+      ...(terminal.handle === terminalHandle ? { paneAnchorSkipped: 'new-worktree' as const } : {})
     })
   }
   const setupTerminal = effects.find(

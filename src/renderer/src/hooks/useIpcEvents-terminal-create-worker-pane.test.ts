@@ -62,6 +62,35 @@ describe('useIpcEvents orchestration worker pane placement', () => {
     )
   })
 
+  it('keeps the claimed worker group when the payload carries no ptyId', async () => {
+    _resetOrchestrationWorkerPaneColumnForTests()
+    const scenario = await setupTerminalCreateSurfacing(() => false)
+    const { createTab, createEmptySplitGroup, storeState, createTerminalListenerRef } = scenario
+    if (!createTerminalListenerRef.current) {
+      throw new Error('Expected create-terminal listener to be registered')
+    }
+    storeState.groupsByWorktree['wt-1'] = [{ id: 'g-coord', tabOrder: [COORDINATOR_TAB_ID] }]
+    storeState.unifiedTabsByWorktree['wt-1'] = [
+      {
+        id: COORDINATOR_TAB_ID,
+        entityId: COORDINATOR_TAB_ID,
+        groupId: 'g-coord',
+        contentType: 'terminal'
+      }
+    ]
+    storeState.settings.autoSplitOrchestrationWorkerPanes = true
+
+    createTerminalListenerRef.current(workerCreate({ ptyId: undefined }))
+
+    // Claiming the group already split the layout; dropping the id on this branch
+    // would strand an empty worker pane while the tab opened somewhere else.
+    expect(createEmptySplitGroup).toHaveBeenCalledWith('wt-1', 'g-coord', 'right', {
+      activate: false,
+      recordInteraction: false
+    })
+    expect(createTab).toHaveBeenCalledWith('wt-1', 'g-split-1', undefined, expect.anything())
+  })
+
   it('leaves the layout alone for terminals dispatched without a placement', async () => {
     _resetOrchestrationWorkerPaneColumnForTests()
     const scenario = await setupTerminalCreateSurfacing(() => false)

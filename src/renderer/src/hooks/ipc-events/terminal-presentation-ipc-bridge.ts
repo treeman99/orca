@@ -118,7 +118,9 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
                 })
               : store.createTab(
                   worktreeId,
-                  undefined,
+                  // Why not undefined: claiming the group already split the layout, so
+                  // dropping the id here would leave an empty worker pane behind.
+                  workerPaneGroupId,
                   undefined,
                   shouldActivate
                     ? cwd

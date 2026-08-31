@@ -144,7 +144,14 @@ describe('orchestration RPC methods', () => {
       expect(result.effects).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ kind: 'worktree', action: 'reused' }),
-          expect.objectContaining({ kind: 'terminal', role: 'agent', action: 'created' }),
+          // The anchor is echoed into the effects so a worker that opens in the wrong
+          // pane can be diagnosed from the dispatch record alone.
+          expect.objectContaining({
+            kind: 'terminal',
+            role: 'agent',
+            action: 'created',
+            paneAnchorTabId: 'tab_coord'
+          }),
           expect.objectContaining({ kind: 'dispatch_input', state: 'accepted' })
         ])
       )
@@ -163,6 +170,36 @@ describe('orchestration RPC methods', () => {
       expect(runtime.sendTerminalAgentPrompt).toHaveBeenCalledWith(
         'term_worker',
         expect.stringContaining('--dispatch-capability dcap_')
+      )
+    })
+
+    it('records why a worker column was skipped when the worker lands in another worktree', async () => {
+      setup()
+      mockCurrentWorkerStart()
+      // Tab-group layouts are per worktree, so this dispatch cannot draw a column.
+      vi.spyOn(runtime, 'showManagedTerminalWorkspace').mockResolvedValue({
+        id: 'repo::other'
+      } as never)
+      const task = db.createTask({ spec: 'dispatch into another worktree' })
+
+      const result = (await call('orchestration.workerStart', {
+        task: task.id,
+        from: 'term_coord',
+        agent: 'codex'
+      })) as { effects: { kind: string; role?: string; paneAnchorSkipped?: string }[] }
+
+      expect(result.effects).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: 'terminal',
+            role: 'agent',
+            paneAnchorSkipped: 'worker-worktree-differs'
+          })
+        ])
+      )
+      expect(runtime.createTerminal).toHaveBeenCalledWith(
+        'id:repo::other',
+        expect.not.objectContaining({ paneGroupPlacement: expect.anything() })
       )
     })
 

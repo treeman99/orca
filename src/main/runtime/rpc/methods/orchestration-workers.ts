@@ -193,9 +193,13 @@ export const ORCHESTRATION_WORKER_START_METHODS: RpcMethod[] = [
             effects,
             // Why: a worker column can only be drawn next to the coordinator when both
             // panes live in the same workspace surface — layouts are per worktree.
-            ...(resolvedWorktree!.id === coordinatorTerminal.worktreeId && coordinatorTabId
-              ? { coordinatorTabId }
-              : {})
+            // The skip reason rides along so a worker that lands as a tab in the
+            // coordinator's group can be told apart from the preference being off.
+            ...(!coordinatorTabId
+              ? { paneAnchorSkipped: 'coordinator-pane-unresolved' as const }
+              : resolvedWorktree!.id !== coordinatorTerminal.worktreeId
+                ? { paneAnchorSkipped: 'worker-worktree-differs' as const }
+                : { coordinatorTabId })
           })
           terminalHandle = terminal.handle
           terminalRevealWarning = terminal.warning
