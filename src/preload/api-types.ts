@@ -24,6 +24,7 @@ import type { CliApi } from './api/cli-install-api'
 import type { CrashReportsApi } from './api/crash-report-api'
 import type { DashboardApi, TerminalPreviewApi } from './api/dashboard-api'
 import type { TabPopoutApi } from './api/tab-popout-api'
+import type { DiagnosticLogApi } from './api/diagnostic-log-api'
 import type { DocPreviewApi } from './api/doc-preview-api'
 import type { EmulatorApi } from './api/emulator-api'
 import type { AppUpdateApi } from './api/app-update-api'
@@ -112,6 +113,7 @@ export type PreloadApi = {
   onboarding: OnboardingApi
   dashboard: DashboardApi
   tabPopout: TabPopoutApi
+  diagnosticLog: DiagnosticLogApi
   terminalPreview: TerminalPreviewApi
   macosTccPrompts: MacosTccPromptsApi
   developerPermissions: DeveloperPermissionsApi

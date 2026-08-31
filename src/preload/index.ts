@@ -295,6 +295,7 @@ import type {
   ExternalAutomationManagerResult,
   PreloadApi
 } from './api-types'
+import type { DiagnosticLogStatus } from './api/diagnostic-log-api'
 import type { AgentKind, LaunchSource, RequestKind } from '../shared/telemetry-events'
 import {
   KEYBOARD_LAYOUT_CHANGED_CHANNEL,
@@ -2503,6 +2504,12 @@ const api = {
     sleepWorkspace: (args: DashboardSleepWorkspaceArgs): Promise<void> =>
       ipcRenderer.invoke('dashboardPopout:sleepWorkspace', args)
   },
+
+  diagnosticLog: {
+    write: (topic: string, fields?: Record<string, string | number | boolean>): Promise<boolean> =>
+      ipcRenderer.invoke('diagnosticLog:write', { topic, fields: fields ?? {} }),
+    status: (): Promise<DiagnosticLogStatus | null> => ipcRenderer.invoke('diagnosticLog:status')
+  } satisfies PreloadApi['diagnosticLog'],
 
   tabPopout: {
     open: (context: TabPopoutContext, targetWindowKey?: string | null): Promise<boolean> =>

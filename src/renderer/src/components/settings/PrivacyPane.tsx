@@ -9,6 +9,7 @@ import { PRIVACY_URL, getConsentState, setOptIn as telemetrySetOptIn } from '../
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { useAppStore } from '../../store'
 import { PrivacyDiagnosticsSection } from './PrivacyDiagnosticsSection'
+import { DiagnosticLogSetting } from './DiagnosticLogSetting'
 import { translate } from '@/i18n/i18n'
 
 export type EnvBlockedReason = 'do_not_track' | 'orca_disabled' | 'ci'
@@ -133,6 +134,7 @@ export function PrivacyPane({ settings }: PrivacyPaneProps): React.JSX.Element {
 
       {blocked ? <BlockedHelper blocked={blocked} id={PRIVACY_PANE_BLOCKED_HELPER_ID} /> : null}
       <PrivacyDiagnosticsSection />
+      <DiagnosticLogSetting />
     </div>
   )
 }

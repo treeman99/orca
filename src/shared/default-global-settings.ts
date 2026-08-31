@@ -128,6 +128,8 @@ export function buildDefaultSettings(args: {
     openAgentTabsInChatByDefault: false,
     autoSplitOrchestrationWorkerPanes: false,
     orchestrationMaxWorkerPanes: DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS,
+    diagnosticLogEnabled: false,
+    diagnosticLogDirectory: '',
     // Fork default: on. The terminal/chat toggle is the point — upstream ships it off, which
     // hides the view behind a setting most users never find.
     experimentalNativeChat: true,

@@ -207,6 +207,10 @@ export type GlobalSettings = {
   autoSplitOrchestrationWorkerPanes?: boolean
   /** How tall that worker column may grow before workers share panes as tabs; clamped on read, so an out-of-range value degrades instead of breaking the layout. */
   orchestrationMaxWorkerPanes?: number
+  /** Opt-in plain-text troubleshooting log. Off by default: it is a support aid, not telemetry — nothing leaves the machine. */
+  diagnosticLogEnabled?: boolean
+  /** Folder for that log. Empty falls back to the app's own logs directory. */
+  diagnosticLogDirectory?: string
   /** Experimental native chat surface for Claude/Codex sessions; off by default. */
   experimentalNativeChat?: boolean
   /** Last explicit native-chat model + option selections; live panes need an applied/dispatched record before showing a value. */

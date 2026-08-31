@@ -87,9 +87,16 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
           const reusedTab = existingTab ?? splitTargetTab
           // Why: an orchestration worker opens beside its coordinator instead of in the
           // active group. Undefined (preference off, foreign worktree) keeps the old path.
+          let paneSkip = reusedTab ? 'reused-tab' : 'none'
           const workerPaneGroupId =
             !reusedTab && paneGroupPlacement
-              ? claimOrchestrationWorkerPaneGroup(useAppStore, { worktreeId, paneGroupPlacement })
+              ? claimOrchestrationWorkerPaneGroup(useAppStore, {
+                  worktreeId,
+                  paneGroupPlacement,
+                  onSkip: (reason) => {
+                    paneSkip = reason
+                  }
+                })
               : undefined
           const tab =
             reusedTab ??
@@ -140,6 +147,15 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
           }
           if (workerPaneGroupId && paneGroupPlacement) {
             recordOrchestrationWorkerTab(paneGroupPlacement.coordinatorTabId, tab.id)
+          }
+          if (paneGroupPlacement) {
+            void window.api.diagnosticLog?.write('worker-pane-renderer', {
+              agent: launchAgent ?? 'none',
+              coord: paneGroupPlacement.coordinatorTabId,
+              tab: tab.id,
+              group: workerPaneGroupId ?? 'none',
+              skip: paneSkip
+            })
           }
           if (shouldActivate) {
             store.setActiveTabType('terminal')

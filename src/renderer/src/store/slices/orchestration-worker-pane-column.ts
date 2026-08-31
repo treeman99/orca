@@ -11,6 +11,9 @@ import {
   type WorkerPaneGroup
 } from './orchestration-worker-pane-layout'
 
+/** Why a dispatched worker did not get a column. Surfaced in the diagnostic log. */
+export type WorkerPaneSkipReason = 'preference-off' | 'coordinator-tab-not-found' | 'split-failed'
+
 /**
  * Session-scoped bookkeeping for the auto-split worker column. Worker *tab* ids
  * are recorded rather than group ids so the column follows the tabs when the
@@ -88,10 +91,16 @@ function resolveLiveWorkerGroups(
  */
 export function claimOrchestrationWorkerPaneGroup(
   store: { getState: () => WorkerPaneColumnState },
-  args: { worktreeId: string; paneGroupPlacement: TerminalPaneGroupPlacement }
+  args: {
+    worktreeId: string
+    paneGroupPlacement: TerminalPaneGroupPlacement
+    /** Reports which condition ended the claim, for the troubleshooting log. */
+    onSkip?: (reason: WorkerPaneSkipReason) => void
+  }
 ): string | undefined {
   const state = store.getState()
   if (state.settings?.autoSplitOrchestrationWorkerPanes !== true) {
+    args.onSkip?.('preference-off')
     return undefined
   }
   const { coordinatorTabId } = args.paneGroupPlacement
@@ -100,6 +109,8 @@ export function claimOrchestrationWorkerPaneGroup(
     coordinatorTabId
   )
   if (!coordinatorTab) {
+    // Also the foreign-worktree case: the coordinator's tab is not in this list.
+    args.onSkip?.('coordinator-tab-not-found')
     return undefined
   }
   const workerGroups = resolveLiveWorkerGroups(
@@ -125,6 +136,7 @@ export function claimOrchestrationWorkerPaneGroup(
     { activate: false, recordInteraction: false }
   )
   if (!createdGroupId) {
+    args.onSkip?.('split-failed')
     return undefined
   }
   for (const update of buildWorkerStackRatioUpdates(

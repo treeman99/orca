@@ -59,6 +59,7 @@ const {
   registerGatewayHandlersMock,
   registerGithubEnterpriseHandlersMock,
   registerConfluenceHandlersMock,
+  registerDiagnosticLogHandlersMock,
   registerAppUpdateHandlersMock,
   isDashboardPopoutRendererMock,
   registerTerminalPreviewHandlersMock,
@@ -130,6 +131,7 @@ const {
   registerGatewayHandlersMock: vi.fn(),
   registerGithubEnterpriseHandlersMock: vi.fn(),
   registerConfluenceHandlersMock: vi.fn(),
+  registerDiagnosticLogHandlersMock: vi.fn(),
   registerAppUpdateHandlersMock: vi.fn(),
   isDashboardPopoutRendererMock: vi.fn(),
   registerTerminalPreviewHandlersMock: vi.fn(),
@@ -200,6 +202,10 @@ vi.mock('../github-enterprise', () => ({
 
 vi.mock('../confluence', () => ({
   registerConfluenceHandlers: registerConfluenceHandlersMock
+}))
+
+vi.mock('../diagnostic-log', () => ({
+  registerDiagnosticLogHandlers: registerDiagnosticLogHandlersMock
 }))
 
 vi.mock('../app-update', () => ({
@@ -504,6 +510,7 @@ describe('registerCoreHandlers', () => {
     registerGatewayHandlersMock.mockReset()
     registerGithubEnterpriseHandlersMock.mockReset()
     registerConfluenceHandlersMock.mockReset()
+    registerDiagnosticLogHandlersMock.mockReset()
     registerAppUpdateHandlersMock.mockReset()
     registerTerminalPreviewHandlersMock.mockReset()
     registerSpeechHandlersMock.mockReset()
@@ -608,6 +615,7 @@ describe('registerCoreHandlers', () => {
       gateway: registerGatewayHandlersMock.mock.calls.length,
       githubEnterprise: registerGithubEnterpriseHandlersMock.mock.calls.length,
       confluence: registerConfluenceHandlersMock.mock.calls.length,
+      diagnosticLog: registerDiagnosticLogHandlersMock.mock.calls.length,
       // Expected 0: the GHES release-tag check stays off for this deployment.
       appUpdate: registerAppUpdateHandlersMock.mock.calls.length
     }).toEqual({
@@ -615,10 +623,12 @@ describe('registerCoreHandlers', () => {
       gateway: 1,
       githubEnterprise: 1,
       confluence: 1,
+      diagnosticLog: 1,
       appUpdate: 0
     })
     expect(registerTabPopoutHandlersMock).toHaveBeenCalledWith(store)
     expect(registerConfluenceHandlersMock).toHaveBeenCalledWith(store)
+    expect(registerDiagnosticLogHandlersMock).toHaveBeenCalledWith(store)
     expect(registerTerminalPreviewHandlersMock).toHaveBeenCalledWith(runtime)
     expect(registerSettingsHandlersMock).toHaveBeenCalledWith(store, agentAwakeService)
     expect(registerSkillsHandlersMock).toHaveBeenCalledWith(store, runtime)

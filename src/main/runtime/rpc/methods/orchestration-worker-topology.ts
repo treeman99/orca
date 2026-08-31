@@ -2,6 +2,7 @@ import type { AgentLaunchPreferences } from '../../../../shared/agent-session-ho
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { OrcaRuntimeService } from '../../orca-runtime'
 import type { OrchestrationDb } from '../../orchestration/db'
+import { writeDiagnosticLine } from '../../../observability/diagnostic-log'
 
 export type WorkerEffect = {
   kind: 'worktree' | 'terminal' | 'setup' | 'dispatch_input'
@@ -88,6 +89,13 @@ export async function createExistingWorktreeWorkerTerminal(args: {
           }
         }
       : {})
+  })
+  writeDiagnosticLine('worker-pane-main', {
+    task: args.taskId,
+    agent: args.agent,
+    anchor: args.coordinatorTabId ?? 'none',
+    skip: args.paneAnchorSkipped ?? 'none',
+    surface: terminal.surface
   })
   args.effects.push({
     kind: 'terminal',
