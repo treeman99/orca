@@ -39,11 +39,16 @@ export default function AppUpdateAvailableDialog(): React.JSX.Element | null {
       return
     }
     let cancelled = false
-    void api.getStatus().then((initial) => {
-      if (!cancelled) {
-        setStatus(initial)
-      }
-    })
+    // Why catch: the main-process lane can be left unregistered on purpose, and an
+    // unhandled rejection here would land in every startup's crash breadcrumbs.
+    void api
+      .getStatus()
+      .then((initial) => {
+        if (!cancelled) {
+          setStatus(initial)
+        }
+      })
+      .catch(() => undefined)
     const unsubscribe = api.onStatus((next) => {
       setStatus(next)
       setPostponed(false)

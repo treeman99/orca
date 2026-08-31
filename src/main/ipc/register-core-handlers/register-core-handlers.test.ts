@@ -608,13 +608,14 @@ describe('registerCoreHandlers', () => {
       gateway: registerGatewayHandlersMock.mock.calls.length,
       githubEnterprise: registerGithubEnterpriseHandlersMock.mock.calls.length,
       confluence: registerConfluenceHandlersMock.mock.calls.length,
+      // Expected 0: the GHES release-tag check stays off for this deployment.
       appUpdate: registerAppUpdateHandlersMock.mock.calls.length
     }).toEqual({
       tabPopout: 1,
       gateway: 1,
       githubEnterprise: 1,
       confluence: 1,
-      appUpdate: 1
+      appUpdate: 0
     })
     expect(registerTabPopoutHandlersMock).toHaveBeenCalledWith(store)
     expect(registerConfluenceHandlersMock).toHaveBeenCalledWith(store)
