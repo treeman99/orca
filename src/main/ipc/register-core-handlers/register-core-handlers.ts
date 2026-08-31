@@ -32,6 +32,7 @@ import { registerTabPopoutHandlers } from '../tab-popout'
 import { registerGatewayHandlers } from '../gateway'
 import { registerGithubEnterpriseHandlers } from '../github-enterprise'
 import { registerConfluenceHandlers } from '../confluence'
+import { registerAppUpdateHandlers } from '../app-update'
 import { registerDiagnosticLogHandlers } from '../diagnostic-log'
 import { registerTerminalPreviewHandlers } from '../terminal-preview'
 import { registerDeveloperPermissionHandlers } from '../developer-permissions'
@@ -178,10 +179,9 @@ export function registerCoreHandlers(
   registerGithubEnterpriseHandlers()
   registerConfluenceHandlers(store)
   registerDiagnosticLogHandlers(store)
-  // registerAppUpdateHandlers() is deliberately NOT called: the lane polls the
-  // corporate GHES host for release tags, and this deployment does not want that
-  // check running yet. Re-enable by restoring the import and this call, or leave
-  // it off and ship `disableAutoUpdate: true` in the policy file instead.
+  // The only registrar here that reaches the network. Turning it off is the policy
+  // file's `disableAutoUpdate`, gated in the service's `check()` — not this call.
+  registerAppUpdateHandlers()
   registerTerminalPreviewHandlers(runtime)
   registerDeveloperPermissionHandlers()
   // Why: diagnostics handlers are wired alongside telemetry but the two

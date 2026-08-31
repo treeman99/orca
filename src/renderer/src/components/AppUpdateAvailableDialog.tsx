@@ -39,7 +39,7 @@ export default function AppUpdateAvailableDialog(): React.JSX.Element | null {
       return
     }
     let cancelled = false
-    // Why catch: the main-process lane can be left unregistered on purpose, and an
+    // Why catch: a fork or rebase can leave the main-process lane unregistered, and an
     // unhandled rejection here would land in every startup's crash breadcrumbs.
     void api
       .getStatus()
