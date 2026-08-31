@@ -28,6 +28,11 @@ import { registerNotificationHandlers } from '../notifications'
 import { registerNotebookHandlers } from '../notebook'
 import { registerOnboardingHandlers } from '../onboarding'
 import { registerDashboardPopoutHandlers } from '../dashboard-popout'
+import { registerTabPopoutHandlers } from '../tab-popout'
+import { registerGatewayHandlers } from '../gateway'
+import { registerGithubEnterpriseHandlers } from '../github-enterprise'
+import { registerConfluenceHandlers } from '../confluence'
+import { registerAppUpdateHandlers } from '../app-update'
 import { registerTerminalPreviewHandlers } from '../terminal-preview'
 import { registerDeveloperPermissionHandlers } from '../developer-permissions'
 import { registerComputerUsePermissionHandlers } from '../computer-use-permissions'
@@ -165,6 +170,14 @@ export function registerCoreHandlers(
   registerNotebookHandlers(store)
   registerOnboardingHandlers(store)
   registerDashboardPopoutHandlers(store, keybindings)
+  registerTabPopoutHandlers(store)
+  // Fork-only registrars. They live in one block because an upstream refactor of
+  // this file has already dropped them once, leaving the channels unhandled while
+  // preload kept invoking them; register-core-handlers.test.ts asserts each call.
+  registerGatewayHandlers()
+  registerGithubEnterpriseHandlers()
+  registerConfluenceHandlers(store)
+  registerAppUpdateHandlers()
   registerTerminalPreviewHandlers(runtime)
   registerDeveloperPermissionHandlers()
   // Why: diagnostics handlers are wired alongside telemetry but the two

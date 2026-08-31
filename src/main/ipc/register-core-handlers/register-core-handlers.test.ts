@@ -55,6 +55,11 @@ const {
   registerCodexConfigSyncHandlersMock,
   registerOnboardingHandlersMock,
   registerDashboardPopoutHandlersMock,
+  registerTabPopoutHandlersMock,
+  registerGatewayHandlersMock,
+  registerGithubEnterpriseHandlersMock,
+  registerConfluenceHandlersMock,
+  registerAppUpdateHandlersMock,
   isDashboardPopoutRendererMock,
   registerTerminalPreviewHandlersMock,
   registerSpeechHandlersMock,
@@ -121,6 +126,11 @@ const {
   registerCodexConfigSyncHandlersMock: vi.fn(),
   registerOnboardingHandlersMock: vi.fn(),
   registerDashboardPopoutHandlersMock: vi.fn(),
+  registerTabPopoutHandlersMock: vi.fn(),
+  registerGatewayHandlersMock: vi.fn(),
+  registerGithubEnterpriseHandlersMock: vi.fn(),
+  registerConfluenceHandlersMock: vi.fn(),
+  registerAppUpdateHandlersMock: vi.fn(),
   isDashboardPopoutRendererMock: vi.fn(),
   registerTerminalPreviewHandlersMock: vi.fn(),
   registerSpeechHandlersMock: vi.fn(),
@@ -172,6 +182,28 @@ vi.mock('../onboarding', () => ({
 
 vi.mock('../dashboard-popout', () => ({
   registerDashboardPopoutHandlers: registerDashboardPopoutHandlersMock
+}))
+
+// Why mocked: '../tab-popout' pulls the pop-out window factory, which imports
+// electron at runtime and breaks this suite's module graph.
+vi.mock('../tab-popout', () => ({
+  registerTabPopoutHandlers: registerTabPopoutHandlersMock
+}))
+
+vi.mock('../gateway', () => ({
+  registerGatewayHandlers: registerGatewayHandlersMock
+}))
+
+vi.mock('../github-enterprise', () => ({
+  registerGithubEnterpriseHandlers: registerGithubEnterpriseHandlersMock
+}))
+
+vi.mock('../confluence', () => ({
+  registerConfluenceHandlers: registerConfluenceHandlersMock
+}))
+
+vi.mock('../app-update', () => ({
+  registerAppUpdateHandlers: registerAppUpdateHandlersMock
 }))
 
 vi.mock('../../window/dashboard-popout-window', () => ({
@@ -468,6 +500,11 @@ describe('registerCoreHandlers', () => {
     registerHostedReviewHandlersMock.mockReset()
     registerExportHandlersMock.mockReset()
     registerDashboardPopoutHandlersMock.mockReset()
+    registerTabPopoutHandlersMock.mockReset()
+    registerGatewayHandlersMock.mockReset()
+    registerGithubEnterpriseHandlersMock.mockReset()
+    registerConfluenceHandlersMock.mockReset()
+    registerAppUpdateHandlersMock.mockReset()
     registerTerminalPreviewHandlersMock.mockReset()
     registerSpeechHandlersMock.mockReset()
     registerSkillsHandlersMock.mockReset()
@@ -563,6 +600,24 @@ describe('registerCoreHandlers', () => {
     expect(registerDeveloperPermissionHandlersMock).toHaveBeenCalled()
     expect(registerComputerUsePermissionHandlersMock).toHaveBeenCalled()
     expect(registerDashboardPopoutHandlersMock).toHaveBeenCalledWith(store, undefined)
+    // Why one object rather than five assertions: an upstream refactor of this
+    // file dropped every fork-only registrar at once, and asserting them one by
+    // one reports only the first while the rest stay hidden behind it.
+    expect({
+      tabPopout: registerTabPopoutHandlersMock.mock.calls.length,
+      gateway: registerGatewayHandlersMock.mock.calls.length,
+      githubEnterprise: registerGithubEnterpriseHandlersMock.mock.calls.length,
+      confluence: registerConfluenceHandlersMock.mock.calls.length,
+      appUpdate: registerAppUpdateHandlersMock.mock.calls.length
+    }).toEqual({
+      tabPopout: 1,
+      gateway: 1,
+      githubEnterprise: 1,
+      confluence: 1,
+      appUpdate: 1
+    })
+    expect(registerTabPopoutHandlersMock).toHaveBeenCalledWith(store)
+    expect(registerConfluenceHandlersMock).toHaveBeenCalledWith(store)
     expect(registerTerminalPreviewHandlersMock).toHaveBeenCalledWith(runtime)
     expect(registerSettingsHandlersMock).toHaveBeenCalledWith(store, agentAwakeService)
     expect(registerSkillsHandlersMock).toHaveBeenCalledWith(store, runtime)
@@ -716,9 +771,8 @@ describe('registerCoreHandlers', () => {
     // Why a fresh module: registerCoreHandlers guards itself with a module-level `registered`
     // flag, so a call from a later test in this file is a no-op and would assert nothing.
     vi.resetModules()
-    const { registerCoreHandlers: registerCoreHandlersFresh } = await import(
-      './register-core-handlers'
-    )
+    const { registerCoreHandlers: registerCoreHandlersFresh } =
+      await import('./register-core-handlers')
 
     registerCoreHandlersFresh(
       { marker: 'store' } as never,
@@ -744,5 +798,4 @@ describe('registerCoreHandlers', () => {
     expect(registerSpeechHandlersMock).not.toHaveBeenCalled()
     expect(registerPluginHandlersMock).not.toHaveBeenCalled()
   })
-
 })
