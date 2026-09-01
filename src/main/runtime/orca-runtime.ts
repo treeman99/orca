@@ -156,6 +156,7 @@ import {
   AGENT_PROMPT_SUBMIT_VERIFY_ATTEMPTS,
   AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS,
   buildAgentPromptPasteBytes,
+  sanitizeAgentPromptText,
   getAgentPromptSubmitDelayMs,
   getTerminalPasteIngestMs
 } from '../../shared/agent-prompt-injection'
@@ -20884,6 +20885,18 @@ export class OrcaRuntimeService {
       signal?: AbortSignal
     } = {}
   ): Promise<RuntimeTerminalSend> {
+    // Why here and not at the callers: every Orca-written prompt reaches a pane through this
+    // method — worker dispatch, coordinator follow-ups, `terminal send --agent-prompt` — and an
+    // agent that cannot read a paste frame cannot read one from any of them.
+    if (this.usesPlainTextPromptDelivery(handle)) {
+      // Why sanitized here too: dropping the paste frame must not also drop the escape
+      // neutralization it carried — a prompt with a raw ESC would otherwise drive the terminal.
+      return this.sendTerminal(
+        handle,
+        { text: sanitizeAgentPromptText(prompt), enter: true },
+        options
+      )
+    }
     const payload = buildAgentPromptPasteBytes(prompt)
     const pty = this.getLivePtyForHandle(handle)
     if (pty) {
@@ -21896,6 +21909,20 @@ export class OrcaRuntimeService {
       explicitWorkingStartedAt: explicit?.status === 'working' ? explicit.stateStartedAt : null,
       outputSequence,
       status
+    }
+  }
+
+  private usesPlainTextPromptDelivery(handle: string): boolean {
+    const ptyId = this.getLivePtyForHandle(handle)?.pty.ptyId ?? this.tryGetLeafPtyId(handle)
+    const agent = ptyId ? this.getPtyAgent(ptyId) : null
+    return agent !== null && TUI_AGENT_CONFIG[agent].promptDeliveryMode === 'plain-text'
+  }
+
+  private tryGetLeafPtyId(handle: string): string | null {
+    try {
+      return this.getLiveLeafForHandle(handle).leaf.ptyId ?? null
+    } catch {
+      return null
     }
   }
 
@@ -44060,17 +44087,12 @@ function classifyAgentTitle(title: string | null): 'agent' | 'management' | 'neu
 
 export function isTerminalSendSettlementAgent(
   agent: TuiAgent | null | undefined
-): agent is 'claude' | 'codex' | 'opencode' {
-  // Why opencode joins the two upstream picked: the ingest model that replaced the fork's flat
-  // 1_500 ms win32 delay measured a TUI that was already mounted ("the child repaints in ~0 ms"),
-  // but opencode stays silent for ~1.5-2 s between enabling bracketed paste and mounting its
-  // composer (see draft-paste-ready-scanner.ts). On ConPTY the open-loop wait then lands Enter
-  // before there is a composer to hold the paste, and nothing notices: opencode has no managed
-  // status hook, so `resubmitAgentPromptIfStillUnsubmitted` reads `indeterminate` and never
-  // resends. It is safe here for the reason the widening warning excludes — opencode re-emits
-  // AGENT_PROMPT_RENDER_MARKER on every render frame, so the gate settles on evidence rather
-  // than waiting out the hard cap.
-  return agent === 'claude' || agent === 'codex' || agent === 'opencode'
+): agent is 'claude' | 'codex' {
+  // Why opencode is NOT here even though its composer marker would fit the gate: it never
+  // reaches one. `sendTerminalAgentPrompt` hands a `promptDeliveryMode: 'plain-text'` agent to
+  // the plain send path before the gate is built, because opencode does not read a paste frame
+  // at all under ConPTY. Listing it would be a protection that cannot run.
+  return agent === 'claude' || agent === 'codex'
 }
 
 function findLastCompleteOscTitleRange(data: string): { start: number; end: number } | null {

@@ -17695,10 +17695,13 @@ describe('OrcaRuntimeService', () => {
   // Why derived and not a hand-written exclusion list: this is the open-loop half of the
   // contract, and hardcoding its complement meant adding an agent to the render gate hung this
   // case on a marker the fake pty never emits instead of moving it to the other half. The gated
-  // half is covered by agent-prompt-submission-windows-submit-delay.test.ts.
+  // half is covered by agent-prompt-submission-windows-submit-delay.test.ts, and a plain-text
+  // agent writes no paste at all (agent-prompt-plain-text-delivery.test.ts).
   it.each(
     (Object.keys(TUI_AGENT_CONFIG) as TuiAgent[]).filter(
-      (agent) => !isTerminalSendSettlementAgent(agent)
+      (agent) =>
+        !isTerminalSendSettlementAgent(agent) &&
+        TUI_AGENT_CONFIG[agent].promptDeliveryMode !== 'plain-text'
     )
   )('holds Enter for the full open-loop submit delay for %s', async (agent) => {
     vi.useFakeTimers()

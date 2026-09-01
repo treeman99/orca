@@ -301,7 +301,7 @@ describe('agent prompt render gate on a ConPTY host', () => {
   async function createSettlementRuntime(
     // `noiseUntilMs` keeps the pane emitting inside every quiet window, so the gate can only
     // end on its hard cap -- which is what the cap's arithmetic has to be measured against.
-    agentOutput: { markerDelayMs?: number; noiseUntilMs?: number; agent?: 'claude' | 'opencode' } = {}
+    agentOutput: { markerDelayMs?: number; noiseUntilMs?: number } = {}
   ): Promise<{
     runtime: OrcaRuntimeService
     handle: string
@@ -332,39 +332,10 @@ describe('agent prompt render gate on a ConPTY host', () => {
       getForegroundProcess: async () => null
     })
     const terminal = await runtime.createTerminal(`path:${WORKTREE_PATH}`, {
-      launchAgent: agentOutput.agent ?? 'claude'
+      launchAgent: 'claude'
     })
     return { runtime, handle: terminal.handle, writes, submitTimes }
   }
-
-  // Why opencode has its own cases: the ingest model that replaced the flat 1_500 ms win32 delay
-  // measured an already-mounted TUI, but opencode is silent for ~1.5-2 s between enabling
-  // bracketed paste and mounting its composer. Without the gate the open-loop wait (~600 ms for a
-  // dispatch preamble) writes Enter into a pane with nowhere to put the paste, and opencode has no
-  // managed status hook, so the resubmit rescue reads `indeterminate` and never resends.
-  it('holds Enter until opencode mounts its composer, not just past the ingest wait', async () => {
-    useHostPlatform('win32')
-    vi.useFakeTimers()
-    const prompt = 'review this'
-    const { runtime, handle, writes, submitTimes } = await createSettlementRuntime({
-      agent: 'opencode',
-      markerDelayMs: 1_800
-    })
-    const openLoopDelayMs = submitDelayFor(prompt, 'win32')
-    expect(openLoopDelayMs).toBeLessThan(1_800)
-    const submission = runtime.sendTerminalAgentPrompt(handle, prompt)
-    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
-
-    // The wait the pane would have had without the gate: the composer does not exist yet.
-    await vi.advanceTimersByTimeAsync(openLoopDelayMs)
-    expect(countSubmits(writes)).toBe(0)
-
-    await vi.runAllTimersAsync()
-    expect(submitTimes).toHaveLength(1)
-    // Marker at 1_800 ms plus the quiet window; never the bare open-loop delay.
-    expect(submitTimes[0]).toBeGreaterThanOrEqual(1_800)
-    await settled
-  })
 
   it('does not let a mid-ingest marker plus quiet settle a large paste early', async () => {
     useHostPlatform('win32')
