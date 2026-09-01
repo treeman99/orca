@@ -112,7 +112,7 @@ describe('agent prompt submit delay on a ConPTY host', () => {
     const { runtime, handle, writes } = await createPromptRuntime()
     const delayMs = submitDelayFor('review this', 'win32')
     const submission = runtime.sendTerminalAgentPrompt(handle, 'review this')
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     await vi.advanceTimersByTimeAsync(delayMs - 1)
     expect(countSubmits(writes)).toBe(0)
@@ -120,7 +120,7 @@ describe('agent prompt submit delay on a ConPTY host', () => {
     expect(countSubmits(writes)).toBe(1)
 
     await vi.runAllTimersAsync()
-    await stalled
+    await settled
   })
 
   it('no longer burns the flat 1_500 ms on a common-sized prompt', async () => {
@@ -132,13 +132,13 @@ describe('agent prompt submit delay on a ConPTY host', () => {
     const delayMs = submitDelayFor(prompt, 'win32')
     expect(delayMs).toBeLessThan(700)
     const submission = runtime.sendTerminalAgentPrompt(handle, prompt)
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     await vi.advanceTimersByTimeAsync(delayMs)
     expect(countSubmits(writes)).toBe(1)
 
     await vi.runAllTimersAsync()
-    await stalled
+    await settled
   })
 
   it('does not write Enter while ConPTY is still ingesting a large paste', async () => {
@@ -147,7 +147,7 @@ describe('agent prompt submit delay on a ConPTY host', () => {
     const { runtime, handle, writes, submitTimes } = await createPromptRuntime()
     const prompt = 'y'.repeat(320_000)
     const submission = runtime.sendTerminalAgentPrompt(handle, prompt)
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     // Every byte is already handed to node-pty here -- the hazard is that the *host* is
     // still feeding them to the child. 3_342 ms is the measured 320 KB ConPTY ingest.
@@ -158,7 +158,7 @@ describe('agent prompt submit delay on a ConPTY host', () => {
     await vi.runAllTimersAsync()
     expect(submitTimes).toHaveLength(1)
     expect(submitTimes[0]).toBeGreaterThan(3_342)
-    await stalled
+    await settled
   })
 
   it('does not send another Enter after cancellation during verification', async () => {
@@ -187,7 +187,7 @@ describe('agent prompt submit delay on a ConPTY host', () => {
     const delayMs = submitDelayFor(HOST_PROBE_PROMPT, 'darwin')
     expect(delayMs).toBeLessThan(submitDelayFor(HOST_PROBE_PROMPT, 'win32'))
     const submission = runtime.sendTerminalAgentPrompt(handle, HOST_PROBE_PROMPT)
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     await vi.advanceTimersByTimeAsync(delayMs - 1)
     expect(countSubmits(writes)).toBe(0)
@@ -195,7 +195,7 @@ describe('agent prompt submit delay on a ConPTY host', () => {
     expect(countSubmits(writes)).toBe(1)
 
     await vi.runAllTimersAsync()
-    await stalled
+    await settled
   })
 })
 
@@ -216,7 +216,7 @@ describe('agent prompt submit delay follows the execution host', () => {
     const delayMs = submitDelayFor(HOST_PROBE_PROMPT, 'win32')
     expect(delayMs).toBeGreaterThan(submitDelayFor(HOST_PROBE_PROMPT, 'linux'))
     const submission = runtime.sendTerminalAgentPrompt(handle, HOST_PROBE_PROMPT)
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     await vi.advanceTimersByTimeAsync(delayMs - 1)
     expect(countSubmits(writes)).toBe(0)
@@ -224,7 +224,7 @@ describe('agent prompt submit delay follows the execution host', () => {
     expect(countSubmits(writes)).toBe(1)
 
     await vi.runAllTimersAsync()
-    await stalled
+    await settled
   })
 
   it('waits the ConPTY delay for a Windows SSH host driven from macOS', async () => {
@@ -236,7 +236,7 @@ describe('agent prompt submit delay follows the execution host', () => {
     const clientDelayMs = submitDelayFor(HOST_PROBE_PROMPT, 'darwin')
     const hostDelayMs = submitDelayFor(HOST_PROBE_PROMPT, 'win32')
     const submission = runtime.sendTerminalAgentPrompt(handle, HOST_PROBE_PROMPT)
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     await vi.advanceTimersByTimeAsync(clientDelayMs)
     expect(countSubmits(writes)).toBe(0)
@@ -244,7 +244,7 @@ describe('agent prompt submit delay follows the execution host', () => {
     expect(countSubmits(writes)).toBe(1)
 
     await vi.runAllTimersAsync()
-    await stalled
+    await settled
   })
 
   it('skips the ConPTY delay for a Linux SSH host driven from Windows', async () => {
@@ -256,7 +256,7 @@ describe('agent prompt submit delay follows the execution host', () => {
     const delayMs = submitDelayFor(HOST_PROBE_PROMPT, 'linux')
     expect(delayMs).toBeLessThan(submitDelayFor(HOST_PROBE_PROMPT, 'win32'))
     const submission = runtime.sendTerminalAgentPrompt(handle, HOST_PROBE_PROMPT)
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     await vi.advanceTimersByTimeAsync(delayMs - 1)
     expect(countSubmits(writes)).toBe(0)
@@ -264,7 +264,7 @@ describe('agent prompt submit delay follows the execution host', () => {
     expect(countSubmits(writes)).toBe(1)
 
     await vi.runAllTimersAsync()
-    await stalled
+    await settled
   })
 
   it('falls back to the remote worktree path flavor before the relay reports a platform', async () => {
@@ -278,7 +278,7 @@ describe('agent prompt submit delay follows the execution host', () => {
     registerSshRemotePlatform(undefined)
     const delayMs = submitDelayFor(HOST_PROBE_PROMPT, 'win32')
     const submission = runtime.sendTerminalAgentPrompt(handle, HOST_PROBE_PROMPT)
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     await vi.advanceTimersByTimeAsync(delayMs - 1)
     expect(countSubmits(writes)).toBe(0)
@@ -286,7 +286,7 @@ describe('agent prompt submit delay follows the execution host', () => {
     expect(countSubmits(writes)).toBe(1)
 
     await vi.runAllTimersAsync()
-    await stalled
+    await settled
   })
 })
 
@@ -353,7 +353,7 @@ describe('agent prompt render gate on a ConPTY host', () => {
     const openLoopDelayMs = submitDelayFor(prompt, 'win32')
     expect(openLoopDelayMs).toBeLessThan(1_800)
     const submission = runtime.sendTerminalAgentPrompt(handle, prompt)
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     // The wait the pane would have had without the gate: the composer does not exist yet.
     await vi.advanceTimersByTimeAsync(openLoopDelayMs)
@@ -363,7 +363,7 @@ describe('agent prompt render gate on a ConPTY host', () => {
     expect(submitTimes).toHaveLength(1)
     // Marker at 1_800 ms plus the quiet window; never the bare open-loop delay.
     expect(submitTimes[0]).toBeGreaterThanOrEqual(1_800)
-    await stalled
+    await settled
   })
 
   it('does not let a mid-ingest marker plus quiet settle a large paste early', async () => {
@@ -371,7 +371,7 @@ describe('agent prompt render gate on a ConPTY host', () => {
     vi.useFakeTimers()
     const { runtime, handle, writes, submitTimes } = await createSettlementRuntime()
     const submission = runtime.sendTerminalAgentPrompt(handle, 'y'.repeat(320_000))
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     // Marker at 100 ms + a 1_500 ms quiet window would have submitted at ~1_600 ms, while
     // ConPTY needs 2_969-3_342 ms just to hand the paste to the child.
@@ -382,7 +382,7 @@ describe('agent prompt render gate on a ConPTY host', () => {
     await vi.runAllTimersAsync()
     expect(submitTimes).toHaveLength(1)
     expect(submitTimes[0]).toBeGreaterThan(3_342)
-    await stalled
+    await settled
   })
 
   it('caps a never-quiet pane at one ingest window past the render timeout', async () => {
@@ -400,7 +400,7 @@ describe('agent prompt render gate on a ConPTY host', () => {
       noiseUntilMs: ingestMs + 20_000
     })
     const submission = runtime.sendTerminalAgentPrompt(handle, prompt)
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     await vi.advanceTimersByTimeAsync(ingestMs + 8_000 - 1)
     expect(countSubmits(writes)).toBe(0)
@@ -409,7 +409,7 @@ describe('agent prompt render gate on a ConPTY host', () => {
     expect(submitTimes).toHaveLength(1)
     expect(submitTimes[0]).toBeGreaterThanOrEqual(ingestMs + 8_000)
     expect(submitTimes[0]).toBeLessThan(ingestMs + 8_500)
-    await stalled
+    await settled
   })
 
   it('still settles a normal prompt on the marker plus one quiet window', async () => {
@@ -417,14 +417,14 @@ describe('agent prompt render gate on a ConPTY host', () => {
     vi.useFakeTimers()
     const { runtime, handle, submitTimes } = await createSettlementRuntime()
     const submission = runtime.sendTerminalAgentPrompt(handle, 'review this')
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     await vi.runAllTimersAsync()
     expect(submitTimes).toHaveLength(1)
     // 100 ms marker + 1_500 ms quiet: a sub-chunk paste adds no measurable ingest.
     expect(submitTimes[0]).toBeGreaterThanOrEqual(1_600)
     expect(submitTimes[0]).toBeLessThan(1_700)
-    await stalled
+    await settled
   })
 })
 

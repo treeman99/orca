@@ -20908,12 +20908,12 @@ export class OrcaRuntimeService {
         }
       )
       const bytesWritten = Buffer.byteLength(payload, 'utf8') + submits
-      const submit = await this.resubmitAgentPromptIfStillUnsubmitted(
+      const { outcome: submit, statusObserved } = await this.resubmitAgentPromptIfStillUnsubmitted(
         handle,
         pty.pty.ptyId,
         activityBaseline
       )
-      assertAgentPromptRescuedIfStalled(stalled, submit)
+      assertAgentPromptRescuedIfStalled(stalled, submit, statusObserved)
       return { handle, accepted: true, bytesWritten, submit }
     }
 
@@ -20945,12 +20945,12 @@ export class OrcaRuntimeService {
       }
     )
     const bytesWritten = Buffer.byteLength(payload, 'utf8') + submits
-    const submit = await this.resubmitAgentPromptIfStillUnsubmitted(
+    const { outcome: submit, statusObserved } = await this.resubmitAgentPromptIfStillUnsubmitted(
       handle,
       leaf.ptyId,
       activityBaseline
     )
-    assertAgentPromptRescuedIfStalled(stalled, submit)
+    assertAgentPromptRescuedIfStalled(stalled, submit, statusObserved)
     return { handle, accepted: true, bytesWritten, submit }
   }
 
@@ -22142,7 +22142,7 @@ export class OrcaRuntimeService {
     handle: string,
     ptyId: string,
     activityBaseline?: AgentPromptActivity
-  ): Promise<AgentPromptSubmitOutcome> {
+  ): Promise<{ outcome: AgentPromptSubmitOutcome; statusObserved: boolean }> {
     // Why: the classifier reads a *snapshot* and infers "idle means never submitted", which is
     // wrong for an agent that answered and went idle before the settle wait polled. The lifecycle
     // counter records the working transition even when it is already over, so a prompt that
@@ -22151,8 +22151,12 @@ export class OrcaRuntimeService {
       activityBaseline &&
       this.getAgentPromptActivity(handle, ptyId).workingSequence > activityBaseline.workingSequence
     ) {
-      return 'verified'
+      return { outcome: 'verified', statusObserved: true }
     }
+    // Why tracked: `status: null` is not "idle", it is "Orca cannot read this pane". An agent with
+    // no managed hook whose title Orca never parses can never produce a status, so a stall on it
+    // is absence of evidence, not evidence of failure.
+    let statusObserved = false
     let verdict: AgentPromptSubmitVerdict = 'indeterminate'
     // Why: a worker dispatched seconds after launch has no status evidence yet,
     // so the first check reads "cannot tell" on precisely the terminals this
@@ -22161,7 +22165,9 @@ export class OrcaRuntimeService {
     for (let attempt = 0; attempt < AGENT_PROMPT_SUBMIT_VERIFY_ATTEMPTS; attempt += 1) {
       try {
         await this.waitForTerminalOutputSettled(ptyId, AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS)
-        verdict = classifyAgentPromptSubmitEvidence(await this.getTerminalAgentStatus(handle))
+        const status = await this.getTerminalAgentStatus(handle)
+        statusObserved = statusObserved || status.status !== null
+        verdict = classifyAgentPromptSubmitEvidence(status)
       } catch {
         // Why: a terminal that cannot be read is the "cannot tell" case, and
         // cannot-tell must never fire Enter.
@@ -22184,19 +22190,21 @@ export class OrcaRuntimeService {
       verdict = 'indeterminate'
     }
     if (verdict === 'submitted') {
-      return 'verified'
+      return { outcome: 'verified', statusObserved: true }
     }
     if (verdict !== 'unsubmitted') {
       // Why: silence here would hide both a swallowed prompt and a blocked
       // agent; the dispatch looks delivered either way.
-      console.warn(`[agent-prompt] ${handle}: submit unverified (${verdict}); Enter was NOT resent`)
-      return 'unverified'
+      console.warn(
+        `[agent-prompt] ${handle}: submit unverified (${verdict}); statusObserved=${statusObserved}; Enter was NOT resent`
+      )
+      return { outcome: 'unverified', statusObserved }
     }
     const resent = this.ptyController?.write(ptyId, AGENT_PROMPT_SUBMIT) ?? false
     console.warn(
       `[agent-prompt] ${handle}: prompt still unsubmitted after Enter; resent once (accepted=${resent})`
     )
-    return 'resent'
+    return { outcome: 'resent', statusObserved: true }
   }
 
   async waitForTerminal(
@@ -43173,9 +43181,18 @@ export function classifyAgentPromptSubmitEvidence(
  */
 export function assertAgentPromptRescuedIfStalled(
   stalled: boolean,
-  submit: AgentPromptSubmitOutcome
+  submit: AgentPromptSubmitOutcome,
+  statusObserved = true
 ): void {
-  if (stalled && submit === 'unverified') {
+  // Why `statusObserved`: the verifier proves delivery from a status edge, a hook turn start, or
+  // output after Enter on an already-working pane. An agent with no managed hook whose title Orca
+  // never parses — opencode under ConPTY, which swallows the OSC title — can produce none of the
+  // three, so every one of its dispatches stalled and failed worker-start outright (regression
+  // since v1.4.188). Absence of evidence is not evidence of failure; this is the same rule the
+  // SSH boundary uses for a host that stopped answering. Nothing is loosened for a pane Orca can
+  // read, the rescue still refuses to resend Enter on an indeterminate verdict, and the receipt
+  // still carries the `unverified` warning so a swallowed prompt stays visible.
+  if (stalled && submit === 'unverified' && statusObserved) {
     throw new Error('agent_prompt_stalled')
   }
 }

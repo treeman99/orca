@@ -18078,12 +18078,53 @@ describe('OrcaRuntimeService', () => {
       // Why: `accepted` only says the bytes went out. An unverifiable submit has
       // to be distinguishable from a delivered one, or the dispatch receipt
       // reads the same whether the worker started or is still holding the text.
-      // Since v1.4.188 that distinction is the rejection itself: the rescue had
-      // no evidence to act on, so upstream's `agent_prompt_stalled` stands and
-      // the caller cannot mistake it for a delivered prompt.
+      // v1.4.188 carried that distinction as a rejection, which made every
+      // dispatch to an agent Orca cannot read (no managed hook, no title it
+      // parses — opencode under ConPTY) a failed worker-start. The distinction
+      // now rides the outcome instead: `submit: 'unverified'`, which the
+      // dispatch receipt turns into its warning. A stall still rejects whenever
+      // a status was actually read, so a swallowed Enter on an observable pane
+      // is unchanged.
       status.mockResolvedValue({ handle, isRunningAgent: false, status: null })
       const unverified = runtime.sendTerminalAgentPrompt(handle, 'task spec')
-      const rejected = expect(unverified).rejects.toThrow('agent_prompt_stalled')
+      const settled = expect(unverified).resolves.toMatchObject({
+        accepted: true,
+        submit: 'unverified'
+      })
+      await renderPastedPrompt(runtime)
+      await drainAgentPromptSubmitVerification()
+      await settled
+    } finally {
+      warn.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
+  // The other half of the same rule: dropping the escalation for unobservable panes must not
+  // drop it for a pane Orca did read. A status that came back non-null is evidence, so a stall
+  // on it still fails the send exactly as it did before.
+  it('still rejects a stalled submit when a status was actually read', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const runtime = new OrcaRuntimeService(store)
+      runtime.setPtyController({
+        spawn: vi.fn().mockResolvedValue({ id: 'pty-bg' }),
+        write: () => true,
+        kill: () => true,
+        getForegroundProcess: async () => null
+      })
+      const { handle } = await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
+      // Readable pane, but not one the rescue may act on: `isRunningAgent: false` keeps the
+      // verdict indeterminate while `status` proves Orca could see the pane.
+      vi.spyOn(runtime, 'getTerminalAgentStatus').mockResolvedValue({
+        handle,
+        isRunningAgent: false,
+        status: 'idle'
+      })
+
+      const stalledSend = runtime.sendTerminalAgentPrompt(handle, 'task spec')
+      const rejected = expect(stalledSend).rejects.toThrow('agent_prompt_stalled')
       await renderPastedPrompt(runtime)
       await drainAgentPromptSubmitVerification()
       await rejected

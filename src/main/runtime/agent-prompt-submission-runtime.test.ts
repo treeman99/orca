@@ -70,7 +70,11 @@ describe('agent prompt submission runtime', () => {
     expect(writes.filter((data) => data === '\r')).toHaveLength(1)
   })
 
-  it('reports redraw-only activity as stalled without retrying Enter', async () => {
+  // Why not a rejection any more: a redraw with no status is "cannot tell", and this pane
+  // (`aider`) is one Orca cannot read at all. The contract this case owns is that Enter is NOT
+  // retried on an indeterminate verdict; reporting it as `unverified` keeps that visible without
+  // turning every dispatch to an unobservable agent into a failed worker-start.
+  it('reports redraw-only activity as unverified without retrying Enter', async () => {
     vi.useFakeTimers()
     const { runtime, handle, writes } = await createPromptRuntime((runtime, data) => {
       if (data.includes(AGENT_PROMPT_BRACKETED_PASTE_END)) {
@@ -80,11 +84,11 @@ describe('agent prompt submission runtime', () => {
       }
     })
     const submission = runtime.sendTerminalAgentPrompt(handle, 'review this')
-    const rejected = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     await vi.runAllTimersAsync()
 
-    await rejected
+    await settled
     expect(writes.filter((data) => data === '\r')).toHaveLength(1)
   })
 
