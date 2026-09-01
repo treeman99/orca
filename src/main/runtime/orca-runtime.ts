@@ -26832,6 +26832,26 @@ export class OrcaRuntimeService {
     return null
   }
 
+  /**
+   * Wait for an agent that declares a composer-ready signal to actually paint its composer.
+   *
+   * Why the dispatch path needs this and `tui-idle` is not enough: for an opencode pane whose
+   * title has not become `OC | …` yet, `isPtyRunningAgent` satisfies readiness from a generic
+   * ready-prompt preview — the launching shell's prompt, or opencode's own pre-composer frame.
+   * opencode then stays silent for ~1.5-2 s while it mounts, and a bracketed paste written into
+   * that window is dropped when the TUI drains stdin at init, leaving an empty composer and no
+   * evidence anywhere. The signal below is the composer itself (DECSET 2004 then show-cursor).
+   *
+   * Bounded by the same hard cap as the startup-draft path, and a no-op for agents that declare
+   * no signal, so nothing waits that did not already wait.
+   */
+  async waitForAgentComposerReady(handle: string, agent: TuiAgent): Promise<boolean> {
+    if (!TUI_AGENT_CONFIG[agent].draftPasteReadySignal) {
+      return true
+    }
+    return (await this.waitForStartupDraftReady(handle, agent)) !== null
+  }
+
   private waitForStartupDraftReady(handle: string, agent: TuiAgent): Promise<string | null> {
     const livePty = this.getLivePtyForHandle(handle)
     const ptyId = livePty?.pty.ptyId

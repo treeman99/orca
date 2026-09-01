@@ -256,6 +256,14 @@ export const ORCHESTRATION_WORKER_START_METHODS: RpcMethod[] = [
         })
 
         failedStage = 'dispatch_input'
+        // Why after tui-idle and not instead of it: tui-idle proves an agent owns the pane, but
+        // for a pane whose title Orca cannot parse yet it can settle on a generic ready prompt —
+        // before the agent's composer exists. A paste written into that window is dropped when
+        // the TUI drains stdin at init, and the worker sits with an empty composer. No-op for
+        // agents that declare no composer signal.
+        if (agent) {
+          await runtime.waitForAgentComposerReady(terminalHandle, agent)
+        }
         const preamble = buildDispatchPreamble({
           canDispatchSubWorkers: started.dispatch.depth < runtime.getNestedWorkerMaxDepth(),
           taskId: task.id,
