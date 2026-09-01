@@ -9,7 +9,6 @@ import {
 } from './tui-agent-startup-shell'
 import { TUI_AGENT_CONFIG } from './tui-agent-config'
 import type { StartupCommandDelivery } from './codex-startup-delivery'
-import { buildSleepingAgentLaunchConfig } from './sleeping-agent-launch-config'
 import { resolvedLaunchConfig } from './resolved-agent-launch-config'
 import { planHermesStartupQuery } from './hermes-startup-query'
 import { inlineAgentDraftFitsPlatform } from './agent-draft-platform-limit'

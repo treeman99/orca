@@ -87,7 +87,9 @@ export async function importLegacyTranscriptIntoJournal(input: {
   const options = input.options ?? {}
   const limits = options.limits ?? DEFAULT_JOURNAL_PAYLOAD_LIMITS
   const transcriptAgent = resolveNativeChatTranscriptAgent(input.agent)
-  if (!transcriptAgent) {
+  if (!transcriptAgent || transcriptAgent === 'opencode') {
+    // opencode has no line-delimited transcript FILE — its session is a storage tree with no
+    // per-line decoder, so it has no entry in TRANSCRIPT_DECODERS. See transcript-reader.ts.
     return { ok: false, error: `Unsupported agent for journal import: ${input.agent}` }
   }
   const filePath =
