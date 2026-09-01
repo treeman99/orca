@@ -86,6 +86,10 @@ design-docs/
 # Machine-local agent hook endpoint files may contain auth tokens.
 /agent-hooks/
 
+# Orca workspace scratch: per-task work artifacts (.orca/artifacts/<task_id>/),
+# file drops, and the per-user issue-command override. None are deliverables.
+.orca/
+
 # Local-only design/planning docs (not checked in), including most of docs/reference/.
 # Durable docs that should be tracked must live in one of the allow-listed
 # locations below (assets, readme, STYLEGUIDE, mobile terminal shortcut bar,

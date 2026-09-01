@@ -405,10 +405,37 @@ If an older CLI rejects `worktree create --agent`, create the worktree normally,
 
 Wait for `tui-idle` before dispatching. Always pass `--timeout-ms`; real coding tasks can take 15-60 minutes. During supervision, use rolling `check --wait` windows. If a window returns no matching message, inspect `task-list`, `terminal read`, or `terminal wait --for tui-idle` as a liveness checkpoint; if the terminal is still working or producing activity, keep waiting instead of retrying the task.
 
+## Work Artifacts
+
+Plans, scratch analysis, review notes, and long-form reports are working files, not deliverables. Left to its own judgment each worker picks its own location and its own name, so a run across four tasks leaves `PLAN-auth.md` at the repo root, `notes.md` beside the code it happened to be reading, and two more the coordinator never sees. The user then sorts them out of a diff that should have carried code only.
+
+Every non-deliverable file a task writes goes under `.orca/artifacts/<task_id>/` inside the worktree that task runs in. `.orca/` is already Orca's workspace namespace (`.orca/drops`, `.orca/issue-command`), so one ignore entry covers every task's scaffolding.
+
+- **Name the folder with the task id, not a description.** It is the one identifier the coordinator, the `worker_done` payload, and `dispatch-show` already share, so a stray file is always traceable to the task that wrote it. Inside the folder, name files freely.
+- **Deliverables are exempt.** Source, tests, and documentation the task was asked to produce land where the project keeps them. This rule covers only the scaffolding a task produces in order to do its job.
+- **Point `--report-path` inside it.** `--report-path .orca/artifacts/<task_id>/report.md` is what lets the coordinator open the long form without a file search, which is the reason the flag exists.
+- **The coordinator must inject this.** The dispatch preamble does not carry it, so a worker that was never told writes wherever it likes. Append the block below to `--spec`; a rule the worker cannot see is not in force.
+- **Nothing goes outside it.** Not the repo root, not `docs/`, not `CLAUDE.md` or `AGENTS.md`. The single exception is `.claude/harness/` (Project Rule Ledger, below), which is durable project knowledge rather than task scaffolding and is governed by its own protocol.
+
+Append verbatim to `task-create --spec`, substituting the task id once it exists:
+
+```text
+--- WORK ARTIFACTS ---
+Write every working file - plan, scratch analysis, review notes, long-form report - under
+`.orca/artifacts/<task_id>/` in your worktree. Create the folder if it is absent. Do not put
+working files at the repo root, in `docs/`, or next to the code you are reading, and do not
+invent a different folder. Files the task was asked to deliver (source, tests, docs) are not
+working files and belong where the project keeps them. If you produced a long-form report,
+pass its path as `--report-path` on worker_done.
+--- END WORK ARTIFACTS ---
+```
+
+Add `.orca/` to the project's ignore file once. Without it the rule relocates the clutter but still leaves it in `git status`.
+
 ## Agent Guidance
 
 - Workers with a valid live preamble must send `worker_done` exactly once from their own terminal with an explicit `--outcome succeeded` or `--outcome failed`:
-  `orca orchestration send --type worker_done --subject "<short status>" --body "<3-sentence summary: what you did, what you found, what's left>" --task-id <task_id> --dispatch-id <dispatch_id> --outcome succeeded --files-modified "path/a" --report-path "<optional>" --json`
+  `orca orchestration send --type worker_done --subject "<short status>" --body "<3-sentence summary: what you did, what you found, what's left>" --task-id <task_id> --dispatch-id <dispatch_id> --outcome succeeded --files-modified "path/a" --report-path ".orca/artifacts/<task_id>/report.md" --json`
 - A failed outcome is still a terminal report, but Orca records both the Dispatch and Task as failed. Never encode failure only in the subject/body.
 - After sending `worker_done`, end that dispatched turn and idle at the agent prompt. Do not autonomously start more work, poll, or attempt to close the terminal yourself. A direct user instruction takes precedence and starts ordinary user-owned work: follow it without coordinator approval or a fresh Dispatch, never refuse it because of worker/coordinator roles, and do not reuse the settled Dispatch's lifecycle IDs. A coordinator-supervised follow-up still arrives with a fresh preamble + TASK block.
 - For long tasks, send heartbeat/status only when the preamble asks for it, including both IDs:
