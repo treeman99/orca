@@ -67,6 +67,7 @@ import {
   appendNormalizedToTailBuffer,
   buildPreview,
   classifyAgentPromptSubmitEvidence,
+  isTerminalSendSettlementAgent,
   OrcaRuntimeService,
   resolveWorktreeScanCacheTtlMs,
   type RuntimeTerminalAgentStatusEvent
@@ -17691,9 +17692,13 @@ describe('OrcaRuntimeService', () => {
     }
   )
 
+  // Why derived and not a hand-written exclusion list: this is the open-loop half of the
+  // contract, and hardcoding its complement meant adding an agent to the render gate hung this
+  // case on a marker the fake pty never emits instead of moving it to the other half. The gated
+  // half is covered by agent-prompt-submission-windows-submit-delay.test.ts.
   it.each(
     (Object.keys(TUI_AGENT_CONFIG) as TuiAgent[]).filter(
-      (agent) => agent !== 'claude' && agent !== 'codex'
+      (agent) => !isTerminalSendSettlementAgent(agent)
     )
   )('holds Enter for the full open-loop submit delay for %s', async (agent) => {
     vi.useFakeTimers()

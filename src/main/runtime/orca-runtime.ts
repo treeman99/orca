@@ -43998,10 +43998,19 @@ function classifyAgentTitle(title: string | null): 'agent' | 'management' | 'neu
   return detectAgentStatusFromTitle(title) !== null ? 'agent' : 'neutral'
 }
 
-function isTerminalSendSettlementAgent(
+export function isTerminalSendSettlementAgent(
   agent: TuiAgent | null | undefined
-): agent is 'claude' | 'codex' {
-  return agent === 'claude' || agent === 'codex'
+): agent is 'claude' | 'codex' | 'opencode' {
+  // Why opencode joins the two upstream picked: the ingest model that replaced the fork's flat
+  // 1_500 ms win32 delay measured a TUI that was already mounted ("the child repaints in ~0 ms"),
+  // but opencode stays silent for ~1.5-2 s between enabling bracketed paste and mounting its
+  // composer (see draft-paste-ready-scanner.ts). On ConPTY the open-loop wait then lands Enter
+  // before there is a composer to hold the paste, and nothing notices: opencode has no managed
+  // status hook, so `resubmitAgentPromptIfStillUnsubmitted` reads `indeterminate` and never
+  // resends. It is safe here for the reason the widening warning excludes — opencode re-emits
+  // AGENT_PROMPT_RENDER_MARKER on every render frame, so the gate settles on evidence rather
+  // than waiting out the hard cap.
+  return agent === 'claude' || agent === 'codex' || agent === 'opencode'
 }
 
 function findLastCompleteOscTitleRange(data: string): { start: number; end: number } | null {
