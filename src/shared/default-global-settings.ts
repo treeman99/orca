@@ -133,6 +133,7 @@ export function buildDefaultSettings(args: {
     // Fork default: on. The terminal/chat toggle is the point — upstream ships it off, which
     // hides the view behind a setting most users never find.
     experimentalNativeChat: true,
+    experimentalStructuredNativeChat: false,
     nativeChatSessionOptions: {},
     openInApplications: [...DEFAULT_OPEN_IN_APPLICATIONS],
     rightSidebarOpenByDefault: true,

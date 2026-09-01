@@ -34,6 +34,9 @@ import {
   ensureWindowsProcessTreeBuildSource,
   windowsProcessTreePackageDir
 } from './ensure-windows-process-tree-source.mjs'
+// Upstream's rebuild invocation realpaths the cwd; pnpm's junction breaks gyp's
+// node-addon-api hop otherwise. Our source staging stays — it does strictly more.
+import { nodeGypRebuildInvocation } from './windows-process-tree-gyp-rebuild.mjs'
 
 const ROOT = resolve(import.meta.dirname, '..', '..')
 const PACKAGE_DIR = windowsProcessTreePackageDir(ROOT)
@@ -119,12 +122,9 @@ function main() {
   ensureWindowsProcessTreeBuildSource(ROOT)
   assertPatchApplied()
 
-  console.log(`[windows-process-tree] building ${arch} from ${PACKAGE_DIR}`)
-  execFileSync(
-    process.execPath,
-    [join(ROOT, 'node_modules', 'node-gyp', 'bin', 'node-gyp.js'), 'rebuild', `--arch=${arch}`],
-    { cwd: PACKAGE_DIR, stdio: 'inherit' }
-  )
+  const gyp = nodeGypRebuildInvocation(arch)
+  console.log(`[windows-process-tree] building ${arch} from ${gyp.cwd}`)
+  execFileSync(process.execPath, gyp.args, { cwd: gyp.cwd, stdio: 'inherit' })
 
   const built = join(PACKAGE_DIR, 'build', 'Release', 'windows_process_tree.node')
   if (!existsSync(built)) {

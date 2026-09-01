@@ -140,4 +140,10 @@ describe('mobile RPC allowlist', () => {
     const allowed = mobileRpcAllowlist()
     expect([...allowed].filter((method) => method.startsWith('updater.'))).toEqual([])
   })
+
+  it('does not expose structured agent sessions to mobile credentials', () => {
+    expect(
+      [...mobileRpcAllowlist()].filter((method) => method.startsWith('agentSession.'))
+    ).toEqual([])
+  })
 })

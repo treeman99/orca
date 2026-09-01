@@ -720,6 +720,9 @@ export function projectWorktreeTabModelReconciliation(
       // pane that now refuses to mount.
       return !getEnterprisePolicyView().disableMobileEmulator
     }
+    if (tab.contentType === 'agent-session') {
+      return true
+    }
     return liveEditorIds.has(tab.entityId)
   }
 
