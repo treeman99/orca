@@ -23,15 +23,24 @@ describe('windows-process-tree node-addon-api gyp path', () => {
       'utf8'
     )
     expect(sourceModule).toContain(
-      "const NAPI_HEADERS = ['napi.h', 'napi-inl.h', 'napi-inl.deprecated.h']"
+      "import { stageWindowsProcessTreeNodeAddonApiHeaders } from './windows-process-tree-gyp-rebuild.mjs'"
     )
-    expect(sourceModule).toContain('for (const header of NAPI_HEADERS)')
-    expect(sourceModule).toContain("import { createRequire } from 'node:module'")
-    expect(sourceModule).toContain("import { dirname, join } from 'node:path'")
-    expect(sourceModule).toContain(
-      "createRequire(join(packageDir, 'package.json')).resolve('node-addon-api/package.json')"
-    )
+    expect(sourceModule).toContain('stageWindowsProcessTreeNodeAddonApiHeaders(packageDir)')
     expect(sourceModule).toContain('Repaired un-applied pnpm patch hunks before build.')
+    const rebuildHelper = readFileSync(
+      join(projectDir, 'config/scripts/windows-process-tree-gyp-rebuild.mjs'),
+      'utf8'
+    )
+    expect(rebuildHelper).toContain("createRequire(join(packageDir, 'package.json'))")
+    expect(rebuildHelper).toContain("resolve('node-addon-api/package.json')")
+    expect(rebuildHelper).toContain("'napi.h'")
+    expect(rebuildHelper).toContain("'napi-inl.h'")
+    expect(rebuildHelper).toContain("'napi-inl.deprecated.h'")
+    const rebuildScript = readFileSync(
+      join(projectDir, 'config/scripts/rebuild-native-deps.mjs'),
+      'utf8'
+    )
+    expect(rebuildScript).toContain('ensureWindowsProcessTreeBuildSource(projectDir)')
   })
 
   it('resolves node_addon_api.gyp to a real file from the package directory', () => {

@@ -18,6 +18,7 @@
 import { session } from 'electron'
 
 import { getEnterprisePolicy } from './enterprise-policy-file'
+import { getProxySessionApplicationReadiness } from '../network/proxy-settings'
 
 type GlobalFetch = typeof globalThis.fetch
 
@@ -86,12 +87,22 @@ function installSessionGuard(allowed: ReadonlySet<string>): void {
   }
   defaultSession.webRequest.onBeforeRequest((details, callback) => {
     const host = blockedHost(details.url, allowed)
-    if (host === null) {
-      callback({})
+    if (host !== null) {
+      reportBlocked(host, 'renderer request')
+      callback({ cancel: true })
       return
     }
-    reportBlocked(host, 'renderer request')
-    callback({ cancel: true })
+    // Why chained and not just `callback({})`: Electron keeps ONE onBeforeRequest listener per
+    // session, and since v1.4.194 upstream's proxy-readiness gate registers on this same default
+    // session earlier in startup. Registering ours silently replaced it, so requests could leave
+    // on a stale proxy mid-transition. Allowlist first (it is the security answer), readiness
+    // second.
+    const readiness = getProxySessionApplicationReadiness(defaultSession)
+    if (typeof readiness === 'boolean') {
+      callback(readiness ? {} : { cancel: true })
+      return
+    }
+    void readiness.then((ready) => callback(ready ? {} : { cancel: true }))
   })
   sessionGuardInstalled = true
 }

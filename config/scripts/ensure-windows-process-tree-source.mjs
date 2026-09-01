@@ -1,8 +1,6 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
-
-const NAPI_HEADERS = ['napi.h', 'napi-inl.h', 'napi-inl.deprecated.h']
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { stageWindowsProcessTreeNodeAddonApiHeaders } from './windows-process-tree-gyp-rebuild.mjs'
 
 export function windowsProcessTreePackageDir(projectDir) {
   return join(projectDir, 'node_modules', '@vscode', 'windows-process-tree')
@@ -29,11 +27,10 @@ export function ensureWindowsProcessTreeBuildSource(projectDir) {
   }
   const bindingPath = join(packageDir, 'binding.gyp')
   const processPath = join(packageDir, 'src', 'process.cc')
-  const nodeAddonApiDir = dirname(
-    createRequire(join(packageDir, 'package.json')).resolve('node-addon-api/package.json')
-  )
-  let bindingGyp = readFileSync(bindingPath, 'utf8')
-  let processCc = readFileSync(processPath, 'utf8')
+  // Why: header staging must still run for a package whose sources node-gyp never reads.
+  const repairable = existsSync(bindingPath) && existsSync(processPath)
+  let bindingGyp = repairable ? readFileSync(bindingPath, 'utf8') : ''
+  let processCc = repairable ? readFileSync(processPath, 'utf8') : ''
   const originalBinding = bindingGyp
   const originalProcess = processCc
 
@@ -66,11 +63,7 @@ export function ensureWindowsProcessTreeBuildSource(projectDir) {
   if (processCc !== originalProcess) {
     writeFileSync(processPath, processCc)
   }
-  const stagedHeaderDir = join(packageDir, 'deps', 'node-addon-api')
-  mkdirSync(stagedHeaderDir, { recursive: true })
-  for (const header of NAPI_HEADERS) {
-    copyFileSync(join(nodeAddonApiDir, header), join(stagedHeaderDir, header))
-  }
+  stageWindowsProcessTreeNodeAddonApiHeaders(packageDir)
   if (bindingGyp !== originalBinding || processCc !== originalProcess) {
     console.warn('[windows-process-tree] Repaired un-applied pnpm patch hunks before build.')
   }

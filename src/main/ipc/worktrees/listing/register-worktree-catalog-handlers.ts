@@ -2,7 +2,6 @@ import { ipcMain } from 'electron'
 import { isFolderRepo } from '../../../../shared/repo-kind'
 import { getRepoExecutionHostId, type ExecutionHostId } from '../../../../shared/execution-host'
 import { getSshGitProvider } from '../../../providers/ssh-git-dispatch'
-import { pruneLineageForMissingRepoWorktrees } from '../../../worktree-lineage-pruning'
 import { EMPTY_RETIRED_NAME_REGISTRY } from '../../../../shared/worktree/retired-name-registry'
 import { getRetiredNameRegistryForRepo } from '../../../worktree-name-retirement'
 import {
@@ -13,8 +12,11 @@ import {
 } from './ssh-worktree-fallback'
 import { listVisibleFolderWorkspaces } from './folder-workspace-catalog'
 import {
+  applyFreshDetectedWorktreeScanSideEffects,
+  rememberLocalWorktreeRoots,
   listDetectedGitWorktrees,
-  rememberLocalWorktreeRoots
+  type DetectedWorktreeMetadataPrune,
+  type DetectedWorktreeSideEffectToken
 } from './detected-worktree-scan-cache'
 import {
   loggedUnavailableSshGitProviders,
@@ -89,6 +91,8 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
         let gitWorktrees
         let freshScan = true
         let safeToAuthorize = true
+        let sideEffectToken: DetectedWorktreeSideEffectToken | undefined
+        let metadataPrune: DetectedWorktreeMetadataPrune | undefined
         if (isFolderRepo(repo)) {
           return listVisibleFolderWorkspaces(store, repo)
         } else if (repo.connectionId) {
@@ -118,12 +122,24 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
           gitWorktrees = scan.gitWorktrees
           freshScan = scan.fresh
           safeToAuthorize = scan.safeToAuthorize
+          sideEffectToken = scan.sideEffectToken
+          metadataPrune = scan.metadataPrune
         }
-        if (safeToAuthorize) {
+        // Idempotent and non-destructive, so it runs outside the fresh gate: a cached hit or a
+        // follower must refill an authorized-roots cache that was invalidated meanwhile.
+        if (safeToAuthorize && !freshScan) {
           rememberLocalWorktreeRoots(store, repo, gitWorktrees)
         }
         if (freshScan) {
-          pruneLineageForMissingRepoWorktrees(store, repo, gitWorktrees)
+          await applyFreshDetectedWorktreeScanSideEffects(
+            store,
+            repo,
+            gitWorktrees,
+            metadataPrune,
+            {
+              sideEffectToken
+            }
+          )
         }
         loggedWorktreeListFailures.delete(`${repo.id}:${repo.path}`)
         const metadata = metadataForRepo(repo)
@@ -174,6 +190,8 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
       let gitWorktrees
       let freshScan = true
       let safeToAuthorize = true
+      let sideEffectToken: DetectedWorktreeSideEffectToken | undefined
+      let metadataPrune: DetectedWorktreeMetadataPrune | undefined
       if (isFolderRepo(repo)) {
         return listVisibleFolderWorkspaces(store, repo)
       } else if (repo.connectionId) {
@@ -203,12 +221,18 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
         gitWorktrees = scan.gitWorktrees
         freshScan = scan.fresh
         safeToAuthorize = scan.safeToAuthorize
+        sideEffectToken = scan.sideEffectToken
+        metadataPrune = scan.metadataPrune
       }
-      if (safeToAuthorize) {
+      // Idempotent and non-destructive, so it runs outside the fresh gate: a cached hit or a
+      // follower must refill an authorized-roots cache that was invalidated meanwhile.
+      if (safeToAuthorize && !freshScan) {
         rememberLocalWorktreeRoots(store, repo, gitWorktrees)
       }
       if (freshScan) {
-        pruneLineageForMissingRepoWorktrees(store, repo, gitWorktrees)
+        await applyFreshDetectedWorktreeScanSideEffects(store, repo, gitWorktrees, metadataPrune, {
+          sideEffectToken
+        })
       }
       loggedWorktreeListFailures.delete(`${repo.id}:${repo.path}`)
       const metadata = allMeta ?? readAllWorktreeMetaForHost(store, getRepoExecutionHostId(repo))

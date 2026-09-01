@@ -21,6 +21,11 @@ vi.mock('electron', () => ({
 }))
 
 const getEnterprisePolicyMock = vi.fn(() => makeEnterprisePolicy())
+const proxyReadinessMock = vi.fn<() => boolean | Promise<boolean>>(() => true)
+
+vi.mock('../network/proxy-settings', () => ({
+  getProxySessionApplicationReadiness: () => proxyReadinessMock()
+}))
 
 vi.mock('./enterprise-policy-file', () => ({
   getEnterprisePolicy: () => getEnterprisePolicyMock()
@@ -69,6 +74,8 @@ beforeEach(() => {
   onBeforeRequestMock.mockReset()
   getEnterprisePolicyMock.mockReset()
   getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
+  proxyReadinessMock.mockReset()
+  proxyReadinessMock.mockReturnValue(true)
   electronState.defaultSession = { webRequest: { onBeforeRequest: onBeforeRequestMock } }
   stderrWrites = []
   vi.spyOn(process.stderr, 'write').mockImplementation((chunk: unknown) => {
@@ -156,6 +163,25 @@ describe('installEnterpriseNetworkGuard', () => {
     ]) {
       expect(decide(url), url).toEqual({})
     }
+  })
+
+  it('still honors the proxy readiness gate it shares the listener slot with', async () => {
+    // Why: Electron keeps one onBeforeRequest listener per session and upstream registers its
+    // proxy-readiness gate on this same default session first. Delete the chained call below
+    // and this case must go red — otherwise the allowlist silently replaces that gate.
+    getEnterprisePolicyMock.mockReturnValue(allowlistPolicy())
+    installEnterpriseNetworkGuard()
+
+    proxyReadinessMock.mockReturnValue(false)
+    expect(decide(`https://${CORPORATE_HOST}/allowed`)).toEqual({ cancel: true })
+
+    proxyReadinessMock.mockReturnValue(Promise.resolve(true))
+    const responses: BeforeRequestResponse[] = []
+    registeredListener()({ url: `https://${CORPORATE_HOST}/allowed` }, (response) =>
+      responses.push(response)
+    )
+    await vi.waitFor(() => expect(responses).toHaveLength(1))
+    expect(responses[0]).toEqual({})
   })
 
   it('registers a single webRequest listener across repeated installs', () => {

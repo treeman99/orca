@@ -107,6 +107,7 @@ docs/**
 !docs/reference/
 !docs/reference/git-compatibility.md
 !docs/reference/headless-linux-server.md
+!docs/reference/ime-regression-checklist.md
 !docs/reference/linux-glibc-compatibility.md
 !docs/reference/macos-press-and-hold.md
 !docs/reference/orcad-operations.md
@@ -128,6 +129,7 @@ docs/**
 !docs/reference/local-dev-run.md
 !docs/reference/windows-daemon-session-survival.md
 !docs/reference/wsl-command-execution.md
+!docs/reference/wsl-probe-failure-semantics.md
 !docs/reference/xterm-patch-regeneration.md
 !docs/reference/bot-lane.md
 

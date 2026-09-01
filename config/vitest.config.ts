@@ -27,6 +27,7 @@ export default defineConfig({
       'tests/e2e/**/*.unit.test.ts'
     ],
     setupFiles: [
+      resolve('config/scripts/happy-dom-offscreen-canvas.ts'),
       // Why: happy-dom drops MutationObserver callbacks on GC; keep them alive like a browser does.
       resolve('config/scripts/happy-dom-mutation-observer-retention.ts'),
       resolve('config/scripts/vitest-host-ports-setup.ts'),
