@@ -224,7 +224,9 @@ describe('ExperimentalPane', () => {
 
   it('shows the structured-native-chat child setting only when Chat UI is the default view', async () => {
     const updateSettings = vi.fn()
-    const disabledSettings = getDefaultSettings('/tmp')
+    // Explicit, not the default: the fork ships experimentalNativeChat on, so this case must say
+    // what it is testing rather than inherit it.
+    const disabledSettings = { ...getDefaultSettings('/tmp'), experimentalNativeChat: false }
     const disabledMarkup = renderToStaticMarkup(
       <ExperimentalPane settings={disabledSettings} updateSettings={vi.fn()} />
     )
