@@ -1,10 +1,8 @@
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
-import { buildDispatchPreamble } from '../../orchestration/preamble'
 import { OrchestrationError } from '../../orchestration/orchestration-error'
 import { defineMethod, type RpcMethod } from '../core'
 import { startFederatedWorker } from './orchestration-federated-worker-start'
-import { buildDispatchInputEffect } from './orchestration-dispatch-input-effect'
 import { assertOrchestrationWorktreeCreationSupported } from './orchestration-folder-worktree-placement'
 import { WorkerStartParams } from './orchestration-worker-start-schema'
 import {
@@ -23,6 +21,8 @@ import {
 import { failWorkerStartWithReceipt } from './orchestration-worker-start-receipt'
 import { prepareLocalWorkerStart } from './orchestration-worker-start-validation'
 import { resolveDispatchCreator } from './orchestration-dispatch-creator'
+import { recordWorkerPromptReadiness } from './orchestration-worker-prompt-diagnostics'
+import { deliverWorkerDispatchInput } from './orchestration-worker-dispatch-input'
 import { resolveOrchestrationCaller } from './orchestration-run-scope'
 import {
   isWorkerStartTimeoutWithinTimerLimit,
@@ -234,6 +234,12 @@ export const ORCHESTRATION_WORKER_START_METHODS: RpcMethod[] = [
           timeoutMs: readinessTimeoutMs
         })
         persistWorkerSetupWaitOutcome({ ...setupStage, wait })
+        await recordWorkerPromptReadiness(runtime, {
+          taskId: task.id,
+          agent,
+          handle: terminalHandle,
+          wait
+        })
         if (!wait.satisfied) {
           if (setupReceipt.state === 'failed') {
             failedStage = 'setup_wait'
@@ -256,27 +262,18 @@ export const ORCHESTRATION_WORKER_START_METHODS: RpcMethod[] = [
         })
 
         failedStage = 'dispatch_input'
-        // Why after tui-idle and not instead of it: tui-idle proves an agent owns the pane, but
-        // for a pane whose title Orca cannot parse yet it can settle on a generic ready prompt —
-        // before the agent's composer exists. A paste written into that window is dropped when
-        // the TUI drains stdin at init, and the worker sits with an empty composer. No-op for
-        // agents that declare no composer signal.
-        if (agent) {
-          await runtime.waitForAgentComposerReady(terminalHandle, agent)
-        }
-        const preamble = buildDispatchPreamble({
-          canDispatchSubWorkers: started.dispatch.depth < runtime.getNestedWorkerMaxDepth(),
+        await deliverWorkerDispatchInput(runtime, {
           taskId: task.id,
-          dispatchId: started.dispatch.id,
           taskSpec: task.spec,
+          dispatchId: started.dispatch.id,
+          dispatchDepth: started.dispatch.depth,
+          terminalHandle,
+          capability,
           coordinatorHandle: params.from,
-          workerHandle: terminalHandle,
-          dispatchCapability: capability,
           devMode: params.devMode,
-          cliCommand: runtime.getTerminalOrchestrationCliCommand(terminalHandle)
+          agent,
+          effects
         })
-        const dispatched = await runtime.sendTerminalAgentPrompt(terminalHandle, preamble)
-        effects.push(buildDispatchInputEffect(terminalHandle, dispatched.submit))
         const worker = db.markWorkerDispatchReady(started.dispatch.id, effects)
         monitorWorkerSetup({
           runtime,

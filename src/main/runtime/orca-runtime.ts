@@ -1274,6 +1274,7 @@ import {
   type WatcherRemovalDeadline
 } from '../ipc/watcher-removal-drain'
 import { withWorktreeSpan } from '../observability/instrumentation'
+import { writeDiagnosticLine } from '../observability/diagnostic-log'
 import { HeadlessEmulator } from '../daemon/headless-emulator'
 import { PtyShellOwnershipMirror } from './pty-shell-ownership-mirror'
 import {
@@ -21760,6 +21761,9 @@ export class OrcaRuntimeService {
       throw error
     }
 
+    // Why logged: the two branches fail differently — the gate waits on the agent repainting,
+    // the open-loop wait only on arithmetic — and which one a pane took is invisible afterwards.
+    const preEnterStartedAt = Date.now()
     if (renderGate) {
       try {
         await waitForAgentPromptPromise(renderGate.wait(), options.signal)
@@ -21772,6 +21776,13 @@ export class OrcaRuntimeService {
         options.signal
       )
     }
+    writeDiagnosticLine('agent-prompt-wait', {
+      agent: this.getPtyAgent(ptyId) ?? 'none',
+      gate: renderGate ? 'render' : 'open-loop',
+      host: writeHostPlatform,
+      bytes: pasteByteLength,
+      ms: Date.now() - preEnterStartedAt
+    })
     assertAgentPromptRequestActive(options.signal)
     this.assertAgentPromptGeneration(ptyId, generation)
     agentSessionPtyWriteGate.assertReadmitted(ptyId, admitted)
@@ -22198,12 +22209,24 @@ export class OrcaRuntimeService {
       console.warn(
         `[agent-prompt] ${handle}: submit unverified (${verdict}); statusObserved=${statusObserved}; Enter was NOT resent`
       )
+      writeDiagnosticLine('agent-prompt-submit', {
+        agent: this.getPtyAgent(ptyId) ?? 'none',
+        outcome: 'unverified',
+        verdict,
+        statusObserved
+      })
       return { outcome: 'unverified', statusObserved }
     }
     const resent = this.ptyController?.write(ptyId, AGENT_PROMPT_SUBMIT) ?? false
     console.warn(
       `[agent-prompt] ${handle}: prompt still unsubmitted after Enter; resent once (accepted=${resent})`
     )
+    writeDiagnosticLine('agent-prompt-submit', {
+      agent: this.getPtyAgent(ptyId) ?? 'none',
+      outcome: 'resent',
+      verdict,
+      accepted: resent
+    })
     return { outcome: 'resent', statusObserved: true }
   }
 

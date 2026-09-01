@@ -321,6 +321,29 @@ $env:ORCA_WIN_PUBLISHER_NAME = "<사내 인증서 CN>"
 
 `beforeBuild`는 매 빌드마다 `rebuild-native-deps.mjs --platform=win32 --arch=x64 --force`를 실행하므로 **`node-pty`와 `windows-native-registry`는 항상 소스에서 재컴파일**됩니다. 컴파일 툴체인은 선택이 아니라 필수입니다.
 
+### 8-1. 런타임 — 워커에 프롬프트가 전달되지 않을 때
+
+빌드가 아니라 **실행 중** 증상입니다. `orchestration`이 워커를 만들었는데 에이전트는 떴고 프롬프트만
+안 들어가는 경우, 어느 단계가 잃었는지 로그로 판정합니다.
+
+**켜기**: 설정 → 개인정보 → 트러블슈팅 로그. 폴더를 비워 두면 앱 로그 디렉터리에 `orca-diagnostic.log`가
+생깁니다. 기본은 꺼짐이고, **이 파일은 기계 밖으로 나가지 않습니다.** 재현이 끝나면 다시 끄십시오.
+
+모든 줄이 `ORCA-DIAG`로 시작하므로 한 번의 검색으로 전부 찾을 수 있습니다. 한 dispatch가 남기는
+줄은 넷이고, 순서대로 읽으면 잃은 지점이 드러납니다:
+
+| 토픽 | 답하는 질문 | 이상 신호 |
+| --- | --- | --- |
+| `worker-prompt-ready` | `tui-idle`이 **무엇을 근거로** 통과했나 | opencode인데 `ocTitle=false` — 에이전트 자신의 제목(`OC \| …`)이 아니라 일반 ready-prompt로 통과한 것. 컴포저가 아직 없을 수 있습니다. `title=`에 실제 제목이 붙습니다 |
+| `worker-prompt-composer` | 컴포저가 그려질 때까지 기다렸나 | `ready=false` — 신호가 캡 안에 안 왔습니다. `ms=`가 캡에 가깝다면 그 에이전트가 신호를 안 내는 것입니다 |
+| `agent-prompt-wait` | Enter 전에 **어느 대기**를 썼나 | `gate=open-loop`는 에이전트 repaint가 아니라 산술로만 기다렸다는 뜻. `gate=render`가 정상입니다 |
+| `agent-prompt-submit` | 제출을 확인했나 | `outcome=unverified` + `statusObserved=false` — Orca가 그 페인의 상태를 **읽을 수 없습니다**(훅 없음 + 제목 파싱 불가). 이 경우 dispatch는 실패로 승격되지 않고 경고만 남습니다 |
+| `worker-prompt-sent` | 몇 바이트가 나갔고 어떻게 끝났나 | `bytes=0` 이면 붙여넣기 자체가 안 나간 것 |
+
+**읽는 법**: `worker-prompt-ready`에 `ocTitle=false`가 찍히고 `worker-prompt-composer`가 `ready=false`면,
+프롬프트가 컴포저 없는 창에 쓰여 유실된 경우입니다. 반대로 `worker-prompt-sent`에 바이트가 찍혔는데
+`agent-prompt-submit`이 `unverified`면 전달은 됐고 확인만 못 한 것이라, 워커 화면에 텍스트가 남아 있을 것입니다.
+
 ---
 
 ## 9. 참고
