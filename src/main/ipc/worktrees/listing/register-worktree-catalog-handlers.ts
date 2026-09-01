@@ -88,7 +88,6 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
       try {
         let gitWorktrees
         let freshScan = true
-        let safeToAuthorize = true
         if (isFolderRepo(repo)) {
           return listVisibleFolderWorkspaces(store, repo)
         } else if (repo.connectionId) {
@@ -117,12 +116,9 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
           const scan = await listDetectedGitWorktrees(store, repo)
           gitWorktrees = scan.gitWorktrees
           freshScan = scan.fresh
-          safeToAuthorize = scan.safeToAuthorize
-        }
-        if (safeToAuthorize) {
-          rememberLocalWorktreeRoots(store, repo, gitWorktrees)
         }
         if (freshScan) {
+          rememberLocalWorktreeRoots(store, repo, gitWorktrees)
           pruneLineageForMissingRepoWorktrees(store, repo, gitWorktrees)
         }
         loggedWorktreeListFailures.delete(`${repo.id}:${repo.path}`)
@@ -153,8 +149,13 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
     return getRetiredNameRegistryForRepo(store, repo, store.getRepos(), store.getSettings())
   })
 
-  ipcMain.handle('worktrees:list', async (_event, args: { repoId: string }) => {
-    const repo = store.getRepo(args.repoId)
+  ipcMain.handle('worktrees:list', async (_event, args: { repoId: string } | undefined) => {
+    // Renderer startup can race repo selection; malformed requests must fail closed, not crash the handler.
+    const repoId = typeof args?.repoId === 'string' ? args.repoId : ''
+    if (!repoId) {
+      return []
+    }
+    const repo = store.getRepo(repoId)
     if (!repo) {
       return []
     }
@@ -168,7 +169,6 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
     try {
       let gitWorktrees
       let freshScan = true
-      let safeToAuthorize = true
       if (isFolderRepo(repo)) {
         return listVisibleFolderWorkspaces(store, repo)
       } else if (repo.connectionId) {
@@ -197,12 +197,9 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
         const scan = await listDetectedGitWorktrees(store, repo)
         gitWorktrees = scan.gitWorktrees
         freshScan = scan.fresh
-        safeToAuthorize = scan.safeToAuthorize
-      }
-      if (safeToAuthorize) {
-        rememberLocalWorktreeRoots(store, repo, gitWorktrees)
       }
       if (freshScan) {
+        rememberLocalWorktreeRoots(store, repo, gitWorktrees)
         pruneLineageForMissingRepoWorktrees(store, repo, gitWorktrees)
       }
       loggedWorktreeListFailures.delete(`${repo.id}:${repo.path}`)
