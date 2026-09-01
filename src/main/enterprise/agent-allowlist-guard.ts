@@ -3,8 +3,12 @@
 // The renderer already narrows every picker (src/renderer/src/lib/agent-catalog.tsx), but
 // hiding a row is not a refusal: a keyboard chord bound before the policy arrived, the
 // `orca` CLI, a paired mobile/web client, and an orchestration dispatch all reach the same
-// launch paths without ever consulting the renderer. So the ids that actually reach a PTY
+// launch paths without ever consulting the renderer. So the ids that actually reach a spawn
 // are checked here, in main, where the policy file lives.
+//
+// "A spawn" and not "a PTY", deliberately: v1.4.193's structured agent-session lane reaches
+// `codex app-server` through `spawnProcess`, and the older PTY-only wording is what let that
+// lane land ungated. When a new launch mechanism appears, it belongs on this list too.
 //
 // `null` means unrestricted — the upstream behavior — so a build with no policy file
 // never throws from any of this.
@@ -18,14 +22,24 @@ export function isAgentAllowedByEnterprisePolicy(agent: string): boolean {
   return isAgentAllowedByPolicy(agent, getEnterprisePolicy().allowedAgents)
 }
 
+/** The refusal as an Error, for a caller whose contract is a Promise but whose body is not
+ *  `async` — a synchronous throw there escapes the caller's `.catch`. `null` when allowed. */
+export function agentBlockedByPolicyError(agent: string): Error | null {
+  if (isAgentAllowedByEnterprisePolicy(agent)) {
+    return null
+  }
+  // Why a human-readable suffix: this surfaces in a toast on the tab the user just
+  // tried to open, and "agent_blocked_by_enterprise_policy" alone reads as a crash.
+  return new Error(
+    `${AGENT_BLOCKED_BY_POLICY}: ${agent} is not permitted by your organization's Orca policy.`
+  )
+}
+
 /** Throws when the corporate policy does not list `agent` among the selectable CLIs. */
 export function assertAgentAllowedByEnterprisePolicy(agent: string): void {
-  if (!isAgentAllowedByEnterprisePolicy(agent)) {
-    // Why a human-readable suffix: this surfaces in a toast on the tab the user just
-    // tried to open, and "agent_blocked_by_enterprise_policy" alone reads as a crash.
-    throw new Error(
-      `${AGENT_BLOCKED_BY_POLICY}: ${agent} is not permitted by your organization's Orca policy.`
-    )
+  const blocked = agentBlockedByPolicyError(agent)
+  if (blocked) {
+    throw blocked
   }
 }
 

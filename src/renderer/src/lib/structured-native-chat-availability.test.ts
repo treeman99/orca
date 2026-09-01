@@ -12,6 +12,16 @@ vi.mock('@/lib/renderer-app-platform', () => ({
   getRendererAppPlatform: mockGetRendererAppPlatform
 }))
 
+const { mockPolicyView } = vi.hoisted(() => ({
+  mockPolicyView: vi.fn<() => { allowedAgents: readonly string[] | null }>(() => ({
+    allowedAgents: null
+  }))
+}))
+
+vi.mock('@/enterprise/enterprise-policy-access', () => ({
+  getEnterprisePolicyView: mockPolicyView
+}))
+
 type GetLocalProjectExecutionRuntimeContext =
   typeof localPreflightContext.getLocalProjectExecutionRuntimeContext
 
@@ -85,6 +95,7 @@ function stateFor(input: {
 describe('canUseStructuredNativeChat', () => {
   beforeEach(() => {
     mockGetRendererAppPlatform.mockReturnValue('darwin')
+    mockPolicyView.mockReturnValue({ allowedAgents: null })
     projectRuntimeMock.fn.mockReset()
     projectRuntimeMock.fn.mockImplementation((...args) => {
       if (!projectRuntimeMock.actual) {
@@ -95,6 +106,21 @@ describe('canUseStructuredNativeChat', () => {
   })
 
   it('allows the structured stack on a local worktree', () => {
+    expect(canUseStructuredNativeChat(stateFor({}), 'wt-1')).toBe(true)
+  })
+
+  // The corporate `allowedAgents` narrowing. Main refuses this lane at the attach funnel and
+  // again at the codex spawn, but this path calls `agentSession.create` without probing support,
+  // so without the narrowing the refusal would land as an error toast on an offered tab.
+  it('refuses a lane the corporate policy does not list', () => {
+    mockPolicyView.mockReturnValue({ allowedAgents: ['claude', 'opencode'] })
+
+    expect(canUseStructuredNativeChat(stateFor({}), 'wt-1')).toBe(false)
+  })
+
+  it('allows the lane when the corporate policy lists codex', () => {
+    mockPolicyView.mockReturnValue({ allowedAgents: ['claude', 'codex'] })
+
     expect(canUseStructuredNativeChat(stateFor({}), 'wt-1')).toBe(true)
   })
 

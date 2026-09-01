@@ -12297,6 +12297,14 @@ export class OrcaRuntimeService {
     worktreeSelector: string,
     agent: 'codex'
   ): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' }> {
+    // Why first: a blocked agent must not make the structured host exist, which is an
+    // observable side effect of merely asking. `reason: 'agent'` is an existing value, so a
+    // remote client that probes gets a plain "not here" with no new wire vocabulary.
+    // This probe has no caller in this repo today — the desktop path calls `agentSession.create`
+    // straight away, and its narrowing lives in `structured-native-chat-availability.ts`.
+    if (!isAgentAllowedByEnterprisePolicy(agent)) {
+      return { supported: false, reason: 'agent' }
+    }
     const location = await this.resolveStructuredAgentSessionLocation(worktreeSelector)
     await this.ensureStructuredAgentSessionHost()
     if (getStructuredAgentSessionHost()?.supportsCreate(location, agent)) {

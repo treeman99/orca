@@ -10,6 +10,7 @@ import type { AgentSessionJournalIdentity } from '../../shared/agent-session-jou
 import { agentSessionProviderHandleChainHead } from '../../shared/agent-session-provider-handle'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import { resolveCodexCommand } from '../codex-cli/command'
+import { assertAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 import type { AgentSessionRecordStore } from '../runtime/agent-session-record-store'
 import type { CodexStructuredLaunch } from './codex-structured-session-adapter'
 import { resolvePinnedCodexRolloutProof } from './codex-tui-rollout-proof'
@@ -38,6 +39,13 @@ export function createCodexStructuredLaunchResolver(
     if (record.provider !== 'codex') {
       throw new Error(`session ${identity.sessionId} is a ${record.provider} session`)
     }
+    // Why again after attach: a record the store already holds is relaunched straight from
+    // here — on wake, on owner replacement, on restart restore — without a second attach. This
+    // is the only refusal a session created before the policy landed ever meets, and it is the
+    // last point before a vendor CLI becomes a child process. Throwing is the right shape: the
+    // adapter already wraps a failure here as `AgentSessionPreSpawnError`, which means exactly
+    // "nothing was spawned".
+    assertAgentAllowedByEnterprisePolicy(record.provider)
     // This adapter spawns a child on the machine the runtime itself runs on.
     // A session pinned elsewhere belongs to that host's runtime, and quietly
     // starting it here would put a second writer on the same thread.

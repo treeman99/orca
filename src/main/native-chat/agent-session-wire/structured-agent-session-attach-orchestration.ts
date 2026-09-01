@@ -17,6 +17,7 @@ import {
   pinnedAgentSessionLaunchEnv
 } from './structured-agent-session-launch-env'
 import { refuseAgentSessionMutation } from './structured-agent-session-mutation-admission'
+import { agentBlockedByPolicyError } from '../../enterprise/agent-allowlist-guard'
 import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
 
 export function attachStructuredAgentSession(
@@ -24,6 +25,16 @@ export function attachStructuredAgentSession(
   callerKey: string,
   params: AgentSessionAttachParams
 ): Promise<AgentSessionMutationResult<AgentSessionAttachResult>> {
+  // Why here and not in the three RPC handlers: create-by-intent, create-by-attach-params,
+  // ensure and the surface-hold resume all funnel through this call. Refusing before the
+  // session is reserved leaves no record, no journal and no idempotency row behind — and
+  // nothing enters the attach queue, so `drainAttaches` has nothing to wait on.
+  // Why a rejection and not a throw: this returns a Promise but is not `async`, so a
+  // synchronous throw would escape a caller's `.catch`.
+  const blocked = agentBlockedByPolicyError(params.agent)
+  if (blocked) {
+    return Promise.reject(blocked)
+  }
   const sessionId = params.envelope.sessionId
   const attaching = context.serialize(sessionId, async () => {
     const unreconciled = await context.reconcileLeases(sessionId)

@@ -2,8 +2,16 @@ import type { AppState } from '@/store/types'
 import { getLocalProjectExecutionRuntimeContext } from '@/lib/local-preflight-context'
 import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { getRendererAppPlatform } from '@/lib/renderer-app-platform'
+import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
+import { isAgentAllowedByPolicy } from '../../../shared/corporate-agent-access'
 
 export function canUseStructuredNativeChat(state: AppState, worktreeId: string): boolean {
+  // Why the policy here and not only in main: this path never probes `agentSession.createSupport`
+  // — it calls `agentSession.create` straight away — so without this the corporate refusal would
+  // arrive as an error toast on a tab the user was allowed to open. The lane is codex-only today.
+  if (!isAgentAllowedByPolicy('codex', getEnterprisePolicyView().allowedAgents)) {
+    return false
+  }
   if (state.settings?.experimentalStructuredNativeChat !== true) {
     return false
   }
