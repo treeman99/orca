@@ -488,6 +488,42 @@ git diff --name-status v1.4.163..HEAD   # A=신규, M=upstream 파일 수정, D=
 | **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄). 문서: `skill-guides/orchestration.md`의 `## Project Rule Ledger` 절 + `## Next Action`의 원장 로드 한 구절 | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다. 오케스트레이션 가이드 절은 `config/scripts/orchestration-skill-guidance.test.mjs`가 지키므로 유실 시 테스트가 먼저 붉어집니다 |
 | **포크가 재작성해 소유한 문서** | `README.md`(upstream 원문 268줄을 사내 문서로 전면 교체 — 남은 공통 문장이 거의 없어 자동 병합이 되지 않습니다), `CLAUDE.md`(upstream은 `@AGENTS.md` 한 줄짜리 11바이트 스텁 → 126줄로 확장) | **둘 다 upstream에도 존재하므로 upstream이 손댈 때마다 반드시 충돌합니다.** 리베이스에서 사내 버전을 남기려면 `git checkout --theirs README.md CLAUDE.md` — **리베이스에서는 `--ours`가 재배치 대상(upstream), `--theirs`가 재생 중인 사내 커밋**이라 머지와 의미가 뒤집혀 있습니다. 그다음 upstream 변경분 중 필요한 것만 수동으로 반영하세요 |
 
+#### 디렉터리 통째로 지운 것 — `docs/site` (v1.4.195에서 제거)
+
+upstream v1.4.195가 **Next.js 문서 사이트**(`docs/site/`, 115파일 + 자체 `package.json`·`pnpm-lock.yaml`)와
+그것을 **Vercel `www.onorca.dev/docs`로 배포하는 워크플로**(`.github/workflows/docs.yml`)를 들여왔습니다.
+이 포크는 **둘 다 지웠습니다.**
+
+**왜 지웠나.** 데스크톱 번들에는 안 실리고(`config/electron-builder.config.cjs`의 `'!docs{,/**/*}'`)
+배포 잡도 `release_gate`의 `github.repository == 'stablyai/orca'`로 막혀 우리 저장소에서는 도달 불가지만,
+저장소 안에 **벤더 인프라를 향하는 배포 파이프라인과 별도 의존성 트리(next/fumadocs/`vercel` CLI)** 가
+남아 있을 이유가 없습니다. 사내 감사에서 설명할 표면을 하나 줄이는 쪽을 택했습니다.
+
+**같이 지운 것 — 이걸 빠뜨리면 CI가 깨집니다.**
+
+| 무엇 | 어디 | 왜 |
+| --- | --- | --- |
+| `docs-production-dispatch` 잡 | `.github/workflows/release-cut.yml` | `gh workflow run docs.yml`을 호출하므로 워크플로가 없으면 릴리스 컷에서 실패합니다 |
+| `docs.yml#{check,production,release_gate}` 3행 + `release-cut.yml#docs-production-dispatch` 1행 | `config/scripts/release-cut-token-permissions.test.mjs`의 `EXPECTED_MATRIX` | 이 게이트는 워크플로 잡 목록을 리터럴로 못 박습니다. 남겨 두면 "존재하지 않는 잡"으로 빨개집니다 |
+| `.gitignore`의 `!docs/site/` · `!docs/site/**` 2행 | `.gitignore` | upstream이 추가한 허용목록 예외. 지워야 `docs/**` 무시가 다시 이 트리를 덮습니다 |
+
+**다음 동기화에서 할 일 — 매번 반복됩니다.**
+
+1. `docs/site/**`는 **DU(deleted by us) 충돌**로 뜹니다. 전부 `git rm -r docs/site`로 삭제 유지하세요.
+   upstream이 문서를 계속 고치므로 파일 수는 릴리스마다 늘어납니다.
+2. `.github/workflows/docs.yml`도 같은 DU 충돌입니다. `git rm` 하세요.
+3. `release-cut.yml`은 **자동 병합됩니다** — upstream이 `docs-production-dispatch` 잡을 되살려 놓아도
+   충돌 표시가 안 납니다. 병합 후 `grep -n "docs.yml" .github/workflows/release-cut.yml`로 직접 확인하고
+   되살아났으면 그 잡 블록을 다시 지우세요.
+4. `release-cut-token-permissions.test.mjs`의 `EXPECTED_MATRIX`도 같은 이유로 조용히 되살아납니다.
+   판정기는 그 테스트 자신입니다 — `pnpm test config/scripts/release-cut-token-permissions.test.mjs`가
+   초록이면 4행이 정확히 빠져 있는 것입니다.
+5. `.gitignore`의 3행(주석 포함)은 upstream 원문과 충돌합니다. 포크 주석을 남기세요.
+
+> **되살아나도 제품은 안전합니다** — 번들 제외와 저장소 게이트는 upstream 쪽 장치라 그대로 유효합니다.
+> 이 절차는 "감사 표면을 늘리지 않는다"는 유지 작업이지 보안 게이트가 아닙니다. 그러니 급하게 되돌리지 말고
+> 다음 정기 동기화에서 처리해도 됩니다.
+
 > 위 목록에는 정책 작업과 무관한 upstream 접근성/드리프트 수정도 섞여 있습니다(예: `src/renderer/src/components/DetachedHeadBadge.tsx`, `src/renderer/src/components/skills/skill-freshness-group.tsx`). 이런 커밋은 upstream에 PR로 올려 없애는 편이 장기적으로 리베이스 충돌 면적을 줄입니다.
 
 ---

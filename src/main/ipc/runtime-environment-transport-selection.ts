@@ -6,7 +6,11 @@
  * dependency on the routing state.
  */
 import { isOrchestrationMutation } from '../../shared/orchestration-rpc-contract'
-import type { RuntimeOrchestrationEnvelope } from '../../shared/runtime-rpc-envelope'
+import { markEnvironmentUsed } from '../../shared/runtime-environment-store'
+import type {
+  RuntimeOrchestrationEnvelope,
+  RuntimeRpcResponse
+} from '../../shared/runtime-rpc-envelope'
 
 export function shouldUseCachedRequestConnection(method: string): boolean {
   return method === 'terminal.send' || method === 'terminal.updateViewport'
@@ -20,4 +24,14 @@ export function shouldUseSharedControlEnvelope(
   return envelope && method.startsWith('orchestration.') && !isOrchestrationMutation(method, params)
     ? envelope
     : undefined
+}
+
+export function markEnvironmentUsedFromResponse(
+  userDataPath: string,
+  environmentId: string,
+  response: RuntimeRpcResponse<unknown>
+): void {
+  if (response.ok === true) {
+    markEnvironmentUsed(userDataPath, environmentId, { runtimeId: response._meta.runtimeId })
+  }
 }

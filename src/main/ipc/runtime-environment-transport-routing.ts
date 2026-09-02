@@ -48,6 +48,7 @@ import {
   remoteOrcaServerRefusal
 } from '../enterprise/remote-orca-server-guard'
 import {
+  markEnvironmentUsedFromResponse,
   shouldUseCachedRequestConnection,
   shouldUseSharedControlEnvelope
 } from './runtime-environment-transport-selection'
@@ -308,15 +309,5 @@ export async function subscribeRuntimeEnvironment(
       error.message = withRemoteRuntimeTailscaleHint(error.message, pairing.endpoint)
     }
     throw error
-  }
-}
-
-function markEnvironmentUsedFromResponse(
-  userDataPath: string,
-  environmentId: string,
-  response: RuntimeRpcResponse<unknown>
-): void {
-  if (response.ok === true) {
-    markEnvironmentUsed(userDataPath, environmentId, { runtimeId: response._meta.runtimeId })
   }
 }

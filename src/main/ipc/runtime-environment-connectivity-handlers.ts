@@ -143,6 +143,11 @@ export function registerRuntimeEnvironmentConnectivityHandlers({
   ipcMain.handle(
     'runtimeEnvironments:retryControlConnection',
     (_event, args: { selector: string }): void => {
+      // Why here and not only at the three creation chokepoints: this channel's safety
+      // otherwise rests on an upstream invariant (the connection cache is filled only behind
+      // those gates). Its two siblings above gate at the handler; keep the file symmetric so a
+      // future upstream connection path cannot turn this into an ungated reconnect lane.
+      assertRemoteOrcaServerAllowed()
       const environment = resolveEnvironment(getUserDataPath(), args.selector)
       if (!isRuntimeEnvironmentManuallyDisconnected(environment.id)) {
         retryRemoteRuntimeSharedControlConnectionNow(environment.id)
