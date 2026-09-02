@@ -3,8 +3,33 @@ import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const projectDir = resolve(import.meta.dirname, '../..')
-const packageJson = JSON.parse(readFileSync(join(projectDir, 'package.json'), 'utf8'))
-const patchPaths = Object.values(packageJson.pnpm.patchedDependencies)
+// pnpm 12 moved every `pnpm.*` block out of package.json and into pnpm-workspace.yaml.
+const patchPaths = readPatchedDependencyPaths(
+  readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8')
+)
+
+/** Two-space-indented `'<pkg>@<ver>': <path>` entries under `patchedDependencies:`. */
+function readPatchedDependencyPaths(workspaceYaml) {
+  const paths = []
+  let inBlock = false
+  for (const rawLine of workspaceYaml.split('\n')) {
+    if (/^patchedDependencies:\s*$/.test(rawLine)) {
+      inBlock = true
+      continue
+    }
+    if (!inBlock) {
+      continue
+    }
+    if (!/^\s+\S/.test(rawLine)) {
+      break
+    }
+    const entry = /^\s+(?:'[^']+'|"[^"]+"|[^:]+):\s*(\S+)\s*$/.exec(rawLine)
+    if (entry) {
+      paths.push(entry[1])
+    }
+  }
+  return paths
+}
 
 const HUNK_HEADER = /^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/
 

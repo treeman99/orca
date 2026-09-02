@@ -169,7 +169,7 @@ describe('connectPanePty', () => {
     onPtyExit?.('tab-pty', 1)
 
     expect(deps.onPaneProcessDied).not.toHaveBeenCalled()
-    expect(deps.onPtyExitRef.current).toHaveBeenCalledWith('tab-pty')
+    expect(deps.onPtyExitRef.current).toHaveBeenCalledWith('tab-pty', 1)
     expect(manager.closePane).not.toHaveBeenCalled()
   })
 
