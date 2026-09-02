@@ -30,6 +30,7 @@ export function createLocalSubmoduleSearchHost(localGitOptions: {
     spawnGitGrep(cwd: string, gitArgs: string[]): Promise<ChildProcess> {
       return gitSpawnAfterWindowsEnvironmentReady(gitArgs, {
         cwd,
+        admissionTier: 'interactive',
         ...wslOption,
         stdio: ['ignore', 'pipe', 'pipe']
       })

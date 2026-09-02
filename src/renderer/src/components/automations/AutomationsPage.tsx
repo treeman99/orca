@@ -8,6 +8,7 @@ import { useAppStore } from '@/store'
 import { getAgentCatalog } from '@/lib/agent-catalog'
 import { useRepoMap, useWorktreeMap } from '@/store/selectors'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
+import { hasVisibleOverlay } from '@/lib/visible-overlay'
 import type {
   Automation,
   AutomationCreateInput,
@@ -215,6 +216,7 @@ export default function AutomationsPage(): React.JSX.Element {
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const closeAutomationsPage = useAppStore((s) => s.closeAutomationsPage)
+  const activeModal = useAppStore((s) => s.activeModal)
   const sshConnectionStates = useAppStore((s) => s.sshConnectionStates)
   const sshTargetLabels = useAppStore((s) => s.sshTargetLabels)
   const runtimeEnvironments = useAppStore((s) => s.runtimeEnvironments)
@@ -2506,7 +2508,9 @@ export default function AutomationsPage(): React.JSX.Element {
   }
 
   useEffect(() => {
-    if (createOpen || deleteTarget || externalDeleteTarget) {
+    // Why: a modal layered over the page owns Esc; this listener is capture-phase on
+    // window, so preventDefault here would veto the modal's own dismissal.
+    if (createOpen || deleteTarget || externalDeleteTarget || activeModal !== 'none') {
       return
     }
 
@@ -2517,6 +2521,11 @@ export default function AutomationsPage(): React.JSX.Element {
 
       const target = event.target
       if (!(target instanceof HTMLElement)) {
+        return
+      }
+
+      // Why: popovers and menus live outside the store's modal registry; they own Esc too.
+      if (hasVisibleOverlay()) {
         return
       }
 
@@ -2563,6 +2572,7 @@ export default function AutomationsPage(): React.JSX.Element {
     window.addEventListener('keydown', onKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
   }, [
+    activeModal,
     closeAutomationsPage,
     createOpen,
     deleteTarget,

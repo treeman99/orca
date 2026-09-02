@@ -6,11 +6,12 @@ const OWNER_DIRECTORY_PREFIX = 'owner-'
 const OWNER_DIRECTORY_PATTERN =
   /^owner-(\d+)-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
 const STAGING_ENTRY_SCAN_LIMIT = 64
+// Windows can briefly retain a just-closed handle; keep cleanup bounded and retryable.
 const STAGING_REMOVAL_OPTIONS = {
   recursive: true,
   force: true,
-  maxRetries: 3,
-  retryDelay: 50
+  maxRetries: 5,
+  retryDelay: 100
 } as const
 
 export const SKILL_UPLOAD_STAGING_ROOT_NAME = 'remote-uploads-v2'

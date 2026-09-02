@@ -8,6 +8,7 @@ import { isIntentionalAppRestartInProgress } from '@/lib/app-restart-beforeunloa
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { isSettingsPaneHiddenByPolicy } from './settings-pane-policy-visibility'
 import { getShortcutPlatform } from '@/lib/shortcut-platform'
+import { hasVisibleOverlay } from '@/lib/visible-overlay'
 import { translate } from '@/i18n/i18n'
 import {
   getSettingsTargetHostSelection,
@@ -17,7 +18,6 @@ import type { SettingsStoreModel } from './use-settings-store-model'
 import type { SettingsInteractionController } from './use-settings-interaction-controller'
 import {
   getSettingsSectionId,
-  isEditableTarget,
   SHORTCUTS_ESCAPE_CONFIRM_TOAST_ID,
   SHORTCUTS_ESCAPE_CONFIRM_WINDOW_MS
 } from './settings-navigation-foundations'
@@ -91,24 +91,6 @@ export function useSettingsPageEffects(
   ])
 
   useEffect(() => {
-    const hasVisibleOverlay = (): boolean =>
-      Array.from(
-        document.querySelectorAll('[role="dialog"], [role="listbox"], [role="menu"]')
-      ).some((element) => {
-        if (!(element instanceof HTMLElement)) {
-          return false
-        }
-        if (element.closest('[aria-hidden="true"]')) {
-          return false
-        }
-        const style = window.getComputedStyle(element)
-        return (
-          style.display !== 'none' &&
-          style.visibility !== 'hidden' &&
-          element.getClientRects().length > 0
-        )
-      })
-
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape' || event.defaultPrevented) {
         return
@@ -117,8 +99,8 @@ export function useSettingsPageEffects(
       if (hasVisibleOverlay()) {
         return
       }
-      // Why: Escape in an editable control means "cancel this edit", not "close Settings" — defer to the field's own handler.
-      if (isEditableTarget(event.target)) {
+      // Why: IME composition owns Escape; ordinary controls should still close Settings.
+      if (event.isComposing) {
         return
       }
       if (activeSectionId === 'shortcuts') {

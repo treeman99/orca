@@ -144,7 +144,9 @@ async function installElectronPackageBinary() {
   // Why: a build killed mid-extract leaves one staging directory per pid beside dist.
   removeExtractStagingLeftovers()
   const downloadTempDir = mkdtempSync(resolve(tmpdir(), 'orca-electron-'))
-  const cacheRoot = join(downloadTempDir, 'cache')
+  const persistentCacheRoot =
+    process.env.ORCA_ELECTRON_PACKAGE_CACHE_ROOT || process.env.ELECTRON_CACHE || null
+  const cacheRoot = persistentCacheRoot ?? join(downloadTempDir, 'cache')
   // Why: Windows cannot rename a directory across drives and %TEMP% frequently sits on
   // another one, so the tree we rename into dist must be staged beside dist.
   const extractDir = resolve(electronPackageDir, `${extractStagingPrefix}${process.pid}`)
@@ -156,11 +158,13 @@ async function installElectronPackageBinary() {
       platform: targetPlatform,
       arch: targetArch,
       cacheRoot,
-      force: true,
+      force: !persistentCacheRoot,
       tempDirectory: downloadTempDir,
       ...(shouldUseRemoteChecksums() ? {} : { checksums: electronRequire('./checksums.json') })
     }
-    const zipPath = await downloadElectronArtifactWithRetry(downloadOptions)
+    const zipPath = await downloadElectronArtifactWithRetry(downloadOptions, {
+      cacheRootIsPersistent: Boolean(persistentCacheRoot)
+    })
 
     // Why: CI has observed partial extracts directly under node_modules/electron
     // that leave only dist/locales. Verify in staging before replacing package dist.
@@ -185,7 +189,7 @@ async function installElectronPackageBinary() {
   }
 }
 
-async function downloadElectronArtifactWithRetry(downloadOptions) {
+async function downloadElectronArtifactWithRetry(downloadOptions, { cacheRootIsPersistent }) {
   const retryDelays = getDownloadRetryDelays()
 
   for (let attempt = 0; ; attempt += 1) {
@@ -201,7 +205,9 @@ async function downloadElectronArtifactWithRetry(downloadOptions) {
         `[electron-package] Transient Electron download failure (${formatDownloadError(error)}); ` +
           `retrying in ${retryDelay}ms (${attempt + 2}/${retryDelays.length + 1}).`
       )
-      rmSync(downloadOptions.cacheRoot, { recursive: true, force: true })
+      if (!cacheRootIsPersistent) {
+        rmSync(downloadOptions.cacheRoot, { recursive: true, force: true })
+      }
       await new Promise((resolveDelay) => setTimeout(resolveDelay, retryDelay))
     }
   }

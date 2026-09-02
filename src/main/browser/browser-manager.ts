@@ -1591,6 +1591,10 @@ export class BrowserManager {
     return this.webContentsIdByTabId
   }
 
+  getTabIdForWebContentsId(webContentsId: number): string | null {
+    return this.tabIdByWebContentsId.get(webContentsId) ?? null
+  }
+
   getWorktreeIdForTab(browserTabId: string): string | undefined {
     return this.worktreeIdByTabId.get(browserTabId)
   }

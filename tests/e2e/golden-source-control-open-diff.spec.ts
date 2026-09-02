@@ -19,9 +19,9 @@ test('@golden opens an unstaged file diff from Source Control', async ({
 }) => {
   const fixture = createGoldenWorktree(testRepoPath, 'open-diff')
   registerPostElectronShutdownCleanup(async () => cleanupGoldenWorktree(testRepoPath, fixture))
+  seedGoldenSourceEdit(fixture.worktreePath)
 
   await waitForSessionReady(orcaPage)
-  seedGoldenSourceEdit(fixture.worktreePath)
   await openGoldenSourceControl(orcaPage, testRepoPath, fixture)
 
   const changedFile = orcaPage

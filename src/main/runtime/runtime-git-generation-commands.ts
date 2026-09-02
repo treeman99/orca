@@ -2,7 +2,6 @@ import type { CommitMessageDraftContext } from '../../shared/commit-message-gene
 import { getCommitMessageModelDiscoveryHostKey } from '../../shared/commit-message-host-key'
 import type { HostedReviewProvider } from '../../shared/hosted-review'
 import { withLinkedIssueDraftContext } from '../../shared/source-control-ai-action-variables'
-import type { TuiAgent } from '../../shared/tui-agent'
 import { gitExecFileAsync } from '../git/runner'
 import { getStagedCommitContext } from '../git/status'
 import {
@@ -15,8 +14,6 @@ import { prepareLocalCommitMessageAgentEnv } from '../text-generation/commit-mes
 import {
   cancelGenerateCommitMessageLocal,
   cancelGeneratePullRequestFieldsLocal,
-  discoverCommitMessageModelsLocal,
-  discoverCommitMessageModelsRemote,
   generateCommitMessageFromContext,
   generatePullRequestFieldsFromContext,
   resolveCommitMessageSettings,
@@ -26,6 +23,7 @@ import {
 } from '../text-generation/commit-message-text-generation'
 import { getPullRequestDraftContext } from '../text-generation/pull-request-context'
 import { localGitOptionsForTarget, type RuntimeGitCommandHost } from './runtime-git-command-target'
+import { discoverRuntimeCommitMessageModelsForHost } from './runtime-commit-message-model-discovery'
 import { agentBlockedByPolicyResult } from '../enterprise/agent-allowlist-guard'
 import {
   getRuntimeGitGenerationSettings,
@@ -94,7 +92,10 @@ export class RuntimeGitGenerationCommands {
 
     let context: CommitMessageDraftContext | null
     try {
-      context = await getStagedCommitContext(target.worktree.path, localGitOptionsForTarget(target))
+      context = await getStagedCommitContext(target.worktree.path, {
+        ...localGitOptionsForTarget(target),
+        admissionTier: 'interactive'
+      })
     } catch (error) {
       console.error('[runtime-git] Failed to read staged commit context:', error)
       return { success: false, error: 'Failed to read staged changes.' }
@@ -175,7 +176,12 @@ export class RuntimeGitGenerationCommands {
       provider: input.provider,
       repoPath: target.worktree.path,
       connectionId: target.connectionId,
-      localGitOptions: localGitOptionsForTarget(target)
+      localGitOptions: target.connectionId
+        ? {}
+        : {
+            ...localGitOptionsForTarget(target),
+            admissionTier: 'interactive'
+          }
     })
     let context: Awaited<ReturnType<typeof getPullRequestDraftContext>>
     try {
@@ -198,7 +204,8 @@ export class RuntimeGitGenerationCommands {
               gitExecFileAsync(argv, {
                 cwd: target.worktree.path,
                 ...localGitOptionsForTarget(target),
-                ...options
+                ...options,
+                admissionTier: 'interactive'
               }),
             {
               base: input.base,
@@ -263,43 +270,11 @@ export class RuntimeGitGenerationCommands {
     agentId: string,
     settingsOverride?: Pick<RuntimeCommitMessageSettingsOverride, 'agentCmdOverrides'>
   ): Promise<DiscoverCommitMessageModelsResult> {
-    // Why here too: discovery runs the agent binary to list its models, so a blocked CLI
-    // would still be executed just by opening the source-control AI settings row.
-    const agentBlocked = agentBlockedByPolicyResult(agentId)
-    if (agentBlocked) {
-      return agentBlocked
-    }
-    const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
-    const typedAgentId = agentId as TuiAgent
-    const agentCommandOverride =
-      settingsOverride?.agentCmdOverrides?.[typedAgentId] ??
-      this.host.getRuntimeSettings().agentCmdOverrides?.[typedAgentId]
-    if (target.connectionId) {
-      const provider = getSshGitProvider(target.connectionId)
-      if (!provider) {
-        return { success: false, error: `No git provider for connection "${target.connectionId}"` }
-      }
-      return discoverCommitMessageModelsRemote(
-        typedAgentId,
-        target.worktree.path,
-        (plan, cwd, timeoutMs) => provider.executeCommitMessagePlan(plan, cwd, timeoutMs),
-        agentCommandOverride
-      )
-    }
-    const localEnv = await prepareLocalCommitMessageAgentEnv(
-      typedAgentId,
-      this.host.getCommitMessageAgentEnvironment?.(),
-      localAgentRuntimeTargetForTarget(target)
+    return discoverRuntimeCommitMessageModelsForHost(
+      this.host,
+      worktreeSelector,
+      agentId,
+      settingsOverride
     )
-    if (!localEnv.ok) {
-      return { success: false, error: localEnv.error }
-    }
-    const localOptions = localGitOptionsForTarget(target)
-    return localOptions.wslDistro
-      ? discoverCommitMessageModelsLocal(typedAgentId, localEnv.env, agentCommandOverride, {
-          cwd: target.worktree.path,
-          wslDistro: localOptions.wslDistro
-        })
-      : discoverCommitMessageModelsLocal(typedAgentId, localEnv.env, agentCommandOverride)
   }
 }

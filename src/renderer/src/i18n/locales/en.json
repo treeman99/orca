@@ -450,7 +450,12 @@
               "meta": {
                 "persist": {
                   "877e3638d8": "Update the remote runtime to change this workspace’s linked issue",
-                  "4367540861": "Update the remote runtime to link Linear issues"
+                  "4367540861": "Update the remote runtime to link Linear issues",
+                  "github": {
+                    "pr": {
+                      "suppression": "Update the remote runtime to unlink GitHub pull requests"
+                    }
+                  }
                 }
               }
             }
@@ -472,7 +477,9 @@
           "15cf5319ec": "{{path}} was checked on {{hostName}}, but that host did not report a usable folder.",
           "2dcd706774": "Project also exists in another profile",
           "presenceProfileOverflow": "{{names}} +{{count}} more",
-          "removeProjectFailed": "Failed to remove project"
+          "removeProjectFailed": "Failed to remove project",
+          "wslFilesystemBoundaryTitle": "This project is stored on a Windows drive",
+          "wslFilesystemBoundaryDescription": "Git for this project runs in {{distro}}, which reaches Windows drives over the WSL filesystem bridge. Expect git to be roughly 20x slower than it would be on a copy stored inside {{distro}}."
         },
         "settings": {
           "e12dab333b": "Failed to switch servers",
@@ -3910,6 +3917,16 @@
             "onDescription": "Keep this computer awake continuously",
             "autoDescription": "Stay awake while an agent is working",
             "offDescription": "Allow normal system sleep behavior"
+          },
+          "RuntimeHostStatusRow": {
+            "previous_connection_closed": "The previous connection closed",
+            "workspace_window_closed": "The workspace window is closed",
+            "checking_host": "Orca is checking whether this host is reachable",
+            "restoring_connection": "Orca is trying to restore the connection",
+            "host_unreachable": "Orca isn’t reachable on this host",
+            "contact_note": "The host may still be running; only the Orca connection is unavailable.",
+            "last_connected": "Last connected {{value0}}",
+            "reconnect_attempt": "Attempt {{value0}}"
           }
         }
       },
@@ -8275,7 +8292,11 @@
           "8a349e3fac": "Passphrase for {{value0}}",
           "cab3d5f5a5": "Password for {{value0}}",
           "1f3dde805d": "SSH Key Passphrase",
-          "106bd57f4a": "SSH Password"
+          "106bd57f4a": "SSH Password",
+          "a21f9e74c0": "SSH Verification",
+          "981352fb42": "Complete the verification challenge for",
+          "456516603b": "Enter response",
+          "c624f64b86": "Continue"
         },
         "SshTargetCard": {
           "a883f5a00f": "terminal timeout: {{value0}}",
@@ -14428,8 +14449,9 @@
           "7e7ca60816": "changed files",
           "b6c3b84476": "Show file tree",
           "39f8007549": "Review conflicts",
-          "39e73e7181": "were excluded from this diff view.",
-          "689b99f8ad": "unresolved conflict",
+          "skippedConflictsExcluded": "{{count}} unresolved conflicts were excluded from this diff view.",
+          "skippedConflictsExcluded_one": "{{count}} unresolved conflict was excluded from this diff view.",
+          "skippedConflictsExcluded_other": "{{count}} unresolved conflicts were excluded from this diff view.",
           "820ec01f24": "Conflicted files are reviewed separately",
           "fd8892b120": "No changes to display",
           "eb5f40e49c": "This diff view excludes unresolved conflicts because the normal two-way diff pipeline is not conflict-safe.",
@@ -15063,6 +15085,10 @@
           "directoryAccessRequestMultiple": "This preview wants to read files in {{folders}}.",
           "allowDirectories": "Allow {{count}} folders",
           "editAddressControl": "Edit address"
+        },
+        "LargeDiffLoadPrompt": {
+          "a0af0198aa": "Large diffs are not rendered by default.",
+          "f7fa7a40d0": "Load diff"
         }
       },
       "diff": {
@@ -15448,6 +15474,18 @@
                       "c937229f19": "Screenshotted",
                       "1f5cb19034": "Annotation added"
                     }
+                  }
+                }
+              }
+            },
+            "browser": {
+              "page": {
+                "annotation": {
+                  "tray": {
+                    "09a7c1df70": "Edit annotation {{value0}}",
+                    "c16f932cb3": "Save",
+                    "024467ceac": "Cancel",
+                    "449d2c2629": "Annotation intent"
                   }
                 }
               }
@@ -16641,6 +16679,10 @@
           "externalLinkCancel": "Cancel"
         }
       },
+      "HostedReviewUnlinkMenuItem": {
+        "label": "Unlink {{value0}} from workspace",
+        "description": "Orca will hide {{value0}} {{value1}} details for this workspace. The {{value0}} and branch on {{value2}} won’t be changed."
+      },
       "AppUpdateAvailableDialog": {
         "description": "You are running {{value0}}. The company release page lists {{value1}}. Orca does not install updates for you — open the release page to get the new build.",
         "later": "Later",
@@ -16714,6 +16756,11 @@
     }
   },
   "components": {
+    "jiraUserPicker": {
+      "select": "Select {{value0}}",
+      "search": "Search users",
+      "empty": "No users found"
+    },
     "native-chat": {
       "composer": {
         "imageUnsupported": "Image paste is not supported for this agent.",
@@ -16773,7 +16820,10 @@
           "on": "On",
           "off": "Off"
         },
-        "pendingAttachmentLimit": "Too many attachments are waiting. Finish composing before attaching more."
+        "pendingAttachmentLimit": "Too many attachments are waiting. Finish composing before attaching more.",
+        "viewAttachment": "View image",
+        "imagePreview": "Full-size image preview",
+        "imagePreviewUnavailable": "Preview unavailable"
       },
       "tool": {
         "running": "Running…",
@@ -17335,6 +17385,30 @@
   "quickOpen": {
     "moreMatchesAvailable": "More matches may be available. Refine your search to narrow the results."
   },
+  "checksPanel": {
+    "unlinked": {
+      "title": "Pull request unlinked",
+      "description": "PR #{{number}} is hidden for this workspace. Link it again to restore checks and review details.",
+      "relink": "Link PR #{{number}}"
+    }
+  },
+  "sourceControl": {
+    "unlinkedPr": {
+      "status": "PR #{{number}} unlinked"
+    },
+    "discardFailed": "Could not discard {{path}}: {{message}}",
+    "discardSubmoduleFileScope": "This file belongs to the submodule \"{{path}}\" and is restored to THAT submodule's HEAD, not to the commit this repository records.",
+    "discardSubmodulePointerScope": "This restores the submodule \"{{path}}\" to the commit this repository records. The submodule ends up on a detached HEAD — the branch checked out inside it will not be kept.",
+    "submoduleBranchDiffersFromParent": "(differs from root)",
+    "submoduleBranchTooltip": "Branch checked out inside this submodule",
+    "submoduleDetachedHeadTooltip": "This submodule has a detached HEAD, so it is not on any branch",
+    "submoduleDetectionLimit": "Only the first {{count}} submodules are shown. The rest are not listed here.",
+    "submoduleModifiedContent": "modified content",
+    "submoduleNewCommits": "new commits",
+    "submoduleUnsafePath": "Orca refused this path: it does not resolve inside the submodule.",
+    "submoduleUntrackedContent": "untracked content",
+    "submoduleWriteUnsupportedHost": "This host does not support submodule write operations. Update Orca on the remote host to stage, commit, or push inside a submodule."
+  },
   "computerUse": {
     "approval": {
       "allow": "Allow",
@@ -17354,20 +17428,6 @@
       "notice": "ripgrep is not installed, so search is using a limited git-based fallback.",
       "skippedSubmodules": "These submodules were skipped because the file filter has no equivalent inside them: {{value0}}"
     }
-  },
-  "sourceControl": {
-    "discardFailed": "Could not discard {{path}}: {{message}}",
-    "discardSubmoduleFileScope": "This file belongs to the submodule \"{{path}}\" and is restored to THAT submodule's HEAD, not to the commit this repository records.",
-    "discardSubmodulePointerScope": "This restores the submodule \"{{path}}\" to the commit this repository records. The submodule ends up on a detached HEAD — the branch checked out inside it will not be kept.",
-    "submoduleBranchDiffersFromParent": "(differs from root)",
-    "submoduleBranchTooltip": "Branch checked out inside this submodule",
-    "submoduleDetachedHeadTooltip": "This submodule has a detached HEAD, so it is not on any branch",
-    "submoduleDetectionLimit": "Only the first {{count}} submodules are shown. The rest are not listed here.",
-    "submoduleModifiedContent": "modified content",
-    "submoduleNewCommits": "new commits",
-    "submoduleUnsafePath": "Orca refused this path: it does not resolve inside the submodule.",
-    "submoduleUntrackedContent": "untracked content",
-    "submoduleWriteUnsupportedHost": "This host does not support submodule write operations. Update Orca on the remote host to stage, commit, or push inside a submodule."
   },
   "tabPopout": {
     "loading": "Opening tab…",

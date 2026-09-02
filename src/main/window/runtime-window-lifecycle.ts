@@ -158,6 +158,8 @@ export function registerRuntimeWindowLifecycle(
         paneRuntimeId,
         direction: opts.direction,
         command: opts.command,
+        worktreeId: opts.worktreeId,
+        sourceLeafId: opts.sourceLeafId,
         telemetrySource: opts.telemetrySource,
         newLeafId: opts.newLeafId
       })
