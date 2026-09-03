@@ -28,6 +28,7 @@ pnpm --version
 | `11.x` | `npm install -g pnpm`은 npm의 `latest` 태그(=11.25.0)를 깝니다. 12가 아닙니다 | [§3](#3-npm으로-직접-설치) |
 | `12.0.0` | 설치는 정상. 저장소 안에서만 막히는 것 | [§1](#1-corepack-캐시-메타데이터-오염--cannot-find-module-pnpmcjs) / [§2](#2-사내망에서-다운로드가-끊길-때--econnreset--fetch-failed) |
 | 실행 자체가 안 됨 | corepack 캐시 오염 | [§1](#1-corepack-캐시-메타데이터-오염--cannot-find-module-pnpmcjs) |
+| 다운로드만 막힘 (브라우저로는 받아짐) | 프록시가 Node의 직접 요청을 막음 | [§4](#4-브라우저로-받은-tgz를-직접-넣기-권장-오프라인-경로) |
 
 ---
 
@@ -121,29 +122,91 @@ npm의 `pnpm` `latest` 태그는 이 문서 기준 **11.25.0**이고 12는 `late
 
 ---
 
-## 4. 완전 오프라인 시딩
+## 4. 브라우저로 받은 tgz를 직접 넣기 (권장 오프라인 경로)
 
-레지스트리 접근이 아예 막혀 있고 **브라우저 다운로드만 되는** 환경용입니다.
-파일 2개만 있으면 됩니다.
+프록시/보안 장비 때문에 **Node가 직접 하는 다운로드만** 막히고 브라우저 다운로드는 되는 환경용입니다.
+레지스트리 접근이 한 번도 필요 없습니다.
+
+> **pnpm의 자기관리 store에는 손으로 넣을 수 없습니다.** 그 store는 파일 해시로 인덱싱된
+> content-addressable 저장소라 `.tgz`를 떨궈 넣을 자리가 없습니다. 대신 **pnpm 자체를 손으로 배치**해
+> 저장소 핀과 버전을 일치시키면, pnpm이 더 받을 것이 없어져 다운로드 자체가 사라집니다.
+
+브라우저로 받을 파일 **2개**:
 
 ```
-https://registry.npmjs.org/pnpm/-/pnpm-12.0.0.tgz                          (0.9MB)
-https://registry.npmjs.org/@pnpm/exe.win32-x64/-/exe.win32-x64-12.0.0.tgz  (17.7MB)
+https://registry.npmjs.org/pnpm/-/pnpm-12.0.0.tgz                          (0.9MB)  ← 래퍼
+https://registry.npmjs.org/@pnpm/exe.win32-x64/-/exe.win32-x64-12.0.0.tgz  (17.7MB) ← 실행파일
 ```
 
-두 번째가 실제 실행파일입니다. **첫 번째만으로는 동작하지 않습니다.**
+**첫 번째만으로는 동작하지 않습니다.** 두 번째가 진짜 pnpm 바이너리입니다.
+
+```powershell
+$tgz  = "$HOME\Downloads"                 # 받은 파일이 있는 폴더
+$root = "$env:LOCALAPPDATA\pnpm-manual"   # 풀어 둘 위치 (아무 데나 가능)
+
+Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force "$root\pnpm" | Out-Null
+tar -xzf "$tgz\pnpm-12.0.0.tgz" -C "$root\pnpm" --strip-components=1
+
+# ★ 실행파일은 반드시 이 경로 (래퍼가 여기서 찾습니다)
+New-Item -ItemType Directory -Force "$root\pnpm\node_modules\@pnpm\exe.win32-x64" | Out-Null
+tar -xzf "$tgz\exe.win32-x64-12.0.0.tgz" -C "$root\pnpm\node_modules\@pnpm\exe.win32-x64" --strip-components=1
+```
+
+완성된 배치는 이 모양이어야 합니다:
+
+```
+%LOCALAPPDATA%\pnpm-manual\pnpm\
+├─ bin\pnpm.mjs                                    ← 진입점
+├─ native-binary.mjs
+└─ node_modules\@pnpm\exe.win32-x64\pnpm.exe      ← 실제 실행파일
+```
+
+사용:
 
 ```powershell
 cd C:\경로\to\orca
-$tgz = "$HOME\Downloads"        # 받은 파일이 있는 폴더
+node "$root\pnpm\bin\pnpm.mjs" --version              # → 12.0.0
+node "$root\pnpm\bin\pnpm.mjs" install --frozen-lockfile
+```
 
-# 캐시 항목을 새로 만든다
+`pnpm`을 평소처럼 쓰고 싶으면 셸 래퍼를 하나 만들어 PATH에 넣으십시오:
+
+```powershell
+$bin = "$root\bin"
+New-Item -ItemType Directory -Force $bin | Out-Null
+Set-Content "$bin\pnpm.cmd" "@echo off`r`nnode `"$root\pnpm\bin\pnpm.mjs`" %*"
+$env:Path = "$bin;$env:Path"          # 영구 적용은 시스템 환경변수 PATH에 $bin 추가
+pnpm --version
+```
+
+**왜 이걸로 다운로드가 사라지나.** pnpm은 저장소의 `packageManager` 핀과 자기 버전이 다르면
+핀된 버전을 내려받아 그걸로 실행합니다(`pnpm --version`조차 그렇습니다). 손으로 배치한 pnpm이
+이미 `12.0.0`이라 그 단계가 통째로 없어집니다. 바이너리 탐색도
+`node_modules/@pnpm/exe.*` → `<루트>\pnpm-native.exe` → 다운로드 순이라, 위 배치면 첫 단계에서 끝납니다.
+
+`npm`이 레지스트리에 닿는 환경이라면 같은 결과를 한 줄로 얻을 수 있습니다 —
+다만 이때도 optional dependency로 실행파일을 레지스트리에서 받으므로, 그게 막히면 위 수동 배치를 쓰십시오:
+
+```powershell
+npm install -g "$tgz\pnpm-12.0.0.tgz"
+```
+
+---
+
+## 5. (대안) corepack 캐시 시딩
+
+`corepack pnpm`을 쓰는 흐름이라면 corepack 캐시 쪽에 같은 두 tarball을 심어도 됩니다.
+
+```powershell
+cd C:\경로\to\orca
+$tgz = "$HOME\Downloads"
+
 $dest = "$env:LOCALAPPDATA\node\corepack\v1\pnpm\12.0.0"
 Remove-Item -Recurse -Force $dest -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $dest | Out-Null
 tar -xzf "$tgz\pnpm-12.0.0.tgz" -C $dest --strip-components=1
 
-# 네이티브 실행파일을 pnpm-native.exe 라는 이름으로 배치한다
 $tmp = Join-Path $env:TEMP "pnpmexe"
 Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $tmp | Out-Null
@@ -157,18 +220,12 @@ $meta = '{"locator":{"name":"pnpm","reference":"12.0.0+' + $sha + '"},' +
 [IO.File]::WriteAllText("$dest\.corepack", $meta)
 type "$dest\.corepack"          # .mjs 두 개 확인
 
-# 검증 — 네트워크를 끈 채로
 $env:COREPACK_ENABLE_NETWORK = "0"
 corepack pnpm --version         # → 12.0.0
 Remove-Item Env:COREPACK_ENABLE_NETWORK
-
-corepack pnpm install --frozen-lockfile
 ```
 
 이후로는 `pnpm` 대신 **`corepack pnpm`** 을 쓰십시오.
-
-**바이너리 탐색 순서**는 `resolveInstalledBinary()`(= `node_modules/@pnpm/exe.*`) →
-`<캐시루트>\pnpm-native.exe` → 다운로드입니다. `pnpm-native.exe`가 제자리에 있으면 네트워크를 타지 않습니다.
 
 ---
 
@@ -181,17 +238,20 @@ corepack pnpm install --frozen-lockfile
 - `.corepack` 메타의 `.cjs` ↔ `.mjs` 차이가 §1 증상의 원인임 — 양쪽 값을 직접 확인.
 - 캐시 삭제 → 새 corepack 1회 실행으로 복구되고, 그 뒤에는 번들 corepack으로도 동작함.
 - corepack 번들에 `npmrc`/프록시 처리가 없음 — 정적 검사.
-- §4 오프라인 시딩이 `COREPACK_ENABLE_NETWORK=0`에서 `12.0.0`을 출력하고
-  실제 `pnpm install --frozen-lockfile`까지 통과함.
+- §4 수동 배치(두 tarball을 풀어 `node_modules/@pnpm/exe.*`에 실행파일을 둠)가 `12.0.0`을 출력하고
+  실제 `pnpm install --frozen-lockfile`까지 통과함. 래퍼가 로컬 실행파일을 집는 것도 `require.resolve`로 확인.
+- §5 corepack 시딩이 `COREPACK_ENABLE_NETWORK=0`에서 `12.0.0`을 출력하고 install까지 통과함.
 - `npm install -g pnpm@12.0.0`이 `@pnpm/exe.*`를 함께 설치하고 저장소 install을 통과함.
   `--ignore-scripts`를 붙이면 깨짐.
 
 **검증하지 못한 것:**
 
 - Windows에서의 실제 재현(위 경로들은 macOS 실측을 Windows 경로로 옮긴 것입니다).
-- pnpm 자신의 자기관리(self-management)가 핀된 버전을 저장하는 디렉터리 구조.
-  저장소 안에서 pnpm 11이 12로 바뀌는 동작은 재현했지만 저장 위치를 특정하지 못했습니다.
-  그래서 §4는 pnpm의 `.tools`가 아니라 **corepack 캐시**를 시딩합니다.
+- **pnpm 자기관리 store에 tarball을 손으로 주입하는 방법은 없습니다**(확인함). 저장 위치는
+  `<PNPM_HOME>/store/v11/`의 content-addressable 저장소이고 파일 해시로 인덱싱되어 있어
+  `.tgz`를 놓을 자리가 없습니다. `manage-package-manager-versions=false`를 rc·환경변수·
+  `pnpm-workspace.yaml` 세 형태로 시도했지만 `--version`에는 적용되지 않았습니다.
+  그래서 §4는 **pnpm 자체를 핀과 같은 버전으로 배치해 자기관리를 무력화**하는 방식을 씁니다.
 
 관련 문서: [Windows 사내 빌드 가이드](./windows-corporate-build.md) ·
 [로컬 개발 실행](./local-dev-run.md)
