@@ -31673,7 +31673,10 @@ export class OrcaRuntimeService {
         title: launchOpts.title,
         activate: presentation === 'focused',
         ...(presentation ? { presentation } : {}),
-        ...ownerSurfacing(opts.surfaceOwner !== false)
+        ...ownerSurfacing(opts.surfaceOwner !== false),
+        // Why: this path serves focused and renderer-backed creates too, and a worker
+        // dispatched through either still owes its column.
+        ...(opts.paneGroupPlacement ? { paneGroupPlacement: opts.paneGroupPlacement } : {})
       })
     })
 

@@ -121,6 +121,7 @@ export type TerminalCreateSurfacingStore = {
     (worktreeId: string, sourceGroupId: string, direction: string, opts?: unknown) => string | null
   >
   setTabGroupSplitRatio: SpyMock
+  moveUnifiedTabToGroup: Mock<(tabId: string, targetGroupId: string) => boolean>
   settings: {
     terminalFontSize: number
     experimentalNativeChat: boolean
@@ -146,6 +147,7 @@ export type TerminalCreateSurfacingScenario = Pick<
   | 'updateTabPtyId'
   | 'setTabLayout'
   | 'createEmptySplitGroup'
+  | 'moveUnifiedTabToGroup'
 > & {
   replyTerminalCreate: SpyMock
   dispatchEvent: SpyMock

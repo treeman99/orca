@@ -57,6 +57,18 @@ export async function setupTerminalCreateSurfacing(
       return id
     }
   )
+  const moveUnifiedTabToGroup = vi.fn((tabId: string, targetGroupId: string) => {
+    for (const [worktreeId, tabs] of Object.entries(storeState.unifiedTabsByWorktree)) {
+      const index = tabs.findIndex((tab) => tab.id === tabId)
+      if (index !== -1) {
+        storeState.unifiedTabsByWorktree[worktreeId] = tabs.map((tab, at) =>
+          at === index ? { ...tab, groupId: targetGroupId } : tab
+        )
+        return true
+      }
+    }
+    return false
+  })
   const storeState: TerminalCreateSurfacingStore = {
     setUpdateStatus: vi.fn(),
     createTab,
@@ -120,6 +132,7 @@ export async function setupTerminalCreateSurfacing(
     layoutByWorktree: {} as Record<string, unknown>,
     createEmptySplitGroup,
     setTabGroupSplitRatio: vi.fn(),
+    moveUnifiedTabToGroup,
     settings: {
       terminalFontSize: 13,
       experimentalNativeChat: false,
@@ -240,6 +253,7 @@ export async function setupTerminalCreateSurfacing(
   return {
     createTab,
     createEmptySplitGroup,
+    moveUnifiedTabToGroup,
     setActiveView,
     setActiveWorktree,
     markWorktreeVisited,

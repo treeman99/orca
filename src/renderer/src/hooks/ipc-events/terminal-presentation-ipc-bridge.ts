@@ -13,6 +13,7 @@ import { tryMakePaneKey } from './agent-status-routing'
 import { useAppStore } from '../../store'
 import {
   claimOrchestrationWorkerPaneGroup,
+  placeOrchestrationWorkerTabInGroup,
   recordOrchestrationWorkerTab
 } from '@/store/slices/orchestration-worker-pane-column'
 import {
@@ -87,12 +88,16 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
           const reusedTab = existingTab ?? splitTargetTab
           // Why: an orchestration worker opens beside its coordinator instead of in the
           // active group. Undefined (preference off, foreign worktree) keeps the old path.
-          let paneSkip = reusedTab ? 'reused-tab' : 'none'
+          // A reused tab still claims: another path (host graph sweep, stable-pane
+          // reattach) may have minted it into the active group moments earlier, and the
+          // column is owed either way — it is moved below.
+          let paneSkip = isSplitReveal ? 'split-reveal' : 'none'
           const workerPaneGroupId =
-            !reusedTab && paneGroupPlacement
+            paneGroupPlacement && !isSplitReveal
               ? claimOrchestrationWorkerPaneGroup(useAppStore, {
                   worktreeId,
                   paneGroupPlacement,
+                  ...(reusedTab ? { existingWorkerTabId: reusedTab.id } : {}),
                   onSkip: (reason) => {
                     paneSkip = reason
                   }
@@ -146,6 +151,14 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
             )
           }
           if (workerPaneGroupId && paneGroupPlacement) {
+            if (reusedTab) {
+              // createTab could not place a tab that already existed; move it instead.
+              placeOrchestrationWorkerTabInGroup(useAppStore, {
+                worktreeId,
+                terminalTabId: tab.id,
+                groupId: workerPaneGroupId
+              })
+            }
             recordOrchestrationWorkerTab(paneGroupPlacement.coordinatorTabId, tab.id)
           }
           if (paneGroupPlacement) {

@@ -9,6 +9,7 @@ import type { PtyIncarnationId } from './pty-incarnation'
 import type { RuntimeMobileSessionTabsResult } from './runtime-session-contracts'
 import type { TabGroupLayoutNode } from './tab-types'
 import type { TerminalExitCause } from './terminal-exit-cause'
+import type { TerminalPaneGroupPlacement } from './terminal-pane-placement'
 import type { TerminalPaneLayoutNode } from './terminal-tab-types'
 import type { TuiAgent } from './tui-agent'
 
@@ -245,6 +246,8 @@ type RuntimeTerminalCreateBaseRequestPayload = {
   activate?: boolean
   presentation?: RuntimeTerminalPresentation
   surfaceOwner?: false
+  /** Advisory worker-column anchor; the renderer drops it when it cannot honor it. */
+  paneGroupPlacement?: TerminalPaneGroupPlacement
 }
 
 export type RuntimeTerminalCreateRequestPayload =

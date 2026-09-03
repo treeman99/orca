@@ -12,7 +12,11 @@ import {
 } from './orchestration-worker-pane-layout'
 
 /** Why a dispatched worker did not get a column. Surfaced in the diagnostic log. */
-export type WorkerPaneSkipReason = 'preference-off' | 'coordinator-tab-not-found' | 'split-failed'
+export type WorkerPaneSkipReason =
+  | 'preference-off'
+  | 'coordinator-tab-not-found'
+  | 'split-failed'
+  | 'worker-tab-unplaceable'
 
 /**
  * Session-scoped bookkeeping for the auto-split worker column. Worker *tab* ids
@@ -40,6 +44,11 @@ type WorkerPaneColumnState = {
     opts?: { activate?: boolean; recordInteraction?: boolean }
   ) => string | null
   setTabGroupSplitRatio: (worktreeId: string, nodePath: string, ratio: number) => void
+  moveUnifiedTabToGroup: (
+    tabId: string,
+    targetGroupId: string,
+    opts?: { index?: number; activate?: boolean; recordInteraction?: boolean }
+  ) => boolean
 }
 
 function findTerminalTab(tabs: readonly Tab[], tabId: string): Tab | undefined {
@@ -86,14 +95,17 @@ function resolveLiveWorkerGroups(
 /**
  * Resolve — creating one when needed — the tab group a dispatched orchestration
  * worker should open in. Returns undefined whenever the layout must be left
- * alone: preference off, unknown coordinator, or a coordinator in another
- * worktree (tab-group layouts are per worktree, so no split can show both).
+ * alone: preference off, unknown coordinator, a coordinator in another worktree
+ * (tab-group layouts are per worktree, so no split can show both), or a reveal
+ * that resolves onto a tab which cannot be a worker.
  */
 export function claimOrchestrationWorkerPaneGroup(
   store: { getState: () => WorkerPaneColumnState },
   args: {
     worktreeId: string
     paneGroupPlacement: TerminalPaneGroupPlacement
+    /** Set when another path minted the worker's tab first, so it still owes a column. */
+    existingWorkerTabId?: string
     /** Reports which condition ended the claim, for the troubleshooting log. */
     onSkip?: (reason: WorkerPaneSkipReason) => void
   }
@@ -103,14 +115,24 @@ export function claimOrchestrationWorkerPaneGroup(
     args.onSkip?.('preference-off')
     return undefined
   }
+  const tabs = state.unifiedTabsByWorktree[args.worktreeId] ?? []
   const { coordinatorTabId } = args.paneGroupPlacement
-  const coordinatorTab = findTerminalTab(
-    state.unifiedTabsByWorktree[args.worktreeId] ?? [],
-    coordinatorTabId
-  )
+  const coordinatorTab = findTerminalTab(tabs, coordinatorTabId)
   if (!coordinatorTab) {
     // Also the foreign-worktree case: the coordinator's tab is not in this list.
     args.onSkip?.('coordinator-tab-not-found')
+    return undefined
+  }
+  const existingWorkerTab =
+    args.existingWorkerTabId === undefined
+      ? undefined
+      : findTerminalTab(tabs, args.existingWorkerTabId)
+  // A reveal onto an unknown tab, or onto the coordinator's own, is not a worker column.
+  if (
+    args.existingWorkerTabId !== undefined &&
+    (!existingWorkerTab || existingWorkerTab.id === coordinatorTab.id)
+  ) {
+    args.onSkip?.('worker-tab-unplaceable')
     return undefined
   }
   const workerGroups = resolveLiveWorkerGroups(
@@ -119,6 +141,13 @@ export function claimOrchestrationWorkerPaneGroup(
     coordinatorTabId,
     coordinatorTab.groupId
   )
+  // Why: a repeat reveal of a worker already standing in the column must not split again.
+  if (
+    existingWorkerTab &&
+    workerGroups.some((group) => group.groupId === existingWorkerTab.groupId)
+  ) {
+    return existingWorkerTab.groupId
+  }
   const placement = resolveOrchestrationWorkerPanePlacement({
     coordinatorGroupId: coordinatorTab.groupId,
     workerGroups,
@@ -146,6 +175,27 @@ export function claimOrchestrationWorkerPaneGroup(
     state.setTabGroupSplitRatio(args.worktreeId, update.nodePath, update.ratio)
   }
   return createdGroupId
+}
+
+/**
+ * Move a worker tab another path minted first (host graph sweep, stable-pane
+ * reattach) into the column claimed for it. Without this the race decides the
+ * layout: whoever created the tab put it in the worktree's active group.
+ */
+export function placeOrchestrationWorkerTabInGroup(
+  store: { getState: () => WorkerPaneColumnState },
+  args: { worktreeId: string; terminalTabId: string; groupId: string }
+): boolean {
+  const state = store.getState()
+  const tabs = state.unifiedTabsByWorktree[args.worktreeId] ?? []
+  const tab = findTerminalTab(tabs, args.terminalTabId)
+  if (!tab || tab.groupId === args.groupId) {
+    return false
+  }
+  return state.moveUnifiedTabToGroup(tab.id, args.groupId, {
+    activate: false,
+    recordInteraction: false
+  })
 }
 
 export function recordOrchestrationWorkerTab(coordinatorTabId: string, workerTabId: string): void {

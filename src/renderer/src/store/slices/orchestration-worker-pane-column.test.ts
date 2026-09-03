@@ -13,6 +13,7 @@ import { createStoreCascadesMockApi } from './store-cascades-test-harness'
 import {
   _resetOrchestrationWorkerPaneColumnForTests,
   claimOrchestrationWorkerPaneGroup,
+  placeOrchestrationWorkerTabInGroup,
   recordOrchestrationWorkerTab
 } from './orchestration-worker-pane-column'
 
@@ -269,6 +270,95 @@ describe('claimOrchestrationWorkerPaneGroup', () => {
       first: { type: 'leaf', groupId: 'g-coord' },
       second: { type: 'leaf', groupId: only },
       ratio: 0.5
+    })
+  })
+
+  it('claims and moves a worker tab another path minted into the active group first', () => {
+    const store = createTestStore()
+    seedCoordinator(store)
+    // The host graph sweep (or a stable-pane reattach) beat the reveal to the tab.
+    store.setState((state) => ({
+      unifiedTabsByWorktree: {
+        ...state.unifiedTabsByWorktree,
+        [WORKTREE_ID]: [
+          ...(state.unifiedTabsByWorktree[WORKTREE_ID] ?? []),
+          makeUnifiedTab({
+            id: 'tab-worker-1',
+            worktreeId: WORKTREE_ID,
+            groupId: 'g-coord',
+            contentType: 'terminal'
+          })
+        ]
+      },
+      groupsByWorktree: {
+        ...state.groupsByWorktree,
+        [WORKTREE_ID]: (state.groupsByWorktree[WORKTREE_ID] ?? []).map((group) =>
+          group.id === 'g-coord'
+            ? { ...group, tabOrder: [...group.tabOrder, 'tab-worker-1'] }
+            : group
+        )
+      }
+    }))
+
+    const groupId = claimOrchestrationWorkerPaneGroup(store, {
+      worktreeId: WORKTREE_ID,
+      paneGroupPlacement: PLACEMENT,
+      existingWorkerTabId: 'tab-worker-1'
+    })
+    expect(groupId).toBeTruthy()
+    expect(
+      placeOrchestrationWorkerTabInGroup(store, {
+        worktreeId: WORKTREE_ID,
+        terminalTabId: 'tab-worker-1',
+        groupId: groupId as string
+      })
+    ).toBe(true)
+
+    expect(
+      store.getState().unifiedTabsByWorktree[WORKTREE_ID]?.find((tab) => tab.id === 'tab-worker-1')
+        ?.groupId
+    ).toBe(groupId)
+    expect(store.getState().layoutByWorktree[WORKTREE_ID]).toEqual({
+      type: 'split',
+      direction: 'horizontal',
+      first: { type: 'leaf', groupId: 'g-coord' },
+      second: { type: 'leaf', groupId },
+      ratio: 0.5
+    })
+    expect(store.getState().activeGroupIdByWorktree[WORKTREE_ID]).toBe('g-coord')
+  })
+
+  it('keeps a worker already standing in the column instead of splitting again', () => {
+    const store = createTestStore()
+    seedCoordinator(store)
+
+    const groupId = dispatchWorker(store, 'tab-worker-1')
+    const layout = store.getState().layoutByWorktree[WORKTREE_ID]
+
+    expect(
+      claimOrchestrationWorkerPaneGroup(store, {
+        worktreeId: WORKTREE_ID,
+        paneGroupPlacement: PLACEMENT,
+        existingWorkerTabId: 'tab-worker-1'
+      })
+    ).toBe(groupId)
+    expect(store.getState().layoutByWorktree[WORKTREE_ID]).toEqual(layout)
+  })
+
+  it('leaves the layout alone when the reveal resolves to the coordinator tab', () => {
+    const store = createTestStore()
+    seedCoordinator(store)
+
+    expect(
+      claimOrchestrationWorkerPaneGroup(store, {
+        worktreeId: WORKTREE_ID,
+        paneGroupPlacement: PLACEMENT,
+        existingWorkerTabId: COORDINATOR_TAB_ID
+      })
+    ).toBeUndefined()
+    expect(store.getState().layoutByWorktree[WORKTREE_ID]).toEqual({
+      type: 'leaf',
+      groupId: 'g-coord'
     })
   })
 

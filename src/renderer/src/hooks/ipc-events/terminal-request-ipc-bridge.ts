@@ -6,6 +6,10 @@ import { resolveTerminalWorktreeRoute } from '@/lib/terminal-worktree-route'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '../../store'
 import {
+  claimOrchestrationWorkerPaneGroup,
+  recordOrchestrationWorkerTab
+} from '@/store/slices/orchestration-worker-pane-column'
+import {
   activateTerminalInitiatedWorktree,
   focusTerminalInitiatedTab,
   resolveTerminalPresentation
@@ -77,7 +81,25 @@ export function registerTerminalRequestIpcBridge(unsubs: (() => void)[]): void {
                 recordInteraction: false,
                 ...(data.cwd ? { startupCwd: data.cwd } : {})
               }
-        const tab = store.createTab(worktreeId, data.targetGroupId, undefined, tabOptions)
+        // Why: a worker dispatched through the renderer-backed create path owes the same
+        // column as one spawned in the background. An explicit target group outranks it, and
+        // must short-circuit the claim so no empty worker pane is split off for nothing.
+        const workerPaneGroupId =
+          data.paneGroupPlacement && !data.targetGroupId
+            ? claimOrchestrationWorkerPaneGroup(useAppStore, {
+                worktreeId,
+                paneGroupPlacement: data.paneGroupPlacement
+              })
+            : undefined
+        const tab = store.createTab(
+          worktreeId,
+          data.targetGroupId ?? workerPaneGroupId,
+          undefined,
+          tabOptions
+        )
+        if (workerPaneGroupId && data.paneGroupPlacement) {
+          recordOrchestrationWorkerTab(data.paneGroupPlacement.coordinatorTabId, tab.id)
+        }
         if (!shouldActivate) {
           // Why: renderer-backed Codex startup must mount its new TerminalPane without switching UI or connecting every saved tab.
           requestBackgroundTerminalWorktreeMount({ worktreeId, tabIds: [tab.id] })

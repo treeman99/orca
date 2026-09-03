@@ -91,6 +91,53 @@ describe('useIpcEvents orchestration worker pane placement', () => {
     expect(createTab).toHaveBeenCalledWith('wt-1', 'g-split-1', undefined, expect.anything())
   })
 
+  it('still builds the column when another path minted the worker tab first', async () => {
+    _resetOrchestrationWorkerPaneColumnForTests()
+    const scenario = await setupTerminalCreateSurfacing(() => false)
+    const {
+      createTab,
+      createEmptySplitGroup,
+      moveUnifiedTabToGroup,
+      storeState,
+      createTerminalListenerRef
+    } = scenario
+    if (!createTerminalListenerRef.current) {
+      throw new Error('Expected create-terminal listener to be registered')
+    }
+    storeState.settings.autoSplitOrchestrationWorkerPanes = true
+    storeState.groupsByWorktree['wt-1'] = [
+      { id: 'g-coord', tabOrder: [COORDINATOR_TAB_ID, 'tab-worker-1'] }
+    ]
+    // The host graph sweep already adopted the PTY into a tab in the active group.
+    storeState.tabsByWorktree['wt-1'] = [{ id: 'tab-worker-1', ptyId: 'pty-worker-1' }]
+    storeState.unifiedTabsByWorktree['wt-1'] = [
+      {
+        id: COORDINATOR_TAB_ID,
+        entityId: COORDINATOR_TAB_ID,
+        groupId: 'g-coord',
+        contentType: 'terminal'
+      },
+      {
+        id: 'tab-worker-1',
+        entityId: 'tab-worker-1',
+        groupId: 'g-coord',
+        contentType: 'terminal'
+      }
+    ]
+
+    createTerminalListenerRef.current(workerCreate())
+
+    expect(createTab).not.toHaveBeenCalled()
+    expect(createEmptySplitGroup).toHaveBeenCalledWith('wt-1', 'g-coord', 'right', {
+      activate: false,
+      recordInteraction: false
+    })
+    expect(moveUnifiedTabToGroup).toHaveBeenCalledWith('tab-worker-1', 'g-split-1', {
+      activate: false,
+      recordInteraction: false
+    })
+  })
+
   it('leaves the layout alone for terminals dispatched without a placement', async () => {
     _resetOrchestrationWorkerPaneColumnForTests()
     const scenario = await setupTerminalCreateSurfacing(() => false)
