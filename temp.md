@@ -21,6 +21,22 @@
 
 ---
 
+## 0. `pnpm`이 여러 개면 그것부터
+
+```powershell
+where.exe pnpm
+```
+
+**맨 위 줄이 실행된다.** `d:\Programs\nodejs\pnpm` 같은 Node 설치 폴더 항목은 **corepack shim**이고,
+그게 npm으로 깐 pnpm 12(`AppData\Roaming\npm\pnpm.cmd`)를 가린다. npm 전역 설치를 쓸 거라면:
+
+```powershell
+corepack disable pnpm      # Node 설치 폴더 쓰기 권한 필요. 안 되면 관리자 PowerShell
+where.exe pnpm             # AppData\Roaming\npm\pnpm.cmd 가 첫 줄이어야 정상
+```
+
+> `README.md` §1의 `corepack enable ; corepack prepare ...` 줄을 실행하면 shim이 되살아난다.
+
 ## 1. 브라우저로 파일 2개 받기
 
 ```
@@ -37,7 +53,7 @@ https://registry.npmjs.org/@pnpm/exe.win32-x64/-/exe.win32-x64-12.0.0.tgz  (17.7
 Get-ChildItem "$HOME\Downloads\*.tgz" | Select-Object Name, Length   # 0.9MB / 17.7MB 여야 정상
 ```
 
-## 2. npm으로 전역 설치 (권장 — tar 불필요, 레지스트리 접근 0회)
+## 2. npm으로 전역 설치 (권장 — tar 불필요)
 
 ```powershell
 npm install -g "C:\받은경로\pnpm-12.0.0.tgz" "C:\받은경로\exe.win32-x64-12.0.0.tgz"
@@ -57,7 +73,20 @@ pnpm install --frozen-lockfile
 npm install -g --offline "C:\받은경로\pnpm-12.0.0.tgz" "C:\받은경로\exe.win32-x64-12.0.0.tgz"
 ```
 
-설치 중 `allow-scripts` 경고가 떠도 무시해도 된다 — 실행파일이 이미 옆에 있어 install script 없이 동작한다.
+설치 중 `allow-scripts` 경고가 떠도 무시해도 된다.
+
+⚠️ **npm은 로컬 tarball을 줘도 optional dependency(`@pnpm/exe.*`)를 레지스트리에서 다시 해석한다.**
+막힌 환경에서는 그 단계가 조용히 실패하므로, 설치 직후 실행파일을 직접 못 박는다:
+
+```powershell
+$g = npm root -g          # 보통 %APPDATA%\npm\node_modules
+Copy-Item "$env:LOCALAPPDATA\pnpm-manual\pnpm\node_modules\@pnpm\exe.win32-x64\pnpm.exe" `
+          "$g\pnpm\pnpm-native.exe"
+pnpm --version            # → 12.0.0
+```
+
+탐색 순서가 `node_modules/@pnpm/exe.*` → **`<pnpm 패키지 루트>\pnpm-native.exe`** → 다운로드라,
+2순위에 놓으면 다운로드까지 가지 않는다.
 
 이걸로 끝이다. 다음부터는 그냥 `pnpm`을 쓰면 되고, 아래 3절은 npm 전역 설치를 쓸 수 없을 때만 본다.
 

@@ -28,7 +28,46 @@ pnpm --version
 | `11.x` | `npm install -g pnpm`은 npm의 `latest` 태그(=11.25.0)를 깝니다. 12가 아닙니다 | [§3](#3-npm으로-직접-설치) |
 | `12.0.0` | 설치는 정상. 저장소 안에서만 막히는 것 | [§1](#1-corepack-캐시-메타데이터-오염--cannot-find-module-pnpmcjs) / [§2](#2-사내망에서-다운로드가-끊길-때--econnreset--fetch-failed) |
 | 실행 자체가 안 됨 | corepack 캐시 오염 | [§1](#1-corepack-캐시-메타데이터-오염--cannot-find-module-pnpmcjs) |
+| `npm i -g pnpm@12.0.0` 을 했는데도 다운로드를 시도 | 다른 `pnpm`이 PATH에서 앞선다 | [§0-2](#0-2-pnpm이-여러-개일-때--어느-것이-실행되는지부터) |
 | 다운로드만 막힘 (브라우저로는 받아짐) | 프록시가 Node의 직접 요청을 막음 | [§4](#4-브라우저로-받은-tgz를-직접-넣기-권장-오프라인-경로) |
+
+---
+
+## 0-2. `pnpm`이 여러 개일 때 — 어느 것이 실행되는지부터
+
+**실제로 가장 흔한 원인입니다.** `npm install -g pnpm@12.0.0`이 성공했는데도 `pnpm --version`이
+다운로드를 시도한다면, 그 `pnpm`이 npm이 깐 것이 아닙니다.
+
+```powershell
+where.exe pnpm
+```
+
+**맨 위 줄이 실행되는 것**입니다. 흔한 결과:
+
+```
+d:\Programs\nodejs\pnpm            ← corepack shim (Node 설치 폴더). 이게 이깁니다
+d:\Programs\nodejs\pnpm.CMD
+C:\Users\<u>\AppData\Roaming\npm\pnpm      ← npm 이 깐 pnpm 12. 가려져 있습니다
+C:\Users\<u>\AppData\Roaming\npm\pnpm.cmd
+```
+
+`corepack enable`을 한 번이라도 했다면 Node 설치 폴더에 `pnpm`/`pnpm.cmd` shim이 생기고,
+PATH에서 대개 그쪽이 앞섭니다. 그 shim은 corepack을 태우므로 **§1·§2의 corepack 문제를 그대로 겪습니다.**
+
+**고침 — 둘 중 하나만 고르십시오.**
+
+- **npm 전역 설치를 쓰기로 했다면** corepack shim을 걷어냅니다:
+
+  ```powershell
+  corepack disable pnpm      # Node 설치 폴더 쓰기 권한 필요. 안 되면 관리자 PowerShell
+  where.exe pnpm             # 이제 AppData\Roaming\npm\pnpm.cmd 가 첫 줄이어야 정상
+  ```
+
+- **corepack을 쓰기로 했다면** shim은 두고 §1·§2·§5로 corepack 쪽을 고칩니다.
+
+> ⚠️ `README.md` §1의 빌드 절차는 `corepack enable ; corepack prepare pnpm@12.0.0 --activate`로
+> 시작합니다. npm 전역 설치를 쓰기로 했다면 **그 줄을 실행하지 마십시오** — shim이 되살아나
+> 다시 가려집니다.
 
 ---
 
@@ -159,8 +198,20 @@ pnpm install --frozen-lockfile
 
 **두 파일을 반드시 한 명령에 같이 넘기십시오.** 그래야 실행파일이 전역
 `node_modules/@pnpm/exe.win32-x64`에 깔리고 pnpm 래퍼가 상위 탐색으로 찾아냅니다.
-하나씩 따로 설치하면 실행파일을 못 찾아 다시 다운로드를 시도합니다.
-레지스트리 접근을 아예 차단하려면 `--offline`을 붙이십시오.
+
+⚠️ **다만 이것만으로는 부족할 수 있습니다.** npm은 로컬 tarball을 넘겨받아도 optional dependency인
+`@pnpm/exe.<platform>`을 **레지스트리에서 다시 해석하려 합니다.** 레지스트리가 막힌 환경에서는
+그 단계가 조용히 실패해 실행파일이 없는 채로 설치가 끝나고, `pnpm --version`이 다시 다운로드를
+시도합니다. 그래서 설치 직후 아래를 이어서 하십시오 — **이걸로 다운로드 경로가 완전히 사라집니다.**
+
+```powershell
+$g = npm root -g          # 보통 %APPDATA%\npm\node_modules
+# 실행파일 tarball 을 풀어 얻은 pnpm.exe 를 pnpm 패키지 루트에 이 이름으로 둔다
+Copy-Item "<추출한 경로>\pnpm.exe" "$g\pnpm\pnpm-native.exe"
+```
+
+탐색 순서가 `node_modules/@pnpm/exe.*` → **`<pnpm 패키지 루트>\pnpm-native.exe`** → 다운로드이므로,
+2순위에 직접 놓으면 1순위 해석이 실패해도 다운로드까지 가지 않습니다.
 
 설치 중 `allow-scripts` 경고는 무시해도 됩니다 — 실행파일이 이미 옆에 있어 install script 없이 동작합니다.
 
@@ -260,8 +311,11 @@ Remove-Item Env:COREPACK_ENABLE_NETWORK
 - `.corepack` 메타의 `.cjs` ↔ `.mjs` 차이가 §1 증상의 원인임 — 양쪽 값을 직접 확인.
 - 캐시 삭제 → 새 corepack 1회 실행으로 복구되고, 그 뒤에는 번들 corepack으로도 동작함.
 - corepack 번들에 `npmrc`/프록시 처리가 없음 — 정적 검사.
-- §4-1 `npm install -g <래퍼 tgz> <실행파일 tgz>`(두 파일을 한 명령에)가 레지스트리 요청 0회로
-  전역 설치되고 `pnpm --version` → `12.0.0`, `install --frozen-lockfile` 통과함.
+- §4-1의 `pnpm-native.exe` 드롭인이 실행파일 해석을 대체함 — `@pnpm/exe.*`를 지운 상태에서도
+  `pnpm --version` → `12.0.0`, `install --frozen-lockfile` 통과함.
+- **정정**: `npm install -g <래퍼 tgz> <실행파일 tgz>`는 레지스트리 요청 0회가 **아닙니다.**
+  npm이 optional dependency를 레지스트리에서 다시 해석합니다(네트워크가 열린 맥에서 조용히
+  받아오는 것을 처음에 오독했습니다). 그래서 §4-1에 드롭인 단계를 덧붙였습니다.
 - §4-2 수동 배치(두 tarball을 풀어 `node_modules/@pnpm/exe.*`에 실행파일을 둠)가 `12.0.0`을 출력하고
   실제 `pnpm install --frozen-lockfile`까지 통과함. 래퍼가 로컬 실행파일을 집는 것도 `require.resolve`로 확인.
 - §5 corepack 시딩이 `COREPACK_ENABLE_NETWORK=0`에서 `12.0.0`을 출력하고 install까지 통과함.
