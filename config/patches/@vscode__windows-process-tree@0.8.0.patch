@@ -1,5 +1,5 @@
 diff --git a/binding.gyp b/binding.gyp
-index 855bd4b86f0a3c18c7594212c0e42b6e35bc4001..33774e7ae296f0de39dd94156673c9e773638bf4 100644
+index 855bd4b86f0a3c18c7594212c0e42b6e35bc4001..0bb2af7923b6e6f1f0da40cae8067304cd1fea14 100644
 --- a/binding.gyp
 +++ b/binding.gyp
 @@ -3,7 +3,6 @@
@@ -10,7 +10,8 @@ index 855bd4b86f0a3c18c7594212c0e42b6e35bc4001..33774e7ae296f0de39dd94156673c9e7
        ],
        "conditions": [
          ['OS=="win"', {
-@@ -15,12 +14,11 @@
+@@ -14,13 +13,12 @@
+             "src/process_worker.cc",
              "src/process_commandline.cc"
            ],
 -          "include_dirs": [],
@@ -26,10 +27,8 @@ index 855bd4b86f0a3c18c7594212c0e42b6e35bc4001..33774e7ae296f0de39dd94156673c9e7
                "AdditionalOptions": [
                  "/guard:cf",
                  "/sdl",
-                 "/W3",
-                 "/we4146",
 diff --git a/src/process.cc b/src/process.cc
-index 3eea92077c4d1d433119361d5c432881859131e9..1998f4addd4d7e9aba946ea6f7f7a4a5d13291bc 100644
+index 3eea92077c4d1d433119361d5c432881859131e9..a7866bf69adb5edf251365e66600c74a853abbd6 100644
 --- a/src/process.cc
 +++ b/src/process.cc
 @@ -37,7 +37,7 @@ uint32_t GetRawProcessList(std::vector<ProcessInfo>& process_info,

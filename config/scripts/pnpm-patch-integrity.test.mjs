@@ -34,8 +34,10 @@ function readPatchedDependencyPaths(workspaceYaml) {
 const HUNK_HEADER = /^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/
 
 /**
- * Count what each hunk actually contains, stopping at the line count its own
- * header declares. A hunk that runs out of body early is truncated.
+ * Count what each hunk actually contains, reading its whole body rather than
+ * stopping at the count its header declares. Stopping early only catches a body
+ * that is too short; a body that is too *long* — what a hand-edited hunk leaves
+ * behind — then reads as a match. Both directions are corruption.
  */
 function readHunks(patchText) {
   const lines = patchText.split('\n')
@@ -52,9 +54,13 @@ function readHunks(patchText) {
     let oldSeen = 0
     let newSeen = 0
     let cursor = index + 1
-    while (cursor < lines.length && (oldSeen < declaredOld || newSeen < declaredNew)) {
+    while (cursor < lines.length) {
       const line = lines[cursor]
-      if (line.startsWith('@@') || line.startsWith('diff --git ')) {
+      if (line.startsWith('@@') || line.startsWith('diff --git ') || line.startsWith('index ')) {
+        break
+      }
+      // The trailing newline of the file is not a context line.
+      if (line === '' && cursor === lines.length - 1) {
         break
       }
       if (line.startsWith('\\')) {
@@ -87,11 +93,14 @@ function readHunks(patchText) {
 }
 
 describe('pnpm patch integrity', () => {
-  // Why this gate exists: pnpm applies a truncated hunk as a no-op, reports no
+  // Why this gate exists: pnpm applies a malformed hunk as a no-op, reports no
   // warning, and exits 0 -- even with `ignorePatchFailures: false`. A patch
   // edited by hand can therefore stop applying and only surface much later, as
   // a compiler error on the one platform that builds the patched source.
-  it.each(patchPaths)('%s has no truncated hunk', (patchPath) => {
+  // Why both directions: `@vscode/windows-process-tree@0.8.0` shipped a hunk
+  // declaring -12 +11 over a body of -14 +13. pnpm 12 applied it anyway; pnpm 11
+  // silently skipped it, and the Windows build failed with MSB8040.
+  it.each(patchPaths)('%s has no hunk whose header disagrees with its body', (patchPath) => {
     const hunks = readHunks(readFileSync(join(projectDir, patchPath), 'utf8'))
     expect(hunks.length).toBeGreaterThan(0)
     const truncated = hunks
