@@ -24,6 +24,14 @@ pnpm format              # oxfmt --write .
 
 CI (`.github/workflows/pr.yml`) runs `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build:unpack`. Run those four before opening a PR.
 
+### Patched dependencies
+
+Patches live in `config/patches/` and are declared in `pnpm-workspace.yaml` (not `package.json`).
+
+- **Never hand-edit a patch.** Regenerate it: `npm pack <pkg>@<ver>`, extract, diff the pristine tree against the patched copy, strip CR (this repo's patches are LF-only — `windows-process-tree-patch-contract.test.mjs` enforces it).
+- **Changing a patch changes its hash**, so follow every patch edit with `pnpm install --lockfile-only`; otherwise `--frozen-lockfile` refuses the tree.
+- **A green gate does not mean the patch applied.** pnpm applies a malformed hunk as a silent no-op. Verify on the installed file — e.g. `grep -c SpectreMitigation node_modules/@vscode/windows-process-tree/binding.gyp` must be `0`.
+
 ### Single tests
 
 ```bash
@@ -33,6 +41,8 @@ pnpm tc:node                                           # typecheck one project (
 ```
 
 Vitest collects `src/**/*.test.ts(x)`, `config/scripts/**`, `tools/**/*.test.mjs`, and `tests/e2e/**/*.unit.test.ts`. Tests live next to their subject, not in a `__tests__` tree.
+
+A single full-suite run is not a verdict. Some failures are cross-file interference that reproduce on a pristine upstream-tag worktree as well; re-run the same file pairing several times on both trees before calling anything a regression.
 
 ### E2E (Playwright + real Electron)
 
@@ -114,6 +124,7 @@ One Zustand store (`src/renderer/src/store/index.ts`) composed from ~190 slices 
 - **Localization** — user-facing strings go through i18n (`src/renderer/src/i18n/locales/*.json`, en/es/ja/ko/zh). `pnpm sync:localization-catalog` fixes catalog drift; `pnpm audit:localization` reports uncovered strings. The auditor flags user-visible JSX props (`label`, `placeholder`, `tooltip`, `aria-label`, …) holding raw literals.
 - **Skill guides** — `skills/<topic>/SKILL.md` is the source; `skill-guides/` and `skill-stubs/` are generated. After editing a skill run `pnpm generate:bundled-skill-guides` and `pnpm generate:skill-bundle-manifest`. Guide names in `config/scripts/generate-bundled-skill-guides.mjs` are a compatibility ledger — renames add aliases, never remove them.
 - **No project-owned `.d.ts` in `src/preload` or `src/shared`** — `skipLibCheck: true` (inherited from `@electron-toolkit/tsconfig`) silently widens unresolved names to `any` there, so a broken IPC signature passes typecheck. A `find` step in CI fails the build.
+- **Patch integrity** — `config/scripts/pnpm-patch-integrity.test.mjs` compares every hunk header against its body in *both* directions (a body that is too long is corruption just as a truncated one is) and asserts the Spectre requirement is gone from the two Windows native packages. `windows-process-tree-patch-contract.test.mjs` pins that patch LF-only and hash-synced with the lockfile.
 - **Reliability gates** — `config/reliability-gates.jsonc` tracks cross-platform invariants and their maturity (`experimental` → `soak` → `blocking`).
 - **Styled scrollbars / feature-wall asset budget / macOS entitlements** — dedicated `check:*` scripts.
 
@@ -123,4 +134,4 @@ Telemetry keys are compile-time constants substituted in `electron.vite.config.t
 
 `docs/STYLEGUIDE.md` (mandatory for UI work), `docs/reference/git-compatibility.md` (Git 2.25 baseline, `GitCapabilityCache`), `docs/reference/linux-glibc-compatibility.md`, `docs/reference/headless-linux-server.md` (`orca serve`), `.github/CONTRIBUTING.md` (PR expectations, maintainer release flow). Loose `docs/*.md` files are per-feature design notes, not general guides.
 
-Fork-specific (Korean): `README.md` (build, GHES, Bedrock, fork sync), `docs/reference/enterprise-policy.md` (policy file schema, fleet deployment, verification), `docs/reference/external-integrations-audit.md` (what leaves the machine, what the lockdown covers, and the residual-risk register), `docs/reference/windows-corporate-build.md` (Windows installer build), `docs/reference/macos-dev-ui-check.md` (check the corporate UI from a macOS `pnpm dev` run, no installer), `docs/reference/local-dev-run.md` (Windows-side local verification: what `pnpm dev` vs `build:unpack` vs the installer each prove, and what none of them can). Keep the audit document honest — it is what a corporate security reviewer reads, and overstating the lockdown there is worse than saying nothing.
+Fork-specific (Korean): `README.md` (build, GHES, Bedrock, fork sync), `docs/reference/enterprise-policy.md` (policy file schema, fleet deployment, verification), `docs/reference/external-integrations-audit.md` (what leaves the machine, what the lockdown covers, and the residual-risk register), `docs/reference/windows-corporate-build.md` (Windows installer build), `docs/reference/macos-dev-ui-check.md` (check the corporate UI from a macOS `pnpm dev` run, no installer), `docs/reference/local-dev-run.md` (Windows-side local verification: what `pnpm dev` vs `build:unpack` vs the installer each prove, and what none of them can), `docs/reference/pnpm-12-corepack-install.md` (why a locked-down Windows machine fails to install pnpm, and the three causes that are not pnpm itself — read it before blaming the pinned version). **README §6 is the fork-sync ledger**: it records what this fork deleted from upstream and, for each, the collateral edits that come back *without a conflict* on the next merge — check those by hand, not by trusting a clean merge. Keep the audit document honest — it is what a corporate security reviewer reads, and overstating the lockdown there is worse than saying nothing.
