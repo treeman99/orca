@@ -140,8 +140,36 @@ https://registry.npmjs.org/@pnpm/exe.win32-x64/-/exe.win32-x64-12.0.0.tgz  (17.7
 
 **첫 번째만으로는 동작하지 않습니다.** 두 번째가 진짜 pnpm 바이너리입니다.
 
+받은 뒤 경로와 크기를 확인하십시오 — 사내 PC는 Downloads가 OneDrive로 리다이렉트된 경우가 많고,
+보안 장비가 차단 페이지(HTML)를 `.tgz` 이름으로 저장해 두기도 합니다.
+
 ```powershell
-$tgz  = "$HOME\Downloads"                 # 받은 파일이 있는 폴더
+Get-ChildItem "$HOME\Downloads\*.tgz" | Select-Object Name, Length   # 0.9MB / 17.7MB 여야 정상
+```
+
+### 4-1. npm으로 전역 설치 (권장 — tar 불필요)
+
+```powershell
+npm install -g "C:\받은경로\pnpm-12.0.0.tgz" "C:\받은경로\exe.win32-x64-12.0.0.tgz"
+
+pnpm --version                     # → 12.0.0
+cd C:\경로\to\orca
+pnpm install --frozen-lockfile
+```
+
+**두 파일을 반드시 한 명령에 같이 넘기십시오.** 그래야 실행파일이 전역
+`node_modules/@pnpm/exe.win32-x64`에 깔리고 pnpm 래퍼가 상위 탐색으로 찾아냅니다.
+하나씩 따로 설치하면 실행파일을 못 찾아 다시 다운로드를 시도합니다.
+레지스트리 접근을 아예 차단하려면 `--offline`을 붙이십시오.
+
+설치 중 `allow-scripts` 경고는 무시해도 됩니다 — 실행파일이 이미 옆에 있어 install script 없이 동작합니다.
+
+**이걸로 끝입니다.** 아래 4-2는 `npm install -g`를 쓸 수 없을 때만 봅니다.
+
+### 4-2. (대안) 손으로 풀어서 배치
+
+```powershell
+$tgz  = "C:\받은경로"                     # 받은 파일이 있는 폴더 (경로를 정확히)
 $root = "$env:LOCALAPPDATA\pnpm-manual"   # 풀어 둘 위치 (아무 데나 가능)
 
 Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
@@ -185,12 +213,6 @@ pnpm --version
 이미 `12.0.0`이라 그 단계가 통째로 없어집니다. 바이너리 탐색도
 `node_modules/@pnpm/exe.*` → `<루트>\pnpm-native.exe` → 다운로드 순이라, 위 배치면 첫 단계에서 끝납니다.
 
-`npm`이 레지스트리에 닿는 환경이라면 같은 결과를 한 줄로 얻을 수 있습니다 —
-다만 이때도 optional dependency로 실행파일을 레지스트리에서 받으므로, 그게 막히면 위 수동 배치를 쓰십시오:
-
-```powershell
-npm install -g "$tgz\pnpm-12.0.0.tgz"
-```
 
 ---
 
@@ -238,7 +260,9 @@ Remove-Item Env:COREPACK_ENABLE_NETWORK
 - `.corepack` 메타의 `.cjs` ↔ `.mjs` 차이가 §1 증상의 원인임 — 양쪽 값을 직접 확인.
 - 캐시 삭제 → 새 corepack 1회 실행으로 복구되고, 그 뒤에는 번들 corepack으로도 동작함.
 - corepack 번들에 `npmrc`/프록시 처리가 없음 — 정적 검사.
-- §4 수동 배치(두 tarball을 풀어 `node_modules/@pnpm/exe.*`에 실행파일을 둠)가 `12.0.0`을 출력하고
+- §4-1 `npm install -g <래퍼 tgz> <실행파일 tgz>`(두 파일을 한 명령에)가 레지스트리 요청 0회로
+  전역 설치되고 `pnpm --version` → `12.0.0`, `install --frozen-lockfile` 통과함.
+- §4-2 수동 배치(두 tarball을 풀어 `node_modules/@pnpm/exe.*`에 실행파일을 둠)가 `12.0.0`을 출력하고
   실제 `pnpm install --frozen-lockfile`까지 통과함. 래퍼가 로컬 실행파일을 집는 것도 `require.resolve`로 확인.
 - §5 corepack 시딩이 `COREPACK_ENABLE_NETWORK=0`에서 `12.0.0`을 출력하고 install까지 통과함.
 - `npm install -g pnpm@12.0.0`이 `@pnpm/exe.*`를 함께 설치하고 저장소 install을 통과함.
@@ -246,7 +270,7 @@ Remove-Item Env:COREPACK_ENABLE_NETWORK
 
 **검증하지 못한 것:**
 
-- Windows에서의 실제 재현(위 경로들은 macOS 실측을 Windows 경로로 옮긴 것입니다).
+- Windows에서의 §4-1 재현(경로 표기만 옮긴 것입니다). §4-2 수동 배치는 사용자가 Windows에서 동작을 확인했습니다.
 - **pnpm 자기관리 store에 tarball을 손으로 주입하는 방법은 없습니다**(확인함). 저장 위치는
   `<PNPM_HOME>/store/v11/`의 content-addressable 저장소이고 파일 해시로 인덱싱되어 있어
   `.tgz`를 놓을 자리가 없습니다. `manage-package-manager-versions=false`를 rc·환경변수·

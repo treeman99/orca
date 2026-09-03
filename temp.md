@@ -30,10 +30,43 @@ https://registry.npmjs.org/@pnpm/exe.win32-x64/-/exe.win32-x64-12.0.0.tgz  (17.7
 
 두 번째가 진짜 pnpm 바이너리다. **첫 번째만으로는 동작하지 않는다.**
 
-## 2. 풀어서 배치
+받은 뒤 경로와 크기를 반드시 확인한다 — 사내 PC는 Downloads가 OneDrive로 리다이렉트된 경우가 많고,
+보안 장비가 차단 페이지(HTML)를 `.tgz` 이름으로 저장해 두기도 한다.
 
 ```powershell
-$tgz  = "$HOME\Downloads"                 # 받은 파일이 있는 폴더
+Get-ChildItem "$HOME\Downloads\*.tgz" | Select-Object Name, Length   # 0.9MB / 17.7MB 여야 정상
+```
+
+## 2. npm으로 전역 설치 (권장 — tar 불필요, 레지스트리 접근 0회)
+
+```powershell
+npm install -g "C:\받은경로\pnpm-12.0.0.tgz" "C:\받은경로\exe.win32-x64-12.0.0.tgz"
+
+pnpm --version                     # → 12.0.0
+cd C:\경로\to\orca
+pnpm install --frozen-lockfile
+```
+
+**두 파일을 반드시 한 명령에 같이 넘긴다.** 그래야 실행파일이 전역 `node_modules/@pnpm/exe.win32-x64`에
+깔리고, pnpm 래퍼가 상위 탐색으로 그것을 찾는다. 하나씩 따로 설치하면 실행파일을 못 찾아 다시
+다운로드를 시도한다.
+
+레지스트리 접근을 아예 차단하려면 `--offline`을 붙인다:
+
+```powershell
+npm install -g --offline "C:\받은경로\pnpm-12.0.0.tgz" "C:\받은경로\exe.win32-x64-12.0.0.tgz"
+```
+
+설치 중 `allow-scripts` 경고가 떠도 무시해도 된다 — 실행파일이 이미 옆에 있어 install script 없이 동작한다.
+
+이걸로 끝이다. 다음부터는 그냥 `pnpm`을 쓰면 되고, 아래 3절은 npm 전역 설치를 쓸 수 없을 때만 본다.
+
+## 3. (대안) 손으로 풀어서 배치
+
+`npm install -g`를 쓸 수 없는 경우에만.
+
+```powershell
+$tgz  = "C:\받은경로"                     # 받은 파일이 있는 폴더 (경로를 정확히)
 $root = "$env:LOCALAPPDATA\pnpm-manual"   # 풀어 둘 위치 (아무 데나 가능)
 
 Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
@@ -54,7 +87,7 @@ tar -xzf "$tgz\exe.win32-x64-12.0.0.tgz" -C "$root\pnpm\node_modules\@pnpm\exe.w
 └─ node_modules\@pnpm\exe.win32-x64\pnpm.exe    ← 실제 실행파일
 ```
 
-## 3. 사용
+### 3-1. 사용
 
 ```powershell
 cd C:\경로\to\orca
@@ -62,7 +95,7 @@ node "$root\pnpm\bin\pnpm.mjs" --version              # → 12.0.0
 node "$root\pnpm\bin\pnpm.mjs" install --frozen-lockfile
 ```
 
-## 4. `pnpm` 명령으로 쓰기 (선택)
+### 3-2. `pnpm` 명령으로 쓰기
 
 ```powershell
 $bin = "$root\bin"
@@ -78,12 +111,11 @@ pnpm --version
 
 - 바이너리 탐색 순서는 `node_modules/@pnpm/exe.*` → `<루트>\pnpm-native.exe` → 다운로드다.
   위 배치면 첫 단계에서 끝나므로 네트워크를 타지 않는다.
-- `npm`이 레지스트리에 닿는 환경이면 `npm install -g "$tgz\pnpm-12.0.0.tgz"` 한 줄로도 된다.
-  다만 그때도 실행파일은 optional dependency로 레지스트리에서 받으므로, 막히면 위 수동 배치를 쓴다.
 - `npm install -g pnpm`(버전 없이)은 **11.25.0**을 깐다. npm의 `latest` 태그가 아직 11이다.
 
-**검증**: macOS arm64에서 같은 구조로 조립해 `--version`과 `install --frozen-lockfile` 통과 확인.
-래퍼가 로컬 실행파일을 집는 것도 `require.resolve`로 확인. Windows 실측은 미완.
+**검증**: macOS arm64에서 2절(`npm install -g` 로컬 tarball 2개)과 3절(수동 배치) 둘 다
+`--version` → `12.0.0`, `install --frozen-lockfile` 통과 확인. 래퍼가 로컬 실행파일을 집는 것도
+`require.resolve`로 확인. Windows에서는 3절 배치가 동작함을 사용자가 확인.
 
 ---
 
