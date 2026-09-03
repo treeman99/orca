@@ -128,6 +128,7 @@ export function buildDefaultSettings(args: {
     openAgentTabsInChatByDefault: false,
     autoSplitOrchestrationWorkerPanes: false,
     orchestrationMaxWorkerPanes: DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS,
+    autoCloseCompletedOrchestrationWorkerTabs: true,
     diagnosticLogEnabled: false,
     diagnosticLogDirectory: '',
     // Fork default: on. The terminal/chat toggle is the point — upstream ships it off, which

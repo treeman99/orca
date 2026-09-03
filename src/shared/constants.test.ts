@@ -23,6 +23,13 @@ describe('getDefaultSettings', () => {
     expect(getDefaultSettings('/tmp').openAgentTabsInChatByDefault).toBe(false)
   })
 
+  // Fork gate: worker tabs pile up when the coordinator forgets to release them, so this
+  // ships on. An upstream rebase resolving it back to false is silent — nothing else fails.
+  it('closes a finished worker tab by default, but never auto-splits without opting in', () => {
+    expect(getDefaultSettings('/tmp').autoCloseCompletedOrchestrationWorkerTabs).toBe(true)
+    expect(getDefaultSettings('/tmp').autoSplitOrchestrationWorkerPanes).toBe(false)
+  })
+
   it('enables gitignored file decorations by default', () => {
     expect(getDefaultSettings('/tmp').showGitIgnoredFiles).toBe(true)
   })

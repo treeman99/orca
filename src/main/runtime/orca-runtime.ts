@@ -1520,6 +1520,7 @@ type RuntimeStore = {
     artifactSharingEnabled?: GlobalSettings['artifactSharingEnabled']
     agentSkillSharingEnabled?: GlobalSettings['agentSkillSharingEnabled']
     nestedWorkerMaxDepth?: GlobalSettings['nestedWorkerMaxDepth']
+    autoCloseCompletedOrchestrationWorkerTabs?: GlobalSettings['autoCloseCompletedOrchestrationWorkerTabs']
     terminalQuickCommands?: GlobalSettings['terminalQuickCommands']
     gitlabProjects?: GlobalSettings['gitlabProjects']
     mobileAutoRestoreFitMs?: number | null
@@ -5596,6 +5597,11 @@ export class OrcaRuntimeService {
   /** Renderer-owned; read here because dispatch enforcement lives in main. */
   getNestedWorkerMaxDepth(): number {
     return resolveNestedWorkerMaxDepth(this.store?.getSettings())
+  }
+
+  /** Renderer-owned; read here because worker terminal release happens in main. */
+  shouldAutoCloseSettledWorkerTerminals(): boolean {
+    return this.store?.getSettings()?.autoCloseCompletedOrchestrationWorkerTabs === true
   }
 
   async publishDiscoveredSkillsFromAgent(

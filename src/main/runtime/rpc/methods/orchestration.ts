@@ -16,6 +16,7 @@ import { buildDispatchPreamble } from '../../orchestration/preamble'
 import { formatMessageBanner } from '../../orchestration/formatter'
 import { isGroupAddress, resolveGroupAddress } from '../../orchestration/groups'
 import { reconcileLifecycleMessage } from '../../orchestration/lifecycle-reconciliation'
+import { autoCloseSettledWorkerTerminal } from '../../orchestration/settled-worker-terminal-autoclose'
 import { waitForFederatedLifecycleSettlement } from '../../orchestration/federation-lifecycle-settlement'
 import { abbreviateOrchestrationTasks } from '../../../../shared/orchestration-task-summary'
 import {
@@ -801,6 +802,11 @@ export const ORCHESTRATION_METHODS: RpcMethod[] = [
             runtime.notifyMessageArrived(rejection.to_handle, rejection.type)
             return withSendWarnings({ message: rejection, lifecycle: reconciled })
           }
+          if (reconciled.action === 'completed' || reconciled.action === 'failed') {
+            // Why here: this is the one place a worker's own report settles its
+            // dispatch, so it is where "the task is over" first becomes true.
+            autoCloseSettledWorkerTerminal(runtime, reconciled.dispatchId)
+          }
           runtime.notifyMessageArrived(msg.to_handle, msg.type)
           return withSendWarnings(
             msg.type === 'worker_done' ? { message: msg, lifecycle: reconciled } : { message: msg }
@@ -1336,6 +1342,11 @@ export const ORCHESTRATION_METHODS: RpcMethod[] = [
           // Why: unread check is an authoritative read path for worker_done/heartbeat, so reconcile lifecycle messages here too.
           visibleMessages = messages.map((message) => {
             const reconciled = reconcileLifecycleMessage(db, message)
+            if (reconciled.action === 'completed' || reconciled.action === 'failed') {
+              // A worker_done that first settles on the read path owes the same close;
+              // release is idempotent, so a message already settled on send is a no-op.
+              autoCloseSettledWorkerTerminal(runtime, reconciled.dispatchId)
+            }
             return reconciled.action === 'rejected'
               ? (db.getMessageById(message.id) ?? message)
               : message

@@ -207,6 +207,8 @@ export type GlobalSettings = {
   autoSplitOrchestrationWorkerPanes?: boolean
   /** How tall that worker column may grow before workers share panes as tabs; clamped on read, so an out-of-range value degrades instead of breaking the layout. */
   orchestrationMaxWorkerPanes?: number
+  /** On by default: release a worker's terminal — closing its tab and pane — as soon as its own worker_done settles, instead of waiting for the coordinator's worker-release. */
+  autoCloseCompletedOrchestrationWorkerTabs?: boolean
   /** Opt-in plain-text troubleshooting log. Off by default: it is a support aid, not telemetry — nothing leaves the machine. */
   diagnosticLogEnabled?: boolean
   /** Folder for that log. Empty falls back to the app's own logs directory. */

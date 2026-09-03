@@ -10,12 +10,14 @@ import { getOrchestrationWorkerPaneLayoutSearchEntries } from './orchestration-w
 
 const LABEL_ID = 'orchestration-auto-split-worker-panes-label'
 const MAX_PANES_LABEL_ID = 'orchestration-max-worker-panes-label'
+const AUTO_CLOSE_LABEL_ID = 'orchestration-auto-close-worker-tabs-label'
 
 export function OrchestrationWorkerPaneLayoutSetting(): React.JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const updateSettings = useAppStore((s) => s.updateSettings)
   const enabled = settings?.autoSplitOrchestrationWorkerPanes === true
   const maxPanes = resolveOrchestrationWorkerPaneMaxGroups(settings?.orchestrationMaxWorkerPanes)
+  const autoClose = settings?.autoCloseCompletedOrchestrationWorkerTabs === true
 
   const title = translate(
     'auto.components.settings.OrchestrationWorkerPaneLayoutSetting.title',
@@ -80,6 +82,26 @@ export function OrchestrationWorkerPaneLayoutSetting(): React.JSX.Element {
           }
         />
       ) : null}
+      <SettingsRow
+        labelId={AUTO_CLOSE_LABEL_ID}
+        label={translate(
+          'auto.components.settings.OrchestrationWorkerPaneLayoutSetting.autoCloseLabel',
+          'Close finished worker tabs'
+        )}
+        description={translate(
+          'auto.components.settings.OrchestrationWorkerPaneLayoutSetting.autoCloseDescription',
+          'Release a worker’s terminal as soon as it reports done, closing its tab and pane instead of waiting for the coordinator. Its output is archived first, and a worker you have typed into is left alone — but the coordinator can no longer hand that exact terminal to a follow-up task.'
+        )}
+        control={
+          <SettingsSwitch
+            checked={autoClose}
+            ariaLabelledBy={AUTO_CLOSE_LABEL_ID}
+            onChange={() => {
+              void updateSettings({ autoCloseCompletedOrchestrationWorkerTabs: !autoClose })
+            }}
+          />
+        }
+      />
     </SearchableSetting>
   )
 }

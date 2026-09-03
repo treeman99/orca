@@ -36,6 +36,14 @@ export const getOrchestrationWorkerPaneLayoutSearchEntries = createLocalizedCata
       ...translateSearchKeyword(
         'auto.components.settings.orchestration.worker.pane.search.coordinator',
         'coordinator'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.orchestration.worker.pane.search.close',
+        'close'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.orchestration.worker.pane.search.tab',
+        'tab'
       )
     ]
   }
