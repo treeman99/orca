@@ -1,167 +1,106 @@
-# pnpm 12 설치 — 사내망에서 막힐 때
+# pnpm 설치 — 사내 Windows 에서 막힐 때
 
 upstream **v1.4.194**가 pnpm을 `10.24.0` → `12.0.0`으로 올렸습니다(`package.json`의 `packageManager` 핀).
 그 전까지 잘 되던 `pnpm install`이 갑자기 깨진다면 거의 전부 이 전환 때문입니다.
-
 같은 판에서 pnpm 설정 전체가 `package.json` → **`pnpm-workspace.yaml`** 로 이사했고
-`.npmrc` / `mobile/.npmrc` 가 삭제됐습니다. `patchedDependencies`·`overrides`를 찾을 때는
-`pnpm-workspace.yaml`을 보십시오.
+`.npmrc` / `mobile/.npmrc` 가 삭제됐습니다.
 
-> **pnpm 12는 2단 다운로드입니다.** ① corepack(또는 npm)이 `pnpm@12.0.0` **래퍼** tarball(약 0.9MB)을 받고,
-> ② 그 래퍼가 **네이티브 실행파일**을 `@pnpm/exe.<platform>-<arch>`(win32-x64는 약 17.7MB)로 따로 받습니다.
-> 둘 중 어느 쪽이 막혀도 비슷한 `.tgz` 실패로 보이므로, 아래 절차는 항상 **둘 다** 확보합니다.
-
----
-
-## 0. 먼저 이것부터 — 저장소 **밖**에서 버전 확인
-
-```powershell
-cd C:\
-pnpm --version
-```
-
-저장소 밖에는 `packageManager` 핀이 없어 pnpm이 자기 버전을 맞추려 들지 않습니다.
-따라서 **실제로 깔린 버전이 그대로** 찍힙니다.
-
-| 결과 | 뜻 | 갈 곳 |
-| --- | --- | --- |
-| `11.x` | `npm install -g pnpm`은 npm의 `latest` 태그(=11.25.0)를 깝니다. 12가 아닙니다 | [§3](#3-npm으로-직접-설치) |
-| `12.0.0` | 설치는 정상. 저장소 안에서만 막히는 것 | [§1](#1-corepack-캐시-메타데이터-오염--cannot-find-module-pnpmcjs) / [§2](#2-사내망에서-다운로드가-끊길-때--econnreset--fetch-failed) |
-| 실행 자체가 안 됨 | corepack 캐시 오염 | [§1](#1-corepack-캐시-메타데이터-오염--cannot-find-module-pnpmcjs) |
-| `npm i -g pnpm@12.0.0` 을 했는데도 다운로드를 시도 | 다른 `pnpm`이 PATH에서 앞선다 | [§0-2](#0-2-pnpm이-여러-개일-때--어느-것이-실행되는지부터) |
-| 다운로드만 막힘 (브라우저로는 받아짐) | 프록시가 Node의 직접 요청을 막음 | [§4](#4-브라우저로-받은-tgz를-직접-넣기-권장-오프라인-경로) |
+**포크는 upstream 핀(12.0.0)을 그대로 따릅니다.** 한때 11.25.0으로 내렸다가 되돌렸습니다 —
+막고 있던 것이 pnpm 12 자체가 아니었기 때문입니다(아래 §1·§2).
+사내 Windows 에서 install 부터 설치 프로그램 생성까지 통과하는 것을 확인했습니다(2026-09-03).
 
 ---
 
-## 0-2. `pnpm`이 여러 개일 때 — 어느 것이 실행되는지부터
-
-**실제로 가장 흔한 원인입니다.** `npm install -g pnpm@12.0.0`이 성공했는데도 `pnpm --version`이
-다운로드를 시도한다면, 그 `pnpm`이 npm이 깐 것이 아닙니다.
+## 설치 — 이 한 줄입니다
 
 ```powershell
-where.exe pnpm
-```
+npm install -g pnpm
 
-**맨 위 줄이 실행되는 것**입니다. 흔한 결과:
-
-```
-d:\Programs\nodejs\pnpm            ← corepack shim (Node 설치 폴더). 이게 이깁니다
-d:\Programs\nodejs\pnpm.CMD
-C:\Users\<u>\AppData\Roaming\npm\pnpm      ← npm 이 깐 pnpm 12. 가려져 있습니다
-C:\Users\<u>\AppData\Roaming\npm\pnpm.cmd
-```
-
-`corepack enable`을 한 번이라도 했다면 Node 설치 폴더에 `pnpm`/`pnpm.cmd` shim이 생기고,
-PATH에서 대개 그쪽이 앞섭니다. 그 shim은 corepack을 태우므로 **§1·§2의 corepack 문제를 그대로 겪습니다.**
-
-**고침 — 둘 중 하나만 고르십시오.**
-
-- **npm 전역 설치를 쓰기로 했다면** corepack shim을 걷어냅니다:
-
-  ```powershell
-  corepack disable pnpm      # Node 설치 폴더 쓰기 권한 필요. 안 되면 관리자 PowerShell
-  where.exe pnpm             # 이제 AppData\Roaming\npm\pnpm.cmd 가 첫 줄이어야 정상
-  ```
-
-- **corepack을 쓰기로 했다면** shim은 두고 §1·§2·§5로 corepack 쪽을 고칩니다.
-
-> ⚠️ `README.md` §1의 빌드 절차는 `corepack enable ; corepack prepare pnpm@12.0.0 --activate`로
-> 시작합니다. npm 전역 설치를 쓰기로 했다면 **그 줄을 실행하지 마십시오** — shim이 되살아나
-> 다시 가려집니다.
-
----
-
-## 1. corepack 캐시 메타데이터 오염 — `Cannot find module ...pnpm.cjs`
-
-```
-Error: Cannot find module 'C:\Users\...\corepack\v1\pnpm\12.0.0\bin\pnpm.cjs'
-```
-
-`pnpx.cjs`로 뜨기도 합니다. **corepack을 업데이트해도 그대로 재발하는 것이 이 증상의 특징입니다.**
-
-**원인.** pnpm 12는 `bin/pnpm.mjs`만 담고 있고 `.cjs`는 없습니다. 그런데 옛 corepack
-(Node 26 번들 = 0.33.0)이 `.cjs`라고 단정해 **캐시 항목의 `.corepack` 메타데이터에 그대로 박아 넣습니다.**
-한 번 박히면 새 corepack도 그 메타를 재사용하므로 계속 죽습니다.
-
-```jsonc
-// 옛 corepack이 쓴 값 (깨짐)
-{"bin":{"pnpm":"./bin/pnpm.cjs","pnpx":"./bin/pnpx.cjs"}}
-// 새 corepack이 쓰는 값 (정상)
-{"bin":{"pnpm":"./bin/pnpm.mjs","pnpx":"./bin/pnpx.mjs"}}
-```
-
-**고침 — 순서가 전부입니다. 캐시를 지운 뒤 반드시 *새* corepack으로 먼저 실행하십시오.**
-
-```powershell
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\node\corepack\v1\pnpm" -ErrorAction SilentlyContinue
-cd C:\경로\to\orca                       # 저장소 안에서
-npx -y corepack@latest pnpm --version    # 전역 설치 없이 캐시 메타를 다시 씀
-```
-
-한 번 고치면 **번들 corepack으로도 그대로 동작합니다.** 다만 다음 pnpm 범프 때 같은 항목이 다시 오염되므로,
-가능하면 `npm i -g corepack@latest`로 영구히 올려 두십시오.
-
-확인:
-
-```powershell
-type "$env:LOCALAPPDATA\node\corepack\v1\pnpm\12.0.0\.corepack"   # .mjs 두 개가 보여야 정상
-```
-
----
-
-## 2. 사내망에서 다운로드가 끊길 때 — `ECONNRESET` / `fetch failed`
-
-```
-error when performing the request to https://registry.npmjs.org/pnpm/-/pnpm-12.0.0.tgz
-[cause] TypeError: fetch failed ... read ECONNRESET
-```
-
-**원인. corepack은 `.npmrc`를 읽지 않습니다.** corepack 0.36.0 번들을 검사한 결과 `npmrc` 문자열 0건,
-`HTTPS_PROXY`/`ProxyAgent`/`NODE_EXTRA_CA_CERTS` 처리 0건입니다. 맨 `fetch()`로 `registry.npmjs.org`에
-**직접** 갑니다. 그래서 **`npm`/`npx`는 되는데 corepack 다운로드만 리셋됩니다** — npm은 `.npmrc`의
-미러·프록시·CA를 쓰고 corepack은 안 쓰기 때문입니다.
-
-```powershell
 cd C:\경로\to\orca
-
-$env:COREPACK_NPM_REGISTRY = (npm config get registry)   # 사내 미러를 그대로 사용
-$env:NODE_OPTIONS          = "--use-env-proxy"           # 프록시를 쓴다면 (+ $env:HTTPS_PROXY)
-# 사내 미러가 재배포형이면 서명 검증이 깨지므로:
-# $env:COREPACK_INTEGRITY_KEYS = "{}"
-
-corepack pnpm install --frozen-lockfile
-```
-
-관련 환경변수: `COREPACK_NPM_REGISTRY`, `COREPACK_NPM_TOKEN`,
-`COREPACK_NPM_USERNAME`/`COREPACK_NPM_PASSWORD`, `COREPACK_INTEGRITY_KEYS`,
-`COREPACK_ENABLE_NETWORK`.
-
-> **반드시 저장소 디렉터리 안에서 실행하십시오.** 밖에서 `corepack pnpm ...`을 치면 프로젝트 핀을 못 보고
-> corepack **기본 버전**을 받으러 갑니다 — 엉뚱한 버전의 `.tgz` URL이 에러에 찍혀 원인을 오독하게 됩니다.
-
----
-
-## 3. npm으로 직접 설치
-
-npm이 사내망에서 이미 되고 있다면 이 방법이 제일 단순합니다. **버전을 반드시 명시하십시오.**
-
-```powershell
-npm install -g pnpm@12.0.0      # ← @12.0.0 을 빼면 11.25.0 이 깔립니다
-pnpm --version                  # → 12.0.0
-cd C:\경로\to\orca
+pnpm --version                 # → 12.0.0  (저장소 핀을 pnpm 이 스스로 맞춥니다)
 pnpm install --frozen-lockfile
 ```
 
-npm의 `pnpm` `latest` 태그는 이 문서 기준 **11.25.0**이고 12는 `latest-12`에만 있습니다.
-`npm install -g pnpm`(버전 없이)은 11을 깔고, 그 11이 저장소 안에서 12를 받으러 나갔다가 막힙니다.
+`npm install -g pnpm`은 npm의 `latest`(11.x)를 깔지만, 저장소 안에서 pnpm이
+`packageManager` 핀을 보고 12를 스스로 받아 실행합니다. **그 다운로드는 pnpm 자신이 하므로
+`.npmrc`의 사내 미러·프록시·CA 설정을 그대로 탑니다.**
 
-- 설치 시 플랫폼 실행파일(`@pnpm/exe.win32-x64`)이 optional dependency로 **자동으로 함께** 깔립니다.
-- ⚠️ **`--ignore-scripts`를 붙이지 마십시오.** 붙이면 실행파일 연결이 안 돼 `pnpm`이 깨진 스크립트로 남습니다.
-  npm이 install script를 막는 정책이면 pnpm에 대해서만 허용해야 합니다.
+> ⚠️ **`corepack enable` 을 하지 마십시오.** 이유는 §1.
 
 ---
 
-## 4. 브라우저로 받은 tgz를 직접 넣기 (권장 오프라인 경로)
+## §1. `corepack enable` 이 원인입니다 — 다운로드가 끊길 때
+
+증상: `pnpm --version` 또는 `pnpm install` 이 `registry.npmjs.org/pnpm/-/pnpm-12.0.0.tgz`
+같은 주소에서 `ECONNRESET` / `fetch failed` 로 죽습니다. **브라우저로는 같은 파일이 받아집니다.**
+
+원인: `corepack enable` 은 **Node 설치 폴더**(예: `d:\Programs\nodejs`)에 `pnpm`/`pnpm.cmd`
+shim 을 만듭니다. PATH 에서 대개 그쪽이 `%APPDATA%\npm\pnpm.cmd` 보다 앞서므로,
+`pnpm` 을 쳐도 **corepack 이 실행되어 corepack 이 다운로드를 맡습니다.**
+그리고 **corepack 은 `.npmrc` 를 읽지 않습니다** — 번들을 정적으로 검사하면 `npmrc` 참조 0건,
+`HTTPS_PROXY`/`ProxyAgent`/`NODE_EXTRA_CA_CERTS` 처리도 0건입니다. 맨 `fetch()` 로
+`registry.npmjs.org` 에 직접 나갑니다.
+
+| | `.npmrc`(미러·프록시·CA) 읽나 |
+| --- | --- |
+| `npm` | ✅ |
+| `pnpm` | ✅ |
+| `corepack` | ❌ |
+
+**고침:**
+
+```powershell
+where.exe pnpm            # 맨 위 줄이 실행됩니다
+corepack disable pnpm     # Node 폴더 쓰기 권한 필요. 안 되면 관리자 PowerShell
+where.exe pnpm            # AppData\Roaming\npm\pnpm.cmd 가 첫 줄이어야 정상
+```
+
+corepack 을 계속 써야 한다면 §2·§3·§6 으로 corepack 쪽을 고칩니다. **둘 중 하나만 고르십시오.**
+
+---
+
+## §2. `ERR_PNPM_PACKAGE_MANAGER_SYMLINK_FAILED` — 잔해입니다
+
+권한 문제가 아닙니다. 실패한 install 들이 남긴 `node_modules` 가 원인입니다.
+
+```powershell
+cd C:\경로\to\orca
+Remove-Item -Recurse -Force node_modules
+pnpm install --frozen-lockfile
+```
+
+이 에러 코드는 **pnpm 12 네이티브 바이너리에만** 존재합니다(pnpm 11 JS 번들에는 없음).
+여기서 `PACKAGE_MANAGER` 는 pnpm 내부 크레이트 이름이지 "패키지 매니저 심링크"가 아닙니다.
+그래도 계속 나면 Windows 개발자 모드(설정 → 개인 정보 및 보안 → 개발자용) 또는
+관리자 PowerShell 을 시도하십시오.
+
+---
+
+## §3. Spectre 완화 라이브러리 에러(MSB8040)
+
+`@vscode/windows-process-tree` 패치가 적용되지 않은 상태입니다. 2026-09-03 에 원인을 고쳤습니다 —
+그 패치의 hunk 헤더가 본문과 어긋나 있었고(`-12 +11` 선언 / `-14 +13` 본문), pnpm 12 는 관대해서
+적용했지만 pnpm 11 은 조용히 건너뛰었습니다. `git pull` 로 수정을 받은 뒤 다시 설치하십시오.
+
+판정:
+
+```powershell
+Select-String -Path node_modules\@vscode\windows-process-tree\binding.gyp -Pattern SpectreMitigation
+# 출력이 없어야 정상 (있으면 패치 미적용)
+```
+
+**패치 파일을 손대면 `pnpm install --lockfile-only` 로 lockfile 의 `patch_hash` 를 함께 갱신해야
+합니다.** 안 하면 `--frozen-lockfile` 이 거부합니다. 이 저장소의 패치는 LF-only 여야 하며
+(`windows-process-tree-patch-contract.test.mjs`), hunk 헤더 정합성은
+`pnpm-patch-integrity.test.mjs` 가 양방향으로 검사합니다.
+
+---
+
+## §4. 그래도 레지스트리가 막힌 머신
+
+여기까지 해도 다운로드가 안 되는 머신을 위한 예비 경로입니다. **위 §1~§3 으로 해결되면 필요 없습니다.**
+
+### 4-A. 받아 둔 tgz 를 직접 넣기
 
 프록시/보안 장비 때문에 **Node가 직접 하는 다운로드만** 막히고 브라우저 다운로드는 되는 환경용입니다.
 레지스트리 접근이 한 번도 필요 없습니다.
@@ -186,7 +125,7 @@ https://registry.npmjs.org/@pnpm/exe.win32-x64/-/exe.win32-x64-12.0.0.tgz  (17.7
 Get-ChildItem "$HOME\Downloads\*.tgz" | Select-Object Name, Length   # 0.9MB / 17.7MB 여야 정상
 ```
 
-### 4-1. npm으로 전역 설치 (권장 — tar 불필요)
+#### npm 으로 전역 설치 (tar 불필요)
 
 ```powershell
 npm install -g "C:\받은경로\pnpm-12.0.0.tgz" "C:\받은경로\exe.win32-x64-12.0.0.tgz"
@@ -217,7 +156,7 @@ Copy-Item "<추출한 경로>\pnpm.exe" "$g\pnpm\pnpm-native.exe"
 
 **이걸로 끝입니다.** 아래 4-2는 `npm install -g`를 쓸 수 없을 때만 봅니다.
 
-### 4-2. (대안) 손으로 풀어서 배치
+#### 손으로 풀어서 배치
 
 ```powershell
 $tgz  = "C:\받은경로"                     # 받은 파일이 있는 폴더 (경로를 정확히)
@@ -267,7 +206,7 @@ pnpm --version
 
 ---
 
-## 5. (대안) corepack 캐시 시딩
+### 4-B. corepack 캐시 시딩 (corepack shim 을 못 지우는 머신용)
 
 `corepack pnpm`을 쓰는 흐름이라면 corepack 캐시 쪽에 같은 두 tarball을 심어도 됩니다.
 
@@ -302,34 +241,31 @@ Remove-Item Env:COREPACK_ENABLE_NETWORK
 
 ---
 
-## 부록 — 이 문서의 검증 범위
+## 부록 — 검증 범위
 
-정직하게 적습니다.
+**사내 Windows 실측(2026-09-03).** `corepack disable pnpm` → `npm install -g pnpm` →
+`node_modules` 삭제 → `pnpm install --frozen-lockfile` → **설치 프로그램 생성까지 통과.**
+`pnpm --version` 은 12.0.0 을 찍습니다(핀을 pnpm 이 스스로 맞춘 결과).
 
-**검증한 것**(macOS arm64, Node 26.5.0, corepack 0.33.0/0.36.0):
+**macOS arm64 실측.** corepack 이 `.npmrc`/프록시를 읽지 않는다는 것은 번들 정적 검사로,
+`ERR_PNPM_PACKAGE_MANAGER_SYMLINK_FAILED` 가 pnpm 12 전용 코드라는 것은 바이너리 문자열로
+확인했습니다. §3 의 패치 수정은 pnpm 12·11 양쪽에서 install 로 Spectre 제거를 확인했고,
+`pnpm-patch-integrity` 게이트는 옛 패치를 되돌려 빨개지는 것까지 검증했습니다(뮤테이션 검증).
+§4 의 오프라인 배치도 `COREPACK_ENABLE_NETWORK=0` 에서 동작을 확인했습니다.
 
-- `.corepack` 메타의 `.cjs` ↔ `.mjs` 차이가 §1 증상의 원인임 — 양쪽 값을 직접 확인.
-- 캐시 삭제 → 새 corepack 1회 실행으로 복구되고, 그 뒤에는 번들 corepack으로도 동작함.
-- corepack 번들에 `npmrc`/프록시 처리가 없음 — 정적 검사.
-- §4-1의 `pnpm-native.exe` 드롭인이 실행파일 해석을 대체함 — `@pnpm/exe.*`를 지운 상태에서도
-  `pnpm --version` → `12.0.0`, `install --frozen-lockfile` 통과함.
-- **정정**: `npm install -g <래퍼 tgz> <실행파일 tgz>`는 레지스트리 요청 0회가 **아닙니다.**
-  npm이 optional dependency를 레지스트리에서 다시 해석합니다(네트워크가 열린 맥에서 조용히
-  받아오는 것을 처음에 오독했습니다). 그래서 §4-1에 드롭인 단계를 덧붙였습니다.
-- §4-2 수동 배치(두 tarball을 풀어 `node_modules/@pnpm/exe.*`에 실행파일을 둠)가 `12.0.0`을 출력하고
-  실제 `pnpm install --frozen-lockfile`까지 통과함. 래퍼가 로컬 실행파일을 집는 것도 `require.resolve`로 확인.
-- §5 corepack 시딩이 `COREPACK_ENABLE_NETWORK=0`에서 `12.0.0`을 출력하고 install까지 통과함.
-- `npm install -g pnpm@12.0.0`이 `@pnpm/exe.*`를 함께 설치하고 저장소 install을 통과함.
-  `--ignore-scripts`를 붙이면 깨짐.
+**확인하지 못한 것.** §4 경로들의 Windows 실측(경로 표기만 옮겼습니다).
+pnpm 자기관리 store 에 tarball 을 손으로 주입하는 방법은 **없습니다** — 파일 해시로 인덱싱된
+content-addressable 저장소입니다. `manage-package-manager-versions=false` 는 rc·환경변수·
+`pnpm-workspace.yaml` 세 형태 모두 `--version` 에 적용되지 않았습니다.
 
-**검증하지 못한 것:**
-
-- Windows에서의 §4-1 재현(경로 표기만 옮긴 것입니다). §4-2 수동 배치는 사용자가 Windows에서 동작을 확인했습니다.
-- **pnpm 자기관리 store에 tarball을 손으로 주입하는 방법은 없습니다**(확인함). 저장 위치는
-  `<PNPM_HOME>/store/v11/`의 content-addressable 저장소이고 파일 해시로 인덱싱되어 있어
-  `.tgz`를 놓을 자리가 없습니다. `manage-package-manager-versions=false`를 rc·환경변수·
-  `pnpm-workspace.yaml` 세 형태로 시도했지만 `--version`에는 적용되지 않았습니다.
-  그래서 §4는 **pnpm 자체를 핀과 같은 버전으로 배치해 자기관리를 무력화**하는 방식을 씁니다.
+**한때 pnpm 11.25.0 으로 핀을 내렸다가 되돌렸습니다**(`0094c08896` → `4e8f5d6199`).
+pnpm 11 은 순수 JS 라 네이티브 실행파일을 받지 않아 매력적이었지만, 실제 원인이 §1·§2 로
+드러나 upstream 핀과 갈라설 이유가 없어졌습니다. 다시 검토하게 되면 그때 확인한 것들:
+lockfile 9.0 은 pnpm 11 이 그대로 읽고 재작성하지 않으며, `pnpm-workspace.yaml` 의
+`minimumReleaseAge`·`allowBuilds`·`supportedArchitectures`·`shamefullyHoist` 를 모두 수용하고,
+전체 스위트 회귀가 0 이었습니다. 함께 움직여야 하는 곳은 `package.json`,
+`config/scripts/pr-workflow-parallelism.test.mjs`, `config/docker/headless-pairing/Dockerfile.build`
+세 곳이고 CI 워크플로는 `pnpm/setup@v2` 가 `packageManager` 를 읽으므로 손댈 것이 없습니다.
 
 관련 문서: [Windows 사내 빌드 가이드](./windows-corporate-build.md) ·
 [로컬 개발 실행](./local-dev-run.md)

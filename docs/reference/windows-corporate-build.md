@@ -14,7 +14,7 @@ NSIS 원클릭 설치 프로그램, x64, **per-user 설치**(관리자 권한 �
 | --- | --- | --- |
 | OS | Windows 10 1809(빌드 17763) 이상, **x64** | ARM64 머신에서 빌드하면 x64 헬퍼가 섞인 잘못된 패키지가 나옵니다. §2 참고 |
 | Node.js | **24 LTS 권장 / 최신 버전도 가능** | 상세는 §3 |
-| pnpm | **12.0.0** | `packageManager`가 `pnpm@12.0.0`으로 핀되어 있습니다(upstream v1.4.194에서 10 → 12). `corepack enable` 후 `corepack prepare pnpm@12.0.0 --activate`. 사내망에서 다운로드가 막히거나 `pnpm.cjs`를 못 찾는다고 하면 → [pnpm 12 설치](./pnpm-12-corepack-install.md) |
+| pnpm | **12.0.0** | `packageManager`가 `pnpm@12.0.0`으로 핀되어 있습니다(upstream v1.4.194에서 10 → 12). **`npm install -g pnpm` 만 하십시오** — 저장소 안에서 pnpm이 핀 버전을 스스로 받아 실행합니다. **`corepack enable` 은 하지 마십시오**: shim이 PATH에서 앞서면 corepack이 다운로드를 맡는데, corepack은 `.npmrc`를 읽지 않아 사내 미러·프록시를 타지 못합니다. 증상별 대응은 [pnpm 설치](./pnpm-12-corepack-install.md) |
 | Visual Studio | **VS 2022 Build Tools** + "C++를 사용한 데스크톱 개발" 워크로드 (MSVC v143 + Windows SDK) | **가장 큰 실패 요인.** §3-3 |
 | Python | 3.x, PATH 등록 | node-gyp 요구사항 |
 | .NET Framework 4.x | `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe` | Windows 8 이상 기본 탑재. 없으면 빌드가 중단됩니다 (§8). 탐색 경로는 `config/scripts/build-windows-cli-launcher.mjs:50-53` |
@@ -110,8 +110,7 @@ cd C:\src\orca
 git checkout enterprise/samsungds      # 또는 v1.4.155
 
 # 1) 툴체인
-corepack enable
-corepack prepare pnpm@12.0.0 --activate
+npm install -g pnpm   # corepack enable 은 하지 마십시오 (pnpm-12-corepack-install.md 참고)
 node -v ; pnpm -v
 
 # 2) 안전장치 (§5 필수)

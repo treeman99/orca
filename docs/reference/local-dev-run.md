@@ -48,7 +48,7 @@ git clone <사내 저장소 URL> C:\src\orca
 cd C:\src\orca
 git checkout enterprise/samsungds
 
-corepack enable ; corepack prepare pnpm@12.0.0 --activate
+npm install -g pnpm   # corepack enable 은 하지 마십시오
 $env:ORCA_STRICT_ELECTRON_INSTALL = "1"   # Electron 바이너리 설치 실패를 묵인하지 않음 (rebuild-native-deps.mjs)
 pnpm install --frozen-lockfile
 
