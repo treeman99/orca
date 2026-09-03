@@ -1,5 +1,6 @@
 import type { AgentStatusOrchestrationContext } from './agent-status-types'
 import type { RemoteRuntimeSharedConnectionDiagnostics } from './remote-runtime-shared-control-types'
+import type { RuntimeHostConnectionState } from './runtime-host-connection-state'
 import type { RuntimeCapability } from './protocol-version'
 import type {
   RuntimeBrowserUnavailableReason,
@@ -109,6 +110,8 @@ export type CliStatusResult = {
   runtime: {
     state: CliRuntimeState
     reachable: boolean
+    /** Canonical runtime transport verdict, when the caller has runtime evidence. */
+    connectionState?: RuntimeHostConnectionState
     runtimeId: string | null
     appVersion?: string
     capabilities?: RuntimeCapability[]

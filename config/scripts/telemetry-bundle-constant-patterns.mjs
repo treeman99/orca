@@ -1,15 +1,10 @@
-// Rolldown's minifier renames local declarations and prefers template literals.
-// Keep the named form strict; the verifier handles the lowered pair below.
-const DECLARED_NAME = '[A-Za-z_$][A-Za-z0-9_$]*'
-const STRING_QUOTE = '["`]'
+// The main bundle is minified for release builds, so Rollup may rename these
+// locals and Oxc may print string literals with backticks. Match declarations
+// by their validated values rather than source-level variable names.
+// Oxc can combine adjacent declarations into `var a = ..., b = ...`.
+const DECLARATION = String.raw`(?:\b(?:const|let|var)\s+|,\s*)[A-Za-z_$][\w$]*\s*=\s*`
+const QUOTE = `["'\x60]`
+const END_QUOTE = `["'\x60]`
 
-export const BUILD_IDENTITY_RE = new RegExp(
-  `\\b(?:const|let|var)\\s+BUILD_IDENTITY\\s*=\\s*${STRING_QUOTE}(rc|stable)${STRING_QUOTE}`
-)
-export const WRITE_KEY_RE = new RegExp(
-  `\\b(?:const|let|var)\\s+WRITE_KEY\\s*=\\s*${STRING_QUOTE}(phc_[A-Za-z0-9_-]+)${STRING_QUOTE}`
-)
-export const MINIFIED_TELEMETRY_CONSTANTS_RE = new RegExp(
-  `\\b(?:const|let|var)\\s+${DECLARED_NAME}\\s*=\\s*${STRING_QUOTE}(rc|stable)${STRING_QUOTE}` +
-    `\\s*,\\s*${DECLARED_NAME}\\s*=\\s*${STRING_QUOTE}(phc_[A-Za-z0-9_-]+)${STRING_QUOTE}`
-)
+export const BUILD_IDENTITY_RE = new RegExp(`${DECLARATION}${QUOTE}(rc|stable)${END_QUOTE}`)
+export const WRITE_KEY_RE = new RegExp(`${DECLARATION}${QUOTE}(phc_[A-Za-z0-9_-]+)${END_QUOTE}`)

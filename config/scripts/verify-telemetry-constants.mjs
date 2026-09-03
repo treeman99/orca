@@ -38,11 +38,7 @@ import { join, resolve } from 'node:path'
 // `node_modules`). If electron-builder ever drops it, promote this to a
 // direct devDependency in package.json.
 import { extractFile, listPackage } from '@electron/asar'
-import {
-  BUILD_IDENTITY_RE,
-  MINIFIED_TELEMETRY_CONSTANTS_RE,
-  WRITE_KEY_RE
-} from './telemetry-bundle-constant-patterns.mjs'
+import { BUILD_IDENTITY_RE, WRITE_KEY_RE } from './telemetry-bundle-constant-patterns.mjs'
 
 // Why resolve from import.meta.url instead of cwd: a release runner (or a
 // developer debugging locally) may invoke this script from a non-root cwd.
@@ -160,11 +156,8 @@ function verifyAsar(asarPath) {
 
   const buildIdentityMatch = BUILD_IDENTITY_RE.exec(indexJs)
   const writeKeyMatch = WRITE_KEY_RE.exec(indexJs)
-  const minifiedTelemetryMatch = MINIFIED_TELEMETRY_CONSTANTS_RE.exec(indexJs)
-  const resolvedBuildIdentity = buildIdentityMatch?.[1] ?? minifiedTelemetryMatch?.[1]
-  const resolvedWriteKey = writeKeyMatch?.[1] ?? minifiedTelemetryMatch?.[2]
 
-  if (!resolvedBuildIdentity) {
+  if (!buildIdentityMatch) {
     console.error(`::error::BUILD_IDENTITY constant missing or unexpected value in ${asarPath}`)
     const sample = indexJs.match(/.{0,80}BUILD_IDENTITY.{0,80}/g)?.slice(0, 5) ?? []
     for (const line of sample) {
@@ -172,7 +165,7 @@ function verifyAsar(asarPath) {
     }
     return null
   }
-  if (!resolvedWriteKey) {
+  if (!writeKeyMatch) {
     console.error(`::error::PostHog WRITE_KEY missing from ${asarPath}`)
     const sample = indexJs.match(/.{0,80}WRITE_KEY.{0,80}/g)?.slice(0, 5) ?? []
     for (const line of sample) {
@@ -181,7 +174,7 @@ function verifyAsar(asarPath) {
     return null
   }
 
-  return { asarPath, buildIdentity: resolvedBuildIdentity, writeKey: resolvedWriteKey }
+  return { asarPath, buildIdentity: buildIdentityMatch[1], writeKey: writeKeyMatch[1] }
 }
 
 // Why verify every match (not just the first): macOS dual-arch produces one
