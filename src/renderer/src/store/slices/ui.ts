@@ -13,6 +13,7 @@ import { createUiPreferenceActions } from './ui/ui-slice-preference-actions'
 import { createUiSurfaceActions } from './ui/ui-slice-surface-actions'
 import { createUiPersistenceActions } from './ui/ui-slice-persistence-actions'
 import { createUiHydrationActions } from './ui/ui-slice-hydration-actions'
+import { createUiShellPreferenceActions } from './ui/ui-slice-shell-preference-actions'
 
 export type {
   AgentSendPopoverTargetMode,
@@ -37,5 +38,6 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     ...createUiPreferenceActions(set, get),
     ...createUiSurfaceActions(set, get),
     ...createUiPersistenceActions(set, get),
-    ...createUiHydrationActions(set, get)
+    ...createUiHydrationActions(set, get),
+    ...createUiShellPreferenceActions(set, get)
   }) as UISlice

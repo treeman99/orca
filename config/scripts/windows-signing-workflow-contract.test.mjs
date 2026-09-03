@@ -204,7 +204,12 @@ describe('Windows signing workflow contract', () => {
 
     const downloadInnerIndex = stepNames.indexOf('Download signed inner binaries from SignPath')
     expect(downloadInnerIndex).toBeGreaterThan(-1)
-    expect(steps[downloadInnerIndex]['continue-on-error']).toBeUndefined()
+    // Fork delta — upstream v1.4.196 ships this test contradicting its own workflow.
+    // `a38149995e` made this step fail closed and rewrote the assertion; `2951fafedf`,
+    // 23 minutes later, put `continue-on-error: true` back with the fail-open comment
+    // and did not revert the test. The workflow is the later, deliberate state, so
+    // assert what it actually does. Drop this delta once upstream reconciles the two.
+    expect(steps[downloadInnerIndex]['continue-on-error']).toBe(true)
     expect(installerRequestIndex).toBeGreaterThan(downloadInnerIndex)
   })
 })
