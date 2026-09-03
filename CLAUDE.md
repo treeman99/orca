@@ -130,6 +130,14 @@ One Zustand store (`src/renderer/src/store/index.ts`) composed from ~190 slices 
 
 Telemetry keys are compile-time constants substituted in `electron.vite.config.ts`; only the official CI release workflow sets them, so `pnpm dev` and third-party builds cannot transmit — there is no env-var fallback to flip.
 
+## 버전 업그레이드 절차 (fork sync → enterprise 머지)
+
+Orca 버전 업그레이드는 반드시 다음 순서로 진행한다:
+
+1. **`main` 브랜치에서 fork sync를 먼저 진행한다.** 절차와 유령 충돌 판별법은 `[[orca-fork-sync-gate-drift]]` 메모리와 README §6(fork-sync 레저)을 따른다.
+2. **`enterprise/samsungds` 브랜치는 fork sync가 끝난 `main`의 결과를 기반으로 머지한다.** `main`을 건너뛰고 upstream 태그를 `enterprise/samsungds`에 직접 머지하지 않는다.
+3. **머지 후, 원격에 푸시하기 전에** 새로 들어온 코드에 외부 URL 접근을 시도하는 코드(신규 `fetch`/`http(s)` 요청, 원격 스크립트 로드, 텔레메트리·업데이트 체크 엔드포인트 등)가 있는지 점검하고, 결과를 리포트로 정리해 제공한다. `docs/reference/external-integrations-audit.md`의 잔여-위험 레지스터에 반영이 필요한지도 함께 검토한다.
+
 ## Reference docs
 
 `docs/STYLEGUIDE.md` (mandatory for UI work), `docs/reference/git-compatibility.md` (Git 2.25 baseline, `GitCapabilityCache`), `docs/reference/linux-glibc-compatibility.md`, `docs/reference/headless-linux-server.md` (`orca serve`), `.github/CONTRIBUTING.md` (PR expectations, maintainer release flow). Loose `docs/*.md` files are per-feature design notes, not general guides.
