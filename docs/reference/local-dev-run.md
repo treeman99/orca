@@ -32,7 +32,7 @@
 
 | 항목 | 이유 |
 | --- | --- |
-| Node(24 LTS 권장, 최신도 가능) + pnpm 10.24.0 | [빌드 가이드 §3](./windows-corporate-build.md) 그대로 |
+| Node(24 LTS 권장, 최신도 가능) + pnpm 12.0.0 | [빌드 가이드 §3](./windows-corporate-build.md) 그대로. 사내망에서 막히면 [pnpm 12 설치](./pnpm-12-corepack-install.md) |
 | **VS 2022 Build Tools + Python 3** (Windows) | `pnpm install`의 postinstall이 네이티브 모듈을 **Electron ABI로 컴파일**합니다(`CLAUDE.md`, `config/scripts/rebuild-native-deps.mjs`). 개발 실행이라고 건너뛰지 않습니다 — 준비 부담의 대부분이 여기 있고, 그건 빌드와 동일합니다 |
 | 네트워크 또는 사내 미러 | `pnpm install`이 npm 레지스트리 · Electron 바이너리 · node-gyp 헤더를 받습니다. 폐쇄망 전략은 [빌드 가이드 §6](./windows-corporate-build.md) |
 | Git 2.25 이상 | 앱이 실행 중에 쓰는 것과 같은 바이너리 |
@@ -48,7 +48,7 @@ git clone <사내 저장소 URL> C:\src\orca
 cd C:\src\orca
 git checkout enterprise/samsungds
 
-corepack enable ; corepack prepare pnpm@10.24.0 --activate
+corepack enable ; corepack prepare pnpm@12.0.0 --activate
 $env:ORCA_STRICT_ELECTRON_INSTALL = "1"   # Electron 바이너리 설치 실패를 묵인하지 않음 (rebuild-native-deps.mjs)
 pnpm install --frozen-lockfile
 

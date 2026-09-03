@@ -136,7 +136,7 @@ Bedrock 설정 자체의 내용과 주의사항은 §3.
 
 ```powershell
 git checkout enterprise/samsungds
-corepack enable ; corepack prepare pnpm@10.24.0 --activate
+corepack enable ; corepack prepare pnpm@12.0.0 --activate   # 막히면 docs/reference/pnpm-12-corepack-install.md
 Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN, Env:GITHUB_RELEASE_TOKEN, Env:ORCA_MAC_RELEASE -ErrorAction SilentlyContinue
 $env:ORCA_STRICT_ELECTRON_INSTALL = "1"
 pnpm install --frozen-lockfile

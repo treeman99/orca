@@ -109,6 +109,7 @@ docs/**
 !docs/source-control-submodules-as-repositories.md
 !docs/reference/
 !docs/reference/git-compatibility.md
+!docs/reference/pnpm-12-corepack-install.md
 !docs/reference/headless-linux-server.md
 !docs/reference/ime-regression-checklist.md
 !docs/reference/linux-glibc-compatibility.md

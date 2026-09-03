@@ -43,7 +43,7 @@
 ## 2. 준비
 
 ```bash
-corepack enable && corepack prepare pnpm@10.24.0 --activate
+corepack enable && corepack prepare pnpm@12.0.0 --activate
 pnpm install            # postinstall이 네이티브 모듈을 Electron ABI로 컴파일합니다
 ```
 
