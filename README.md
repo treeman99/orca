@@ -455,7 +455,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.184`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.196`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -523,6 +523,70 @@ upstream v1.4.195가 **Next.js 문서 사이트**(`docs/site/`, 115파일 + 자�
 > **되살아나도 제품은 안전합니다** — 번들 제외와 저장소 게이트는 upstream 쪽 장치라 그대로 유효합니다.
 > 이 절차는 "감사 표면을 늘리지 않는다"는 유지 작업이지 보안 게이트가 아닙니다. 그러니 급하게 되돌리지 말고
 > 다음 정기 동기화에서 처리해도 됩니다.
+
+#### 게이트가 박힌 파일을 upstream이 통째로 해체할 때 (v1.4.196에서 실제로 겪음)
+
+v1.4.196은 **`max-lines` 우회 34건을 한 릴리스에서 청산**했습니다(`config/max-lines-baseline.txt`에서 34행 제거,
+추가 0행). 그 목록이 이 포크의 게이트가 박혀 있던 파일과 거의 겹칩니다:
+
+| 해체된 파일 | 변화 | upstream이 옮긴 곳 |
+| --- | --- | --- |
+| `src/main/index.ts` | 3,805 → 65줄 | `src/main/startup/**` (33개 신규) |
+| `src/main/runtime/orca-runtime.ts` | −44,399줄 | `src/main/runtime/**` (490개 신규) |
+| `src/preload/index.ts` | −5,302줄 | `src/preload/api/*-bridge.ts` (90개 신규) |
+| `src/main/rate-limits/service.ts` | −2,180줄 | `src/main/rate-limits/service/**` |
+| `src/main/browser/browser-manager.ts` | −2,590줄 | `browser-manager-{bindings,guest-popup-policy,types,...}.ts` |
+| `src/renderer/src/store/slices/{ui,tabs}.ts` | −5,025줄 | `slices/{ui,tabs}/**` |
+| `components/{StatusBar,Terminal,TerminalPane,AutomationsPage}.tsx` | −11,875줄 | 각 디렉터리의 hook/surface 모듈 |
+
+**이 상황의 함정은 셋입니다.**
+
+1. **merge base가 여러 개면 유령 충돌이 난다.** 릴리스 태그는 서로 조상이 아니라 동기화마다 base가 하나씩
+   늘어납니다(v1.4.196 시점 16개). git이 가상 조상을 만들면서 **upstream이 손대지도 않은 파일에 충돌이 납니다**
+   — 이번엔 9건. 판별식은 `git diff <옛태그> main -- <파일>`이 비어 있는지이고, 해법은 실제 태그를 base로 준
+   재머지입니다: `git merge-file -L ours -L base -L theirs <ours> <base@옛태그> <theirs@main>`.
+2. **게이트는 조용히 사라진다.** 코드가 통째로 다른 파일로 가면 게이트만 남겨지지 않고 같이 없어지는데,
+   **타입체크도 테스트도 그것을 잡지 않습니다**(그 파일의 테스트도 함께 옮겨 갔기 때문). 머지를 시작하기 전에
+   기준선을 떠 두십시오:
+
+   ```bash
+   git grep -n -E "getEnterprisePolicy\(\)|getEnterprisePolicyView\(\)" <포크tip> -- src/ \
+     | grep -v '\.test\.' | grep -v 'src/main/enterprise/' > /tmp/gates-before.txt   # v1.4.196 시점 62건
+   ```
+
+   포크 전용 모듈(포크tip에는 있고 upstream 태그에는 없는 `src/**/*.ts`)의 **호출지점 수**도 같이 떠 두면
+   guard 모듈이 통째로 고아가 된 경우까지 잡힙니다(v1.4.196 시점 706건 → 머지 후 715건).
+3. **되살아난 표면은 충돌로 뜨지 않는다.** 포크가 지운 기능을 upstream이 **새 경로에 새 파일로** 다시 만들면
+   git은 그냥 추가합니다. v1.4.196에서 31건이 그렇게 들어왔습니다 — `src/main/updater.ts`가
+   `src/main/updater/**` 16개로, preload 인라인 API가 `api/{updater,feedback,bitbucket}-bridge.ts`로,
+   `docs/site` 자산 8건. 판별법은 **포크 삭제 목록의 도메인 키워드로 신규 파일 목록을 훑는 것**입니다:
+
+   ```bash
+   comm -23 <(git ls-tree -r --name-only <옛태그> | sort) <(git ls-tree -r --name-only <포크tip> | sort)  # 삭제 목록
+   git diff --name-status <옛태그> <새태그> | awk '$1=="A"{print $2}'                                     # 신규 목록
+   ```
+
+**게이트를 다시 심을 때의 요령.** 새 위치는 기계적으로 찾을 수 있습니다 — 포크 hunk의 **컨텍스트 라인**을
+upstream 새 트리에서 grep하면 그 코드가 어느 모듈로 갔는지 나옵니다. 클래스 체인으로 쪼개진 런타임
+(`OrcaRuntimeWithX extends OrcaRuntimeWithY`)에서는 포크 메서드를 체인 **말단**에 두십시오
+(`src/main/runtime/orca-runtime-fork-surface.ts`) — 아래 계층이 다시 쪼개져도 살아남고, 유실되면
+호출지점에서 타입체크가 먼저 깨집니다. 새 레이어를 끼울 때 `@ts-nocheck`는 **금지**입니다
+(`check:ts-nocheck-ratchet`이 막습니다) — 아래 계층이 정의한 멤버가 필요하면 그 멤버만 이름으로 적은
+forward-ref 타입 하나로 캐스팅하십시오(`orca-runtime-agent-prompt-rescue.ts`의 `AgentPromptRescueForwardRefs`).
+
+**테스트 판정은 3자 대조로 하십시오.** 전체 스위트 1회 실행은 판정이 아닙니다(이 맥에서 상시 3천여 파일이
+환경 문제로 실패합니다). 워크트리 두 개를 띄우고 실패 **파일 집합**을 비교하면 진짜 회귀만 남습니다:
+
+```bash
+git worktree add --detach /tmp/pre  <포크tip>     # 머지 전 포크
+git worktree add --detach /tmp/base <새태그>       # 순정 upstream
+# 각 트리에서: vitest run --reporter=json --outputFile=...
+# 회귀 = (머지 실패집합 − 포크tip 실패집합) − 순정upstream 실패집합
+```
+
+v1.4.196에서는 이 방법으로 3,804건의 실패 파일에서 **진짜 회귀 9건**을 뽑아냈습니다(나머지는 환경 문제거나
+`out/` 스테일 빌드 산출물). 9건 중 2건이 실제 게이트 유실이었습니다 —
+`validateOrchestrationAgentLauncher`와 `createManagedWorktree`의 `allowedAgents` 검사.
 
 > 위 목록에는 정책 작업과 무관한 upstream 접근성/드리프트 수정도 섞여 있습니다(예: `src/renderer/src/components/DetachedHeadBadge.tsx`, `src/renderer/src/components/skills/skill-freshness-group.tsx`). 이런 커밋은 upstream에 PR로 올려 없애는 편이 장기적으로 리베이스 충돌 면적을 줄입니다.
 
