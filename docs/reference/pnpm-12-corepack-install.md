@@ -1,15 +1,28 @@
-# pnpm 12 설치 — 사내망에서 막힐 때
+# pnpm 설치 — 사내망에서 막힐 때
 
-upstream **v1.4.194**가 pnpm을 `10.24.0` → `12.0.0`으로 올렸습니다(`package.json`의 `packageManager` 핀).
-그 전까지 잘 되던 `pnpm install`이 갑자기 깨진다면 거의 전부 이 전환 때문입니다.
+> **이 포크는 pnpm `11.25.0`에 고정합니다(2026-09-03).** upstream은 v1.4.194에서 12로 올렸지만,
+> pnpm 12는 첫 실행 때 약 39MB짜리 **서명 없는 네이티브 실행파일**을 따로 내려받는 구조라 사내
+> 프록시·보안 환경에서 막힙니다. pnpm 11은 순수 JavaScript입니다.
+> 결정의 배경과 다음 동기화에서 할 일은 `README.md` §6 「pnpm 버전을 upstream보다 낮게 고정합니다」.
 
-같은 판에서 pnpm 설정 전체가 `package.json` → **`pnpm-workspace.yaml`** 로 이사했고
-`.npmrc` / `mobile/.npmrc` 가 삭제됐습니다. `patchedDependencies`·`overrides`를 찾을 때는
-`pnpm-workspace.yaml`을 보십시오.
+## 지금 해야 할 것은 이것뿐입니다
 
-> **pnpm 12는 2단 다운로드입니다.** ① corepack(또는 npm)이 `pnpm@12.0.0` **래퍼** tarball(약 0.9MB)을 받고,
-> ② 그 래퍼가 **네이티브 실행파일**을 `@pnpm/exe.<platform>-<arch>`(win32-x64는 약 17.7MB)로 따로 받습니다.
-> 둘 중 어느 쪽이 막혀도 비슷한 `.tgz` 실패로 보이므로, 아래 절차는 항상 **둘 다** 확보합니다.
+```powershell
+npm install -g pnpm@11.25.0
+
+where.exe pnpm            # AppData\Roaming\npm\pnpm.cmd 하나만 나와야 정상
+pnpm --version            # → 11.25.0 (다운로드 시도 없음)
+cd C:\경로\to\orca
+pnpm install --frozen-lockfile
+```
+
+**`corepack enable` 을 하지 마십시오.** Node 설치 폴더에 shim이 생겨 위 pnpm을 가립니다.
+이미 했다면 `corepack disable pnpm` 으로 걷어냅니다.
+
+---
+
+아래는 **핀을 다시 pnpm 12로 올릴 때**, 또는 corepack 경로를 써야 할 때를 위한 기록입니다.
+지금 설치에는 필요하지 않습니다.
 
 ---
 

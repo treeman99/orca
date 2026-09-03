@@ -136,7 +136,7 @@ Bedrock 설정 자체의 내용과 주의사항은 §3.
 
 ```powershell
 git checkout enterprise/samsungds
-corepack enable ; corepack prepare pnpm@12.0.0 --activate   # 막히면 docs/reference/pnpm-12-corepack-install.md
+npm install -g pnpm@11.25.0   # 사내망 이슈는 docs/reference/pnpm-12-corepack-install.md
 Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN, Env:GITHUB_RELEASE_TOKEN, Env:ORCA_MAC_RELEASE -ErrorAction SilentlyContinue
 $env:ORCA_STRICT_ELECTRON_INSTALL = "1"
 pnpm install --frozen-lockfile
@@ -487,6 +487,42 @@ git diff --name-status v1.4.163..HEAD   # A=신규, M=upstream 파일 수정, D=
 | **포크가 삭제한 표면** | upstream 대비 **123개 파일**을 지웠습니다. 도메인별로 피드백 제출 12개(`ipc/feedback*`, `sidebar/SidebarFeedback*`, `lib/feedback-image-attachments*`, `crash-reporting/crash-feedback-diagnostic-bundle.ts`), 크래시 리포트 7개, local-builds 7개, orca-profiles 4개, artifacts 3개 등. 게이트를 다는 대신 표면 자체를 없앤 경우입니다 | **가장 위험한 범주입니다.** upstream이 지운 파일을 수정하면 modify/delete 충돌이 나고, incoming을 수용하면 **표면이 통째로 되살아납니다** — 파일이 통째로 돌아오므로 게이트 grep에도 타입체크에도 잡히지 않습니다. 동기화마다 `comm -23 <(git ls-tree -r --name-only <옛태그>) <(git ls-tree -r --name-only HEAD)` 로 삭제 목록을 뽑아 upstream 변경분과 교집합을 확인하세요 |
 | **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄). 문서: `skill-guides/orchestration.md`의 `## Project Rule Ledger` 절 + `## Next Action`의 원장 로드 한 구절 | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다. 오케스트레이션 가이드 절은 `config/scripts/orchestration-skill-guidance.test.mjs`가 지키므로 유실 시 테스트가 먼저 붉어집니다 |
 | **포크가 재작성해 소유한 문서** | `README.md`(upstream 원문 268줄을 사내 문서로 전면 교체 — 남은 공통 문장이 거의 없어 자동 병합이 되지 않습니다), `CLAUDE.md`(upstream은 `@AGENTS.md` 한 줄짜리 11바이트 스텁 → 126줄로 확장) | **둘 다 upstream에도 존재하므로 upstream이 손댈 때마다 반드시 충돌합니다.** 리베이스에서 사내 버전을 남기려면 `git checkout --theirs README.md CLAUDE.md` — **리베이스에서는 `--ours`가 재배치 대상(upstream), `--theirs`가 재생 중인 사내 커밋**이라 머지와 의미가 뒤집혀 있습니다. 그다음 upstream 변경분 중 필요한 것만 수동으로 반영하세요 |
+
+#### pnpm 버전을 upstream보다 낮게 고정합니다 — `pnpm@11.25.0`
+
+upstream은 v1.4.194에서 pnpm을 `10.24.0` → `12.0.0`으로 올렸습니다. **이 포크는 `11.25.0`에 머뭅니다.**
+
+**왜.** pnpm 12는 얇은 JS 래퍼이고, 첫 실행 때 **약 39MB짜리 서명 없는 네이티브 실행파일**
+(`@pnpm/exe.<platform>-<arch>`)을 레지스트리에서 따로 내려받습니다. 사내 프록시는 Node가 직접 하는
+그 다운로드를 끊고, 받아 놓더라도 서명 없는 exe라 보안 소프트웨어가 실행을 막습니다.
+**pnpm 11은 순수 JavaScript입니다** — `optionalDependencies`가 비어 있고 네이티브 바이너리가 없어
+`npm install -g pnpm@11.25.0` 한 줄로 끝납니다. 사내 플릿 전체가 겪던 통증이 사라집니다.
+
+**호환성은 실측했습니다.** lockfile은 `9.0` 포맷 그대로이고 pnpm 11이 **재작성하지 않습니다**.
+`pnpm-workspace.yaml`의 `minimumReleaseAge`·`allowBuilds`·`supportedArchitectures`·`shamefullyHoist`를
+모두 수용하고, `install --frozen-lockfile`이 네이티브 리빌드까지 통과합니다.
+저장소의 pnpm-12 인지 코드(`config/scripts/pnpm-cli-invocation.mjs`)는 JS CLI와 네이티브 바이너리를
+이미 양쪽으로 분기하므로 손댈 것이 없었습니다.
+
+**단, 이 결정 때문에 먼저 고쳐야 했던 것이 하나 있습니다.**
+`config/patches/@vscode__windows-process-tree@0.8.0.patch`의 hunk 헤더가 본문과 어긋나 있었고
+(`-12 +11` 선언 / `-14 +13` 본문), **pnpm 12는 관대하게 적용했지만 pnpm 11은 조용히 건너뜁니다.**
+그러면 Spectre 완화 요구가 남아 Windows 리빌드가 MSB8040으로 실패합니다. 패치를 재생성해
+고쳤고, `pnpm-patch-integrity` 게이트도 "본문이 선언보다 긴" 경우를 잡도록 강화했습니다.
+
+**다음 동기화에서 할 일.**
+
+| 무엇 | 어디 | 비고 |
+| --- | --- | --- |
+| `packageManager` 1줄 | `package.json` | upstream이 올릴 때마다 충돌합니다. **11.25.0을 유지**하십시오 |
+| `expect(packageManagerVersion).toBe('11.25.0')` | `config/scripts/pr-workflow-parallelism.test.mjs` | CI 교차검증 게이트. package.json과 함께 움직입니다 |
+| `corepack prepare pnpm@11.25.0` | `config/docker/headless-pairing/Dockerfile.build` | 같은 이유로 맞춰 둡니다 |
+
+CI는 `pnpm/setup@v2`가 `packageManager`를 읽으므로 **워크플로는 손댈 것이 없습니다.**
+
+**핀을 다시 올릴 때의 판정 순서.** ① 사내망에서 `@pnpm/exe.<platform>` 다운로드와 실행이 되는지,
+② `pnpm-patch-integrity`가 초록인지, ③ pnpm 11에서만 적용되던 패치가 없는지. 셋이 다 통과하지 않으면
+올리지 마십시오 — Windows 플릿이 먼저 깨집니다.
 
 #### 디렉터리 통째로 지운 것 — `docs/site` (v1.4.195에서 제거)
 
