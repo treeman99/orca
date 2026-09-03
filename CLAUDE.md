@@ -8,7 +8,7 @@ The contribution rules above (design system, cross-platform, SSH, Git compatibil
 
 ## Commands
 
-Node 24 + pnpm **11.25.0** (`packageManager` is pinned). Upstream v1.4.194 moved to pnpm 12 and relocated every `pnpm.*` block from `package.json` to `pnpm-workspace.yaml`, deleting `.npmrc`; this fork keeps the workspace-file layout but **pins 11.25.0 on purpose** — pnpm 12 ships as a wrapper that downloads a ~39MB unsigned native binary on first run, which the corporate fleet cannot fetch or execute. pnpm 11 is pure JavaScript, so `npm install -g pnpm@11.25.0` is the whole install. Do not run `corepack enable`; its shim shadows that pnpm. See `docs/reference/pnpm-12-corepack-install.md` and README §6 before raising the pin.
+Node 24 + pnpm 12 (`packageManager` is pinned; upstream v1.4.194 moved 10 → 12 and relocated every `pnpm.*` block from `package.json` to `pnpm-workspace.yaml`, deleting `.npmrc`). `engines` declares Node 24 and every CI job pins it via `node-version-file: package.json`; nothing sets `engine-strict`, so pnpm only warns on a newer Node. A corporate machine that cannot download pnpm 12, or that reports a missing `bin/pnpm.cjs`, is covered by `docs/reference/pnpm-12-corepack-install.md`.
 
 `pnpm install` runs a postinstall (`rebuild-native-deps.mjs`) that compiles native deps against **Electron's** ABI, not the host Node's. `pnpm test`, `pnpm dev`, and `pnpm start` first run `ensure-native-runtime.mjs`, which re-targets `node-pty` at whichever runtime is about to load it (`--runtime=node` for tests, `--runtime=electron` for dev). Its `Native modules still do not load for Node <v>` message means node-pty could not be loaded *or rebuilt* — the usual cause is that `pnpm install` never ran, not that the Node major is wrong.
 
