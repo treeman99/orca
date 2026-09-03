@@ -12,6 +12,19 @@ minimumReleaseAgeExclude:
   - zod@4.5.4
 shamefullyHoist: true
 
+# Why: pnpm 12 re-verifies node_modules before every `pnpm run` and repairs it in place
+# when it disagrees. `pnpm build:release` re-enters pnpm 8 times (itself plus 7 chained
+# `pnpm run` steps), so that repair fires mid-build — and on Windows it cannot land: the
+# repair renames a staging directory onto `node_modules/<pkg>`, and MoveFileEx refuses to
+# replace an existing directory (ERROR_ACCESS_DENIED / os error 5). Observed on a locked
+# down Windows build host as `failed to rename staging directory ... to
+# node_modules\@xterm/xterm` right after a clean install, on the patched `@xterm/xterm`.
+#
+# Safe to turn off because installing is always an explicit step here: every workflow that
+# runs a build runs `pnpm install --frozen-lockfile` first, and `pnpm test`/`dev`/`start`
+# go through ensure-native-runtime.mjs. This restores the pnpm 10 default.
+verifyDepsBeforeRun: false
+
 supportedArchitectures:
   os:
     - current

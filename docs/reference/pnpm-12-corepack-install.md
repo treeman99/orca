@@ -96,6 +96,59 @@ Select-String -Path node_modules\@vscode\windows-process-tree\binding.gyp -Patte
 
 ---
 
+## §3.5. 빌드 도중 `failed to rename staging directory ... 액세스가 거부되었습니다.(os error 5)`
+
+`pnpm install` 은 통과했는데 `pnpm build:release` 가 이렇게 죽는 경우입니다.
+
+```
+Error: installing dependencies
+    failed to rename staging directory ...\node_modules\.pnpm\@xterm+xterm@6.1.0-beta.303...
+    to ...\node_modules\@xterm\xterm  액세스가 거부되었습니다.(os error 5)
+```
+
+**빌드 스크립트가 install 을 도는 게 아닙니다.** Windows 에서 `build:release` 의 하위 단계 중
+pnpm 을 부르는 것은 하나도 없습니다(`build:native` 조차 win32 에서는 node 스크립트만 실행합니다).
+범인은 **pnpm 12 가 `pnpm run` 마다 `node_modules` 를 재검증하고 어긋나면 그 자리에서 고치는 동작**입니다.
+`pnpm build:release` 는 자기 자신 + 체인된 `pnpm run` 7 개로 **pnpm 에 8 번 재진입**하므로, 그 복구가
+빌드 중간에 튀어나옵니다.
+
+그리고 Windows 에서는 그 복구가 착지할 수 없습니다 — 스테이징 디렉터리를 `node_modules/<pkg>` 위로
+`rename` 하는데, `MoveFileEx` 는 **이미 존재하는 디렉터리를 대체하지 못합니다**(ERROR_ACCESS_DENIED = os
+error 5). 방금 install 이 성공했으니 목적지는 당연히 존재합니다. 패치된 패키지(`@xterm/xterm`,
+`node-pty`, `@xterm/addon-*`)가 먼저 걸리는 이유는 그들만 스테이징을 거치기 때문입니다.
+
+**저장소 차원의 조치는 이미 들어가 있습니다** — `pnpm-workspace.yaml` 의 `verifyDepsBeforeRun: false`.
+pnpm 10 의 기본값으로 되돌리는 것이고, 이 저장소에서 설치는 언제나 명시적 단계라 안전합니다(빌드를 도는
+모든 워크플로가 앞서 `pnpm install --frozen-lockfile` 을 실행하고, `pnpm test`/`dev`/`start` 는
+`ensure-native-runtime.mjs` 를 지납니다). 이 설정은 lockfile 에 기록되는 항목이 아니므로
+`--frozen-lockfile` 에 영향이 없습니다(lockfile 의 `settings:` 블록은 `autoInstallPeers` 와
+`excludeLinksFromLockfile` 만 담습니다).
+
+**저장소를 갱신하기 전에 지금 당장 뚫어야 한다면**, 같은 값을 환경변수로 줍니다 — 이게 되면 진단도 확정됩니다.
+
+```powershell
+$env:npm_config_verify_deps_before_run = "false"
+pnpm build:release
+```
+
+**그래도 같은 자리에서 죽는다면** 원인이 재검증이 아니라 **핸들 점유**입니다. 목적지 디렉터리를 지우고
+다시 돌리십시오 — pnpm 은 없는 자리로는 rename 할 수 있습니다.
+
+```powershell
+Remove-Item -Recurse -Force node_modules\@xterm\xterm
+pnpm install --frozen-lockfile
+pnpm build:release
+```
+
+핸들을 쥐고 있는 쪽은 대개 셋 중 하나입니다: 실시간 검사 중인 사내 백신, Windows Search 인덱서,
+그리고 **이 워크트리를 아직 붙잡고 있는 Orca/Electron/node 프로세스**. 마지막 것은
+`rebuild-native-deps.mjs` 가 이미 같은 문구로 안내합니다("Close running Orca/Electron/dev processes
+for this worktree"). 백신이라면 저장소 경로와 `%LOCALAPPDATA%\pnpm` 을 검사 예외로 등록해야 합니다.
+
+> `config/scripts/move-path-with-copy-fallback.mjs` 는 이 에러를 **덮지 못합니다.** 그것은 Orca 가
+> 소유한 Electron 설치 스크립트의 rename 을 복사로 우회하는 헬퍼이고, 여기서 실패하는 rename 은
+> pnpm 12 자체(Rust 설치기) 안에 있어 우리 코드가 닿지 않습니다.
+
 ## §4. 그래도 레지스트리가 막힌 머신
 
 여기까지 해도 다운로드가 안 되는 머신을 위한 예비 경로입니다. **위 §1~§3 으로 해결되면 필요 없습니다.**
