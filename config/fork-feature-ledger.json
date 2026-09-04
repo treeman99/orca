@@ -1,0 +1,443 @@
+{
+  "features": [
+    {
+      "id": "enterprise-policy-startup",
+      "summary": "정책 파일이 앱 시작 시 실제로 무장되는 세 지점 — Secure DNS, 네트워크 허용목록 가드, 정책 트레이스.",
+      "present": [
+        {
+          "file": "src/main/startup/main-process-ready-foundation.ts",
+          "contains": "installEnterpriseNetworkGuard()"
+        },
+        {
+          "file": "src/main/startup/main-process-ready-foundation.ts",
+          "contains": "applyEnterpriseSecureDnsPolicy()"
+        },
+        {
+          "file": "src/main/startup/main-process-observers.ts",
+          "contains": "recordEnterprisePolicyTrace()"
+        }
+      ]
+    },
+    {
+      "id": "enterprise-plugins-lockdown",
+      "summary": "disablePlugins — 기능 플래그 대체, RPC 미등록, IPC 미등록. 세 겹이 각자 다른 파일에 있다.",
+      "present": [
+        {
+          "file": "src/main/startup/main-process-plugins.ts",
+          "contains": "getEnterprisePolicy().disablePlugins"
+        },
+        {
+          "file": "src/main/startup/main-process-plugins.ts",
+          "contains": "isPluginSystemAllowed"
+        },
+        {
+          "file": "src/main/ipc/register-core-handlers/register-core-handlers.ts",
+          "contains": "getEnterprisePolicy().disablePlugins"
+        },
+        {
+          "file": "src/main/ipc/register-core-handlers/register-core-handlers.ts",
+          "contains": "getEnterprisePolicy().disableVoice"
+        }
+      ]
+    },
+    {
+      "id": "enterprise-agent-allowlist",
+      "summary": "allowedAgents — 에이전트를 실제로 띄우는 모든 문. 하나라도 빠지면 우회로가 된다.",
+      "present": [
+        {
+          "file": "src/main/startup/main-process-ready-runtime.ts",
+          "contains": "installManagedAgentHooksUnderEnterprisePolicy"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-get-terminal-interactive-wait.ts",
+          "contains": "isAgentAllowedByEnterprisePolicy(agent)"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-create-managed-worktree.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-activate-managed-worktree.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy(agent)"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-create-agent-session.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy(request.agent)"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-get-agent-session-execution-namespace.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy(request.agent)"
+        },
+        {
+          "file": "src/main/runtime/runtime-worktree-agent-startup.ts",
+          "contains": "isAgentAllowedByEnterprisePolicy(preferredAgent)"
+        },
+        {
+          "file": "src/main/runtime/runtime-client-settings.ts",
+          "contains": "applyAgentStatusHooksEnabledUnderEnterprisePolicy"
+        }
+      ]
+    },
+    {
+      "id": "enterprise-vendor-lockdown",
+      "summary": "벤더로 나가는 Orca 자체 호출 차단 — 텔레메트리·star-nag·클라우드 릴레이·음성·관리형 Claude 계정·계정 등록.",
+      "present": [
+        {
+          "file": "src/main/telemetry/consent.ts",
+          "contains": "getEnterprisePolicy().disableTelemetry"
+        },
+        {
+          "file": "src/main/github/client/fetch/orca-star.ts",
+          "contains": "getEnterprisePolicy().disableStarNag"
+        },
+        {
+          "file": "src/main/orca-profiles/profile-cloud-auth-config.ts",
+          "contains": "getEnterprisePolicy().disableCloudRelay"
+        },
+        {
+          "file": "src/main/speech/speech-runtime-service.ts",
+          "contains": "getEnterprisePolicy().disableVoice"
+        },
+        {
+          "file": "src/main/claude-accounts/oauth-refresh.ts",
+          "contains": "getEnterprisePolicy().disableManagedClaudeAccounts"
+        },
+        {
+          "file": "src/main/runtime/runtime-account-controller.ts",
+          "contains": "assertVendorAccountRegistrationAllowed()"
+        }
+      ]
+    },
+    {
+      "id": "enterprise-usage-polling",
+      "summary": "disableUsagePolling + 제공자별 allowedAgents — 폴링 타이머·수동 새로고침·칩 상태까지.",
+      "present": [
+        {
+          "file": "src/main/rate-limits/service/service-state.ts",
+          "contains": "getEnterprisePolicy().disableUsagePolling"
+        },
+        {
+          "file": "src/main/rate-limits/service/service-state.ts",
+          "contains": "isUsageProviderAllowed"
+        },
+        {
+          "file": "src/main/rate-limits/service/service-fetch-queue.ts",
+          "contains": "isUsagePollingDisabled()"
+        },
+        {
+          "file": "src/main/rate-limits/service/service-configuration.ts",
+          "contains": "settleUsagePollingDisabledProviders"
+        }
+      ]
+    },
+    {
+      "id": "enterprise-mobile-and-emulator",
+      "summary": "disableMobilePairing / disableMobileEmulator — 메뉴·사이드바·탭 복원·브라우저 바인딩·런타임 문.",
+      "present": [
+        {
+          "file": "src/main/ipc/mobile.ts",
+          "contains": "getEnterprisePolicy().disableMobilePairing"
+        },
+        {
+          "file": "src/main/menu/register-app-menu.ts",
+          "contains": "getEnterprisePolicy().disableMobilePairing"
+        },
+        {
+          "file": "src/main/browser/browser-manager-bindings.ts",
+          "contains": "getEnterprisePolicy().disableMobileEmulator"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-terminal-drivers.ts",
+          "contains": "assertMobileEmulatorAllowedByPolicy()"
+        },
+        {
+          "file": "src/renderer/src/components/sidebar/SidebarNav.tsx",
+          "contains": "getEnterprisePolicyView().disableMobilePairing"
+        },
+        {
+          "file": "src/renderer/src/store/slices/tabs/tabs-reconciliation.ts",
+          "contains": "getEnterprisePolicyView().disableMobileEmulator"
+        },
+        {
+          "file": "src/renderer/src/components/use-terminal-workspace-store-bindings.ts",
+          "contains": "isMobileEmulatorAvailable"
+        }
+      ]
+    },
+    {
+      "id": "enterprise-spellcheck",
+      "summary": "disableSpellcheck — 사전을 Google CDN 에서 받는 창/게스트 전부.",
+      "present": [
+        {
+          "file": "src/main/window/createMainWindow.ts",
+          "contains": "getEnterprisePolicy().disableSpellcheck"
+        },
+        {
+          "file": "src/main/window/tab-popout-window-factory.ts",
+          "contains": "getEnterprisePolicy().disableSpellcheck"
+        },
+        {
+          "file": "src/main/browser/browser-manager-guest-popup-policy.ts",
+          "contains": "getEnterprisePolicy().disableSpellcheck"
+        }
+      ]
+    },
+    {
+      "id": "enterprise-ghes-host",
+      "summary": "githubEnterpriseHost — gh 가 향하는 호스트 판정.",
+      "present": [
+        {
+          "file": "src/main/git/hosted-remote-url.ts",
+          "contains": "getEnterprisePolicy().githubEnterpriseHost"
+        }
+      ]
+    },
+    {
+      "id": "enterprise-removed-views",
+      "summary": "빌드에서 뺀 상위 뷰(Mobile/Artifacts)가 디스크 복원·일반 setActiveView 로도 되살아나지 않게.",
+      "present": [
+        {
+          "file": "src/renderer/src/store/slices/ui/ui-slice-hydration-sanitizers.ts",
+          "contains": "isMobileViewBlockedByPolicy"
+        },
+        {
+          "file": "src/renderer/src/store/slices/ui/ui-slice-view-actions.ts",
+          "contains": "ARTIFACT_SHARING_REMOVED"
+        },
+        {
+          "file": "src/renderer/src/store/slices/ui/ui-slice-task-actions.ts",
+          "contains": "isTopLevelViewRemoved"
+        }
+      ]
+    },
+    {
+      "id": "enterprise-test-isolation",
+      "summary": "머신에 깔린 사내 정책 파일이 스위트 전체를 물들이지 않게 하는 setup.",
+      "present": [
+        {
+          "file": "config/vitest.config.ts",
+          "contains": "vitest-enterprise-policy-isolation"
+        }
+      ]
+    },
+    {
+      "id": "orchestration-worker-pane",
+      "summary": "같은 워크트리 워커를 코디네이터 옆 컬럼으로 자동 분할. 앵커는 main 이 만들고 렌더러가 해석한다 — 전달 라인이 끊기면 조용히 탭 하나로 떨어진다.",
+      "present": [
+        {
+          "file": "src/main/runtime/rpc/methods/orchestration-worker-topology.ts",
+          "contains": "paneGroupPlacement"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-create-terminal.ts",
+          "contains": "opts.paneGroupPlacement"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-create-terminal-desktop.ts",
+          "contains": "opts.paneGroupPlacement"
+        },
+        {
+          "file": "src/main/runtime/runtime-terminal-contracts.ts",
+          "contains": "paneGroupPlacement?: TerminalPaneGroupPlacement"
+        },
+        {
+          "file": "src/main/runtime/runtime-notifier-contract.ts",
+          "contains": "paneGroupPlacement?: TerminalPaneGroupPlacement"
+        },
+        {
+          "file": "src/renderer/src/store/slices/tabs/tabs-group-actions.ts",
+          "contains": "opts?.recordInteraction !== false"
+        }
+      ]
+    },
+    {
+      "id": "orchestration-worker-autoclose",
+      "summary": "완료된 워커 탭 자동 닫기 — send 와 read 양쪽 정착 지점.",
+      "present": [
+        {
+          "file": "src/main/runtime/rpc/methods/orchestration-send-point-to-point.ts",
+          "contains": "autoCloseSettledWorkerTerminal"
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/orchestration-check-direct.ts",
+          "contains": "autoCloseSettledWorkerTerminal"
+        }
+      ]
+    },
+    {
+      "id": "terminal-prompt-delivery",
+      "summary": "opencode 평문 프롬프트 배달과 Enter 재전송 구제. upstream 은 stall 을 던지고 끝내지만 이 포크는 한 번 더 살린다.",
+      "present": [
+        {
+          "file": "src/main/runtime/orca-runtime-controller-knows-pty-is-live.ts",
+          "contains": "usesPlainTextPromptDelivery(handle)"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-controller-knows-pty-is-live.ts",
+          "contains": "assertAgentPromptRescuedIfStalled"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-write-terminal-agent-prompt.ts",
+          "contains": "stalled: true"
+        }
+      ]
+    },
+    {
+      "id": "terminal-tab-close-teardown",
+      "summary": "탭을 닫으면 그 탭에 묶인 PTY 와 워커 디스패치까지 끝낸다.",
+      "present": [
+        {
+          "file": "src/main/ipc/session.ts",
+          "contains": "retireClosedTerminalTabsFromPersistence"
+        },
+        {
+          "file": "src/preload/api/session-bridge.ts",
+          "contains": "retireClosedTerminalTabs"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime.ts",
+          "contains": "OrcaRuntimeForkSurface"
+        }
+      ]
+    },
+    {
+      "id": "source-control-submodules",
+      "summary": "VS Code 소스 제어 패널의 서브모듈 취급 — 런타임 명령 표면과 status 읽기.",
+      "present": [
+        {
+          "file": "src/main/runtime/runtime-git-command-surface.ts",
+          "contains": "listRuntimeGitSubmodules"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-git.ts",
+          "contains": "RuntimeGitSubmoduleCommands"
+        },
+        {
+          "file": "src/main/ipc/filesystem.ts",
+          "contains": "registerFilesystemGitSubmoduleHandlers"
+        },
+        {
+          "file": "src/main/git/source-control/status-read.ts",
+          "contains": "narrowGitlinkRowsToConfiguredIgnore"
+        },
+        {
+          "file": "src/main/git/source-control/status-read.ts",
+          "contains": "buildGitStatusCommandArgs"
+        }
+      ]
+    },
+    {
+      "id": "github-stack-merge-optin",
+      "summary": "스택 PR 병합 승격은 명시적 옵트인. 인자가 빠지면 조용한 승격이 된다.",
+      "present": [
+        {
+          "file": "src/main/runtime/runtime-github-review-mutation-commands.ts",
+          "contains": "stackMergeIntent"
+        }
+      ]
+    },
+    {
+      "id": "fork-preload-namespaces",
+      "summary": "포크 전용 preload 네임스페이스. upstream 이 preload 를 다시 쪼개면 등록이 통째로 빠진다.",
+      "present": [
+        {
+          "file": "src/preload/index.ts",
+          "contains": "enterprisePolicyApi"
+        },
+        {
+          "file": "src/preload/index.ts",
+          "contains": "tabPopoutApi"
+        },
+        {
+          "file": "src/preload/index.ts",
+          "contains": "appUpdateApi"
+        }
+      ]
+    },
+    {
+      "id": "renderer-fork-surfaces",
+      "summary": "탭 팝아웃/재시작/자동화 기본 에이전트 등 렌더러 쪽 포크 표면.",
+      "present": [
+        {
+          "file": "src/renderer/src/components/terminal-pane/use-terminal-pane-store-bindings.ts",
+          "contains": "useOptionalLinkRoutingPreferenceDialog"
+        },
+        {
+          "file": "src/renderer/src/components/use-terminal-window-lifecycle.ts",
+          "contains": "app-restart-beforeunload"
+        },
+        {
+          "file": "src/renderer/src/components/automations/use-automations-page-store-state.ts",
+          "contains": "resolveAutomationDefaultAgent"
+        },
+        {
+          "file": "src/renderer/src/components/status-bar/use-status-bar-controller.ts",
+          "contains": "useEnterprisePolicyView()"
+        },
+        {
+          "file": "src/renderer/src/store/slices/ui.ts",
+          "contains": "createUiShellPreferenceActions"
+        }
+      ]
+    },
+    {
+      "id": "windows-build",
+      "summary": "Windows 빌드 호스트에서만 재현되는 것. pnpm 12 의 실행 전 재설치가 패치된 패키지의 rename 을 깨뜨린다.",
+      "present": [
+        {
+          "file": "pnpm-workspace.yaml",
+          "contains": "verifyDepsBeforeRun"
+        }
+      ]
+    }
+  ],
+  "absentPaths": [
+    "docs/site",
+    ".github/workflows/docs.yml",
+    "src/main/updater",
+    "src/main/updater.ts",
+    "src/main/bitbucket",
+    "src/main/gitea",
+    "src/main/azure-devops",
+    "src/main/local-builds",
+    "src/renderer/src/components/crash-report",
+    "src/renderer/src/components/maintenance/update-card",
+    "src/preload/api/updater-bridge.ts",
+    "src/preload/api/feedback-bridge.ts",
+    "src/preload/api/bitbucket-bridge.ts",
+    "src/main/ipc/feedback.ts",
+    "src/main/runtime/remote-server-updater.ts",
+    "src/main/runtime/rpc/methods/updater.ts",
+    "src/renderer/src/components/status-bar/UpdateStatusSegment.tsx",
+    "src/renderer/src/store/slices/ui/ui-slice-update-actions.ts"
+  ],
+  "absentSymbols": [
+    {
+      "file": "package.json",
+      "symbol": "electron-updater",
+      "why": "인앱 자동 업데이트는 빌드에서 제거했다. 머지가 의존성만 되살려도 사내 빌드가 벤더 릴리스 피드를 다시 연다."
+    },
+    {
+      "file": ".github/workflows/release-cut.yml",
+      "symbol": "docs-production-dispatch",
+      "why": "docs 사이트 배포 레인을 지웠다. 이 잡은 충돌 없이 자동 병합으로 되살아난다(README §6)."
+    }
+  ],
+  "policySwitchMinConsumers": {
+    "allowedAgents": 10,
+    "disableMobilePairing": 10,
+    "disableVoice": 10,
+    "disablePlugins": 9,
+    "disableMobileEmulator": 8,
+    "disableSpellcheck": 7,
+    "githubEnterpriseHost": 5,
+    "disableUsagePolling": 3,
+    "disableManagedClaudeAccounts": 3,
+    "disableRemoteOrcaServer": 3,
+    "disableVendorProviderAccounts": 3,
+    "allowedNetworkHosts": 3,
+    "disableCloudRelay": 2,
+    "disableStarNag": 2,
+    "disableTelemetry": 2
+  }
+}
