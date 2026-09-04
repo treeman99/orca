@@ -66,7 +66,10 @@ export async function createDesktopTerminal(
       title: launchOpts.title,
       activate: presentation === 'focused',
       ...(presentation ? { presentation } : {}),
-      ...dependencies.ownerSurfacing(opts.surfaceOwner !== false)
+      ...dependencies.ownerSurfacing(opts.surfaceOwner !== false),
+      // Why: this path serves focused and renderer-backed creates too, and a worker
+      // dispatched through either still owes its column.
+      ...(opts.paneGroupPlacement ? { paneGroupPlacement: opts.paneGroupPlacement } : {})
     })
   })
   const handle = await runtime.waitForTerminalHandle(reply.tabId)

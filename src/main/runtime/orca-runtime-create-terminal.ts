@@ -265,6 +265,10 @@ export class OrcaRuntimeWithCreateTerminal extends OrcaRuntimeWithTerminalCreate
               activate: presentation === 'focused',
               ...(presentation ? { presentation } : {}),
               ...dependencies.ownerSurfacing(opts.surfaceOwner !== false),
+              // Why: main owns no group ids, so it names the anchor pane and lets the
+              // renderer resolve the group. Dropping it here strands a dispatched worker
+              // in the coordinator's own group with no split and no renderer diagnostic.
+              ...(opts.paneGroupPlacement ? { paneGroupPlacement: opts.paneGroupPlacement } : {}),
               tabId,
               leafId
             })
