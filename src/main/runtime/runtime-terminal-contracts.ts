@@ -17,6 +17,7 @@ import type { WorktreeStartupLaunch } from '../../shared/worktree/launch-types'
 import type { RuntimePtyController } from './runtime-pty-controller-contract'
 import type { RuntimeAgentRowSnapshot } from './runtime-worktree-agent-rows'
 import type { WorkerTerminalHostScope } from './orchestration/worker-terminal-process-liveness'
+import type { TerminalPaneGroupPlacement } from '../../shared/terminal-pane-placement'
 
 export type TerminalCreateOptions = {
   command?: string
@@ -52,6 +53,10 @@ export type TerminalCreateOptions = {
   signal?: AbortSignal
   onPtySpawnCommitted?: () => void
   deferMobileSessionPublish?: boolean
+  // Why: main owns no group ids, so it names the anchor pane and lets the
+  // renderer resolve the group. Advisory — the renderer drops it when the
+  // anchor is gone or the user has the layout preference off.
+  paneGroupPlacement?: TerminalPaneGroupPlacement
 }
 
 export type AgentSessionCreateOperation = {
