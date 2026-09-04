@@ -526,3 +526,64 @@ describe('inactive-card empty constants', () => {
     ).toBe(EMPTY_RETAINED)
   })
 })
+
+describe('cross-worktree orchestration rows', () => {
+  // An orchestration worker: the worker-pane auto-split puts its pane inside the
+  // COORDINATOR's tab, while the worker itself is attributed to the workspace it works in.
+  const workerPaneKey = makePaneKey('tab-coord', '44444444-4444-4444-8444-444444444444')
+  const workerEntry = makeEntry(workerPaneKey, 1000, {
+    state: 'working',
+    worktreeId: 'wt-worker',
+    agentType: 'opencode'
+  })
+  const coordinatorTab: TerminalTab = { ...makeTab('tab-coord'), worktreeId: 'wt-coord' }
+
+  function stateWith(tabsByWorktree: Record<string, TerminalTab[]>) {
+    return {
+      agentStatusByPaneKey: { [workerPaneKey]: workerEntry },
+      migrationUnsupportedByPtyId: {},
+      retainedAgentsByPaneKey: {},
+      tabsByWorktree
+    }
+  }
+
+  it('shows a running worker on both the coordinator card and its own workspace card', () => {
+    const state = stateWith({ 'wt-coord': [coordinatorTab], 'wt-worker': [] })
+    expect(selectLiveAgentStatusEntriesForWorktree(state, 'wt-coord')).toEqual([workerEntry])
+    expect(selectLiveAgentStatusEntriesForWorktree(state, 'wt-worker')).toEqual([workerEntry])
+  })
+
+  // The reported bug: switching projects makes tabs-hydration drop an emptied worktree
+  // bucket, and picking a single destination moved a still-running worker's row to the
+  // other card. Nothing about the agent changed, so neither card may lose it.
+  it('keeps the worker visible when the coordinator tab bucket comes and goes', () => {
+    const withTab = stateWith({ 'wt-coord': [coordinatorTab], 'wt-worker': [] })
+    const withoutTab = stateWith({ 'wt-worker': [] })
+    for (const state of [withTab, withoutTab, withTab]) {
+      expect(selectLiveAgentStatusEntriesForWorktree(state, 'wt-worker')).toEqual([workerEntry])
+    }
+  })
+
+  // Key order is not part of the contract: the same content must bucket the same way.
+  it('does not depend on tabsByWorktree key insertion order', () => {
+    const coordFirst = stateWith({ 'wt-coord': [coordinatorTab], 'wt-worker': [] })
+    const workerFirst = stateWith({ 'wt-worker': [], 'wt-coord': [coordinatorTab] })
+    for (const state of [coordFirst, workerFirst]) {
+      expect(selectLiveAgentStatusEntriesForWorktree(state, 'wt-coord')).toEqual([workerEntry])
+      expect(selectLiveAgentStatusEntriesForWorktree(state, 'wt-worker')).toEqual([workerEntry])
+    }
+  })
+
+  // #6584 still holds: a completed row whose tab is gone belongs to no card.
+  it('drops a completed worker once its tab is gone', () => {
+    const done = { ...workerEntry, state: 'done' as const }
+    const state = {
+      agentStatusByPaneKey: { [workerPaneKey]: done },
+      migrationUnsupportedByPtyId: {},
+      retainedAgentsByPaneKey: {},
+      tabsByWorktree: { 'wt-worker': [] }
+    }
+    expect(selectLiveAgentStatusEntriesForWorktree(state, 'wt-coord')).toEqual([])
+    expect(selectLiveAgentStatusEntriesForWorktree(state, 'wt-worker')).toEqual([])
+  })
+})

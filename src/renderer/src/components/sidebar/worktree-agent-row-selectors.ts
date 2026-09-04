@@ -8,7 +8,7 @@ import type {
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
 import {
   type LiveEntriesByWorktreeCache,
-  liveEntryWorktreeId,
+  liveEntryWorktreeIds,
   patchLiveEntriesByWorktree,
   recordLiveEntriesFullRebuild
 } from './worktree-agent-live-index-patch'
@@ -157,15 +157,13 @@ function getLiveEntriesByWorktree(state: WorktreeAgentRowsState): Map<string, Ag
   const previous = liveEntriesByWorktreeCache?.entriesByWorktree
   const entriesByWorktree = new Map<string, AgentStatusEntry[]>()
   for (const [paneKey, entry] of Object.entries(agentStatusByPaneKey)) {
-    const worktreeId = liveEntryWorktreeId(paneKey, entry, tabIdToWorktreeId)
-    if (!worktreeId) {
-      continue
-    }
-    const bucket = entriesByWorktree.get(worktreeId)
-    if (bucket) {
-      bucket.push(entry)
-    } else {
-      entriesByWorktree.set(worktreeId, [entry])
+    for (const worktreeId of liveEntryWorktreeIds(paneKey, entry, tabIdToWorktreeId)) {
+      const bucket = entriesByWorktree.get(worktreeId)
+      if (bucket) {
+        bucket.push(entry)
+      } else {
+        entriesByWorktree.set(worktreeId, [entry])
+      }
     }
   }
   for (const [worktreeId, entries] of entriesByWorktree) {

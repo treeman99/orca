@@ -19,18 +19,39 @@ export function recordLiveEntriesFullRebuild(): void {
   liveEntriesFullRebuildCount += 1
 }
 
-// Why: keep early attributed child rows, but hide completed rows once their tab is gone.
-export function liveEntryWorktreeId(
+const NO_WORKTREES: readonly string[] = Object.freeze([])
+
+/**
+ * Every worktree card that must show this live row.
+ *
+ * Why a union rather than one destination: an orchestration worker's pane lives in the
+ * COORDINATOR's tab (the worker-pane auto-split puts it there) while the worker itself is
+ * attributed to the workspace it works in. Preferring one meant the row sat on exactly one
+ * card, and which one flipped with tab membership — `tabs-hydration` drops a worktree's
+ * bucket once it is empty, so switching projects was enough to move a running worker's row
+ * to the other card. From the sidebar that reads as the row vanishing while the pane keeps
+ * running. The orchestration context index already unions the same way, by the same
+ * argument (`worktree-agent-orchestration-index.ts`).
+ *
+ * Kept from the old rule: a completed row whose tab is gone belongs to no card (#6584), and
+ * a row whose tab and attribution agree — every non-orchestration agent — still yields one.
+ */
+export function liveEntryWorktreeIds(
   paneKey: string,
   entry: AgentStatusEntry,
   tabIdToWorktreeId: Map<string, string>
-): string | undefined {
+): readonly string[] {
   const parsed = parsePaneKey(paneKey)
   if (!parsed) {
-    return undefined
+    return NO_WORKTREES
   }
   const tabWorktreeId = tabIdToWorktreeId.get(parsed.tabId)
-  return tabWorktreeId ?? (entry.state === 'done' ? undefined : entry.worktreeId)
+  const attributedWorktreeId = entry.state === 'done' ? undefined : entry.worktreeId
+  if (tabWorktreeId && attributedWorktreeId && tabWorktreeId !== attributedWorktreeId) {
+    return [tabWorktreeId, attributedWorktreeId]
+  }
+  const only = tabWorktreeId ?? attributedWorktreeId
+  return only ? [only] : NO_WORKTREES
 }
 
 /**
@@ -89,22 +110,22 @@ export function patchLiveEntriesByWorktree(
   const entriesByWorktree = new Map(cache.entriesByWorktree)
   const clonedBuckets = new Set<string>()
   for (const { paneKey, entry } of changed) {
-    const worktreeId = liveEntryWorktreeId(paneKey, entry, tabIdToWorktreeId)
-    if (!worktreeId) {
-      continue
-    }
-    const bucket = entriesByWorktree.get(worktreeId)
-    const index = bucket?.indexOf(previousMap[paneKey]) ?? -1
-    if (!bucket || index < 0) {
-      return null
-    }
-    const nextBucket = clonedBuckets.has(worktreeId) ? bucket : bucket.slice()
-    // Why: in-position replacement preserves iteration order, matching what a
-    // full rebuild would produce (spread updates keep object insertion order).
-    nextBucket[index] = entry
-    if (!clonedBuckets.has(worktreeId)) {
-      clonedBuckets.add(worktreeId)
-      entriesByWorktree.set(worktreeId, nextBucket)
+    // Why every bucket and not the first: a cross-worktree row sits in two, and refreshing
+    // only one would leave the other card rendering the previous entry forever.
+    for (const worktreeId of liveEntryWorktreeIds(paneKey, entry, tabIdToWorktreeId)) {
+      const bucket = entriesByWorktree.get(worktreeId)
+      const index = bucket?.indexOf(previousMap[paneKey]) ?? -1
+      if (!bucket || index < 0) {
+        return null
+      }
+      const nextBucket = clonedBuckets.has(worktreeId) ? bucket : bucket.slice()
+      // Why: in-position replacement preserves iteration order, matching what a
+      // full rebuild would produce (spread updates keep object insertion order).
+      nextBucket[index] = entry
+      if (!clonedBuckets.has(worktreeId)) {
+        clonedBuckets.add(worktreeId)
+        entriesByWorktree.set(worktreeId, nextBucket)
+      }
     }
   }
   return entriesByWorktree

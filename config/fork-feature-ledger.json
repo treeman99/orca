@@ -267,6 +267,11 @@
         {
           "file": "src/renderer/src/store/slices/tabs/tabs-group-actions.ts",
           "contains": "opts?.recordInteraction !== false"
+        },
+        {
+          "file": "src/renderer/src/components/sidebar/worktree-agent-live-index-patch.ts",
+          "contains": "return [tabWorktreeId, attributedWorktreeId]",
+          "why": "워커 페인이 코디네이터 탭 안에 있고 워커는 다른 워크트리에서 일하므로, 사이드바 행은 두 카드 모두에 들어가야 한다. upstream 은 한 곳만 고르며(`??`), 그러면 tabs-hydration 이 빈 버킷을 지울 때마다 돌고 있는 워커 행이 반대편 카드로 옮겨 가 사이드바에서 사라진 것처럼 보인다."
         }
       ]
     },
