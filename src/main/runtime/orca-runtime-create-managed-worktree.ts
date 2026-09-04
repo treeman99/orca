@@ -5,6 +5,7 @@ import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
 import { isTuiAgentEnabled } from '../../shared/tui-agent-selection'
 import { assertAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 import { isFolderRepo } from '../../shared/repo-kind'
+import { getRepoSshConnectionId } from '../../shared/execution-host'
 import { createRuntimeFolderWorktree } from './runtime-folder-worktree-create'
 import { createRuntimeLocalManagedWorktree } from './runtime-local-worktree-create'
 import { prepareRuntimeLocalWorktreeSetup } from './runtime-local-worktree-setup'
@@ -68,7 +69,13 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
         draftStartup?.agent ??
         (requestedAgentEnabled ? requestedAgent : undefined))
     const effectiveDraftPaste = args.startupDraftPaste ?? draftStartup?.draftPaste
+    // Resolve the execution host once: SSH ownership has two spellings, and reading the raw
+    // `connectionId` field routes an `executionHostId: 'ssh:*'`-only repo down the local path,
+    // which runs `git worktree add` on the client against a remote path.
+    const sshConnectionId = getRepoSshConnectionId(repo)
     if (isFolderRepo(repo)) {
+      // A folder workspace is a registration, not a filesystem create, so it is host-agnostic —
+      // except for the agent trust write, which must land on the host that will run the agent.
       return createRuntimeFolderWorktree({
         request: args,
         repo,
@@ -80,7 +87,8 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
           store: this.store,
           ptySpawnAvailable: Boolean(this.ptyController?.spawn),
           createTerminal: (selector, options) => this.createTerminal(selector, options),
-          markTrusted: (agent, path) => this.markLocalWorkspaceTrustedForAgent(agent, path),
+          markTrusted: (agent, path) =>
+            this.markWorkspaceTrustedForAgent(agent, sshConnectionId, path),
           pasteDraft: (handle, draft) => this.pasteStartupDraftWhenReady(handle, draft),
           sendFollowup: (handle, followup) => this.sendStartupFollowupWhenReady(handle, followup),
           invalidateResolvedWorktrees: () => this.invalidateResolvedWorktreeCache(),
@@ -101,15 +109,20 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
     const lineageInput =
       args.lineage || args.comment ? { ...args.lineage, comment: args.comment } : undefined
     const lineageResolution = await this.resolveLineageForWorktreeCreate(lineageInput)
-    if (repo.connectionId) {
-      const result = await this.createManagedRemoteWorktree(repo, {
-        ...args,
-        activate: args.activate,
-        ...(effectiveStartup ? { startup: effectiveStartup } : {}),
-        ...(effectiveStartupFollowup ? { startupFollowup: effectiveStartupFollowup } : {}),
-        ...(effectiveCreatedWithAgent ? { createdWithAgent: effectiveCreatedWithAgent } : {}),
-        ...(effectiveDraftPaste ? { startupDraftPaste: effectiveDraftPaste } : {})
-      })
+    if (sshConnectionId) {
+      // Why normalize the row: the remote-create pipeline reads `repo.connectionId!` at every
+      // depth, so hand it the connection the resolved host actually names.
+      const result = await this.createManagedRemoteWorktree(
+        { ...repo, connectionId: sshConnectionId },
+        {
+          ...args,
+          activate: args.activate,
+          ...(effectiveStartup ? { startup: effectiveStartup } : {}),
+          ...(effectiveStartupFollowup ? { startupFollowup: effectiveStartupFollowup } : {}),
+          ...(effectiveCreatedWithAgent ? { createdWithAgent: effectiveCreatedWithAgent } : {}),
+          ...(effectiveDraftPaste ? { startupDraftPaste: effectiveDraftPaste } : {})
+        }
+      )
       const recordedLineage = this.recordCreatedWorktreeLineage(result.worktree, lineageResolution)
       this.emitWorktreeLifecycle({
         kind: 'created',

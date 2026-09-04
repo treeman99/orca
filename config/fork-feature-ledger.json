@@ -15,6 +15,11 @@
         {
           "file": "src/main/startup/main-process-observers.ts",
           "contains": "recordEnterprisePolicyTrace()"
+        },
+        {
+          "file": "config/scripts/electron-builder-runtime-resources.test.mjs",
+          "contains": "join(process.cwd(), 'resources', 'enterprise-policy.json')",
+          "why": "afterPack 은 번들된 정책 파일이 없으면 하드 실패한다. v1.4.196→197 파일 분해 때 이 픽스처가 사라져 패키징 계약이 커버 밖으로 나갔다."
         }
       ]
     },
@@ -75,6 +80,11 @@
         {
           "file": "src/main/runtime/runtime-client-settings.ts",
           "contains": "applyAgentStatusHooksEnabledUnderEnterprisePolicy"
+        },
+        {
+          "file": "src/renderer/src/lib/agent-launch-routing.ts",
+          "contains": "isAgentAllowedByPolicy(input.agent, getEnterprisePolicyView().allowedAgents)",
+          "why": "v1.4.197 이 structured-native-chat-availability.ts 를 지우면서 이 게이트가 통째로 사라졌다. 이 레인은 agentSession.createSupport 를 묻지 않고 바로 create 하므로, 없으면 허용되지 않은 에이전트 탭을 연 뒤 에러 토스트로 거절이 온다."
         }
       ]
     },
@@ -189,6 +199,11 @@
         {
           "file": "src/main/git/hosted-remote-url.ts",
           "contains": "getEnterprisePolicy().githubEnterpriseHost"
+        },
+        {
+          "file": "src/main/git/command-runner/gh-spawn-boundary.test.ts",
+          "contains": "INTERACTIVE_LOGIN_EXEMPTIONS",
+          "why": "v1.4.197 이 모든 gh 스폰을 ghExecFileAsync 로 강제하는 트리 게이트를 넣었다. 포크의 GHES 로그인은 대화형 PTY 디바이스 플로우와 stdin 토큰 파이프라 그 헬퍼로 못 보내고, API 호출이 아니므로 GitHub 동시성 세마포어를 잡아서도 안 된다. 예외가 사라지면 이 레인이 게이트에 걸려 CI 가 빨개진다."
         }
       ]
     },
@@ -217,6 +232,11 @@
         {
           "file": "config/vitest.config.ts",
           "contains": "vitest-enterprise-policy-isolation"
+        },
+        {
+          "file": ".github/workflows/pr.yml",
+          "contains": "pnpm run check:fork-feature-ledger",
+          "why": "원장 게이트는 `pnpm lint` 안에 있지만 PR CI 는 lint 단계를 개별 스텝으로 재현한다(upstream 의 pr-workflow-lint-parity 테스트가 강제). 이 스텝이 빠지면 게이트가 CI 에서 아예 돌지 않는다."
         }
       ]
     },
@@ -323,6 +343,16 @@
         {
           "file": "src/main/git/source-control/status-read.ts",
           "contains": "buildGitStatusCommandArgs"
+        },
+        {
+          "file": "src/preload/api/git-bridge.ts",
+          "contains": "ipcRenderer.invoke('git:submoduleStage', args)",
+          "why": "서브모듈 쓰기 8종의 Electron preload 브리지. 렌더러는 로컬 타깃에서 window.api.git.submodule* 를 직접 부른다 — 브리지가 없으면 undefined 호출로 죽는다."
+        },
+        {
+          "file": "src/main/runtime/runtime-git-submodule-commands.ts",
+          "contains": "requireRuntimeGitProvider(target)",
+          "why": "v1.4.197 이 RuntimeGitTarget.connectionId 를 없애고 실행 호스트 라우팅으로 바꿨다. 이 파일 9곳이 옛 필드를 쓰고 있었다."
         }
       ]
     },
@@ -351,6 +381,11 @@
         {
           "file": "src/preload/index.ts",
           "contains": "appUpdateApi"
+        },
+        {
+          "file": "src/preload/api/app-bridge.ts",
+          "contains": "getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion')",
+          "why": "upstream 은 앱 버전을 updater 브리지로 준다. 그 레인을 지운 이 빌드에서는 app 브리지가 유일한 공급자다(client-environment-info, typing-latency 진단이 쓴다)."
         }
       ]
     },
@@ -377,6 +412,21 @@
         {
           "file": "src/renderer/src/store/slices/ui.ts",
           "contains": "createUiShellPreferenceActions"
+        },
+        {
+          "file": "src/renderer/src/lib/launch-agent-in-new-tab.ts",
+          "contains": "resolveLaunchAgentViewMode(args, store.settings, initialViewModeOptions)",
+          "why": "탭 바 `+` 메뉴는 터미널과 챗을 별개 행으로 제시하므로 에이전트 행은 openAgentTabsInChatByDefault 와 무관하게 raw 터미널을 열어야 한다. 판정은 launch-agent-forced-terminal-view.ts 가 소유하고, 이 한 줄이 그 유일한 호출지점이다."
+        },
+        {
+          "file": "src/renderer/src/lib/adopt-agent-background-session-tab.ts",
+          "contains": "isTuiAgent(launchAgentType) ? { launchAgent: launchAgentType }",
+          "why": "첫 훅이 도착하기 전까지 탭에 에이전트 정체성이 없으면 native-chat 라우트가 \"에이전트 페인이 아님\"으로 읽어 챗으로 연 봇 페인을 몇 초 뒤 터미널로 되돌린다."
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/terminal-pane-hook-order-parity.test.ts",
+          "contains": "'373981e5aae397b3cc9c57977b3c7bde29f91000a81494d4c760877dce4ce6d1'",
+          "why": "훅 개수·useMemo 개수는 upstream 과 같고 식별자만 다르다(useOptionalLinkRoutingPreferenceDialog). 다이제스트는 그 차이를 보므로 포크 전용 값이며, 머지가 upstream 값으로 되돌리면 빨개진다."
         }
       ]
     },
@@ -387,6 +437,16 @@
         {
           "file": "pnpm-workspace.yaml",
           "contains": "verifyDepsBeforeRun"
+        },
+        {
+          "file": "src/shared/child-process/child-process-import-boundary.test.ts",
+          "contains": "const DIRECT_IMPORTER_PIN = 164",
+          "why": "v1.4.197 이 upstream 자기 수(158)로 숫자 백스톱을 추가했다. 이 빌드는 포크 소유 직접 import 8건 − upstream 이 지운 2건 = +6 이라 164 다. 머지가 158 로 되돌리면 실제 회귀가 아닌데 래칫 전체가 빨개진다."
+        },
+        {
+          "file": "src/shared/child-process/windows-console-visibility.test.ts",
+          "contains": "const UNHIDDEN_SPAWNER_PIN = 64",
+          "why": "upstream 은 66. 이 빌드는 updater·벤더 forge 레인을 지워 스폰 파일이 2개 적고, 래칫은 핀이 실제 수와 같기를 요구한다(낮추는 방향만 허용)."
         }
       ]
     }
@@ -409,7 +469,10 @@
     "src/main/runtime/remote-server-updater.ts",
     "src/main/runtime/rpc/methods/updater.ts",
     "src/renderer/src/components/status-bar/UpdateStatusSegment.tsx",
-    "src/renderer/src/store/slices/ui/ui-slice-update-actions.ts"
+    "src/renderer/src/store/slices/ui/ui-slice-update-actions.ts",
+    "cloud",
+    ".github/workflows/cloud-*.yml",
+    ".github/actions/cloud-sql-rollout-lease"
   ],
   "absentSymbols": [
     {

@@ -6,9 +6,6 @@ import { isMobileViewBlockedByPolicy } from './ui-slice-removed-views'
 export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<UISlice> {
   return {
     openActivityPage: () => {
-      if (get().settings?.experimentalActivity !== true) {
-        return
-      }
       set((state) => ({
         activeView: 'activity',
         previousViewBeforeActivity:

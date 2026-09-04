@@ -58,6 +58,7 @@ vi.mock('lucide-react', () => ({
   ArrowRight: () => null,
   ArrowUp: () => null,
   Columns2: () => null,
+  Copy: () => null,
   ListX: () => null,
   MessageSquare: () => null,
   PanelBottomClose: () => null,
@@ -74,6 +75,8 @@ vi.mock('lucide-react', () => ({
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string) => fallback
 }))
+
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 vi.mock('../../store', () => ({
   useAppStore: Object.assign(

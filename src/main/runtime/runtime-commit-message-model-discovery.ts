@@ -4,14 +4,17 @@
  */
 import type { TuiAgent } from '../../shared/tui-agent'
 import { agentBlockedByPolicyResult } from '../enterprise/agent-allowlist-guard'
-import { getSshGitProvider } from '../providers/ssh-git-dispatch'
 import { prepareLocalCommitMessageAgentEnv } from '../text-generation/commit-message-agent-environment'
 import {
   discoverCommitMessageModelsLocal,
   discoverCommitMessageModelsRemote,
   type DiscoverCommitMessageModelsResult
 } from '../text-generation/commit-message-text-generation'
-import { localGitOptionsForTarget, type RuntimeGitCommandHost } from './runtime-git-command-target'
+import {
+  localGitOptionsForTarget,
+  runtimeGitRouteForTarget,
+  type RuntimeGitCommandHost
+} from './runtime-git-command-target'
 import {
   localAgentRuntimeTargetForTarget,
   type RuntimeCommitMessageSettingsOverride
@@ -34,10 +37,11 @@ export async function discoverRuntimeCommitMessageModelsForHost(
   const agentCommandOverride =
     settingsOverride?.agentCmdOverrides?.[typedAgentId] ??
     host.getRuntimeSettings().agentCmdOverrides?.[typedAgentId]
-  if (target.connectionId) {
-    const provider = getSshGitProvider(target.connectionId)
+  const route = runtimeGitRouteForTarget(target)
+  if (route.kind === 'ssh') {
+    const provider = route.provider
     if (!provider) {
-      return { success: false, error: `No git provider for connection "${target.connectionId}"` }
+      return { success: false, error: `No git provider for connection "${route.connectionId}"` }
     }
     return discoverCommitMessageModelsRemote(
       typedAgentId,

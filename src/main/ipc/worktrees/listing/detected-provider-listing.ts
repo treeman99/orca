@@ -53,6 +53,7 @@ export async function listDetectedWorktreesForCapturedRepo(
     let safeToAuthorize = true
     let sideEffectToken: DetectedWorktreeSideEffectToken | undefined
     let metadataPrune: DetectedWorktreeMetadataPrune | undefined
+    let hygieneDue: boolean | undefined
     if (isFolderRepo(repo)) {
       if (!isCurrent()) {
         return null
@@ -105,6 +106,7 @@ export async function listDetectedWorktreesForCapturedRepo(
       safeToAuthorize = scan.safeToAuthorize
     sideEffectToken = scan.sideEffectToken
       metadataPrune = scan.metadataPrune
+      hygieneDue = scan.hygieneDue
     }
     const aborted = abortedResult()
     if (aborted) {
@@ -131,7 +133,8 @@ export async function listDetectedWorktreesForCapturedRepo(
       await applyFreshDetectedWorktreeScanSideEffects(store, repo, gitWorktrees, metadataPrune, {
         isCurrent: () => isCurrent() && !providerAbort?.signal.aborted,
         sideEffectToken,
-        signal: providerAbort?.signal
+        signal: providerAbort?.signal,
+        ...(hygieneDue === undefined ? {} : { hygieneDue })
       })
       const aborted = abortedResult()
       if (aborted) {

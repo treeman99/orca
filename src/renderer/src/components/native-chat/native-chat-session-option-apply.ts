@@ -178,12 +178,6 @@ function applyDispatchOutcome(
     ctx.publish()
     throw new Error('Could not verify the model change; open the terminal to check.')
   }
-  if (dispatchResult?.outcome === 'interaction-required') {
-    ctx.clearModelTruth()
-    const snapshot = ctx.publish()
-    ctx.onAgentPicker?.()
-    return { snapshot }
-  }
   return null
 }
 

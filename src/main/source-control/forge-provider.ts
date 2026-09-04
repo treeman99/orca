@@ -1,3 +1,4 @@
+import type { ExecutionHostId } from '../../shared/execution-host'
 import type {
   CreateHostedReviewInput,
   CreateHostedReviewResult,
@@ -13,6 +14,7 @@ import {
 import { getMergeRequest, getMergeRequestForBranchOrThrow, getProjectSlug } from '../gitlab/client'
 import { createGitLabMergeRequest } from '../gitlab/merge-request-creation'
 import { mapGitHubReview, mapGitLabReview } from './forge-review-mappers'
+import { hostedReviewSshConnectionId } from './hosted-review-execution-host'
 import {
   hasHostedReviewLocalGitOptions,
   getHostedReviewLocalGitOptions,
@@ -23,7 +25,8 @@ export type ForgeProviderId = Exclude<HostedReviewProvider, 'unsupported'>
 
 export type ForgeProviderRepositoryContext = HostedReviewExecutionOptions & {
   repoPath: string
-  connectionId?: string | null
+  /** Resolved, never null: `local` and "unresolved" are no longer the same value. */
+  executionHostId: ExecutionHostId
 }
 
 export type ForgeReviewForBranchInput = ForgeProviderRepositoryContext & {
@@ -48,9 +51,14 @@ export type ForgeProvider = {
   createReview?(
     repoPath: string,
     input: CreateHostedReviewInput,
-    connectionId?: string | null,
+    executionHostId: ExecutionHostId,
     options?: HostedReviewExecutionOptions
   ): Promise<CreateHostedReviewResult>
+}
+
+/** The forge CLIs (`gh`, `glab`, the REST clients) run here; only their git reads are host-routed. */
+function forgeConnectionId(context: ForgeProviderRepositoryContext): string | null {
+  return hostedReviewSshConnectionId(context.executionHostId)
 }
 
 function hostedReviewExecutionArgs(
@@ -65,7 +73,11 @@ const gitLabForgeProvider = {
   id: 'gitlab',
   supportsReviewCreation: true,
   resolveRepository: (context) =>
-    getProjectSlug(context.repoPath, context.connectionId, ...hostedReviewExecutionArgs(context)),
+    getProjectSlug(
+      context.repoPath,
+      forgeConnectionId(context),
+      ...hostedReviewExecutionArgs(context)
+    ),
   async getReviewForBranch(input) {
     // Why: throw (not null) on a real lookup failure so eligibility records
     // `unavailable`, never a false "No merge request found" — same contract the
@@ -74,7 +86,7 @@ const gitLabForgeProvider = {
       input.repoPath,
       input.branch,
       input.linkedReviewNumber ?? null,
-      input.connectionId,
+      forgeConnectionId(input),
       ...hostedReviewExecutionArgs(input)
     )
     return mr ? mapGitLabReview(mr) : null
@@ -83,7 +95,7 @@ const gitLabForgeProvider = {
     const mr = await getMergeRequest(
       input.repoPath,
       input.number,
-      input.connectionId,
+      forgeConnectionId(input),
       ...hostedReviewExecutionArgs(input)
     )
     return mr ? mapGitLabReview(mr) : null
@@ -115,7 +127,7 @@ async function assertGitHubReviewRateLimitBudget(
 ): Promise<void> {
   const block = await getGitHubPRLookupRateLimitBlock(
     input.repoPath,
-    input.connectionId,
+    forgeConnectionId(input),
     getHostedReviewLocalGitOptions(input)
   )
   if (block) {
@@ -134,7 +146,11 @@ const gitHubForgeProvider = {
   // gh is authenticated to their host (the same signal GitLab uses for
   // self-hosted instances), so detection never falls through to Gitea (#8312).
   resolveRepository: async (context) =>
-    getRepoSlug(context.repoPath, context.connectionId, ...hostedReviewExecutionArgs(context)),
+    getRepoSlug(
+      context.repoPath,
+      forgeConnectionId(context),
+      ...hostedReviewExecutionArgs(context)
+    ),
   async getReviewForBranch(input) {
     await assertGitHubReviewRateLimitBudget(input)
     const fallbackReviewNumber =
@@ -144,7 +160,7 @@ const gitHubForgeProvider = {
       input.repoPath,
       input.branch,
       input.linkedReviewNumber ?? null,
-      input.connectionId,
+      forgeConnectionId(input),
       fallbackReviewNumber,
       {
         ...executionArgs[0],
@@ -163,11 +179,11 @@ const gitHubForgeProvider = {
             input.repoPath,
             '',
             input.number,
-            input.connectionId,
+            forgeConnectionId(input),
             null,
             ...executionArgs
           )
-        : await getPRForBranchOutcome(input.repoPath, '', input.number, input.connectionId)
+        : await getPRForBranchOutcome(input.repoPath, '', input.number, forgeConnectionId(input))
     return unwrapGitHubPRForBranchOutcome(outcome)
   },
   createReview: createGitHubPullRequest

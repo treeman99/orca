@@ -16,8 +16,8 @@
 // Adding a fork feature? Add it to config/fork-feature-ledger.json in the same commit.
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const projectDir = resolve(import.meta.dirname, '..', '..')
@@ -54,6 +54,19 @@ function countPolicySwitchConsumers(switchName) {
   return total
 }
 
+/** Entries in `dirname(pattern)` matching its `*`-bearing basename; [] when the directory is gone. */
+function matchesInDirectory(pattern) {
+  const directory = join(projectDir, dirname(pattern))
+  if (!existsSync(directory)) {
+    return []
+  }
+  const basename = pattern.slice(pattern.lastIndexOf('/') + 1)
+  const matcher = new RegExp(
+    `^${basename.split('*').map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`
+  )
+  return readdirSync(directory).filter((entry) => matcher.test(entry))
+}
+
 describe('fork feature ledger', () => {
   it('lists at least one anchor for every feature', () => {
     expect(ledger.features.length).toBeGreaterThan(0)
@@ -85,11 +98,16 @@ describe('fork feature ledger', () => {
 
   it('keeps every removed surface removed', () => {
     for (const path of ledger.absentPaths) {
-      expect(
-        existsSync(join(projectDir, path)),
+      const message =
         `${path} came back. Upstream re-adds a removed surface as NEW files, which merges ` +
-          'without a conflict — delete it again (README §6).'
-      ).toBe(false)
+        'without a conflict — delete it again (README §6).'
+      // A `*` in the last segment names a family, not one file: upstream keeps adding
+      // members to the cloud-relay workflow set, and an exact list would go stale silently.
+      if (path.includes('*')) {
+        expect(matchesInDirectory(path), message).toEqual([])
+        continue
+      }
+      expect(existsSync(join(projectDir, path)), message).toBe(false)
     }
   })
 

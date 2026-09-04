@@ -488,6 +488,36 @@ git diff --name-status v1.4.163..HEAD   # A=신규, M=upstream 파일 수정, D=
 | **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄). 문서: `skill-guides/orchestration.md`의 `## Project Rule Ledger` 절 + `## Next Action`의 원장 로드 한 구절 | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다. 오케스트레이션 가이드 절은 `config/scripts/orchestration-skill-guidance.test.mjs`가 지키므로 유실 시 테스트가 먼저 붉어집니다 |
 | **포크가 재작성해 소유한 문서** | `README.md`(upstream 원문 268줄을 사내 문서로 전면 교체 — 남은 공통 문장이 거의 없어 자동 병합이 되지 않습니다), `CLAUDE.md`(upstream은 `@AGENTS.md` 한 줄짜리 11바이트 스텁 → 126줄로 확장) | **둘 다 upstream에도 존재하므로 upstream이 손댈 때마다 반드시 충돌합니다.** 리베이스에서 사내 버전을 남기려면 `git checkout --theirs README.md CLAUDE.md` — **리베이스에서는 `--ours`가 재배치 대상(upstream), `--theirs`가 재생 중인 사내 커밋**이라 머지와 의미가 뒤집혀 있습니다. 그다음 upstream 변경분 중 필요한 것만 수동으로 반영하세요 |
 
+#### 디렉터리 통째로 지운 것 — `cloud/` (v1.4.197에서 제거)
+
+upstream v1.4.197이 **모바일 앱↔데스크톱 페어링 릴레이 서비스의 GCP 인프라 전체**를 모노레포에
+들여왔습니다 — `cloud/` 331파일 4MB(자체 pnpm 워크스페이스 `apps/relay`·`apps/relay-fence-broker`·
+`apps/relay-ops`·`packages/relay-contract`, Terraform 루트), `.github/workflows/cloud-*.yml` 25개,
+`.github/actions/cloud-sql-rollout-lease/`. 이 포크는 **전부 지웠습니다.**
+
+**왜 지웠나.** 제품 위험은 0이었습니다 — 데스크톱 빌드가 `cloud/`를 참조하지 않고, 클라이언트 쪽
+레인은 이미 `disableMobilePairing`·`disableCloudRelay`가 막습니다. 문제는 **저장소·CI 표면**입니다:
+25개 중 2개가 스케줄 트리거(`cloud-monitor-relay-clock-skew.yml` 매시, `cloud-power-relay-staging.yml`)라
+사내 origin에서 Actions가 켜져 있으면 벤더 GCP 프로젝트로 매시 인증을 시도하고, `cloud-verify.yml`은
+PR 트리거이며, 사내 보안 리뷰어가 우리 저장소에서 벤더 배포 파이프라인을 읽게 됩니다.
+
+**같이 지운 것 — 이걸 빠뜨리면 CI가 깨집니다.**
+
+| 무엇 | 어디 | 왜 |
+| --- | --- | --- |
+| `/cloud/`·`cloud-*.yml`·`cloud-sql-rollout-lease/` 3행 | `.github/CODEOWNERS` | 존재하지 않는 경로를 가리키게 됩니다 |
+| `passes the staging confirmation through the step environment` 케이스 | `config/scripts/release-blocker-fixes.test.mjs` | `cloud-prove-relay-asia-staging.yml`을 직접 읽으므로 ENOENT로 죽습니다 |
+
+**다음 동기화에서 할 일 — 매번 반복됩니다.**
+
+1. `cloud/**`는 대부분 **신규 파일**이라 충돌 없이 조용히 들어옵니다. 게이트가 먼저 말해 줍니다 —
+   `pnpm check:fork-feature-ledger`의 `absentPaths`에 `cloud`·`.github/workflows/cloud-*.yml`·
+   `.github/actions/cloud-sql-rollout-lease` 3건이 등재돼 있고, 워크플로는 **계열 글롭**으로 검사하므로
+   upstream이 `cloud-26.yml`을 새로 추가해도 잡힙니다.
+2. 빨개지면 `git rm -rqf cloud .github/workflows/cloud-*.yml .github/actions/cloud-sql-rollout-lease`.
+3. `.github/CODEOWNERS`와 `release-blocker-fixes.test.mjs`는 **자동 병합됩니다** — 충돌 표시 없이
+   되살아나므로 직접 확인하세요.
+
 #### 디렉터리 통째로 지운 것 — `docs/site` (v1.4.195에서 제거)
 
 upstream v1.4.195가 **Next.js 문서 사이트**(`docs/site/`, 115파일 + 자체 `package.json`·`pnpm-lock.yaml`)와

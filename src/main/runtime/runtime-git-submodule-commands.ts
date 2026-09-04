@@ -10,29 +10,17 @@ import {
   stageSubmoduleFiles,
   unstageSubmoduleFiles
 } from '../git/submodule-write-ops'
-import {
-  getSshGitProvider,
-  SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE
-} from '../providers/ssh-git-dispatch'
-import type { IGitProvider } from '../providers/types'
 import type { GitSubmoduleListResult } from '../../shared/git-submodule-list'
 import {
   localGitOptionsForTarget,
   normalizeRuntimeGitRelativePath,
+  requireRuntimeGitProvider,
   type RuntimeGitCommandHost
 } from './runtime-git-command-target'
 
 /** Fork-owned: submodule SCM parity with VS Code. Parent gitlink vs the submodule's own status. */
 export class RuntimeGitSubmoduleCommands {
   constructor(private readonly host: RuntimeGitCommandHost) {}
-
-  private requireSshProvider(connectionId: string): IGitProvider {
-    const provider = getSshGitProvider(connectionId)
-    if (!provider) {
-      throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-    }
-    return provider
-  }
 
   /**
    * Discard a file inside a submodule. `filePath` is relative to the SUBMODULE root.
@@ -48,11 +36,8 @@ export class RuntimeGitSubmoduleCommands {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativePath = normalizeRuntimeGitRelativePath(filePath)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
-    if (target.connectionId) {
-      const provider = getSshGitProvider(target.connectionId)
-      if (!provider) {
-        throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-      }
+    const provider = requireRuntimeGitProvider(target)
+    if (provider) {
       await provider.discardSubmoduleChanges(
         target.worktree.path,
         relativeSubmodulePath,
@@ -72,8 +57,9 @@ export class RuntimeGitSubmoduleCommands {
   /** Configured submodules of the parent worktree (capped; see MAX_DETECTED_SUBMODULES). */
   async listRuntimeGitSubmodules(worktreeSelector: string): Promise<GitSubmoduleListResult> {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
-    if (target.connectionId) {
-      return this.requireSshProvider(target.connectionId).listSubmodules(target.worktree.path)
+    const provider = requireRuntimeGitProvider(target)
+    if (provider) {
+      return provider.listSubmodules(target.worktree.path)
     }
     return listSubmodules(target.worktree.path, localGitOptionsForTarget(target))
   }
@@ -87,8 +73,9 @@ export class RuntimeGitSubmoduleCommands {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
     const relativePaths = filePaths.map((filePath) => normalizeRuntimeGitRelativePath(filePath))
-    if (target.connectionId) {
-      await this.requireSshProvider(target.connectionId).stageSubmoduleFiles(
+    const provider = requireRuntimeGitProvider(target)
+    if (provider) {
+      await provider.stageSubmoduleFiles(
         target.worktree.path,
         relativeSubmodulePath,
         relativePaths
@@ -113,8 +100,9 @@ export class RuntimeGitSubmoduleCommands {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
     const relativePaths = filePaths.map((filePath) => normalizeRuntimeGitRelativePath(filePath))
-    if (target.connectionId) {
-      await this.requireSshProvider(target.connectionId).unstageSubmoduleFiles(
+    const provider = requireRuntimeGitProvider(target)
+    if (provider) {
+      await provider.unstageSubmoduleFiles(
         target.worktree.path,
         relativeSubmodulePath,
         relativePaths
@@ -137,8 +125,9 @@ export class RuntimeGitSubmoduleCommands {
   ): Promise<{ success: boolean; error?: string }> {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
-    if (target.connectionId) {
-      return this.requireSshProvider(target.connectionId).commitSubmodule(
+    const provider = requireRuntimeGitProvider(target)
+    if (provider) {
+      return provider.commitSubmodule(
         target.worktree.path,
         relativeSubmodulePath,
         message
@@ -159,8 +148,9 @@ export class RuntimeGitSubmoduleCommands {
   ): Promise<{ ok: true }> {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
-    if (target.connectionId) {
-      await this.requireSshProvider(target.connectionId).pushSubmodule(
+    const provider = requireRuntimeGitProvider(target)
+    if (provider) {
+      await provider.pushSubmodule(
         target.worktree.path,
         relativeSubmodulePath,
         publish
@@ -183,8 +173,9 @@ export class RuntimeGitSubmoduleCommands {
   ): Promise<{ ok: true }> {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
-    if (target.connectionId) {
-      await this.requireSshProvider(target.connectionId).pullSubmodule(
+    const provider = requireRuntimeGitProvider(target)
+    if (provider) {
+      await provider.pullSubmodule(
         target.worktree.path,
         relativeSubmodulePath
       )
@@ -205,11 +196,8 @@ export class RuntimeGitSubmoduleCommands {
   ): Promise<{ ok: true }> {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
-    if (target.connectionId) {
-      const provider = getSshGitProvider(target.connectionId)
-      if (!provider) {
-        throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-      }
+    const provider = requireRuntimeGitProvider(target)
+    if (provider) {
       await provider.restoreSubmodulePointer(target.worktree.path, relativeSubmodulePath)
       return { ok: true }
     }

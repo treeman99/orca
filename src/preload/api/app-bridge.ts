@@ -14,6 +14,8 @@ import type { PreloadApi } from '../api-types'
 
 export const appApi = {
   getIdentity: (): Promise<AppIdentity> => ipcRenderer.invoke('app:getIdentity'),
+  // Fork surface: upstream serves the app version off the updater bridge this build removed.
+  getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
   getFeatureWallAssetBaseUrl: (): Promise<string> =>
     ipcRenderer.invoke('app:getFeatureWallAssetBaseUrl'),
   relaunch: (): Promise<void> =>
@@ -40,8 +42,11 @@ export const appApi = {
       throw new Error('Failed to stage renderer state before unload.')
     }
   },
+  awaitBeforeUnloadCheckpoint: () => awaitBeforeUnloadCheckpoint(),
   awaitFirstWindowStartupServices: (): Promise<void> =>
     ipcRenderer.invoke('app:awaitFirstWindowStartupServices'),
+  awaitGitEnvironmentStartupBarrier: (): Promise<void> =>
+    ipcRenderer.invoke('app:awaitGitEnvironmentStartupBarrier'),
   prepareTerminalStartupRestoration: (): Promise<void> =>
     ipcRenderer.invoke('app:prepareTerminalStartupRestoration'),
   recoverLegacyWorkerTerminalsForRendererStartup: (): Promise<void> =>
@@ -73,4 +78,4 @@ export const appApi = {
     ipcRenderer.invoke('app:pickFloatingWorkspaceDirectory'),
   writeTerminalRenderDesyncEvidence: (args: WriteTerminalRenderDesyncEvidenceArgs) =>
     ipcRenderer.invoke('terminal:writeRenderDesyncEvidence', args)
-}
+} satisfies PreloadApi['app']

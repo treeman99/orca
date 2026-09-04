@@ -101,7 +101,7 @@ describe('getHostedReviewForBranch', () => {
     await expect(
       getHostedReviewForBranch({
         repoPath: '/repo',
-        connectionId: 'ssh-1',
+        executionHostId: 'ssh:ssh-1',
         branch: 'refs/heads/feature'
       })
     ).resolves.toEqual({
@@ -138,6 +138,7 @@ describe('getHostedReviewForBranch', () => {
 
     await expect(
       getHostedReviewForBranch({
+        executionHostId: 'local',
         repoPath: '/repo',
         branch: 'feature',
         linkedGitHubPR: 3
@@ -147,7 +148,7 @@ describe('getHostedReviewForBranch', () => {
       number: 3,
       status: 'pending'
     })
-    expect(getPRForBranchOutcomeMock).toHaveBeenCalledWith('/repo', 'feature', 3, undefined, null, {
+    expect(getPRForBranchOutcomeMock).toHaveBeenCalledWith('/repo', 'feature', 3, null, null, {
       currentHeadOid: null
     })
   })
@@ -166,6 +167,7 @@ describe('getHostedReviewForBranch', () => {
 
     await expect(
       getHostedReviewForBranch({
+        executionHostId: 'local',
         repoPath: '/repo',
         branch: 'feature/wsl',
         localGitExecOptions: { wslDistro: 'Ubuntu' }
@@ -179,12 +181,12 @@ describe('getHostedReviewForBranch', () => {
     // Why: the WSL exec options must reach both provider detection and the
     // selected provider's lookup, not just the first call.
     const executionOptions = { localGitExecOptions: { wslDistro: 'Ubuntu' } }
-    expect(getProjectSlugMock).toHaveBeenCalledWith('/repo', undefined, executionOptions)
+    expect(getProjectSlugMock).toHaveBeenCalledWith('/repo', null, executionOptions)
     expect(getMergeRequestForBranchMock).toHaveBeenCalledWith(
       '/repo',
       'feature/wsl',
       null,
-      undefined,
+      null,
       executionOptions
     )
   })
@@ -208,6 +210,7 @@ describe('getHostedReviewForBranch', () => {
 
     await expect(
       getHostedReviewForBranch({
+        executionHostId: 'local',
         repoPath: '/repo',
         branch: '',
         fallbackGitHubPR: 42
@@ -217,7 +220,7 @@ describe('getHostedReviewForBranch', () => {
       number: 42,
       status: 'success'
     })
-    expect(getPRForBranchOutcomeMock).toHaveBeenCalledWith('/repo', '', null, undefined, 42, {
+    expect(getPRForBranchOutcomeMock).toHaveBeenCalledWith('/repo', '', null, null, 42, {
       acceptMergedFallbackPR: true,
       currentHeadOid: null
     })

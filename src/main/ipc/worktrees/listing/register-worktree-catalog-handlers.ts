@@ -93,6 +93,7 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
         let safeToAuthorize = true
         let sideEffectToken: DetectedWorktreeSideEffectToken | undefined
         let metadataPrune: DetectedWorktreeMetadataPrune | undefined
+        let hygieneDue: boolean | undefined
         if (isFolderRepo(repo)) {
           return listVisibleFolderWorkspaces(store, repo)
         } else if (repo.connectionId) {
@@ -124,6 +125,7 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
           safeToAuthorize = scan.safeToAuthorize
           sideEffectToken = scan.sideEffectToken
           metadataPrune = scan.metadataPrune
+          hygieneDue = scan.hygieneDue
         }
         // Idempotent and non-destructive, so it runs outside the fresh gate: a cached hit or a
         // follower must refill an authorized-roots cache that was invalidated meanwhile.
@@ -137,7 +139,8 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
             gitWorktrees,
             metadataPrune,
             {
-              sideEffectToken
+              sideEffectToken,
+              ...(hygieneDue === undefined ? {} : { hygieneDue })
             }
           )
         }
@@ -192,6 +195,7 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
       let safeToAuthorize = true
       let sideEffectToken: DetectedWorktreeSideEffectToken | undefined
       let metadataPrune: DetectedWorktreeMetadataPrune | undefined
+      let hygieneDue: boolean | undefined
       if (isFolderRepo(repo)) {
         return listVisibleFolderWorkspaces(store, repo)
       } else if (repo.connectionId) {
@@ -223,6 +227,7 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
         safeToAuthorize = scan.safeToAuthorize
         sideEffectToken = scan.sideEffectToken
         metadataPrune = scan.metadataPrune
+        hygieneDue = scan.hygieneDue
       }
       // Idempotent and non-destructive, so it runs outside the fresh gate: a cached hit or a
       // follower must refill an authorized-roots cache that was invalidated meanwhile.
@@ -231,7 +236,8 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
       }
       if (freshScan) {
         await applyFreshDetectedWorktreeScanSideEffects(store, repo, gitWorktrees, metadataPrune, {
-          sideEffectToken
+          sideEffectToken,
+          ...(hygieneDue === undefined ? {} : { hygieneDue })
         })
       }
       loggedWorktreeListFailures.delete(`${repo.id}:${repo.path}`)

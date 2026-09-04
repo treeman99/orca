@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import { getBundledLauncherPath } from '../cli/cli-installer'
+import { getBundledLauncherPath } from '../cli/bundled-cli-launcher-path'
 import type { SkillUpdateCliInvocation } from '../skills/skill-update-run'
 import {
   SkillDiscoveryTargetSchema,

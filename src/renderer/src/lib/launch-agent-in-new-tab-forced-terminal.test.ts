@@ -36,7 +36,9 @@ vi.mock('@/lib/native-chat-transcript-readability', () => ({
 }))
 vi.mock('@/runtime/web-runtime-session', () => ({ isWebRuntimeSessionActive: () => false }))
 vi.mock('@/lib/worktree-runtime-owner', () => ({
-  getRuntimeEnvironmentIdForWorktree: () => null
+  getRuntimeEnvironmentIdForWorktree: () => null,
+  // v1.4.197 routes the launch through resolveAgentLaunchRoute, which resolves the host here.
+  getExecutionHostIdForWorktree: () => 'local'
 }))
 vi.mock('@/components/tab-bar/reconcile-order', () => ({
   reconcileTabOrder: (_stored: unknown, terminalIds: string[]) => terminalIds

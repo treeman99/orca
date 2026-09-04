@@ -1,11 +1,9 @@
 import React from 'react'
-import { Bell, BookOpen, CalendarClock, EyeOff, Files, Search, Smartphone } from 'lucide-react'
+import { BookOpen, CalendarClock, EyeOff, Files, Search, Smartphone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store'
 import { cn } from '@/lib/utils'
-import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { ARTIFACT_SHARING_REMOVED } from '../../../../shared/artifact-sharing-removal'
-import { useActivityUnreadCount } from '@/components/activity/useActivityUnreadCount'
 import { useShortcutKeyComboDetails } from '@/hooks/useShortcutLabel'
 import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
 import { useMobileSidebarOnboardingBadge } from './mobile-sidebar-onboarding-badge'
@@ -21,20 +19,9 @@ import {
 } from '@/enterprise/enterprise-policy-access'
 import { translate } from '@/i18n/i18n'
 import { lazyWithRetry } from '@/lib/lazy-with-retry'
+import type { GlobalSettings } from '../../../../shared/global-settings-types'
 
 export { getSetupGuideSidebarEntryReady, shouldShowSetupGuideEntry } from './SetupGuideSidebarEntry'
-
-export function shouldShowAgentsButton(
-  settings: Pick<GlobalSettings, 'experimentalActivity'> | null | undefined
-): boolean {
-  return settings?.experimentalActivity === true
-}
-
-export function shouldShowAgentDashboardButton(
-  settings: Pick<GlobalSettings, 'experimentalAgentDashboardPopout'> | null | undefined
-): boolean {
-  return settings?.experimentalAgentDashboardPopout === true
-}
 
 // `showMobileButton` is a per-user setting that defaults to on, so on a fleet without
 // the policy file two identical installs legitimately disagree. When the policy IS in
@@ -42,28 +29,34 @@ export function shouldShowAgentDashboardButton(
 // `pluginSystemEnabled`. Reading the policy inside the predicate (not only at the call
 // site below) keeps that true for every caller, including a rebase's new one.
 export function shouldShowMobileButton(
-  settings: Pick<GlobalSettings, 'showMobileButton'> | null | undefined
+  settings: Partial<Pick<GlobalSettings, 'showMobileButton'>> | null | undefined
 ): boolean {
   return !getEnterprisePolicyView().disableMobilePairing && settings?.showMobileButton !== false
 }
 
 export function shouldShowAutomationsButton(
-  settings: Pick<GlobalSettings, 'showAutomationsButton'> | null | undefined
+  settings: Partial<Pick<GlobalSettings, 'showAutomationsButton'>> | null | undefined
 ): boolean {
   return settings?.showAutomationsButton !== false
 }
 
 export function shouldShowArtifactsButton(
-  settings: Pick<GlobalSettings, 'showArtifactsButton'> | null | undefined
+  settings: Partial<Pick<GlobalSettings, 'showArtifactsButton'>> | null | undefined
 ): boolean {
   // The setting survives so an existing profile round-trips unchanged; the row does not.
   return !ARTIFACT_SHARING_REMOVED && settings?.showArtifactsButton === true
 }
 
 export function shouldShowSkillsButton(
-  settings: Pick<GlobalSettings, 'showSkillsButton'> | null | undefined
+  settings: Partial<Pick<GlobalSettings, 'showSkillsButton'>> | null | undefined
 ): boolean {
   return settings?.showSkillsButton === true
+}
+
+export function shouldShowAgentDashboardButton(
+  settings: Partial<Pick<GlobalSettings, 'experimentalAgentDashboardPopout'>> | null | undefined
+): boolean {
+  return settings?.experimentalAgentDashboardPopout === true
 }
 
 const AgentDashboardSidebarEntry = lazyWithRetry(() => import('./AgentDashboardSidebarEntry'))
@@ -74,20 +67,13 @@ const SidebarNav = React.memo(function SidebarNav() {
   useTranslation()
   const worktreePaletteShortcutCombos = useShortcutKeyComboDetails('worktree.palette')
   const openAutomationsPage = useAppStore((s) => s.openAutomationsPage)
-  const openActivityPage = useAppStore((s) => s.openActivityPage)
   const openMobilePage = useAppStore((s) => s.openMobilePage)
   const openArtifactsPage = useAppStore((s) => s.openArtifactsPage)
   const openSkillsPage = useAppStore((s) => s.openSkillsPage)
   const openModal = useAppStore((s) => s.openModal)
   const updateSettings = useAppStore((s) => s.updateSettings)
   const activeView = useAppStore((s) => s.activeView)
-  const experimentalSidebarButtons = useAppStore(
-    (s) =>
-      (shouldShowAgentsButton(s.settings) ? 1 : 0) |
-      (shouldShowAgentDashboardButton(s.settings) ? 2 : 0)
-  )
-  const showAgentsButton = (experimentalSidebarButtons & 1) !== 0
-  const showAgentDashboardButton = (experimentalSidebarButtons & 2) !== 0
+  const showAgentDashboardButton = useAppStore((s) => shouldShowAgentDashboardButton(s.settings))
   const showAutomationsButton = useAppStore((s) => shouldShowAutomationsButton(s.settings))
   // The predicate already reads the policy; the hook stays so the row disappears when
   // the async policy sync lands after first paint, not only on the next store write.
@@ -97,11 +83,9 @@ const SidebarNav = React.memo(function SidebarNav() {
   const showArtifactsButton = useAppStore((s) => shouldShowArtifactsButton(s.settings))
   const showSkillsButton = useAppStore((s) => shouldShowSkillsButton(s.settings))
   const automationsActive = activeView === 'automations'
-  const activityActive = activeView === 'activity'
   const mobileActive = activeView === 'mobile'
   const artifactsActive = activeView === 'artifacts'
   const skillsActive = activeView === 'skills'
-  const activityUnreadCount = useActivityUnreadCount(showAgentsButton, 'sidebar-badge')
   const mobileOnboardingBadge = useMobileSidebarOnboardingBadge(showMobileButton)
   const hideAutomationsButton = React.useCallback(() => {
     void updateSettings({ showAutomationsButton: false })
@@ -243,35 +227,6 @@ const SidebarNav = React.memo(function SidebarNav() {
         <React.Suspense fallback={null}>
           <AgentDashboardSidebarEntry />
         </React.Suspense>
-      ) : null}
-      {showAgentsButton ? (
-        <button
-          type="button"
-          onClick={openActivityPage}
-          aria-current={activityActive ? 'page' : undefined}
-          className={cn(
-            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-medium tracking-tight transition-colors',
-            activityActive
-              ? 'bg-worktree-sidebar-accent text-worktree-sidebar-accent-foreground'
-              : 'text-worktree-sidebar-foreground/60 hover:bg-worktree-sidebar-foreground/8'
-          )}
-        >
-          <Bell
-            className={cn(
-              'size-4 shrink-0',
-              !activityActive && 'text-worktree-sidebar-foreground/30'
-            )}
-            strokeWidth={activityActive ? 2.25 : 1.75}
-          />
-          <span className="flex-1">
-            {translate('auto.components.sidebar.SidebarNav.9c95e1ce91', 'Agents')}
-          </span>
-          {activityUnreadCount > 0 ? (
-            <span className="rounded-full bg-primary px-1.5 py-px text-[10px] font-semibold text-primary-foreground">
-              {activityUnreadCount}
-            </span>
-          ) : null}
-        </button>
       ) : null}
       {showMobileButton ? (
         <ContextMenu>

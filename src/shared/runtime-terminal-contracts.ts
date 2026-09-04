@@ -160,6 +160,14 @@ export type RuntimeWorktreeTerminalSleepResult = {
     }
 )
 
+export type RuntimeWorktreeTerminalCloseResult = {
+  closed: number
+  stopped: number
+  retiredSurfaces: true
+  ptyStopVerdict?: 'live' | 'unverifiable'
+  ptyStopReason?: string
+}
+
 export type RuntimeTerminalInteractiveWaitSource = 'hook' | 'prompt-text' | 'title'
 
 export type RuntimeTerminalInteractiveWait = {
@@ -259,6 +267,8 @@ export type RuntimeTerminalCreateRequestPayload =
 
 export type RuntimeTerminalCreate = {
   handle: string
+  /** Host-owned PTY incarnation used to fence remote identity observations. */
+  incarnationId?: string | null
   tabId?: string
   paneKey?: string | null
   ptyId?: string | null
@@ -284,6 +294,8 @@ export type RuntimeTerminalSplit = {
 
 export type RuntimeTerminalResolvePane = {
   handle: string
+  /** Host-owned PTY incarnation used to fence remote identity observations. */
+  incarnationId?: string | null
   tabId: string
   leafId: string
   ptyId: string | null

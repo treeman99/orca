@@ -125,8 +125,12 @@ describe('forge provider interface', () => {
     getProjectSlugMock.mockResolvedValue({ host: 'gitlab.com', path: 'team/orca' })
     getRepoSlugMock.mockResolvedValue({ owner: 'team', repo: 'orca' })
 
-    await expect(detectHostedReviewProvider({ repoPath: '/repo' })).resolves.toBe('gitlab')
-    await expect(getForgeProviderForRepository({ repoPath: '/repo' })).resolves.toMatchObject({
+    await expect(
+      detectHostedReviewProvider({ executionHostId: 'local', repoPath: '/repo' })
+    ).resolves.toBe('gitlab')
+    await expect(
+      getForgeProviderForRepository({ executionHostId: 'local', repoPath: '/repo' })
+    ).resolves.toMatchObject({
       id: 'gitlab'
     })
     expect(getRepoSlugMock).not.toHaveBeenCalled()
@@ -145,8 +149,12 @@ describe('forge provider interface', () => {
       host: 'github.acme-corp.com'
     })
 
-    await expect(detectHostedReviewProvider({ repoPath: '/repo' })).resolves.toBe('github')
-    await expect(getForgeProviderForRepository({ repoPath: '/repo' })).resolves.toMatchObject({
+    await expect(
+      detectHostedReviewProvider({ executionHostId: 'local', repoPath: '/repo' })
+    ).resolves.toBe('github')
+    await expect(
+      getForgeProviderForRepository({ executionHostId: 'local', repoPath: '/repo' })
+    ).resolves.toMatchObject({
       id: 'github'
     })
     // Gitea must never be consulted once GitHub claims the enterprise host.
@@ -160,7 +168,9 @@ describe('forge provider interface', () => {
     // 로그인돼 있지 않으면 뒤를 받아 줄 제공자가 없다.
     getEnterpriseGitHubRepoSlugMock.mockResolvedValue(null)
 
-    await expect(detectHostedReviewProvider({ repoPath: '/repo' })).resolves.toBe('unsupported')
+    await expect(
+      detectHostedReviewProvider({ executionHostId: 'local', repoPath: '/repo' })
+    ).resolves.toBe('unsupported')
   })
 
   it('keeps review creation capability scoped to providers with creation support', async () => {
@@ -184,23 +194,31 @@ describe('forge provider interface', () => {
 
     const provider = getForgeProviderById('github')
     await expect(
-      provider.createReview?.('/repo', {
-        provider: 'github',
-        base: 'main',
-        head: 'feature/provider-interface',
-        title: 'Add provider interface'
-      })
+      provider.createReview?.(
+        '/repo',
+        {
+          provider: 'github',
+          base: 'main',
+          head: 'feature/provider-interface',
+          title: 'Add provider interface'
+        },
+        'local'
+      )
     ).resolves.toEqual({
       ok: true,
       number: 12,
       url: 'https://github.com/team/orca/pull/12'
     })
-    expect(createGitHubPullRequestMock).toHaveBeenCalledWith('/repo', {
-      provider: 'github',
-      base: 'main',
-      head: 'feature/provider-interface',
-      title: 'Add provider interface'
-    })
+    expect(createGitHubPullRequestMock).toHaveBeenCalledWith(
+      '/repo',
+      {
+        provider: 'github',
+        base: 'main',
+        head: 'feature/provider-interface',
+        title: 'Add provider interface'
+      },
+      'local'
+    )
   })
 
   it('routes GitLab review creation through the shared provider contract', async () => {
@@ -220,7 +238,7 @@ describe('forge provider interface', () => {
           head: 'feature/provider-interface',
           title: 'Add provider interface'
         },
-        'ssh-1'
+        'ssh:ssh-1'
       )
     ).resolves.toEqual({
       ok: true,
@@ -235,7 +253,7 @@ describe('forge provider interface', () => {
         head: 'feature/provider-interface',
         title: 'Add provider interface'
       },
-      'ssh-1'
+      'ssh:ssh-1'
     )
   })
 
@@ -257,7 +275,7 @@ describe('forge provider interface', () => {
     await expect(
       getForgeProviderById('github').getReviewForBranch({
         repoPath: '/repo',
-        connectionId: 'ssh-1',
+        executionHostId: 'ssh:ssh-1',
         branch: '',
         fallbackReviewNumber: 7
       })
@@ -277,7 +295,7 @@ describe('forge provider interface', () => {
 
     await getForgeProviderById('github').getReviewForBranch({
       repoPath: '/repo',
-      connectionId: null,
+      executionHostId: 'local',
       branch: 'feature/x',
       githubCurrentHeadOid: 'abc1234'
     })
@@ -293,7 +311,7 @@ describe('forge provider interface', () => {
     await expect(
       getForgeProviderById('github').getReviewForBranch({
         repoPath: '/repo',
-        connectionId: null,
+        executionHostId: 'local',
         branch: 'feature/x'
       })
     ).resolves.toBeNull()
@@ -310,7 +328,7 @@ describe('forge provider interface', () => {
     await expect(
       getForgeProviderById('github').getReviewForBranch({
         repoPath: '/repo',
-        connectionId: null,
+        executionHostId: 'local',
         branch: 'feature/x'
       })
     ).rejects.toThrow(/network/)
@@ -324,7 +342,7 @@ describe('forge provider interface', () => {
     await expect(
       getForgeProviderById('github').getReviewForBranch({
         repoPath: '/repo',
-        connectionId: null,
+        executionHostId: 'local',
         branch: 'feature/x'
       })
       // Throwing (not null) keeps a low budget from reading as "no pull request".
@@ -340,7 +358,7 @@ describe('forge provider interface', () => {
     await expect(
       getForgeProviderById('github').getReviewByNumber({
         repoPath: '/repo',
-        connectionId: null,
+        executionHostId: 'local',
         number: 42
       })
     ).rejects.toThrow(/rate_limited/)
@@ -354,7 +372,7 @@ describe('forge provider interface', () => {
     await expect(
       getForgeProviderById('gitlab').getReviewForBranch({
         repoPath: '/repo',
-        connectionId: null,
+        executionHostId: 'local',
         branch: 'feature/x'
       })
     ).resolves.toBeNull()

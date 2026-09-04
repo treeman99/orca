@@ -36,15 +36,18 @@ vi.mock('./github-api-repository', async (importOriginal) =>
   )
 )
 
-import { checkOrcaStarred, starOrca } from './client'
+import { __resetOrcaStarCheckForTests, checkOrcaStarred, starOrca } from './client'
 import { resetOriginRepositoryCache } from './client-test-harness'
 import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 
-const { execFileAsyncMock, acquireMock, releaseMock } = clientMocks
+const { ghExecFileAsyncMock, acquireMock, releaseMock } = clientMocks
 
 beforeEach(() => {
   resetOriginRepositoryCache()
-  execFileAsyncMock.mockReset()
+  // Upstream coalesces concurrent checks into one in-flight promise; a leftover would let
+  // the next case inherit this one's answer and hide a gate that stopped firing.
+  __resetOrcaStarCheckForTests()
+  ghExecFileAsyncMock.mockReset()
   acquireMock.mockReset()
   releaseMock.mockReset()
   acquireMock.mockResolvedValue(undefined)
@@ -58,7 +61,7 @@ describe('checkOrcaStarred under enterprise policy', () => {
     // "Already starred" is what makes every caller drop the prompt silently.
     await expect(checkOrcaStarred()).resolves.toBe(true)
 
-    expect(execFileAsyncMock).not.toHaveBeenCalled()
+    expect(ghExecFileAsyncMock).not.toHaveBeenCalled()
     expect(acquireMock).not.toHaveBeenCalled()
   })
 
@@ -66,24 +69,23 @@ describe('checkOrcaStarred under enterprise policy', () => {
     getEnterprisePolicyMock.mockReturnValue(
       makeLockdownPolicy({ lockdown: false, disableStarNag: false })
     )
-    execFileAsyncMock.mockResolvedValueOnce({ stdout: 'HTTP/2.0 204 No Content\r\n', stderr: '' })
+    ghExecFileAsyncMock.mockResolvedValueOnce({ stdout: 'HTTP/2.0 204 No Content\r\n', stderr: '' })
 
     await expect(checkOrcaStarred()).resolves.toBe(true)
 
-    expect(execFileAsyncMock).toHaveBeenCalledTimes(1)
+    expect(ghExecFileAsyncMock).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('starOrca under enterprise policy', () => {
   it('stars the repo through gh when no policy blocks it', async () => {
-    execFileAsyncMock.mockResolvedValueOnce({ stdout: '', stderr: '' })
+    ghExecFileAsyncMock.mockResolvedValueOnce({ stdout: '', stderr: '' })
 
     await expect(starOrca()).resolves.toBe(true)
 
-    expect(execFileAsyncMock).toHaveBeenCalledWith(
-      'gh',
+    expect(ghExecFileAsyncMock).toHaveBeenCalledWith(
       ['api', '-X', 'PUT', 'user/starred/stablyai/orca'],
-      { encoding: 'utf-8' }
+      { encoding: 'utf-8', timeout: 15_000 }
     )
   })
 
@@ -92,7 +94,7 @@ describe('starOrca under enterprise policy', () => {
 
     await expect(starOrca()).resolves.toBe(false)
 
-    expect(execFileAsyncMock).not.toHaveBeenCalled()
+    expect(ghExecFileAsyncMock).not.toHaveBeenCalled()
     expect(acquireMock).not.toHaveBeenCalled()
   })
 })

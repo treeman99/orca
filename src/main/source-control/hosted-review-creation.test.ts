@@ -257,12 +257,16 @@ describe('createHostedReview', () => {
     })
 
     await expect(
-      createHostedReview('/repo', {
-        provider: 'github',
-        base: 'main',
-        head: 'feature',
-        title: 'Feature'
-      })
+      createHostedReview(
+        '/repo',
+        {
+          provider: 'github',
+          base: 'main',
+          head: 'feature',
+          title: 'Feature'
+        },
+        'local'
+      )
     ).resolves.toEqual({
       ok: false,
       code: 'validation',
@@ -280,12 +284,16 @@ describe('createHostedReview', () => {
     })
 
     await expect(
-      createHostedReview('/repo', {
-        provider: 'github',
-        base: 'main',
-        head: 'feature',
-        title: 'Feature'
-      })
+      createHostedReview(
+        '/repo',
+        {
+          provider: 'github',
+          base: 'main',
+          head: 'feature',
+          title: 'Feature'
+        },
+        'local'
+      )
     ).resolves.toEqual({
       ok: false,
       code: 'validation',
@@ -307,12 +315,16 @@ describe('createHostedReview', () => {
     })
 
     await expect(
-      createHostedReview('/repo', {
-        provider: 'github',
-        base: 'stacked-parent',
-        head: 'feature',
-        title: 'Feature'
-      })
+      createHostedReview(
+        '/repo',
+        {
+          provider: 'github',
+          base: 'stacked-parent',
+          head: 'feature',
+          title: 'Feature'
+        },
+        'local'
+      )
     ).resolves.toEqual({
       ok: false,
       code: 'validation',
@@ -324,12 +336,16 @@ describe('createHostedReview', () => {
 
   it('creates the pull request after fresh main-process validation passes', async () => {
     await expect(
-      createHostedReview('/repo', {
-        provider: 'github',
-        base: 'main',
-        head: 'feature',
-        title: 'Feature'
-      })
+      createHostedReview(
+        '/repo',
+        {
+          provider: 'github',
+          base: 'main',
+          head: 'feature',
+          title: 'Feature'
+        },
+        'local'
+      )
     ).resolves.toEqual({
       ok: true,
       number: 12,
@@ -348,7 +364,7 @@ describe('createHostedReview', () => {
           head: 'feature',
           title: 'Feature'
         },
-        null,
+        'local',
         { localGitExecOptions: { wslDistro: 'Ubuntu' } }
       )
     ).resolves.toEqual({
@@ -391,7 +407,7 @@ describe('createHostedReview', () => {
     expect(createGitHubPullRequestMock).toHaveBeenCalledWith(
       '/repo',
       expect.objectContaining({ provider: 'github', head: 'feature' }),
-      null,
+      'local',
       { localGitExecOptions: { wslDistro: 'Ubuntu' } }
     )
   })
@@ -400,12 +416,16 @@ describe('createHostedReview', () => {
     mockGitHubEnterpriseProvider()
 
     await expect(
-      createHostedReview('/repo', {
-        provider: 'github',
-        base: 'main',
-        head: 'feature',
-        title: 'Feature'
-      })
+      createHostedReview(
+        '/repo',
+        {
+          provider: 'github',
+          base: 'main',
+          head: 'feature',
+          title: 'Feature'
+        },
+        'local'
+      )
     ).resolves.toEqual({
       ok: true,
       number: 12,
@@ -423,12 +443,16 @@ describe('createHostedReview', () => {
     mockGitLabProvider()
 
     await expect(
-      createHostedReview('/repo', {
-        provider: 'gitlab',
-        base: 'main',
-        head: 'feature',
-        title: 'Feature'
-      })
+      createHostedReview(
+        '/repo',
+        {
+          provider: 'gitlab',
+          base: 'main',
+          head: 'feature',
+          title: 'Feature'
+        },
+        'local'
+      )
     ).resolves.toEqual({
       ok: true,
       number: 44,
@@ -447,7 +471,7 @@ describe('createHostedReview', () => {
         head: 'feature',
         title: 'Feature'
       },
-      undefined
+      'local'
     )
     expect(createGitHubPullRequestMock).not.toHaveBeenCalled()
   })
@@ -491,7 +515,7 @@ describe('createHostedReview', () => {
           head: 'feature',
           title: 'Feature'
         },
-        'ssh-1'
+        'ssh:ssh-1'
       )
     ).resolves.toEqual({
       ok: true,
@@ -523,7 +547,7 @@ describe('createHostedReview', () => {
         head: 'feature',
         title: 'Feature'
       },
-      'ssh-1'
+      'ssh:ssh-1'
     )
   })
 
@@ -540,12 +564,16 @@ describe('createHostedReview', () => {
     })
 
     await expect(
-      createHostedReview('/repo', {
-        provider: 'github',
-        base: 'main',
-        head: 'feature',
-        title: 'Feature'
-      })
+      createHostedReview(
+        '/repo',
+        {
+          provider: 'github',
+          base: 'main',
+          head: 'feature',
+          title: 'Feature'
+        },
+        'local'
+      )
     ).resolves.toEqual({
       ok: false,
       code: 'already_exists',
