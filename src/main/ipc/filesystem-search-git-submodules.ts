@@ -5,7 +5,7 @@
  * carrying the `initialized` flag), so a repo without submodules pays one cached
  * `git config` per search and nothing else. A folder workspace degrades to an empty list.
  */
-import type { ChildProcess } from 'node:child_process'
+import type { ChildProcessHandle } from '../../shared/child-process/process-spec'
 import type { SubmoduleSearchHost } from '../../shared/text-search-submodule-pass'
 import { gitSpawnAfterWindowsEnvironmentReady } from '../git/runner'
 import { assertSubmoduleWorktreeRoot, resolveSubmoduleWorktreePath } from '../git/status'
@@ -27,7 +27,7 @@ export function createLocalSubmoduleSearchHost(localGitOptions: {
       await assertSubmoduleWorktreeRoot(submoduleRoot, wslOption)
       return submoduleRoot
     },
-    spawnGitGrep(cwd: string, gitArgs: string[]): Promise<ChildProcess> {
+    spawnGitGrep(cwd: string, gitArgs: string[]): Promise<ChildProcessHandle> {
       return gitSpawnAfterWindowsEnvironmentReady(gitArgs, {
         cwd,
         admissionTier: 'interactive',

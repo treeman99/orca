@@ -488,6 +488,35 @@ git diff --name-status v1.4.163..HEAD   # A=신규, M=upstream 파일 수정, D=
 | **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄). 문서: `skill-guides/orchestration.md`의 `## Project Rule Ledger` 절 + `## Next Action`의 원장 로드 한 구절 | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다. 오케스트레이션 가이드 절은 `config/scripts/orchestration-skill-guidance.test.mjs`가 지키므로 유실 시 테스트가 먼저 붉어집니다 |
 | **포크가 재작성해 소유한 문서** | `README.md`(upstream 원문 268줄을 사내 문서로 전면 교체 — 남은 공통 문장이 거의 없어 자동 병합이 되지 않습니다), `CLAUDE.md`(upstream은 `@AGENTS.md` 한 줄짜리 11바이트 스텁 → 126줄로 확장) | **둘 다 upstream에도 존재하므로 upstream이 손댈 때마다 반드시 충돌합니다.** 리베이스에서 사내 버전을 남기려면 `git checkout --theirs README.md CLAUDE.md` — **리베이스에서는 `--ours`가 재배치 대상(upstream), `--theirs`가 재생 중인 사내 커밋**이라 머지와 의미가 뒤집혀 있습니다. 그다음 upstream 변경분 중 필요한 것만 수동으로 반영하세요 |
 
+#### 자식 프로세스는 창구를 지난다 — `runProcess`/`spawnProcess` (v1.4.197부터 숫자로 강제)
+
+upstream v1.4.197이 "`node:child_process`를 직접 import 하는 파일 수"에 **숫자 백스톱**을 붙였습니다
+(`src/shared/child-process/child-process-import-boundary.test.ts`의 `DIRECT_IMPORTER_PIN`,
+`windows-console-visibility.test.ts`의 `UNHIDDEN_SPAWNER_PIN`). 허용목록 파일은 그 전부터 있었고,
+이 포크는 자기 소유 8건을 거기 올려 두고 있었습니다.
+
+**v1.4.197 머지에서 8건을 전부 이관했습니다.**
+
+| 무엇 | 오르카에서 언제 도나 | 어디로 |
+| --- | --- | --- |
+| `gateway/gateway-cli-availability.ts` | 설정 → Gateway 를 열 때 `gateway-cli --version` | `runProcess` |
+| `gateway/gateway-verify.ts` | 같은 화면에서 로그인 상태 확인 `gateway-cli verify` | `runProcess` |
+| `relay/fs-handler-git-search-submodules.ts` | SSH 원격에 ripgrep 이 없어 `git grep` 으로 대체 검색할 때 | `runProcess` + `spawnProcess` |
+| `git/submodule-write-test-repo.ts` | 서브모듈 테스트 픽스처 | `runProcessSync` |
+| 타입 전용 4건 | 스폰하지 않음 — 타입만 빌려 씀 | `ChildProcessHandle`, `ExecFileSync` |
+
+**왜 중요한가.** 이관 전에도 이 파일들은 `windowsHide: true` 를 직접 달고 있어서 "검은 창 번쩍"은
+막혀 있었습니다. 창구가 추가로 보장하는 것은 **`.cmd`/`.bat` argv 인코딩**(게이트웨이 CLI 가
+`.cmd` 심으로 깔리는 경우 — 예전에는 `cmd.exe /d /c` 로 감싸 명령줄이 재파싱됐습니다),
+**프로세스 트리 종료**, **출력 상한**, 그리고 릴레이 쪽에는 **없던 30초 데드라인**입니다.
+
+**다음 동기화에서 할 일.**
+
+핀 숫자 2개는 포크와 upstream 이 다를 수밖에 없습니다(파일 집합이 다르므로). 현재 이 포크는
+**156 / 64** 이고 upstream 은 **158 / 66** 입니다 — 둘 다 upstream 보다 **낮으며**, 래칫이 원하는
+방향입니다. 머지가 upstream 값으로 되돌리면 테스트가 "핀을 내려라"라고 정확히 알려 주므로
+그때 다시 낮추면 됩니다. 원장에도 두 줄 다 앵커로 등재돼 있습니다.
+
 #### 디렉터리 통째로 지운 것 — `cloud/` (v1.4.197에서 제거)
 
 upstream v1.4.197이 **모바일 앱↔데스크톱 페어링 릴레이 서비스의 GCP 인프라 전체**를 모노레포에

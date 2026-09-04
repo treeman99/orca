@@ -29,14 +29,14 @@ const CHILD_PROCESS_IMPORT_ALLOWLIST: readonly string[] = readFileSync(
  * May only ever be DECREASED, and only by migrating a file off
  * `node:child_process`. Raising it is never the fix.
  *
- * Fork delta: upstream's number is 158. This build carries 6 more because the fork owns 8
- * direct importers (listed in the allowlist beside this file) and upstream owns 2 that this
- * build deleted with the skills-CLI and local-builds lanes. Four of the eight import a TYPE
- * only and spawn nothing — `filesystem-search-git-submodules.ts`, `git-grep-stream-ingest.ts`,
- * `text-search-submodule-pass.ts`, `gateway-cli-command.ts`. A merge that resets this to 158
- * turns the whole ratchet red rather than reporting a real regression.
+ * Fork delta: upstream's number is 158; this build is 2 BELOW it. The fork owned 8 direct
+ * importers when v1.4.197 introduced this pin — the gateway sign-in probes, the relay's
+ * submodule search, a fixture helper and four type-only imports — and all 8 were migrated
+ * to runProcess/spawnProcess/runProcessSync in the v1.4.197 merge. The remaining −2 is the
+ * pair of upstream importers this build deletes with the skills-CLI and local-builds lanes.
+ * A merge that resets this to 158 makes the ratchet stop reporting real ground.
  */
-const DIRECT_IMPORTER_PIN = 164
+const DIRECT_IMPORTER_PIN = 156
 
 const IMPORT_PATTERN =
   /(?:from\s+['"]node:child_process['"]|from\s+['"]child_process['"]|require\(\s*['"]node:child_process['"]|require\(\s*['"]child_process['"])/

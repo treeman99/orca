@@ -1,30 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ProcessSpec } from '../../shared/child-process/process-spec'
 
-const execFile = vi.hoisted(() => vi.fn())
-vi.mock('node:child_process', () => ({ execFile, execFileSync: vi.fn(() => '') }))
+// The seam under test is the child-process chokepoint, not `node:child_process`: this probe
+// hands `runProcess` a bare program and lets it own the Windows `.cmd` shim and hidden console.
+const runProcess = vi.hoisted(() => vi.fn())
+vi.mock('../../shared/child-process/run-process', () => ({ runProcess }))
 vi.mock('node:fs', () => ({ existsSync: vi.fn(() => false) }))
 
 import { existsSync } from 'node:fs'
 import { __resetPersistedWindowsPathCacheForTests } from '../pty/windows-environment-path'
 import { detectGatewayCli } from './gateway-cli-availability'
 
-type ExecFileCall = [string, string[], { timeout: number; env: NodeJS.ProcessEnv }]
-
-function lastCall(): ExecFileCall {
-  return execFile.mock.calls.at(-1) as unknown as ExecFileCall
+function lastSpec(): ProcessSpec {
+  return runProcess.mock.calls.at(-1)?.[0] as ProcessSpec
 }
 
 function succeedWith(stdout: string, stderr = ''): void {
-  execFile.mockImplementation((_cmd, _args, _options, callback) => {
-    callback(null, stdout, stderr)
-  })
+  runProcess.mockResolvedValue({ code: 0, signal: null, stdout, stderr, timedOut: false })
 }
 
-/** An error shaped like the one execFile reports for a non-zero exit. */
-function failWith(code: string | number, stdout = '', stderr = ''): void {
-  execFile.mockImplementation((_cmd, _args, _options, callback) => {
-    callback(Object.assign(new Error(`exited with ${code}`), { code }), stdout, stderr)
-  })
+/** The CLI ran and exited non-zero — installed, just unhappy with the flag. */
+function exitWith(code: number, stdout = '', stderr = ''): void {
+  runProcess.mockResolvedValue({ code, signal: null, stdout, stderr, timedOut: false })
 }
 
 function withPlatform(platform: NodeJS.Platform): () => void {
@@ -35,7 +32,7 @@ function withPlatform(platform: NodeJS.Platform): () => void {
 
 describe('detectGatewayCli', () => {
   beforeEach(() => {
-    execFile.mockReset()
+    runProcess.mockReset()
     vi.mocked(existsSync).mockReset().mockReturnValue(false)
     __resetPersistedWindowsPathCacheForTests()
     succeedWith('gateway-cli/1.4.2 (darwin/arm64)\n')
@@ -65,34 +62,48 @@ describe('detectGatewayCli', () => {
   })
 
   it('reports unavailable only when the binary is missing', async () => {
-    failWith('ENOENT')
+    runProcess.mockRejectedValue(
+      Object.assign(new Error('spawn gateway-cli ENOENT'), { code: 'ENOENT' })
+    )
+    await expect(detectGatewayCli()).resolves.toEqual({ available: false, version: null })
+  })
+
+  // A killed probe proves nothing about the install, so it must not read as "present".
+  it('reports unavailable when the probe was killed on its deadline', async () => {
+    runProcess.mockResolvedValue({
+      code: null,
+      signal: 'SIGTERM',
+      stdout: '',
+      stderr: '',
+      timedOut: true
+    })
     await expect(detectGatewayCli()).resolves.toEqual({ available: false, version: null })
   })
 
   // The binary may simply not know `--version`; that is installed, not missing.
   it('reports available when the binary ran but rejected the flag', async () => {
-    failWith(2, '', 'unknown flag: --version\n')
+    exitWith(2, '', 'unknown flag: --version\n')
     await expect(detectGatewayCli()).resolves.toEqual({ available: true, version: null })
   })
 
   it('passes an explicit environment to the probe', async () => {
     await detectGatewayCli()
-    expect(lastCall()[2].env).toBeDefined()
+    expect(lastSpec().env).toBeDefined()
   })
 
   // Regression from the AWS lane: a 5s budget expired during a cold start behind endpoint
   // protection, and the timeout was reported to the user as "CLI is not installed".
   it('allows a cold start far longer than five seconds', async () => {
     await detectGatewayCli()
-    expect(lastCall()[2].timeout).toBeGreaterThanOrEqual(15_000)
+    expect(lastSpec().timeoutMs).toBeGreaterThanOrEqual(15_000)
   })
 
   it('spawns the bare name off Windows', async () => {
     const restore = withPlatform('darwin')
     try {
       await detectGatewayCli()
-      expect(lastCall()[0]).toBe('gateway-cli')
-      expect(lastCall()[1]).toEqual(['--version'])
+      expect(lastSpec().program).toBe('gateway-cli')
+      expect(lastSpec().args).toEqual(['--version'])
     } finally {
       restore()
     }
@@ -106,7 +117,25 @@ describe('detectGatewayCli', () => {
     vi.mocked(existsSync).mockImplementation((candidate) => candidate === exe)
     try {
       await detectGatewayCli()
-      expect(lastCall()[0]).toBe(exe)
+      expect(lastSpec().program).toBe(exe)
+    } finally {
+      restore()
+    }
+  })
+
+  // Why this matters: the probe used to pre-wrap a shim in `cmd.exe /d /c`, which re-parses
+  // the command line. Handing the shim straight to the runner is what lets it build the
+  // argv itself (`buildWindowsCmdShimCommandLine`) and keep the console hidden.
+  it('hands a Windows .cmd shim to the runner instead of pre-wrapping it', async () => {
+    const restore = withPlatform('win32')
+    const shim = 'C:\\Tools\\gateway\\gateway-cli.cmd'
+    vi.stubEnv('PATH', 'C:\\Tools\\gateway')
+    vi.stubEnv('PATHEXT', '.EXE;.CMD')
+    vi.mocked(existsSync).mockImplementation((candidate) => candidate === shim)
+    try {
+      await detectGatewayCli()
+      expect(lastSpec().program).toBe(shim)
+      expect(lastSpec().args).toEqual(['--version'])
     } finally {
       restore()
     }

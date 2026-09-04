@@ -15,7 +15,7 @@
  * the main process (WSL routing, Electron git runner) and the SSH relay, while the
  * budget, cap, and pathspec rules must not.
  */
-import type { ChildProcess } from 'node:child_process'
+import type { ChildProcessHandle } from './child-process/process-spec'
 import { ingestGitGrepChild } from './git-grep-stream-ingest'
 import { buildGitGrepArgs, type SearchAccumulator, type SearchOptionsLike } from './text-search'
 import { translateSearchPatternsIntoSubmodule } from './text-search-submodule-pathspec'
@@ -56,7 +56,7 @@ export type SubmoduleSearchHost = {
    * makes git walk up to the parent and double-count the parent's own matches.
    */
   resolveSubmoduleRoot(rootPath: string, submodulePath: string): Promise<string>
-  spawnGitGrep(cwd: string, gitArgs: string[]): Promise<ChildProcess>
+  spawnGitGrep(cwd: string, gitArgs: string[]): Promise<ChildProcessHandle>
 }
 
 export type SubmoduleSearchPassParams = {
@@ -107,7 +107,7 @@ async function searchOneSubmodule(
     includePattern: patterns.includePattern,
     excludePattern: patterns.excludePattern
   })
-  let child: ChildProcess
+  let child: ChildProcessHandle
   try {
     child = await host.spawnGitGrep(submoduleRoot, gitArgs)
   } catch {

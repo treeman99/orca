@@ -9,7 +9,8 @@
  * borrowed from GitHandler because FsHandler has no reference to it; a read-only
  * search tolerating a 5s-stale `.gitmodules` is the whole cost of that.
  */
-import { execFile, spawn, type ChildProcess } from 'node:child_process'
+import type { ChildProcessHandle } from '../shared/child-process/process-spec'
+import { runProcess, spawnProcess } from '../shared/child-process/run-process'
 import type { SubmoduleSearchHost } from '../shared/text-search-submodule-pass'
 import type { GitExec } from './git-handler-ops'
 import {
@@ -22,23 +23,26 @@ import { buildRelayGitEnv } from './relay-command-env'
 
 const submodulePathsCache = createSubmodulePathsCache()
 
-// Only `git config --file .gitmodules` and `git rev-parse --show-prefix` run
-// through here, so execFile's default 1MB buffer is already generous.
-const gitExec: GitExec = (args, cwd) =>
-  new Promise((resolve, reject) => {
-    execFile(
-      'git',
-      args,
-      { cwd, env: buildRelayGitEnv(), encoding: 'utf-8', windowsHide: true },
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(error)
-          return
-        }
-        resolve({ stdout: String(stdout), stderr: String(stderr) })
-      }
-    )
-  })
+// Only `git config --file .gitmodules` and `git rev-parse --show-prefix` run through
+// here, so the runner's default output cap and 30s deadline are both generous — and the
+// deadline is new ground: `execFile` had none, so a wedged git blocked a remote search
+// forever. Callers read a non-zero
+// exit as "no submodules"/"not a repository root", so it has to throw the way execFile
+// did rather than return the code.
+const gitExec: GitExec = async (args, cwd) => {
+  const result = await runProcess({ program: 'git', args, cwd, env: buildRelayGitEnv() })
+  if (result.code === 0 && !result.timedOut) {
+    return { stdout: result.stdout, stderr: result.stderr }
+  }
+  throw Object.assign(
+    new Error(
+      result.timedOut
+        ? `git ${args[0] ?? 'command'} timed out.`
+        : result.stderr.trim() || `git ${args[0] ?? 'command'} failed.`
+    ),
+    { code: result.code, killed: result.timedOut, signal: result.signal }
+  )
+}
 
 export const relaySubmoduleSearchHost: SubmoduleSearchHost = {
   async listInitializedSubmodulePaths(rootPath: string): Promise<string[]> {
@@ -53,13 +57,14 @@ export const relaySubmoduleSearchHost: SubmoduleSearchHost = {
     await assertSubmoduleWorktreeRoot(gitExec, submoduleRoot)
     return submoduleRoot
   },
-  spawnGitGrep(cwd: string, gitArgs: string[]): Promise<ChildProcess> {
+  spawnGitGrep(cwd: string, gitArgs: string[]): Promise<ChildProcessHandle> {
     return Promise.resolve(
-      spawn('git', gitArgs, {
+      spawnProcess({
+        program: 'git',
+        args: gitArgs,
         cwd,
         env: buildRelayGitEnv(),
-        stdio: ['ignore', 'pipe', 'pipe'],
-        windowsHide: true
+        stdio: ['ignore', 'pipe', 'pipe']
       })
     )
   }

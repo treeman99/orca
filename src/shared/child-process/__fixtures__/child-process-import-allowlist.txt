@@ -191,14 +191,6 @@ src/shared/shell-process-readiness.ts
 #
 # Type-only imports (`import type { ChildProcess }` / `execFileSync`) -- they decide
 # nothing and only trip the regex, so they are not a migration target:
-src/main/gateway/gateway-cli-command.ts
-src/main/ipc/filesystem-search-git-submodules.ts
-src/shared/git-grep-stream-ingest.ts
-src/shared/text-search-submodule-pass.ts
 #
 # Real spawn sites -- the migration worklist. All three already pass windowsHide,
 # so the remaining gap is argument quoting and .cmd handling on Windows:
-src/main/gateway/gateway-cli-availability.ts
-src/main/gateway/gateway-verify.ts
-src/main/git/submodule-write-test-repo.ts
-src/relay/fs-handler-git-search-submodules.ts

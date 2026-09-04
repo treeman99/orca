@@ -5,9 +5,9 @@
  * repository root — it walks up to the parent and mutates that instead. No stubbed
  * executor reproduces that, and it is exactly the accident the root guard exists for.
  */
-import { execFileSync } from 'node:child_process'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
+import { runProcessSync } from '../../shared/child-process/run-process'
 
 const IDENTITY = [
   '-c',
@@ -20,12 +20,16 @@ const IDENTITY = [
 ]
 
 export function git(dir: string, args: string[]): string {
-  return execFileSync('git', [...IDENTITY, ...args], {
-    cwd: dir,
-    stdio: 'pipe',
-    encoding: 'utf8',
-    windowsHide: true
-  })
+  // `runProcessSync` reports the exit code instead of throwing, but a fixture that
+  // silently continued past a failed setup step would test the wrong tree.
+  const result = runProcessSync({ program: 'git', args: [...IDENTITY, ...args], cwd: dir })
+  if (result.code !== 0 || result.timedOut) {
+    const detail = result.stderr.trim() || result.stdout.trim()
+    throw new Error(
+      `git ${args.join(' ')} failed (${result.timedOut ? 'timed out' : result.code}): ${detail}`
+    )
+  }
+  return result.stdout
 }
 
 export function commitAll(dir: string, message: string): void {

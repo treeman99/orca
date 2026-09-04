@@ -111,6 +111,21 @@
 >
 > ⚠️ **upstream의 새 `satisfies PreloadApi[...]`가 포크의 잠재 결함 3건을 드러냈습니다.** v1.4.197이 preload 브리지에 `satisfies` 절을 붙이면서, 포크가 **타입에서는 지웠지만 브리지에는 남겨 둔** 죽은 채널이 컴파일 에러로 나왔습니다: `crashReports:{getLatestPending,getLatestReport,dismiss,submit,copyLatestDiagnostics}` 5건(포크 main은 `recordBreadcrumb`·`recordRendererError` 두 핸들러만 등록하며 자체 테스트가 그렇게 단언합니다)과 `ui:{openSetupGuide,openFeatureTour,openCrashReport}` 3건(렌더러에 리스너 0건). 전부 제거했습니다. 반대 방향으로, 서브모듈 쓰기 8종은 **타입과 main 핸들러는 있는데 Electron preload 브리지에 없어** 로컬 타깃에서 `window.api.git.submoduleStage`가 `undefined`였습니다 — 브리지 항목을 추가해 닫았습니다. **이 세 건은 머지가 만든 회귀가 아니라 포크에 이미 있던 결함이고, upstream의 새 게이트가 처음 잡아 준 것입니다.**
 >
+> ✅ **새 래칫 2건 — 포크 코드를 정책에 맞춰 이관했습니다.** v1.4.197은 "자식 프로세스는 반드시
+> `src/shared/child-process`의 `runProcess`/`spawnProcess`를 지난다"는 트리 규칙에 **숫자 백스톱**을
+> 붙였습니다(`DIRECT_IMPORTER_PIN`, `UNHIDDEN_SPAWNER_PIN`). 허용목록 자체는 이 포크가 이미
+> 유지 중이었고 포크 소유 항목이 8건 있었습니다 — 게이트웨이 사인인 프로브 2건(`gateway-cli
+> --version`, `gateway-cli verify`), 릴레이의 서브모듈 검색 1건(`git config`/`git rev-parse` 캡처와
+> `git grep` 스트림), 픽스처 헬퍼 1건, 그리고 **아무것도 스폰하지 않는 타입 전용 import 4건**.
+> **8건 전부 이관했습니다** — 타입 4건은 `ChildProcessHandle`(창구 모듈이 내보내는 별칭)과
+> `windows-environment-path`가 새로 내보내는 `ExecFileSync`로, 스포너 4건은 `runProcess` ·
+> `spawnProcess` · `runProcessSync`로. 그 결과 직접 import 파일 수가 **164 → 156**이 되어 upstream의
+> 158보다 **2 낮습니다**(포크가 지운 skills-CLI·local-builds 2건). `UNHIDDEN_SPAWNER_PIN`도 66 → 64로
+> 내렸습니다. **egress에는 영향이 없습니다** — 같은 프로그램을 같은 인자로 실행하며, 바뀐 것은
+> Windows에서 콘솔 은닉·`.cmd` argv 인코딩·프로세스 트리 종료를 각 파일이 따로 정하지 않고
+> 창구가 한 번에 정한다는 점입니다. 릴레이의 `git config`/`git rev-parse`에는 없던 30초 데드라인이
+> 생겨, 원격 검색이 멈춘 git에 무한정 매달리지 않습니다.
+>
 > ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다. 기존 `file:line` 인용은 이 판에서 전면 재검증하지 않았습니다 — v1.4.196 판의 경고가 그대로 유효합니다.
 
 > **⚠️ 델타 판정의 기준은 `git log`가 아니라 트리 diff입니다.** 업스트림은 릴리스 브랜치에 태그를 달고 그 태그들은 서로의 자손이 아닙니다. 같은 변경이 main과 릴리스 브랜치에 다른 SHA로 존재하면 `git log <old>..<new>`에는 나타나되 트리에는 차이가 없으므로, **로그는 델타를 과대 계상합니다.** 실례: `git log v1.4.178..v1.4.180`에는 Artifacts 관련 커밋 3건(`24c68087bd` 수동 공유 #13369, `05160cd08e` 능력 게이팅 #13368, `2f221bdbfe` 관리 UI #13356)이 보이지만 `git diff --name-only v1.4.178 v1.4.180 -- '*artifact*' '*Artifact*'`는 **비어 있습니다** — 두 태그의 artifact 트리는 동일하며 그 기능들은 이미 v1.4.178 트리에 있었습니다(§3.1). 그러므로 델타 감사는 `git diff --name-status <old> <new>` 기준으로 하고 로그는 맥락 파악에만 쓰십시오. **함정은 양방향입니다** — 로그만 보고 "이번에 새로 들어왔다"고 오판하는 것과, 트리가 같은 것을 보고 "업스트림이 이 레인을 접었다"고 안심하는 것 둘 다 틀립니다(후자의 경우 업스트림은 계속 개발 중이며, 다만 그 작업이 더 이른 태그에 이미 들어와 있었을 뿐입니다).

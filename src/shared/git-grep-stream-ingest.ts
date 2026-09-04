@@ -6,9 +6,9 @@
  * different cwd. One implementation keeps the truncation ordering (`acc.truncated`
  * flipped in the same tick the child is killed) identical everywhere.
  *
- * The `node:child_process` import is type-only — this module spawns nothing.
+ * The child-process import is type-only — this module spawns nothing.
  */
-import type { ChildProcess } from 'node:child_process'
+import type { ChildProcessHandle } from './child-process/process-spec'
 import { ingestGitGrepLine, type SearchAccumulator } from './text-search'
 
 export type GitGrepIngestOptions = {
@@ -28,7 +28,7 @@ export type GitGrepIngestOptions = {
  * Never rejects: a failed fallback pass degrades to the matches collected so far.
  */
 export function ingestGitGrepChild(
-  child: ChildProcess,
+  child: ChildProcessHandle,
   { rootPath, matchRegex, acc, maxResults, timeoutMs, relPathPrefix }: GitGrepIngestOptions
 ): Promise<void> {
   return new Promise((resolve) => {

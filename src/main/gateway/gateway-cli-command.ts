@@ -14,17 +14,16 @@
 // `platform` and `fileExists` are parameters, not `process.*` reads, so the win32
 // branch is testable from macOS/Linux CI.
 
-import type { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { GATEWAY_CLI_BINARY } from '../../shared/gateway-auth'
-import { mergePersistedWindowsPath } from '../pty/windows-environment-path'
+import { mergePersistedWindowsPath, type ExecFileSync } from '../pty/windows-environment-path'
 
 export type GatewayCommandOptions = {
   platform?: NodeJS.Platform
   fileExists?: (candidate: string) => boolean
   /** Forwarded to the registry PATH read so a test can fake `reg.exe`. */
-  execFileSync?: typeof execFileSync
+  execFileSync?: ExecFileSync
 }
 
 // Windows' own default when the variable is missing.

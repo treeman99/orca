@@ -5,8 +5,7 @@
 // gateway-cli-command.ts for why a bare name reports "not installed" on a machine where
 // the CLI works in a terminal.
 
-import { execFile, type ExecFileException } from 'node:child_process'
-import { getSpawnArgsForWindows } from '../win32-utils'
+import { runProcess } from '../../shared/child-process/run-process'
 import { buildGatewayCommandEnv, resolveGatewayCommand } from './gateway-cli-command'
 
 // Why 20s and not a couple of seconds: a cold start behind corporate endpoint protection
@@ -22,31 +21,21 @@ export type GatewayCliAvailability = { available: boolean; version: string | nul
 
 export async function detectGatewayCli(): Promise<GatewayCliAvailability> {
   const env = buildGatewayCommandEnv()
-  const { spawnCmd, spawnArgs } = getSpawnArgsForWindows(resolveGatewayCommand(env), ['--version'])
+  // `runProcess` owns the Windows `.cmd` shim, so the bare resolved path goes in as-is.
+  const result = await runProcess({
+    program: resolveGatewayCommand(env),
+    args: ['--version'],
+    env,
+    timeoutMs: VERSION_TIMEOUT_MS
+  }).catch(() => null)
 
-  return new Promise<GatewayCliAvailability>((resolve) => {
-    execFile(
-      spawnCmd,
-      spawnArgs,
-      { timeout: VERSION_TIMEOUT_MS, windowsHide: true, env },
-      (error, stdout, stderr) => {
-        // A non-zero exit means the binary ran but does not know `--version`; only a
-        // failure to spawn at all (ENOENT) means it is missing.
-        if (error && !didSpawn(error)) {
-          resolve({ available: false, version: null })
-          return
-        }
-        // CLIs print the version to stdout or stderr depending on the framework.
-        const output = `${stdout} ${stderr}`.trim()
-        const version =
-          output.match(NAMED_VERSION_RE)?.[1] ?? output.match(BARE_VERSION_RE)?.[1] ?? null
-        resolve({ available: true, version: error ? null : version })
-      }
-    )
-  })
-}
-
-/** True when the child actually started, i.e. the error is an exit status, not ENOENT. */
-function didSpawn(error: ExecFileException): boolean {
-  return typeof error.code === 'number' && error.code !== 0
+  // A child that never started (ENOENT) rejects; one killed on timeout produced no answer.
+  // Only those two mean "not installed" — a non-zero exit means the binary ran.
+  if (!result || result.timedOut) {
+    return { available: false, version: null }
+  }
+  // CLIs print the version to stdout or stderr depending on the framework.
+  const output = `${result.stdout} ${result.stderr}`.trim()
+  const version = output.match(NAMED_VERSION_RE)?.[1] ?? output.match(BARE_VERSION_RE)?.[1] ?? null
+  return { available: true, version: result.code === 0 ? version : null }
 }

@@ -440,8 +440,8 @@
         },
         {
           "file": "src/shared/child-process/child-process-import-boundary.test.ts",
-          "contains": "const DIRECT_IMPORTER_PIN = 164",
-          "why": "v1.4.197 이 upstream 자기 수(158)로 숫자 백스톱을 추가했다. 이 빌드는 포크 소유 직접 import 8건 − upstream 이 지운 2건 = +6 이라 164 다. 머지가 158 로 되돌리면 실제 회귀가 아닌데 래칫 전체가 빨개진다."
+          "contains": "const DIRECT_IMPORTER_PIN = 156",
+          "why": "v1.4.197 이 upstream 자기 수(158)로 숫자 백스톱을 추가했다. 이 빌드는 포크 소유 직접 import 8건을 runProcess/spawnProcess/runProcessSync 로 이관했고, upstream 이 가진 2건(skills CLI 핸들러·local-builds)은 지웠으므로 158 보다 2 낮은 156 이다. 머지가 158 로 되돌리면 래칫이 확보한 땅을 다시 열어 준다."
         },
         {
           "file": "src/shared/child-process/windows-console-visibility.test.ts",

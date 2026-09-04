@@ -11,7 +11,8 @@ import { readWindowsPathRegistry } from './windows-path-registry-reader'
 export { resolvePathEnvKey } from './windows-path-segment-merge'
 
 type ExecFile = typeof execFile
-type ExecFileSync = typeof execFileSync
+/** Exported so callers that only forward this seam need no `node:child_process` import. */
+export type ExecFileSync = typeof execFileSync
 
 type ReadWindowsPathOptions = {
   execFile?: ExecFile
