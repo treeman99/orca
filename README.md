@@ -156,6 +156,40 @@ pnpm exec electron-builder --config config/electron-builder.config.cjs --win --x
 
 **설치 프로그램을 만들지 않고 화면만 확인하려면** — 맥북에서 `pnpm dev`로 잠금이 적용된 UI를 그대로 볼 수 있습니다. 비패키징 인스턴스에서는 `ORCA_ENTERPRISE_POLICY`가 정책 탐색 1순위이므로 `%ProgramData%`도 관리자 권한도 필요하지 않습니다. 절차·확인 지점·dev로는 확인할 수 없는 항목은 **[macOS dev 빌드 UI 확인 가이드](docs/reference/macos-dev-ui-check.md)** 를 보세요.
 
+
+### 1.1 GitHub Actions로 빌드 — Windows + Linux
+
+빌드 머신(특히 Linux)이 없을 때 씁니다. `.github/workflows/enterprise-build.yml` 은 위 §1 절차를
+GitHub 러너에서 그대로 재현하는 **포크 전용** 레인입니다. upstream 의 `release-cut.yml` 에서 태그 컷,
+SignPath 서명, 텔레메트리 빌드 식별자, 벤더 릴리스 업로드를 걷어낸 것입니다.
+
+- **실행**: Actions 탭 → `enterprise build` → *Run workflow* → 브랜치와 `platforms`(both/windows/linux) 선택.
+  CLI 로는 `gh workflow run enterprise-build.yml --ref enterprise/samsungds -f platforms=both`.
+  **`workflow_dispatch` 전용입니다** — 푸시로는 돌지 않습니다.
+- **산출물**(워크플로 아티팩트, 실행 페이지 하단에서 zip 으로 내려받습니다)
+
+  | 아티팩트 | 내용 |
+  | --- | --- |
+  | `orca-windows-x64` | `orca-windows-setup.exe` (NSIS, per-user, 무서명) |
+  | `orca-linux-x64` | `orca-linux.AppImage`, `orca-ide_<ver>_amd64.deb`, `orca-ide-<ver>.x86_64.rpm` |
+
+- **정책은 세 OS 공통으로 실립니다.** `resources/enterprise-policy.json` 은 `commonExtraResources` 로
+  들어가므로(§4) 리눅스 패키지도 잠금이 적용된 상태로 나옵니다. 워크플로가 패키징 직후
+  `resources/enterprise-policy.json` 존재를 확인합니다.
+- **업로드 차단은 이중입니다** — `--publish never` 에 더해 잡 환경에 `ORCA_DISABLE_PUBLISH_TARGET=1` 을
+  두어 `publish` 를 `null` 로 만듭니다(§5-1). 워크플로 권한도 `contents: read` 뿐이라
+  `GITHUB_TOKEN` 이 빌드 셸로 흘러들지 않습니다.
+
+> ⚠️ **`origin`(github.com/treeman99/orca)은 public 저장소입니다.** 워크플로 아티팩트는 링크를 아는
+> 사람이면 누구나 내려받을 수 있습니다. 설치본에 자격증명이 들어가지는 않지만(정책 파일은
+> 잠금 설정값일 뿐입니다), 배포본 자체를 공개하고 싶지 않다면 저장소를 private 으로 바꾸거나
+> 사내 GHES + self-hosted 러너로 옮겨야 합니다. private 으로 바꾸면 Actions 분(minutes)이
+> 과금되며 Windows 러너는 2배로 계산됩니다.
+
+> Linux 산출물의 glibc 하한(Ubuntu 20.04 / glibc 2.31)은 패키징 훅이 강제하고, 워크플로는 그 위에
+> 패키징된 `node-pty` 를 실제로 로드해 보는 스모크까지 돌립니다
+> ([linux-glibc-compatibility.md](docs/reference/linux-glibc-compatibility.md)).
+
 ---
 
 ## 2. 사내 GitHub Enterprise (`github.samsungds.net`)

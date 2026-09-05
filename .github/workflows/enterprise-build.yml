@@ -1,0 +1,233 @@
+# 사내 배포용 Windows/Linux 설치 파일을 GitHub Actions에서 만든다.
+#
+# upstream 의 release-cut.yml 빌드 잡에서 이 포크에 해당하지 않는 것 —
+# 태그 컷, SignPath 서명, 텔레메트리 빌드 식별자, 벤더 릴리스 업로드 — 을 걷어낸
+# 레인이다. 산출물은 워크플로 아티팩트로만 나가며 어디에도 publish 하지 않는다.
+#
+# 절차·전제조건의 정본은 docs/reference/windows-corporate-build.md 이고,
+# 이 파일은 그 §4 빌드 절차를 러너에서 그대로 재현한다.
+name: enterprise build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: '빌드할 플랫폼'
+        type: choice
+        default: both
+        options:
+          - both
+          - windows
+          - linux
+
+# Why: 빌드 셸에 GITHUB_TOKEN 이 흘러들면 electron-builder 가 CI=true 를 보고
+# 업로드를 시도할 여지가 생긴다(windows-corporate-build.md §5-1). 읽기만 준다.
+permissions:
+  contents: read
+
+concurrency:
+  group: enterprise-build-${{ github.ref }}
+  # Why: Windows 잡이 40분대라 중간 취소가 더 비싸다. 큐잉시킨다.
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: plan matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      # Why: job 레벨 `if` 에서는 matrix 컨텍스트를 읽을 수 없으므로,
+      # 입력에 따른 플랫폼 선택은 매트릭스를 만들어 넘기는 방식으로 한다.
+      - name: Pick build matrix
+        id: pick
+        shell: bash
+        env:
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          set -euo pipefail
+          # Why windows-2022: windows-latest 가 VS 2026 이미지로 넘어가면서
+          # node-gyp 가 VS 18 을 탐지하지 못해 네이티브 설치가 깨진다
+          # (upstream release-cut.yml 의 같은 핀과 같은 이유).
+          win='{"platform":"windows","os":"windows-2022"}'
+          linux='{"platform":"linux","os":"ubuntu-latest"}'
+          case "${PLATFORMS:-both}" in
+            windows) include="[$win]" ;;
+            linux) include="[$linux]" ;;
+            both) include="[$win,$linux]" ;;
+            *) echo "::error::unknown platforms input: $PLATFORMS"; exit 1 ;;
+          esac
+          echo "matrix={\"include\":$include}" >>"$GITHUB_OUTPUT"
+
+  build:
+    name: build ${{ matrix.platform }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      # Why: --publish never 의 두 번째 방어선. publish 를 null 로 만들어
+      # 업데이터 메타(latest.yml / app-update.yml)조차 생성되지 않게 한다.
+      ORCA_DISABLE_PUBLISH_TARGET: '1'
+      # Why: Electron 배포본 다운로드 실패를 postinstall 이 경고로 삼키면
+      # 패키징 단계에서야 드러난다.
+      ORCA_STRICT_ELECTRON_INSTALL: '1'
+      # Why: Vite 의 web 빌드가 Node 기본 old-space 한계를 넘는다.
+      NODE_OPTIONS: --max-old-space-size=4096
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # pnpm 이 PATH 에 있어야 setup-node 가 스토어를 찾아 캐시할 수 있다.
+      - name: Setup pnpm
+        uses: pnpm/setup@v2
+        with:
+          install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      # Why: pnpm 번들 node-gyp 가 Linux 러너에서 네이티브 postinstall 을 깨뜨린다.
+      - name: Use external node-gyp to avoid pnpm's bundled copy (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          npm install -g node-gyp@11.5.0
+          echo "npm_config_node_gyp=$(npm root -g)/node-gyp/bin/node-gyp.js" >>"$GITHUB_ENV"
+
+      # Why: build:release 의 verify:computer-native 가 AT-SPI 바인딩을 실제로
+      # import 하고, rpm 타깃은 electron-builder 의 fpm 백엔드가 rpmbuild 를 요구한다.
+      # 스톡 Ubuntu 러너에는 둘 다 없다.
+      - name: Install Linux packaging and computer-use dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi gir1.2-atspi-2.0 at-spi2-core xclip xdotool rpm
+
+      - name: Cache electron-builder downloads (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: enterprise-build-linux-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: enterprise-build-linux-
+
+      - name: Cache electron-builder downloads (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: enterprise-build-windows-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: enterprise-build-windows-
+
+      # Why: electron 의 postinstall 이 GitHub 릴리스 자산에서 바이너리를 받는데,
+      # 그 CDN 이 간헐적으로 504 를 낸다. 재시도로 흡수한다.
+      - name: Install dependencies
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: pnpm install --frozen-lockfile
+
+      # Why ORCA_BUILD_IDENTITY 를 주지 않는가: 텔레메트리 전송 게이트는 빌드
+      # 식별자가 'stable'/'rc' 인 공식 빌드에서만 열린다. 값을 비워 두는 것이
+      # 사내 빌드가 전송 레인을 얻지 못하게 하는 방법이다. POSTHOG/DIAGNOSTICS
+      # 키도 같은 이유로 주지 않는다.
+      - name: Build app
+        run: pnpm build:release
+
+      - name: Ensure native modules target the Electron ABI (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          node config/scripts/ensure-native-runtime.mjs --runtime=electron
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Ensure native modules target the Electron ABI (Linux)
+        if: runner.os == 'Linux'
+        run: node config/scripts/ensure-native-runtime.mjs --runtime=electron
+
+      - name: Package Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: pnpm exec electron-builder --config config/electron-builder.config.cjs --win --x64 --publish never
+
+      - name: Package Linux artifacts
+        if: runner.os == 'Linux'
+        run: pnpm exec electron-builder --config config/electron-builder.config.cjs --linux AppImage deb rpm --x64 --publish never
+
+      # Why: ConPTY 런타임 3종이 빠진 설치본은 설치 후 터미널이 통째로 죽는다.
+      # 패키징이 조용히 누락시키는 부류라 파일 존재로 확인한다.
+      - name: Verify Windows package contents
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $runtimeDir = 'dist/win-unpacked/resources/node_modules/node-pty/build/Release'
+          @(
+            "$runtimeDir/conpty.node",
+            "$runtimeDir/conpty/conpty.dll",
+            "$runtimeDir/conpty/OpenConsole.exe",
+            'dist/win-unpacked/resources/enterprise-policy.json',
+            'dist/orca-windows-setup.exe'
+          ) | ForEach-Object {
+            if (-not (Test-Path $_)) { throw "missing packaged file: $_" }
+          }
+          Get-Item dist/orca-windows-setup.exe | Format-List Name, Length
+
+      # Why: glibc 플로어 게이트는 정적 검사다. 패키징된 pty.node 를 실제로
+      # 로드해 보는 것이 런타임 증명에 해당한다.
+      - name: Load packaged node-pty on the Linux floor
+        if: runner.os == 'Linux'
+        run: node config/scripts/run-linux-packaged-node-pty-floor-smoke.mjs --app-dir dist/linux-unpacked
+
+      - name: Verify Linux package contents
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          test -f dist/linux-unpacked/resources/enterprise-policy.json
+          ls -la dist/*.AppImage dist/*.deb dist/*.rpm
+
+      - name: Upload Windows installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: orca-windows-x64
+          path: dist/orca-windows-setup.exe
+          if-no-files-found: error
+
+      - name: Upload Linux packages
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: orca-linux-x64
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.rpm
+          if-no-files-found: error
+
+      - name: Summarize artifacts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "### ${{ matrix.platform }} artifacts"
+            echo
+            echo '```'
+            ls -la dist 2>/dev/null | grep -Ev '^(total|d)' || echo '(no artifacts produced)'
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
