@@ -113,6 +113,65 @@ Bedrock 모델/리전/플래그가 들어가는 곳입니다. 두 가지를 분�
 
 Bedrock 설정 자체의 내용과 주의사항은 §3.
 
+### C.1 터미널에서 `claude`를 bypass permissions로 실행하기
+
+권한 확인 프롬프트 없이 돌리는 방법입니다. 아래는 Claude Code **2.1.261** 기준이며, 플래그는
+`claude --help`로 언제든 재확인할 수 있습니다.
+
+**그때그때 한 번만** — 가장 흔한 방식입니다.
+
+```bash
+claude --dangerously-skip-permissions
+```
+
+```powershell
+# Windows PowerShell도 동일합니다
+claude --dangerously-skip-permissions
+```
+
+**같은 효과의 다른 표기** — `--permission-mode`는 다른 모드(`plan`, `acceptEdits`, `manual`, `auto`,
+`dontAsk`)로 바꿔 쓸 때 유용합니다.
+
+```bash
+claude --permission-mode bypassPermissions
+```
+
+**켜 두되 기본값으로는 쓰지 않기** — 시작은 평소 모드로 하고, 세션 중에 bypass로 전환하는 것만
+허용합니다. 사내에서 상시 bypass가 부담스러울 때 절충안입니다.
+
+```bash
+claude --allow-dangerously-skip-permissions
+```
+
+**매번 치기 싫다면 — `~/.claude/settings.json`에 영구 설정** (버킷 C, 위 §C의 그 파일입니다)
+
+```json
+{
+  "permissions": { "defaultMode": "bypassPermissions" }
+}
+```
+
+> Orca가 이 파일에 `hooks`/`statusLine`을 다시 쓰지만 **나머지 키는 보존**하므로(§C) 이 설정은 살아남습니다.
+> 다만 주석이나 후행 쉼표는 넣지 마세요 — 엄격한 JSON으로 파싱됩니다.
+
+**Orca 터미널에서 띄우는 에이전트라면 손으로 칠 필요가 없습니다.** `설정 → Agents`의 권한 토글을
+켜면 Orca가 에이전트마다 해당 플래그를 붙여 실행합니다(`src/shared/tui-agent-permissions.ts`) —
+claude는 `--dangerously-skip-permissions`(:7), codex는 `--dangerously-bypass-approvals-and-sandbox`(:10),
+gemini는 `--yolo`(:11) 식으로 27종이 매핑돼 있습니다. 일부만 켜져 있으면 `mixed`로 표시됩니다.
+
+**안 켜질 때 — 원인은 셋뿐입니다.**
+
+| 증상 | 원인 |
+| --- | --- |
+| `--dangerously-skip-permissions cannot be used with root/sudo privileges for security reasons` | root/sudo로 실행했습니다. 일반 사용자로 실행하세요 |
+| `Bypass permissions mode was disabled by settings` | 설정에 `permissions.disableBypassPermissionsMode`가 켜져 있습니다. 관리형 설정으로 배포됐다면 사용자가 못 풉니다 |
+| 경고 다이얼로그가 뜨고 멈춤 | 최초 1회 수락 절차입니다. 승인하면 이후 세션부터 안 뜹니다 |
+
+> **이 포크의 정책 파일(버킷 B)은 권한 모드를 통제하지 않습니다.** `enterprise-policy.ts`에 permission
+> 관련 키가 없습니다 — `allowedAgents`는 *어떤 에이전트를 띄울 수 있는가*만 정하고 *그 에이전트가 권한을
+> 어떻게 묻는가*는 Claude Code 자신의 설정 영역입니다. 사내에서 bypass를 막아야 한다면 Orca 정책이 아니라
+> Claude Code의 `permissions.disableBypassPermissionsMode`를 관리형 설정으로 배포하세요.
+
 ### D. 빌드 셸 전용 — 사용자 환경에는 절대 넣지 않습니다
 
 | 변수 | 역할 | 근거 |
