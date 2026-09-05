@@ -42,6 +42,9 @@ package-lock.json
 .vscode/
 .idea/
 .serena/
+# Claude Code 가 rate-limit 때 남기는 세션 체크포인트. .claude/ 를 통째로 무시하면
+# harness 원장(README §7)의 새 파일이 git 에 안 잡힌다.
+.claude/RESUME.md
 *.swp
 *.swo
 *~
