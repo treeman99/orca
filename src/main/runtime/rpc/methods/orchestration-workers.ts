@@ -19,6 +19,7 @@ import {
   persistWorkerSetupWaitOutcome
 } from './orchestration-worker-setup-gate'
 import { failWorkerStartWithReceipt } from './orchestration-worker-start-receipt'
+import { resolveWorkerPaneAnchor } from './orchestration-worker-pane-anchor'
 import { prepareLocalWorkerStart } from './orchestration-worker-start-validation'
 import { resolveDispatchCreator } from './orchestration-dispatch-creator'
 import { recordWorkerPromptReadiness } from './orchestration-worker-prompt-diagnostics'
@@ -191,15 +192,8 @@ export const ORCHESTRATION_WORKER_START_METHODS: RpcMethod[] = [
             launchPreferences: launch.preferences,
             taskId: task.id,
             effects,
-            // Why: a worker column can only be drawn next to the coordinator when both
-            // panes live in the same workspace surface — layouts are per worktree.
-            // The skip reason rides along so a worker that lands as a tab in the
-            // coordinator's group can be told apart from the preference being off.
-            ...(!coordinatorTabId
-              ? { paneAnchorSkipped: 'coordinator-pane-unresolved' as const }
-              : resolvedWorktree!.id !== coordinatorTerminal.worktreeId
-                ? { paneAnchorSkipped: 'worker-worktree-differs' as const }
-                : { coordinatorTabId })
+            // Why a helper: the same-worktree test must compare by identity, not bytes — see it.
+            ...resolveWorkerPaneAnchor(coordinatorTabId, coordinatorTerminal, resolvedWorktree!)
           })
           terminalHandle = terminal.handle
           terminalRevealWarning = terminal.warning

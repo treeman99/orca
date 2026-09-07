@@ -203,6 +203,51 @@ describe('orchestration RPC methods', () => {
       )
     })
 
+    it('keeps the anchor when the coordinator PTY spells the same worktree differently', async () => {
+      setup()
+      mockCurrentWorkerStart()
+      // Why these two spellings: the resolver matches an `id:` selector by comparison key, so the
+      // row it returns for the PTY's id can carry another spelling of the same Windows path —
+      // drive-letter case and separators fold. A byte comparison called that a different
+      // worktree and the worker opened as a plain tab in the coordinator's group.
+      vi.spyOn(runtime, 'showTerminal').mockImplementation(
+        async (handle) =>
+          ({ handle, worktreeId: 'repo::C:\\Users\\Dev\\Proj', status: 'running' }) as never
+      )
+      vi.spyOn(runtime, 'showManagedTerminalWorkspace').mockResolvedValue({
+        id: 'repo::c:/users/dev/proj'
+      } as never)
+      const task = db.createTask({ spec: 'dispatch from a respelled coordinator pane' })
+
+      const result = (await call('orchestration.workerStart', {
+        task: task.id,
+        from: 'term_coord',
+        agent: 'codex'
+      })) as {
+        effects: {
+          kind: string
+          role?: string
+          paneAnchorTabId?: string
+          paneAnchorSkipped?: string
+        }[]
+      }
+
+      expect(result.effects).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: 'terminal', role: 'agent', paneAnchorTabId: 'tab_coord' })
+        ])
+      )
+      expect(result.effects).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ paneAnchorSkipped: expect.anything() })])
+      )
+      expect(runtime.createTerminal).toHaveBeenCalledWith(
+        'id:repo::c:/users/dev/proj',
+        expect.objectContaining({
+          paneGroupPlacement: { kind: 'orchestration-worker', coordinatorTabId: 'tab_coord' }
+        })
+      )
+    })
+
     it('applies and reports opaque per-invocation model preferences', async () => {
       setup()
       mockCurrentWorkerStart()

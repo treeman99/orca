@@ -70,6 +70,8 @@ export async function createExistingWorktreeWorkerTerminal(args: {
   coordinatorTabId?: string
   /** Set when no anchor is passed, so the omission is visible in the dispatch effects. */
   paneAnchorSkipped?: WorkerEffect['paneAnchorSkipped']
+  /** The coordinator PTY's own worktree id, logged next to the worker's when the anchor is skipped. */
+  coordinatorWorktreeId?: string
 }): Promise<{ handle: string; warning?: string }> {
   const terminal = await args.runtime.createTerminal(`id:${args.worktreeId}`, {
     // Why: the agent id is not a shell command — `cursor` resolves to the Cursor
@@ -95,7 +97,12 @@ export async function createExistingWorktreeWorkerTerminal(args: {
     agent: args.agent,
     anchor: args.coordinatorTabId ?? 'none',
     skip: args.paneAnchorSkipped ?? 'none',
-    surface: terminal.surface
+    surface: terminal.surface,
+    // Why both ids on a skip: `worker-worktree-differs` on a same-worktree dispatch is a
+    // spelling disagreement, and only the two spellings side by side say so.
+    ...(args.paneAnchorSkipped
+      ? { workerWt: args.worktreeId, coordWt: args.coordinatorWorktreeId ?? 'none' }
+      : {})
   })
   args.effects.push({
     kind: 'terminal',

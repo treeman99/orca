@@ -245,6 +245,11 @@
       "summary": "같은 워크트리 워커를 코디네이터 옆 컬럼으로 자동 분할. 앵커는 main 이 만들고 렌더러가 해석한다 — 전달 라인이 끊기면 조용히 탭 하나로 떨어진다.",
       "present": [
         {
+          "file": "src/main/runtime/rpc/methods/orchestration-workers.ts",
+          "contains": "...resolveWorkerPaneAnchor(coordinatorTabId, coordinatorTerminal, resolvedWorktree!)",
+          "why": "worker-start 가 앵커를 만드는 유일한 줄. 같은 워크트리 판정은 바이트 비교가 아니라 정규화 비교여야 한다 — Windows 에서 PTY 의 worktreeId 표기(드라이브 문자 대소문자·구분자·WSL UNC 별칭)가 스토어 행과 달라도 같은 워크트리이며, 바이트 비교는 그 경우 워커를 코디네이터 그룹의 탭 하나로 떨어뜨렸다."
+        },
+        {
           "file": "src/main/runtime/rpc/methods/orchestration-worker-topology.ts",
           "contains": "paneGroupPlacement"
         },
