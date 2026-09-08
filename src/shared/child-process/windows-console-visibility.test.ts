@@ -34,9 +34,9 @@ const ALLOWLIST: readonly string[] = readAllowlist(
  * the allowlist does not bound this: a swap (one file fixed and delisted, one
  * new file added with its entry) satisfies both membership assertions.
  */
-// Fork delta: upstream's number is 65. This build spawns from fewer files because it
+// Fork delta: upstream's number is 65 as of v1.4.198. This build spawns from fewer files because it
 // deleted the updater and vendor-forge lanes, and the ratchet requires the pin to track reality.
-const UNHIDDEN_SPAWNER_PIN = 64
+const UNHIDDEN_SPAWNER_PIN = 63
 
 const CHILD_PROCESS_IMPORT =
   /from\s+['"](?:node:)?child_process['"]|require\(\s*['"](?:node:)?child_process['"]/

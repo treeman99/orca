@@ -1,9 +1,26 @@
 import { EventEmitter } from 'node:events'
 import type { ChildProcess } from 'node:child_process'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { spawnMock } = vi.hoisted(() => ({ spawnMock: vi.fn() }))
+const { spawnMock, spawnProcessMock, runProcessMock } = vi.hoisted(() => ({
+  spawnMock: vi.fn(),
+  spawnProcessMock: vi.fn(),
+  runProcessMock: vi.fn()
+}))
 vi.mock('node:child_process', () => ({ spawn: spawnMock }))
+// Fork: the git-grep fallback spawns through the child-process window, not
+// node:child_process, and it runs a second submodule pass after the parent one.
+vi.mock('../shared/child-process/run-process', () => ({
+  spawnProcess: spawnProcessMock,
+  runProcess: runProcessMock
+}))
+
+/** Let the fallback's awaited spawn settle; there are no timers in that chain. */
+async function flushMicrotasks(): Promise<void> {
+  for (let step = 0; step < 20; step += 1) {
+    await Promise.resolve()
+  }
+}
 
 import { searchWithGitGrep } from './fs-handler-git-fallback'
 import { searchWithRg } from './fs-handler-utils'
@@ -20,6 +37,7 @@ const searchCases = [
   {
     name: 'ripgrep',
     search: searchWithRg,
+    arm: (child: ChildProcess) => spawnMock.mockReturnValueOnce(child),
     encode: (text: string, line: number) =>
       JSON.stringify({
         type: 'match',
@@ -34,6 +52,7 @@ const searchCases = [
   {
     name: 'git grep',
     search: searchWithGitGrep,
+    arm: (child: ChildProcess) => spawnProcessMock.mockReturnValueOnce(child),
     encode: (text: string, line: number) => `unicode.ts\0${line}\0${text}`
   }
 ]
@@ -42,13 +61,20 @@ afterEach(() => {
   vi.restoreAllMocks()
   vi.useRealTimers()
   spawnMock.mockReset()
+  spawnProcessMock.mockReset()
 })
 
-describe.each(searchCases)('relay $name line fragments', ({ search, encode }) => {
+beforeEach(() => {
+  // The submodule enumeration behind the parent pass: no submodules, so it is a no-op.
+  runProcessMock.mockResolvedValue({ code: 0, stdout: '', stderr: '', timedOut: false })
+})
+
+describe.each(searchCases)('relay $name line fragments', ({ search, encode, arm }) => {
   async function run(chunks: string[]) {
     const child = createProcess()
-    spawnMock.mockReturnValueOnce(child)
+    arm(child)
     const result = search('/remote/root', 'hit', { maxResults: 100 })
+    await flushMicrotasks()
     expect(child.stdout!.setEncoding).toHaveBeenCalledWith('utf-8')
     for (const chunk of chunks) {
       child.stdout!.emit('data', chunk)
@@ -110,8 +136,9 @@ describe.each(searchCases)('relay $name line fragments', ({ search, encode }) =>
   it('discards an unfinished line on timeout and detaches the output listeners', async () => {
     vi.useFakeTimers()
     const child = createProcess()
-    spawnMock.mockReturnValueOnce(child)
+    arm(child)
     const result = search('/remote/root', 'hit', { maxResults: 100 })
+    await flushMicrotasks()
     child.stdout!.emit('data', `${encode('hit complete', 1)}\n${encode('hit partial', 2)}`)
     await vi.runOnlyPendingTimersAsync()
     const value = await result

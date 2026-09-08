@@ -74,9 +74,10 @@ export function ensureWindowsProcessTreeBuildSource(projectDir) {
     writeFileSync(processPath, processCc)
   }
   stageWindowsProcessTreeNodeAddonApiHeaders(packageDir)
-  // Why guarded on `repairable`: the command-line repair throws on a missing source, and this
-  // function still has to stage headers for a package whose sources node-gyp never reads.
-  const repairedCommandLine = repairable && ensureWindowsProcessTreeCommandLinePatch(packageDir)
+  // Deliberately NOT guarded on `repairable`: an unpatched command-line reader compiles fine
+  // and then walks every process's PEB, so a missing or unrepairable source must fail the
+  // build rather than be skipped the way the gyp rewrites are.
+  const repairedCommandLine = ensureWindowsProcessTreeCommandLinePatch(packageDir)
   if (bindingGyp !== originalBinding || processCc !== originalProcess || repairedCommandLine) {
     console.warn('[windows-process-tree] Repaired un-applied pnpm patch hunks before build.')
   }

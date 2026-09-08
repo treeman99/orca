@@ -61,8 +61,10 @@ describe('createMainWindow spellcheck under enterprise policy', () => {
         setWindowButtonPosition: vi.fn(),
         maximize: vi.fn(),
         show: vi.fn(),
-        loadFile: vi.fn(),
-        loadURL: vi.fn()
+        // Why resolved promises: loadMainWindow observes the load promise, so a bare
+        // vi.fn() makes window creation throw before any spellcheck option is read.
+        loadFile: vi.fn(() => Promise.resolve()),
+        loadURL: vi.fn(() => Promise.resolve())
       }
       browserWindowMock.mockImplementation(function () {
         return browserWindowInstance

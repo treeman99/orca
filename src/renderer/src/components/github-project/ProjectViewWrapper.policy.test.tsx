@@ -21,8 +21,10 @@ vi.mock('@/enterprise/enterprise-policy-access', () => ({
 // Upstream moved this out of ProjectViewWrapper and renamed it; the gate is unchanged.
 import { ProjectViewTabStrip as ViewTabStrip } from './ProjectViewStates'
 
+// Board, not Roadmap: v1.4.198 made ROADMAP_LAYOUT a supported layout, and a supported
+// tab renders no tracker link at all, so it cannot prove the gate either way.
 const views = [
-  { id: 'v1', name: 'Roadmap', number: 1, layout: 'ROADMAP_LAYOUT' }
+  { id: 'v1', name: 'Board', number: 1, layout: 'BOARD_LAYOUT' }
 ] as unknown as GitHubProjectViewSummary[]
 
 function render(): string {
@@ -49,6 +51,6 @@ describe('unsupported project-view tab under disableVendorLinks', () => {
     expect(markup).not.toContain('github.com')
     expect(markup).not.toContain('File a feature request at')
     // Apostrophes arrive HTML-escaped, so match a stretch of copy without one.
-    expect(markup).toContain('support Roadmap project views yet')
+    expect(markup).toContain('support Board project views yet')
   })
 })
