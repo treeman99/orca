@@ -4,6 +4,10 @@ type RestoredViewportReattachSession = {
   hasRestoredViewportBlankingMarker: () => boolean
   consumeRestoredViewportBlankingMarker: () => boolean
   writeRestoredViewportReset: (args: { ownerProcessEnded: boolean; rows?: number }) => void
+  logRestoreDiagnostic?: (
+    event: 'reattach-payloadless',
+    extra?: Record<string, string | number | boolean>
+  ) => void
 }
 
 /**
@@ -16,15 +20,22 @@ export function clearRestoredViewportOnPayloadlessReattach(
   session: RestoredViewportReattachSession,
   cursorRepainted: boolean
 ): void {
+  const hasRestoredViewport = session.hasRestoredViewportBlankingMarker()
   if (
     !shouldBlankRestoredViewportOnReattach({
-      hasRestoredViewport: session.hasRestoredViewportBlankingMarker(),
+      hasRestoredViewport,
       cursorAuthority: cursorRepainted ? 'repainted' : 'restored-buffer-only'
     })
   ) {
+    session.logRestoreDiagnostic?.('reattach-payloadless', {
+      blanked: false,
+      marker: hasRestoredViewport,
+      repainted: cursorRepainted
+    })
     return
   }
   session.consumeRestoredViewportBlankingMarker()
+  session.logRestoreDiagnostic?.('reattach-payloadless', { blanked: true, marker: true })
   // Why not ownerProcessEnded: this reattach found a LIVE session; only the payload is
   // missing, so its modes and pen are still owned.
   session.writeRestoredViewportReset({ ownerProcessEnded: false })

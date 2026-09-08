@@ -23,6 +23,7 @@ export type ReattachPayloadSession = Pick<
   | 'suppressStructuralReplayPtyResize'
   | 'transport'
   | 'writeFreshShellViewportBlanking'
+  | 'logRestoreDiagnostic'
   | 'hasRestoredViewportBlankingMarker'
   | 'writeRestoredViewportReset'
   | 'writeReplayData'

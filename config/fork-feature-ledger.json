@@ -308,6 +308,48 @@
       ]
     },
     {
+      "id": "terminal-restore-diagnostics",
+      "summary": "터미널 복원 경로마다 진단 로그 한 줄(terminal-restore). Windows 에서 '재시작·프로젝트 전환 후 이전 내용 위에 새 프롬프트가 겹친다' 신고의 실제 경로를 사용자 PC 로그로 확정하기 위한 것 — 맥에서는 재현이 안 된다.",
+      "present": [
+        {
+          "file": "src/renderer/src/components/terminal-pane/terminal-pane-layout-restore.ts",
+          "contains": "logTerminalRestoreDiagnostic('layout-restore', {"
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/fresh-spawn-follow-reset.ts",
+          "contains": "session.logRestoreDiagnostic('fresh-spawn-blank', {"
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/restored-viewport-reattach-clear.ts",
+          "contains": "session.logRestoreDiagnostic?.('reattach-payloadless', { blanked: true, marker: true })"
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/apply-reattach-payload.ts",
+          "contains": "session.logRestoreDiagnostic?.('reattach-snapshot', {"
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/apply-reattach-payload.ts",
+          "contains": "session.logRestoreDiagnostic?.('reattach-replay', {"
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/apply-reattach-payload.ts",
+          "contains": "session.logRestoreDiagnostic?.('cold-restore-repaint', {"
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/hidden-output-restore-snapshot.ts",
+          "contains": "session.logRestoreDiagnostic?.('snapshot-restore', {"
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/hidden-output-restore-snapshot.ts",
+          "contains": "session.logRestoreDiagnostic?.('snapshot-unavailable')"
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/reattach-payload-session.ts",
+          "contains": "| 'logRestoreDiagnostic'"
+        }
+      ]
+    },
+    {
       "id": "orchestration-worker-autoclose",
       "summary": "완료된 워커 탭 자동 닫기 — send 와 read 양쪽 정착 지점.",
       "present": [

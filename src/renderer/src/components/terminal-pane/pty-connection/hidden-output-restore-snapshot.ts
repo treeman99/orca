@@ -31,6 +31,7 @@ import type { ConnectPanePtySession } from './connect-pane-pty-session'
 
 export function bindHiddenOutputRestoreSnapshot(session: ConnectPanePtySession): void {
   session.writeRestoreUnavailableWarning = function (): void {
+    session.logRestoreDiagnostic?.('snapshot-unavailable')
     // The reset must parse before both the warning and any foreground drain.
     session.writePtyOutputToXterm(RESET_AFTER_BYTE_GAP, true)
     if (!shouldWritePtyOutputForeground(session.deps.isVisibleRef.current)) {
@@ -161,6 +162,12 @@ export function bindHiddenOutputRestoreSnapshot(session: ConnectPanePtySession):
             // Why last: snapshot taken mid-escape; re-arm as the FINAL replay write (any later ESC aborts it) so the live tail completes it, not render literally (Bug E / #7329).
             session.writeReplayData(snapshot.pendingEscapeTailAnsi)
           }
+          session.logRestoreDiagnostic?.('snapshot-restore', {
+            dims: `${snapshot.cols}x${snapshot.rows}`,
+            image: !snapshotCarriesNoImage,
+            owner: snapshot.terminalOwner ?? 'app',
+            frame: skippedAltFrame ? 'alt-skipped' : snapshot.alternateScreen ? 'alt' : 'normal'
+          })
           session.hiddenRendererStateDirty = false
           session.recordRendererOrderedSeq(snapshot)
           recordTerminalOutput(session.pane.terminal)

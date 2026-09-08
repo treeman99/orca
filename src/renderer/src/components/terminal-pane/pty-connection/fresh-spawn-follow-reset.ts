@@ -19,6 +19,10 @@ import {
 import { deferTerminalGeometryMutationDuringRebuild } from '@/lib/pane-manager/terminal-scroll-intent-rebuild'
 
 import { TERMINAL_RENDERER_RISK_SCAN_TAIL_CHARS } from './foreground-output-scan'
+import {
+  logTerminalRestoreDiagnostic,
+  type TerminalRestoreDiagnosticEvent
+} from '../terminal-restore-diagnostics'
 import type { FreshSpawnOptions } from './fresh-spawn-types'
 
 import type { ConnectPanePtySession } from './connect-pane-pty-session'
@@ -191,13 +195,35 @@ export function bindFreshSpawnFollowReset(session: ConnectPanePtySession): void 
     session.writeReplayData(buildFreshShellViewportBlankingSequence(rows))
   }
 
+  // Why one helper: every restore path logs the same pane identity and grid; the
+  // event name and a few extras are all that differ (terminal-restore-diagnostics.ts).
+  session.logRestoreDiagnostic = (
+    event: TerminalRestoreDiagnosticEvent,
+    extra?: Record<string, string | number | boolean | null | undefined>
+  ): void => {
+    logTerminalRestoreDiagnostic(event, {
+      tabId: session.deps.tabId,
+      ptyId: session.transport.getPtyId(),
+      terminal: session.pane.terminal,
+      visible: session.deps.isVisibleRef.current,
+      nativeConpty: session.isNativeWindowsConpty === true,
+      extra
+    })
+  }
+
   session.prepareFreshShellViewportForSpawn = (options: FreshSpawnOptions): void => {
     const hadRestoredViewport = session.consumeRestoredViewportBlankingMarker()
     if (!options.forceBlankRestoredViewport && !hadRestoredViewport) {
+      session.logRestoreDiagnostic('fresh-spawn-blank', { blanked: false })
       return
     }
     // Why: fresh Windows ConPTY output paints at screen coordinates, so
     // restored rows must leave the viewport before the first prompt redraw.
     session.writeRestoredViewportReset({ ownerProcessEnded: true })
+    session.logRestoreDiagnostic('fresh-spawn-blank', {
+      blanked: true,
+      marker: hadRestoredViewport,
+      forced: options.forceBlankRestoredViewport === true
+    })
   }
 }

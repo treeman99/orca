@@ -61,6 +61,11 @@ export function createReattachPayloadHandlers(
           session.suppressStructuralReplayPtyResize = false
         }
       }
+      session.logRestoreDiagnostic?.('reattach-snapshot', {
+        dims: `${ctx.connectResult.snapshotCols ?? '?'}x${ctx.connectResult.snapshotRows ?? '?'}`,
+        cold: Boolean(ctx.connectResult.coldRestore),
+        owner: ctx.connectResult.snapshotTerminalOwner ?? 'app'
+      })
       session.writeReplayData(`${RESET_GRAPHIC_RENDITION}\x1b[2J\x1b[3J\x1b[H`)
       // Why: re-arm the kitty keyboard mirror from the snapshot preamble so Option chords keep their encoding after a window reload.
       session.applySnapshotKittyKeyboardModes(daemonSnapshotReplay, {
@@ -208,6 +213,10 @@ export function createReattachPayloadHandlers(
         session.rememberReattachPayloadAgentSignal(ctx.connectResult.replay, {
           fullScreenReplay: true
         })
+        session.logRestoreDiagnostic?.('reattach-replay', {
+          chars: ctx.connectResult.replay.length,
+          cold: Boolean(ctx.connectResult.coldRestore)
+        })
         // Relay replay may overlap xterm's pre-disconnect content; clear first to avoid duplication.
         session.writeReplayData(`${RESET_GRAPHIC_RENDITION}\x1b[2J\x1b[3J\x1b[H`)
         // Why: raw relay replay may contain the app's own kitty pushes; re-arm with set semantics so redelivery can't grow the stack.
@@ -296,6 +305,11 @@ export function createReattachPayloadHandlers(
       session.writeRestoredViewportReset({
         ownerProcessEnded: true,
         rows: Math.max(destinationRows, session.pane.terminal.rows)
+      })
+      session.logRestoreDiagnostic?.('cold-restore-repaint', {
+        dims: `${ctx.connectResult.coldRestore.cols ?? '?'}x${ctx.connectResult.coldRestore.rows ?? '?'}`,
+        blankRows: Math.max(destinationRows, session.pane.terminal.rows),
+        chars: ctx.connectResult.coldRestore.scrollback.length
       })
       if (!isRemoteRuntimePtyId(ctx.ptyId)) {
         window.api.pty.ackColdRestore(ctx.ptyId)

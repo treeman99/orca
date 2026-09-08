@@ -1,5 +1,6 @@
 import type { PaneManager } from '@/lib/pane-manager/pane-manager'
 import { useAppStore } from '@/store'
+import { logTerminalRestoreDiagnostic } from './terminal-restore-diagnostics'
 import { applyExpandedLayoutTo } from './expand-collapse'
 import { replayTerminalLayout, restoreScrollbackBuffers } from './layout-serialization'
 import { canReleaseReplayedScrollbackFromStore } from './replayed-scrollback-store-release'
@@ -32,6 +33,19 @@ export function restoreTerminalPaneLayout(args: {
     refs.restoredViewportBlankingPanesRef
   )
   const hasScrollbackRefs = Boolean(initialLayoutRef.current.scrollbackRefsByLeafId)
+  logTerminalRestoreDiagnostic('layout-restore', {
+    tabId,
+    terminal: manager.getPanes()[0]?.terminal ?? null,
+    visible: isActive,
+    extra: {
+      buffers: restoredBuffers ? Object.keys(restoredBuffers).length : 0,
+      refs: hasScrollbackRefs,
+      leaves: restoredPaneByLeafId.size,
+      generation:
+        useAppStore.getState().tabsByWorktree[worktreeId]?.find((tab) => tab.id === tabId)
+          ?.generation ?? 0
+    }
+  })
   if (
     restoredBuffers &&
     canReleaseReplayedScrollbackFromStore({
