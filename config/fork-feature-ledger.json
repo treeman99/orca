@@ -292,6 +292,22 @@
       ]
     },
     {
+      "id": "windows-hook-loopback-noproxy",
+      "summary": "Windows hook 런처(curl.exe)가 127.0.0.1 리스너를 사내 프록시로 보내지 않게 --noproxy 를 단다. POSIX 런처(hook-post-command.ts)와 같은 계약.",
+      "present": [
+        {
+          "file": "src/main/agent-hooks/installer-utils.ts",
+          "contains": "'  --noproxy \"127.0.0.1\" ^',",
+          "why": "buildWindowsAgentHookPostCommand 의 한 줄. 사내 PC 는 http_proxy 가 잡혀 있어 이 줄이 빠지면 Windows 에서 codex/gemini/cursor 등 .cmd 런처의 status 가 조용히 사라진다."
+        },
+        {
+          "file": "src/main/agent-hooks/installer-utils.ts",
+          "contains": "'--noproxy \"127.0.0.1\"',",
+          "why": "buildWindowsAgentHookCurlPostCommand 의 한 줄 — claude 런처가 이 형태로 POST 한다."
+        }
+      ]
+    },
+    {
       "id": "orchestration-worker-autoclose",
       "summary": "완료된 워커 탭 자동 닫기 — send 와 read 양쪽 정착 지점.",
       "present": [

@@ -158,6 +158,8 @@ export function buildWindowsAgentHookPostCommand(
   // Why: fully-qualify curl so a repo-local curl.exe can't hijack hook payloads.
   return [
     `"%SystemRoot%\\System32\\curl.exe" -sS -X POST "http://127.0.0.1:%ORCA_AGENT_HOOK_PORT%/hook/${source}" ^`,
+    // Why: curl honors http_proxy/HTTPS_PROXY; a corporate proxy cannot reach this loopback listener (POSIX parity).
+    '  --noproxy "127.0.0.1" ^',
     '  --connect-timeout 0.5 --max-time 1.5 ^',
     '  -H "Content-Type: application/x-www-form-urlencoded" ^',
     '  -H "X-Orca-Agent-Hook-Token: %ORCA_AGENT_HOOK_TOKEN%" ^',
@@ -177,6 +179,8 @@ export function buildWindowsAgentHookCurlPostCommand(source: AgentHookSource): s
   return [
     '"%SystemRoot%\\System32\\curl.exe" -sS -X POST',
     `"http://127.0.0.1:%ORCA_AGENT_HOOK_PORT%/hook/${source}"`,
+    // Why: same loopback bypass as the .cmd form; the claude launcher posts through this one.
+    '--noproxy "127.0.0.1"',
     '--connect-timeout 0.5 --max-time 1.5',
     '-H "Content-Type: application/x-www-form-urlencoded"',
     '-H "X-Orca-Agent-Hook-Token: %ORCA_AGENT_HOOK_TOKEN%"',

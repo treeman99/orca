@@ -881,6 +881,15 @@ describe('buildWindowsAgentHookPostCommand', () => {
     expect(command).toMatch(/^"%SystemRoot%\\System32\\curl\.exe"/)
     expect(command).not.toMatch(/^curl\.exe\b/)
   })
+
+  it('bypasses a corporate proxy for the loopback listener like the POSIX launcher', () => {
+    // Why: curl.exe honors http_proxy/HTTPS_PROXY; routed through a corporate proxy the
+    // 127.0.0.1 post fails silently and the agent's status never reaches Orca.
+    const command = buildWindowsAgentHookPostCommand('gemini')
+
+    expect(command).toContain('--noproxy "127.0.0.1" ^')
+    expect(command.indexOf('--noproxy')).toBeLessThan(command.indexOf('--connect-timeout'))
+  })
 })
 
 describe('buildPosixAgentHookPostCommand', () => {
@@ -926,5 +935,13 @@ describe('buildWindowsAgentHookCurlPostCommand', () => {
 
   it('targets the requested hook source endpoint', () => {
     expect(buildWindowsAgentHookCurlPostCommand('grok')).toContain('/hook/grok')
+  })
+
+  it('bypasses a corporate proxy for the loopback listener like the POSIX launcher', () => {
+    // Why: this is the form the Claude launcher posts through on Windows.
+    const command = buildWindowsAgentHookCurlPostCommand('claude')
+
+    expect(command).toContain('--noproxy "127.0.0.1"')
+    expect(command.indexOf('--noproxy')).toBeLessThan(command.indexOf('--connect-timeout'))
   })
 })
