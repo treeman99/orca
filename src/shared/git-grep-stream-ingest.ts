@@ -9,6 +9,7 @@
  * The child-process import is type-only — this module spawns nothing.
  */
 import type { ChildProcessHandle } from './child-process/process-spec'
+import { SearchSubprocessLineAccumulator } from './search-subprocess-lines'
 import { ingestGitGrepLine, type SearchAccumulator } from './text-search'
 
 export type GitGrepIngestOptions = {
@@ -32,7 +33,7 @@ export function ingestGitGrepChild(
   { rootPath, matchRegex, acc, maxResults, timeoutMs, relPathPrefix }: GitGrepIngestOptions
 ): Promise<void> {
   return new Promise((resolve) => {
-    let stdoutBuffer = ''
+    const lines = new SearchSubprocessLineAccumulator(Number.MAX_SAFE_INTEGER)
     let done = false
     let killTimeout: ReturnType<typeof setTimeout>
 
@@ -41,6 +42,7 @@ export function ingestGitGrepChild(
         return
       }
       done = true
+      lines.clear()
       clearTimeout(killTimeout)
       // Why: child.kill() is advisory. If git ignores it, detach our closures so
       // repeated fallback searches do not retain old scans.
@@ -59,12 +61,7 @@ export function ingestGitGrepChild(
     }
 
     function handleStdoutData(chunk: string): void {
-      stdoutBuffer += chunk
-      const lines = stdoutBuffer.split('\n')
-      stdoutBuffer = lines.pop() ?? ''
-      for (const line of lines) {
-        processLine(line)
-      }
+      lines.push(chunk, processLine)
     }
 
     function handleStderrData(): void {
@@ -76,8 +73,9 @@ export function ingestGitGrepChild(
     }
 
     function handleClose(): void {
-      if (stdoutBuffer) {
-        processLine(stdoutBuffer)
+      const tail = lines.finish()
+      if (tail !== null) {
+        processLine(tail)
       }
       resolveOnce()
     }

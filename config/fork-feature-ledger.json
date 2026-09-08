@@ -504,7 +504,7 @@
         },
         {
           "file": "src/renderer/src/components/terminal-pane/terminal-pane-hook-order-parity.test.ts",
-          "contains": "'373981e5aae397b3cc9c57977b3c7bde29f91000a81494d4c760877dce4ce6d1'",
+          "contains": "'99d8a55341b00faa4be59061caa19f0740cd4c7a61d8f9892c4aa6400f4d4a45'",
           "why": "훅 개수·useMemo 개수는 upstream 과 같고 식별자만 다르다(useOptionalLinkRoutingPreferenceDialog). 다이제스트는 그 차이를 보므로 포크 전용 값이며, 머지가 upstream 값으로 되돌리면 빨개진다."
         }
       ]

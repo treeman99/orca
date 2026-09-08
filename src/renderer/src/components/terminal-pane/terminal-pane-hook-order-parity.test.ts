@@ -11,12 +11,16 @@ const TERMINAL_PANE_HOOK_SOURCE_PATTERN =
 // split-cwd changes; the pane session-ID projection added one render hook (230 hooks).
 // Then 27 stable-action `useAppStore` subscriptions folded into four
 // `useTerminalPaneStoreActions()` calls, each one `useMemo` (204 hooks, 8 useMemo).
-// Fork delta from upstream's pinned hash: this build calls
+// Restoring the terminal/chat switcher added four `useCallback`s — three in
+// chat-state (can-toggle, toggle-for-leaf, toggle-active) and the context-menu
+// toggle in projection (208 hooks, still 8 useMemo).
+//
+// Fork delta from upstream's pinned hash (upstream: 983ad067…037c): this build calls
 // `useOptionalLinkRoutingPreferenceDialog` instead of `useLinkRoutingPreferenceDialog`
 // (the popped-out tab window mounts no provider). Same hook count, same position —
 // only the identifier differs, which is what the digest sees.
 const PRE_REFACTOR_HOOK_ORDER_SHA256 =
-  '373981e5aae397b3cc9c57977b3c7bde29f91000a81494d4c760877dce4ce6d1'
+  '99d8a55341b00faa4be59061caa19f0740cd4c7a61d8f9892c4aa6400f4d4a45'
 
 const sourceFiles = readdirSync(__dirname)
   .filter((name) => TERMINAL_PANE_HOOK_SOURCE_PATTERN.test(name))
@@ -81,7 +85,7 @@ function readFlattenedHookOrder(): string[] {
 describe('TerminalPane refactor hook parity', () => {
   it('preserves the recursively flattened render hook order', () => {
     const hooks = readFlattenedHookOrder()
-    expect(hooks).toHaveLength(204)
+    expect(hooks).toHaveLength(208)
     expect(hooks.filter((hook) => hook === 'useMemo')).toHaveLength(8)
     expect(createHash('sha256').update(hooks.join('\n')).digest('hex')).toBe(
       PRE_REFACTOR_HOOK_ORDER_SHA256

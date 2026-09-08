@@ -1,6 +1,9 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { stageWindowsProcessTreeNodeAddonApiHeaders } from './windows-process-tree-gyp-rebuild.mjs'
+import {
+  ensureWindowsProcessTreeCommandLinePatch,
+  stageWindowsProcessTreeNodeAddonApiHeaders
+} from './windows-process-tree-gyp-rebuild.mjs'
 
 export function windowsProcessTreePackageDir(projectDir) {
   return join(projectDir, 'node_modules', '@vscode', 'windows-process-tree')
@@ -56,6 +59,13 @@ export function ensureWindowsProcessTreeBuildSource(projectDir) {
     ''
   )
   processCc = processCc.replace(/process_count < 1024 && /, '')
+  // The memory and CPU readers only ever call GetProcessMemoryInfo/GetProcessTimes,
+  // which need no more than PROCESS_QUERY_LIMITED_INFORMATION; taking VM_READ is
+  // what EDR scores.
+  processCc = processCc.replaceAll(
+    'OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid)',
+    'OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)'
+  )
 
   if (bindingGyp !== originalBinding) {
     writeFileSync(bindingPath, bindingGyp)
@@ -64,7 +74,10 @@ export function ensureWindowsProcessTreeBuildSource(projectDir) {
     writeFileSync(processPath, processCc)
   }
   stageWindowsProcessTreeNodeAddonApiHeaders(packageDir)
-  if (bindingGyp !== originalBinding || processCc !== originalProcess) {
+  // Why guarded on `repairable`: the command-line repair throws on a missing source, and this
+  // function still has to stage headers for a package whose sources node-gyp never reads.
+  const repairedCommandLine = repairable && ensureWindowsProcessTreeCommandLinePatch(packageDir)
+  if (bindingGyp !== originalBinding || processCc !== originalProcess || repairedCommandLine) {
     console.warn('[windows-process-tree] Repaired un-applied pnpm patch hunks before build.')
   }
   return true

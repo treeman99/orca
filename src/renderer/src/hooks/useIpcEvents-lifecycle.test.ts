@@ -19,6 +19,7 @@ const EXPECTED_DIRECT_CALLBACK_METHODS = [
   'emulator.onPaneFocus',
   'gh.onPRRefreshEvent',
   'keybindings.onChanged',
+  'orcaProfiles.onAuthStatusChanged',
   'pty.onExit',
   'rateLimits.onUpdate',
   'remoteWorkspace.onChanged',
@@ -120,6 +121,7 @@ const EXPECTED_CALLBACK_REGISTRATION_SEQUENCE = [
   'ui.onToggleWorktreePalette',
   'ui.onToggleFloatingTerminal',
   'ui.onTerminalShortcutCaptured',
+  'orcaProfiles.onAuthStatusChanged',
   'ui.onOpenQuickOpen',
   'ui.onToggleQuickCommandsMenu',
   'ui.onOpenNewWorkspace',
@@ -380,15 +382,11 @@ describe('useIpcEvents App-lifetime lifecycle', () => {
     ])
     const groupOrder = (names: readonly string[]): string[] =>
       registrationOrder.filter((entry) => names.includes(entry))
-    expect(
-      groupOrder(['ui.onOpenSettings', 'ui.consumePendingOpenSettings'])
-    ).toEqual(['ui.onOpenSettings', 'ui.consumePendingOpenSettings'])
-    expect(
-      groupOrder([
-        'rateLimits.onUpdate',
-        'rateLimits.get'
-      ])
-    ).toEqual([
+    expect(groupOrder(['ui.onOpenSettings', 'ui.consumePendingOpenSettings'])).toEqual([
+      'ui.onOpenSettings',
+      'ui.consumePendingOpenSettings'
+    ])
+    expect(groupOrder(['rateLimits.onUpdate', 'rateLimits.get'])).toEqual([
       'rateLimits.onUpdate',
       'rateLimits.get'
     ])

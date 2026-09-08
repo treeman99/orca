@@ -30,7 +30,8 @@ import type { LaunchSource } from '../../../shared/telemetry-events'
 import { getConnectionIdFromState } from '@/lib/connection-context'
 import { resolveLaunchAgentViewMode } from '@/lib/launch-agent-forced-terminal-view'
 import { seedNativeChatAppliedSessionOptions } from '@/components/native-chat/native-chat-session-option-cache'
-import { startStructuredCodexLaunch } from '@/lib/structured-agent-session-launch'
+import { startStructuredAgentLaunch } from '@/lib/structured-agent-session-launch'
+import { isAgentSessionHandleProvider } from '../../../shared/agent-session-provider-handle'
 import {
   hasExplicitTuiLaunchCustomization,
   hasExplicitTuiAgentArgs,
@@ -233,8 +234,8 @@ function launchAgentInNewTabInternal(
           hasExplicitTuiLaunchCustomization(store.settings, agent),
         initialSessionOptions: startupPlan.sessionOptions
       })
-  if (launchRoute === 'structured-native-chat' && agent === 'codex') {
-    const structuredLaunch = startStructuredCodexLaunch(worktreeId, {
+  if (launchRoute === 'structured-native-chat' && isAgentSessionHandleProvider(agent)) {
+    const structuredLaunch = startStructuredAgentLaunch(worktreeId, agent, {
       prompt: trimmedPrompt,
       ...(promptDelivery === 'submit-after-ready' ? { promptDelivery } : {}),
       onPromptDelivered

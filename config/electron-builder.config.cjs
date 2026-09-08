@@ -23,6 +23,7 @@ const {
 const { verifySkillsCliRuntime } = require('./scripts/verify-skills-cli-runtime.cjs')
 const { verifyPackagedSkillPackages } = require('./scripts/verify-packaged-skill-packages.cjs')
 const { verifyStaticAppImagePackage } = require('./scripts/static-appimage-package-contract.cjs')
+const { signWindowsUninstallerViaSignPath } = require('./scripts/windows-uninstaller-signing.cjs')
 
 // Why: dev-channel builds must carry the *release* identity — same bundle id,
 // Developer ID signature, and notarization ticket — or Squirrel.Mac refuses to
@@ -102,6 +103,14 @@ const bundledPluginResources = {
 // from package directories where pnpm's symlink farm is absent. Copy the exact
 // runtime dependency closure to Resources/node_modules so bare require() calls
 // do not fall through to a developer checkout's node_modules.
+// Why the single file rather than the package root: app.asar carries no node_modules, so main's
+// lazy require in deferred-emoji-shortcode-dataset.ts resolves only out of Resources/node_modules,
+// but emojibase-data is 49 MB of locale datasets and worktree naming reads exactly this 166 KB file.
+const emojiShortcodeDatasetResource = {
+  from: 'node_modules/emojibase-data/en/shortcodes/emojibase.json',
+  to: 'node_modules/emojibase-data/en/shortcodes/emojibase.json'
+}
+
 // Why: the corporate lockdown must not depend on a separate GPO/Intune step — a PC that
 // only ran the installer used to behave like upstream Orca. The loader resolves this from
 // process.resourcesPath and %ProgramData% still outranks it, so central override survives.
@@ -114,6 +123,7 @@ const commonExtraResources = [
   bundledPluginResources,
   skillFreshnessResources,
   bundledSkillPackageResources,
+  emojiShortcodeDatasetResource,
   bundledEnterprisePolicyResource
 ]
 // Why: native speech addons must be real files outside app.asar; copy only the
@@ -332,9 +342,15 @@ module.exports = {
     }
     stampPackagedCliVersion(resourcesDir, context.packager.appInfo.version)
     prunePackagedRuntimeNodeModules(resourcesDir, context.electronPlatformName, context.arch)
-    // Prune optional native variants before checking the glibc/architecture
-    // floor; cross-builds intentionally install all optional packages.
+    // Why: a Linux runner-image glibc bump silently shipped a node-pty pty.node
+    // requiring GLIBC_2.34, crashing the app on startup on Ubuntu 20.04 (#9902).
+    // Fail packaging if any bundled native binary exceeds the supported floor.
+    // Why after the prune: cross-builds intentionally install every optional
+    // native variant, so an arm64 slice still carries the x64 @parcel/watcher
+    // until prunePackagedRuntimeNodeModules drops it.
     if (context.electronPlatformName === 'linux') {
+      // Why the arch is passed: symbol-version checks pass happily on a wrong-architecture binary,
+      // so a cross-built slice could ship the host's pty.node and only fail at runtime.
       verifyLinuxGlibcFloor(context.appOutDir, {
         targetArch: { 1: 'x64', 3: 'arm64' }[context.arch]
       })
@@ -418,15 +434,21 @@ module.exports = {
     // would therefore reject its own channel's next build — and its way back to
     // stable with it. Dropping it is what makes dev→dev and dev→stable work.
     //
+    // Why a sign hook on a build that does not sign: it is the only moment
+    // electron-builder exposes the NSIS uninstaller (built in its own makensis
+    // pass, embedded, then deleted). The hook signs nothing — it relays the file
+    // to and from the CI SignPath request, and is inert when the relay env vars
+    // are unset, so local and dev builds are unaffected.
+    //
     // Fork: a rebuild signed by another authority must pin its own name — keeping the
     // upstream one makes an Authenticode check accept the public installer.
-    ...(isWinDevChannel
-      ? { verifyUpdateCodeSignature: false }
-      : {
-          signtoolOptions: {
-            publisherName: process.env.ORCA_WIN_PUBLISHER_NAME ?? 'SignPath Foundation'
-          }
-        }),
+    signtoolOptions: {
+      sign: signWindowsUninstallerViaSignPath,
+      ...(isWinDevChannel
+        ? {}
+        : { publisherName: process.env.ORCA_WIN_PUBLISHER_NAME ?? 'SignPath Foundation' })
+    },
+    ...(isWinDevChannel ? { verifyUpdateCodeSignature: false } : {}),
     extraResources: [
       ...commonExtraResources,
       ...createPackagedRuntimeNodeModuleResources('win32'),

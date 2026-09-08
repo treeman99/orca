@@ -5,6 +5,7 @@
  * These functions depend only on their arguments (plus `rg` being on PATH),
  * so they are straightforward to test independently.
  */
+import { SearchSubprocessLineAccumulator } from '../shared/search-subprocess-lines'
 import { spawn } from 'node:child_process'
 import { open } from 'node:fs/promises'
 import {
@@ -98,7 +99,7 @@ export function searchWithRg(
   return new Promise((resolve, reject) => {
     const rgArgs = buildRgArgs(query, rootPath, opts)
     const acc = createAccumulator()
-    let buffer = ''
+    const lines = new SearchSubprocessLineAccumulator(Number.MAX_SAFE_INTEGER)
     let resolved = false
     let processErrorObserved = false
     let unavailableExitObserved = false
@@ -126,6 +127,7 @@ export function searchWithRg(
         return
       }
       resolved = true
+      lines.clear()
       clearTimeout(killTimeout)
       // Why: child.kill() is advisory over SSH; detach listeners if the
       // process ignores timeout kill so old searches cannot retain closures.
@@ -145,6 +147,7 @@ export function searchWithRg(
         return
       }
       resolved = true
+      lines.clear()
       clearTimeout(killTimeout)
       child.stdout!.off('data', handleStdoutData)
       child.stderr!.off('data', handleStderrData)
@@ -178,12 +181,7 @@ export function searchWithRg(
     }
 
     function handleStdoutData(chunk: string): void {
-      buffer += chunk
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-      for (const line of lines) {
-        processLine(line)
-      }
+      lines.push(chunk, processLine)
     }
 
     function handleStderrData(): void {
@@ -209,8 +207,9 @@ export function searchWithRg(
         settleLaunchFailure()
         return
       }
-      if (buffer) {
-        processLine(buffer)
+      const tail = lines.finish()
+      if (tail !== null) {
+        processLine(tail)
       }
       resolveOnce()
     }
