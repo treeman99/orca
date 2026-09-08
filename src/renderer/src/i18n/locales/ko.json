@@ -5007,6 +5007,15 @@
               "6798dc7c94": "리뷰 중",
               "5076efc3d2": "완료"
             }
+          },
+          "agent": {
+            "coordinator": {
+              "fallback": {
+                "rows": {
+                  "2afb8027ef": "오케스트레이션 코디네이터"
+                }
+              }
+            }
           }
         },
         "CacheTimer": {

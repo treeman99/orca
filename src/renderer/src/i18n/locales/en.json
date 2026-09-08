@@ -5602,6 +5602,15 @@
               "6798dc7c94": "In review",
               "5076efc3d2": "Done"
             }
+          },
+          "agent": {
+            "coordinator": {
+              "fallback": {
+                "rows": {
+                  "2afb8027ef": "Orchestration coordinator"
+                }
+              }
+            }
           }
         },
         "CacheTimer": {

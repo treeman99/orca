@@ -281,6 +281,17 @@
       ]
     },
     {
+      "id": "orchestration-coordinator-row",
+      "summary": "코디네이터 자신의 status 행이 사라져도, 살아 있는 워커가 그 페인을 parentPaneKey 로 가리키는 동안 사이드바 카드에 코디네이터 행을 합성해 유지한다.",
+      "present": [
+        {
+          "file": "src/renderer/src/components/sidebar/worktree-agent-rows.ts",
+          "contains": "...buildCoordinatorFallbackRows({",
+          "why": "행 빌더에 끼워 넣은 호출 한 줄이 앵커다. upstream 이 이 빌더를 쪼개면 호출만 남지 않고, 타입체크도 기존 테스트도 그 부재를 잡지 못한다 — 워커 행은 여전히 만들어지고 코디네이터만 조용히 빠진다."
+        }
+      ]
+    },
+    {
       "id": "orchestration-worker-autoclose",
       "summary": "완료된 워커 탭 자동 닫기 — send 와 read 양쪽 정착 지점.",
       "present": [

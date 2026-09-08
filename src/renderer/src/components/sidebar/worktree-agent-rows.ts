@@ -28,6 +28,7 @@ import {
 } from './worktree-agent-row-fallback-tab'
 import { resolveRowAgentType } from './worktree-agent-row-type'
 import { entryWithRuntimeOrchestration } from './worktree-agent-row-orchestration'
+import { buildCoordinatorFallbackRows } from './worktree-agent-coordinator-fallback-rows'
 
 function countTerminalLayoutLeaves(node: TerminalPaneLayoutNode | null | undefined): number {
   if (!node) {
@@ -238,6 +239,20 @@ export function buildWorktreeAgentRows(args: {
     rows.push(...buildSubagentChildRows({ parentEntry: rowEntry, tab, parentIsFresh: isFresh }))
     seenPaneKeys.add(rowEntry.paneKey)
   }
+
+  // Why: a coordinator whose own status row is gone must stay on the card while live
+  // workers still report to its pane — otherwise the run reads as workers with no owner.
+  rows.push(
+    ...buildCoordinatorFallbackRows({
+      tabs: args.tabs,
+      entries: args.entries,
+      retained: args.retained,
+      rowPaneKeys: new Set(rows.map((row) => row.paneKey)),
+      ptyIdsByTabId,
+      terminalLayoutsByTabId: args.terminalLayoutsByTabId,
+      runtimeAgentOrchestrationByPaneKey: args.runtimeAgentOrchestrationByPaneKey
+    })
+  )
 
   for (const ra of args.retained) {
     if (seenPaneKeys.has(ra.entry.paneKey)) {
