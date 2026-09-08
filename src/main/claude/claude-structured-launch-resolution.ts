@@ -22,6 +22,7 @@ import {
 } from '../native-chat/claude-structured-managed-account-support'
 import { resolveClaudeCommand } from '../codex-cli/command'
 import type { AgentSessionRecordStore } from '../runtime/agent-session-record-store'
+import { assertAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 
 export const CLAUDE_DEFAULT_SETTING_SOURCES = ['user', 'project', 'local'] as const
 
@@ -182,6 +183,12 @@ export function createClaudeStructuredLaunchResolver(
     if (record.provider !== 'claude') {
       throw new Error(`session ${identity.sessionId} is a ${record.provider} session`)
     }
+    // Why again after attach: a record the store already holds is relaunched straight from
+    // here — on wake, on owner replacement, on restart restore — without a second attach. This
+    // is the only refusal a session created before the policy landed ever meets, and it is the
+    // last point before a vendor CLI becomes a child process. Same gate, same reason, as the
+    // codex twin in codex-structured-launch-resolution.ts.
+    assertAgentAllowedByEnterprisePolicy(record.provider)
     if (
       record.location.executionHostId !== LOCAL_EXECUTION_HOST_ID ||
       record.location.wslDistro !== null

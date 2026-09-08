@@ -676,6 +676,36 @@ upstream v1.4.195가 **Next.js 문서 사이트**(`docs/site/`, 115파일 + 자�
 > 이 절차는 "감사 표면을 늘리지 않는다"는 유지 작업이지 보안 게이트가 아닙니다. 그러니 급하게 되돌리지 말고
 > 다음 정기 동기화에서 처리해도 됩니다.
 
+#### upstream이 이미 게이트된 레인에 **두 번째 provider**를 붙일 때 (v1.4.198에서 실제로 겪음)
+
+v1.4.198이 structured 네이티브 챗 레인에 Claude 를 추가했습니다(`@anthropic-ai/claude-agent-sdk`,
+`src/main/claude/**`). 이 레인은 이미 `allowedAgents`로 잠겨 있었지만 **잠금은 codex 모양으로
+잠겨 있었습니다** — 게이트 4곳 중 셋(attach 퍼널·가용성 프로브·렌더러 좁히기)은 provider-agnostic
+이라 새 provider 를 공짜로 덮었고, **마지막 스폰 게이트만 `codex-structured-launch-resolution.ts`
+안에 있어서 `claude-structured-launch-resolution.ts` 에는 없었습니다.**
+
+**왜 아무것도 이것을 잡지 못했나.**
+
+- **원장의 앵커 검사**는 문자열이 *사라졌는지*만 봅니다. codex 쪽 줄은 그대로 있었습니다.
+- **`policySwitchMinConsumers` 하한**도 못 잡습니다. 그 카운터는 `.allowedAgents` 출현 수를 세는데,
+  게이트 함수(`assertAgentAllowedByEnterprisePolicy`)는 가드 모듈 안에서 정책을 읽으므로
+  **새 레인이 하나 안 잠겨도 숫자가 줄지 않습니다.**
+- **행동 테스트**도 못 잡습니다. codex 케이스는 계속 초록이고, claude 케이스는 존재한 적이 없습니다.
+
+**그래서 판별식은 "쌍둥이 대조"입니다.** 머지 후, 게이트가 박힌 파일마다 그 파일의 **형제**가
+새로 생기지 않았는지 보십시오. 기계적으로:
+
+```bash
+# 게이트가 있는 파일들의 이름 패턴을 뽑아, 같은 패턴의 형제 중 게이트 없는 것을 찾는다
+git grep -l 'assertAgentAllowedByEnterprisePolicy' -- src/ | sed 's|.*/||'
+# 예: codex-structured-launch-resolution.ts 가 나오면
+ls src/main/*/[a-z]*-structured-launch-resolution.ts
+git grep -L 'EnterprisePolicy' -- 'src/main/*/[a-z]*-structured-launch-resolution.ts'
+```
+
+빈 결과여야 합니다. 뭔가 나오면 **그 파일이 새 provider 이고 게이트가 안 따라간 것**입니다.
+고칠 때는 쌍둥이 양쪽을 다 원장에 등재하십시오 — 하나만 올리면 다음 릴리스에 같은 일이 반복됩니다.
+
 #### 게이트가 박힌 파일을 upstream이 통째로 해체할 때 (v1.4.196에서 실제로 겪음)
 
 v1.4.196은 **`max-lines` 우회 34건을 한 릴리스에서 청산**했습니다(`config/max-lines-baseline.txt`에서 34행 제거,

@@ -27,6 +27,7 @@ vi.mock('../enterprise/enterprise-policy-file', async (importOriginal) => ({
   getEnterprisePolicy: mocks.getEnterprisePolicy
 }))
 
+import { createClaudeStructuredLaunchResolver } from '../claude/claude-structured-launch-resolution'
 import { createCodexStructuredLaunchResolver } from '../codex/codex-structured-launch-resolution'
 import { attachStructuredAgentSession } from '../native-chat/agent-session-wire/structured-agent-session-attach-orchestration'
 import { OrcaRuntimeService } from './orca-runtime'
@@ -39,6 +40,12 @@ function codexNotAllowed(): void {
   mocks.getEnterprisePolicy.mockReturnValue(
     makeLockdownPolicy({ allowedAgents: ['claude', 'opencode'] })
   )
+}
+
+/** The shipped fleet policy lists claude, so the claude spawn gate needs a fleet that does not.
+ *  A fleet is free to narrow `allowedAgents` further, and then this lane must refuse too. */
+function claudeNotAllowed(): void {
+  mocks.getEnterprisePolicy.mockReturnValue(makeLockdownPolicy({ allowedAgents: ['opencode'] }))
 }
 
 function upstreamBuild(): void {
@@ -92,6 +99,34 @@ function codexResolver(): ReturnType<typeof createCodexStructuredLaunchResolver>
 
 function launch(): Promise<unknown> {
   return codexResolver()({ identity: { sessionId: 'session-1' } as never })
+}
+
+// --- chokepoint 2b: the claude spawn resolver ----------------------------------------------
+//
+// v1.4.198 gave the structured lane a second provider. Its resolver is the codex resolver's
+// twin and needed the same last-mile refusal; the attach funnel above is provider-agnostic and
+// already covered it, but a record relaunched on wake or restart restore never attaches again.
+
+function claudeRecord(): AgentSessionRecord {
+  return {
+    sessionId: 'session-1',
+    provider: 'claude',
+    providerHandleChain: [],
+    location: { executionHostId: LOCAL_EXECUTION_HOST_ID, wslDistro: null, workspaceId: 'w1' },
+    accountHome: { variable: 'CLAUDE_CONFIG_DIR', path: '/home/claude' }
+  } as unknown as AgentSessionRecord
+}
+
+function claudeLaunch(): Promise<unknown> {
+  return createClaudeStructuredLaunchResolver({
+    store: { getRecord: () => claudeRecord() },
+    resolveWorkspacePath: async () => '/repos/w1',
+    resolveCommand: () => '/usr/local/bin/claude',
+    resolveEnv: async () => ({ PATH: '/usr/local/bin' }),
+    resolveAuthPolicy: () => ({ stripAuthEnv: false }) as never
+  } as unknown as Parameters<typeof createClaudeStructuredLaunchResolver>[0])({
+    identity: { sessionId: 'session-1', providerHandle: { kind: 'claude' } } as never
+  })
 }
 
 describe('structured agent-session enterprise policy gate', () => {
@@ -150,6 +185,25 @@ describe('structured agent-session enterprise policy gate', () => {
       await expect(launch()).resolves.toMatchObject({
         command: '/usr/local/bin/codex',
         args: ['app-server'],
+        cwd: '/repos/w1'
+      })
+    })
+  })
+
+  describe('claude spawn resolver', () => {
+    it('refuses to build a launch for a blocked agent', async () => {
+      claudeNotAllowed()
+
+      await expect(claudeLaunch()).rejects.toThrow(BLOCKED)
+    })
+
+    it('builds the launch on an upstream build with no policy file', async () => {
+      upstreamBuild()
+
+      await expect(claudeLaunch()).resolves.toMatchObject({
+        // Always Orca's resolved user CLI — the SDK's own bundled binaries are excluded
+        // from the install, so this field is what proves the spawn target.
+        pathToClaudeCodeExecutable: '/usr/local/bin/claude',
         cwd: '/repos/w1'
       })
     })

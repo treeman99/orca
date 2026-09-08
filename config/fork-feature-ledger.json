@@ -82,6 +82,15 @@
           "contains": "applyAgentStatusHooksEnabledUnderEnterprisePolicy"
         },
         {
+          "file": "src/main/codex/codex-structured-launch-resolution.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy(record.provider)"
+        },
+        {
+          "file": "src/main/claude/claude-structured-launch-resolution.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy(record.provider)",
+          "why": "v1.4.198 이 structured 레인에 두 번째 제공자(Claude Agent SDK)를 붙이면서, codex 쌍둥이에만 있던 마지막 스폰 게이트가 이쪽에는 없었다. attach 퍼널은 provider-agnostic 이라 진입은 막지만, 이미 저장된 레코드를 wake·소유자 교체·재시작 복원에서 다시 띄우는 경로는 attach 를 두 번 지나지 않는다."
+        },
+        {
           "file": "src/renderer/src/lib/agent-launch-routing.ts",
           "contains": "isAgentAllowedByPolicy(input.agent, getEnterprisePolicyView().allowedAgents)",
           "why": "v1.4.197 이 structured-native-chat-availability.ts 를 지우면서 이 게이트가 통째로 사라졌다. 이 레인은 agentSession.createSupport 를 묻지 않고 바로 create 하므로, 없으면 허용되지 않은 에이전트 탭을 연 뒤 에러 토스트로 거절이 온다."
