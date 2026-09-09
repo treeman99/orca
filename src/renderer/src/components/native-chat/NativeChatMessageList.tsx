@@ -3,9 +3,7 @@ import { ArrowDown } from 'lucide-react'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
 import { translate } from '@/i18n/i18n'
 import type { NativeChatLiveSession } from './use-native-chat-live-session'
-import { orderNativeChatMessages } from './native-chat-message-grouping'
-import { stripNoiseMessages } from './native-chat-noise'
-import { foldToolMessages } from './native-chat-tool-fold'
+import { createNativeChatMessageListProjection } from './native-chat-message-list-projection'
 import { isNearBottom, shouldShowJumpToLatest, type ScrollGeometry } from './native-chat-autoscroll'
 import { MessageRow } from './NativeChatMessageRow'
 import { shouldShowNativeChatTypingIndicator } from './native-chat-typing-indicator'
@@ -13,6 +11,8 @@ import { NativeChatWorkingStatus } from './NativeChatWorkingStatus'
 import { useNativeChatTurnStatus } from './use-native-chat-turn-status'
 import { NativeChatTypingIndicatorRow } from './NativeChatTypingIndicatorRow'
 import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
+import type { NativeChatTurnActivity } from './native-chat-turn-activity'
+import { NativeChatTurnActivityLine } from './NativeChatTurnActivityLine'
 
 export { ProviderFrameRow } from './NativeChatTranscriptChrome'
 
@@ -32,6 +32,7 @@ export function NativeChatMessageList({
   workingStartedAt,
   failedDeliveryMessageIds,
   showTurnStatus = true,
+  turnActivity,
   runtimeContext
 }: {
   session: NativeChatLiveSession
@@ -46,6 +47,7 @@ export function NativeChatMessageList({
   failedDeliveryMessageIds?: ReadonlySet<string>
   /** Turn timing and disclosure are available on structured agent sessions. */
   showTurnStatus?: boolean
+  turnActivity?: NativeChatTurnActivity | null
   runtimeContext?: RuntimeFileOperationArgs | null
 }): React.JSX.Element {
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -75,10 +77,15 @@ export function NativeChatMessageList({
   stuckToBottomRef.current = stuckToBottom
   const { hasMore, loadingEarlier, loadEarlier } = session
 
-  // Keep hidden harness turns as fold boundaries, then strip them before render.
+  const projectMessages = useMemo(
+    () => createNativeChatMessageListProjection(),
+    // Rebound sessions must release the previous transcript's cached rows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session.agent, session.sessionId]
+  )
   const messages = useMemo(
-    () => stripNoiseMessages(foldToolMessages(orderNativeChatMessages(session.messages))),
-    [session.messages]
+    () => projectMessages(session.messages),
+    [projectMessages, session.messages]
   )
   const showTypingIndicator = showTurnStatus
     ? isWorking
@@ -271,6 +278,9 @@ export function NativeChatMessageList({
               thinking={turnStatuses.active.thinking}
               workedSeconds={turnStatuses.active.workedSeconds}
             />
+          ) : null}
+          {showTurnStatus && isWorking ? (
+            <NativeChatTurnActivityLine activity={turnActivity} />
           ) : null}
           {!showTurnStatus && showTypingIndicator ? <NativeChatTypingIndicatorRow /> : null}
         </div>
