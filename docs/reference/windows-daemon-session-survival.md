@@ -28,11 +28,11 @@ in-process `LocalPtyProvider`로 폴백하고, 종료 시 `will-quit`의 `killAl
 
 데몬 레인이 실패/열화하는 경로는 셋뿐이다.
 
-| 경로 | 결과 | 로그 이벤트 |
-| --- | --- | --- |
-| 데몬 launch 자체가 실패 | 이번 실행의 **모든** 터미널이 로컬 | `lane-unavailable` |
-| degraded 모드로 데몬 채택 | **새로 여는** 터미널만 로컬 (기존 데몬 세션은 생존) | `adopted` + `mode: degraded-new-pty-fallback` |
-| 데몬이 앱과 함께 죽음 | 다음 실행에서 cold start | `endpoint-health: unreachable` + 데몬 프로세스 부재 |
+| 경로                      | 결과                                                | 로그 이벤트                                         |
+| ------------------------- | --------------------------------------------------- | --------------------------------------------------- |
+| 데몬 launch 자체가 실패   | 이번 실행의 **모든** 터미널이 로컬                  | `lane-unavailable`                                  |
+| degraded 모드로 데몬 채택 | **새로 여는** 터미널만 로컬 (기존 데몬 세션은 생존) | `adopted` + `mode: degraded-new-pty-fallback`       |
+| 데몬이 앱과 함께 죽음     | 다음 실행에서 cold start                            | `endpoint-health: unreachable` + 데몬 프로세스 부재 |
 
 ## 2. 코드로 좁혀 놓은 것 (실기 없이 판정 가능한 부분)
 
@@ -84,6 +84,7 @@ for ($i = 0; $p -and $i -lt 12; $i++) {
   $p = Get-CimInstance Win32_Process -Filter "ProcessId = $($p.ParentProcessId)"
 }
 ```
+
 claude에서 위로 올라가는 조상 체인을 찍는다. 데몬은 이름이 두 가지(`orca-terminal-daemon.exe`
 또는 설치 디렉터리에서 뜬 `Orca.exe`)라 이름만으로는 앱 본체와 구분되지 않으므로,
 명령줄에 `daemon-entry.js`가 있는 줄에 `<== PTY 데몬` 표시를 붙였다.
@@ -102,6 +103,7 @@ Get-CimInstance Win32_Process -Filter "Name='orca-terminal-daemon.exe' OR Name='
   Where-Object { $_.CommandLine -like '*daemon-entry.js*' } |
   Select-Object ProcessId, Name, CreationDate | Format-Table -AutoSize
 ```
+
 → `Get-Process`는 명령줄을 못 보여줘서 데몬을 다른 Orca 프로세스와 구분할 수 없다.
 `Get-CimInstance Win32_Process`(PowerShell 3.0+, Windows 기본 탑재)만 쓴다. WMIC는
 Windows 11 24H2에서 제거되었으므로 쓰지 않는다.
@@ -115,6 +117,7 @@ Windows 11 24H2에서 제거되었으므로 쓰지 않는다.
 ```powershell
 [System.IO.Directory]::GetFiles('\\.\pipe\') | Where-Object { $_ -like '*orca-terminal-host*' }
 ```
+
 (PowerShell 7이면 `Get-ChildItem \\.\pipe\ | Where-Object Name -like '*orca-terminal-host*'`도 된다.
 Windows PowerShell 5.1에서는 `Get-ChildItem \\.\pipe\`가 실패하므로 위의 .NET 호출을 쓴다.)
 → 파이프가 남아 있으면 데몬이 살아서 듣고 있다는 뜻이다(파이프는 프로세스와 함께 사라진다).
@@ -126,6 +129,7 @@ Windows PowerShell 5.1에서는 `Get-ChildItem \\.\pipe\`가 실패하므로 위
 Get-Content "$env:APPDATA\Orca\logs\daemon.log" |
   Where-Object { $_ -like '*"src":"main"*' } | Select-Object -Last 20
 ```
+
 → 여기 찍히는 `event` 값을 §5 표에서 찾으면 어느 가설이 참인지 나온다. 줄이 하나도 없으면
 이 수정이 들어가기 전 빌드이거나 `ORCA_DIAGNOSTICS_DISABLED`가 켜져 있는 것이다.
 → 로그 파일 자체가 없으면 Orca가 로그 디렉터리를 못 만든 것이다(권한/폴더 리디렉션).
@@ -142,9 +146,10 @@ if (-not $exe) { "재배치 이미지가 없음 - 복사 단계에서 이미 실
   Remove-Item Env:ELECTRON_RUN_AS_NODE
 }
 ```
+
 → `daemon-host-executable`이 찍히면 이미지는 정상.
 → "이 프로그램은 그룹 정책에 의해 차단되었습니다" / 접근 거부 / 아무 출력 없이 종료면
-   **정책 또는 AV가 `%LOCALAPPDATA%` 실행을 막고 있다** = 이번 수정이 겨냥한 원인.
+**정책 또는 AV가 `%LOCALAPPDATA%` 실행을 막고 있다** = 이번 수정이 겨냥한 원인.
 
 ### 4-6. 결정적 실험 — 종료를 넘겨 살아남는지 직접 본다
 
@@ -161,28 +166,28 @@ Get-CimInstance Win32_Process -Filter "Name='orca-terminal-daemon.exe' OR Name='
   Select-Object ProcessId, Name
 ```
 
-| 4번 결과 | 결론 |
-| --- | --- |
-| claude 있음 + 데몬 있음 | 정상. 재시작 후에도 셸이 된다면 문제는 **재부착/바인딩** 쪽이지 세션 생존이 아니다 |
-| claude 없음 + 데몬 있음 | 데몬은 살았는데 세션만 죽었다 → 데몬 쪽 세션 종료. `daemon.log`의 `src:"daemon"` 줄을 본다 |
-| claude 없음 + 데몬 **없음** | 데몬이 앱과 함께 죽었다 → **Job Object 가설(§2)**. 앱 가상화/EDR/런처를 의심한다 |
-| claude 없음 + 데몬이 애초에 없었음(§4-1에 표시 없음) | **로컬 PTY 폴백**이 원인. §4-4 → §5로 왜 데몬 레인이 실패했는지 좁힌다 |
+| 4번 결과                                             | 결론                                                                                       |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| claude 있음 + 데몬 있음                              | 정상. 재시작 후에도 셸이 된다면 문제는 **재부착/바인딩** 쪽이지 세션 생존이 아니다         |
+| claude 없음 + 데몬 있음                              | 데몬은 살았는데 세션만 죽었다 → 데몬 쪽 세션 종료. `daemon.log`의 `src:"daemon"` 줄을 본다 |
+| claude 없음 + 데몬 **없음**                          | 데몬이 앱과 함께 죽었다 → **Job Object 가설(§2)**. 앱 가상화/EDR/런처를 의심한다           |
+| claude 없음 + 데몬이 애초에 없었음(§4-1에 표시 없음) | **로컬 PTY 폴백**이 원인. §4-4 → §5로 왜 데몬 레인이 실패했는지 좁힌다                     |
 
 ## 5. 로그 문자열 → 가설 대응표
 
 `daemon.log`의 `event` 값으로 읽는다.
 
-| 보이는 줄 | 뜻 | 결론 |
-| --- | --- | --- |
-| `"src":"main","event":"endpoint-health","health":"healthy"` 다음 `"event":"adopted","mode":"daemon-backed"` | 이전 데몬을 그대로 재사용 | **데몬은 무죄.** 세션이 죽었다면 원인은 데몬 밖(파일 소유권/렌더러 바인딩) |
-| `"event":"adopted","mode":"degraded-new-pty-fallback"` | 데몬은 살렸지만 **새 PTY는 로컬** | degraded 확정. 이 실행에서 연 터미널은 종료 시 죽는다. Manage Sessions → Restart로 해소 |
-| `"event":"launch-host-fallback","from":"relocated","to":"install-dir"` | 재배치 이미지가 안 떠서 설치 디렉터리로 우회 (**이번 수정으로 새로 생긴 구제 경로**) | 같은 줄의 `stage`로 원인 확정: `spawn`+`code:"EACCES"`/`"EPERM"`=실행 차단, `child-exited`=부트스트랩 실패, `timeout`=AV 스캔 지연 |
-| `"event":"launch-failed","host":"relocated"` **뒤에 fallback 줄이 없음** | 우회조차 못 함 | 수정 전 빌드이거나, 설치 디렉터리 호스트도 같이 막힘 |
-| `"event":"lane-unavailable"` | 데몬 레인 포기 | **원인 확정.** 이 실행의 모든 터미널이 로컬 PTY → 종료 시 claude 사망 |
-| `"event":"endpoint-health","health":"unreachable"` + §4-2에서 데몬 프로세스 **없음** | 데몬이 앱과 함께 죽었다 | Job Object 가설(§2). 앱 종료 직후 §4-2를 다시 찍어 확인 |
-| `"event":"endpoint-health","health":"unreachable"` + §4-2에서 데몬 프로세스 **있음** | 데몬은 살아 있는데 파이프에 못 붙음 | 보안 제품의 파이프 개입 / 데몬 wedge. §4-3으로 파이프 존재 확인 |
-| `"event":"endpoint-health","health":"rejected"` | 핸드셰이크 거부 (토큰/프로토콜 불일치) | 프로토콜 버전이 다른 데몬이 남아 있다 |
-| `"src":"daemon","event":"shutdown","reason":"idle"` | 데몬이 스스로 종료 | 데몬이 세션을 0개로 봤다는 뜻 — 세션이 그 전에 이미 죽었다 |
+| 보이는 줄                                                                                                   | 뜻                                                                                   | 결론                                                                                                                               |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `"src":"main","event":"endpoint-health","health":"healthy"` 다음 `"event":"adopted","mode":"daemon-backed"` | 이전 데몬을 그대로 재사용                                                            | **데몬은 무죄.** 세션이 죽었다면 원인은 데몬 밖(파일 소유권/렌더러 바인딩)                                                         |
+| `"event":"adopted","mode":"degraded-new-pty-fallback"`                                                      | 데몬은 살렸지만 **새 PTY는 로컬**                                                    | degraded 확정. 이 실행에서 연 터미널은 종료 시 죽는다. Manage Sessions → Restart로 해소                                            |
+| `"event":"launch-host-fallback","from":"relocated","to":"install-dir"`                                      | 재배치 이미지가 안 떠서 설치 디렉터리로 우회 (**이번 수정으로 새로 생긴 구제 경로**) | 같은 줄의 `stage`로 원인 확정: `spawn`+`code:"EACCES"`/`"EPERM"`=실행 차단, `child-exited`=부트스트랩 실패, `timeout`=AV 스캔 지연 |
+| `"event":"launch-failed","host":"relocated"` **뒤에 fallback 줄이 없음**                                    | 우회조차 못 함                                                                       | 수정 전 빌드이거나, 설치 디렉터리 호스트도 같이 막힘                                                                               |
+| `"event":"lane-unavailable"`                                                                                | 데몬 레인 포기                                                                       | **원인 확정.** 이 실행의 모든 터미널이 로컬 PTY → 종료 시 claude 사망                                                              |
+| `"event":"endpoint-health","health":"unreachable"` + §4-2에서 데몬 프로세스 **없음**                        | 데몬이 앱과 함께 죽었다                                                              | Job Object 가설(§2). 앱 종료 직후 §4-2를 다시 찍어 확인                                                                            |
+| `"event":"endpoint-health","health":"unreachable"` + §4-2에서 데몬 프로세스 **있음**                        | 데몬은 살아 있는데 파이프에 못 붙음                                                  | 보안 제품의 파이프 개입 / 데몬 wedge. §4-3으로 파이프 존재 확인                                                                    |
+| `"event":"endpoint-health","health":"rejected"`                                                             | 핸드셰이크 거부 (토큰/프로토콜 불일치)                                               | 프로토콜 버전이 다른 데몬이 남아 있다                                                                                              |
+| `"src":"daemon","event":"shutdown","reason":"idle"`                                                         | 데몬이 스스로 종료                                                                   | 데몬이 세션을 0개로 봤다는 뜻 — 세션이 그 전에 이미 죽었다                                                                         |
 
 ## 6. 이번 변경으로 달라지는 것
 

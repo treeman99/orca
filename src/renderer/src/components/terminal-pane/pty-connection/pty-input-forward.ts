@@ -1,3 +1,4 @@
+import { subscribeToTerminalInputData } from '../terminal-user-input-signal'
 import { installTerminalImeCompositionRoute } from '../terminal-ime-composition-route'
 import { useAppStore } from '@/store'
 import { isTerminalQueryReply } from '../../../../../shared/terminal-query-reply'
@@ -7,6 +8,7 @@ import { isPtyLocked } from '@/lib/pane-manager/mobile-driver-state'
 import { getAppliedSizeReadE2eDelayMs } from '../pty-applied-size-read-e2e-delay'
 import { createPtySizeReassertion } from '../pty-size-reassertion'
 import { isPaneReplaying } from '../replay-guard'
+import { isXtermMouseReport, isXtermWheelCursorKey } from '../terminal-pointer-input-sequences'
 import { shouldDropQuarantinedTerminalInput } from '../terminal-input-quarantine'
 import {
   PANE_PTY_RESIZE_HOLD_FLUSH_EVENT,
@@ -22,15 +24,21 @@ import type { ConnectPanePtySession } from './connect-pane-pty-session'
 import { installForegroundGridDriftCheck } from './foreground-grid-drift-check'
 
 export function installPtyInputForward(session: ConnectPanePtySession): void {
-  session.forwardPtyInput = (data: string): void => {
-    // Why: xterm auto-replies to embedded query sequences (DA1, DECRQM,
-    // OSC 10/11, focus, CPR) via onData. When we replay recorded PTY bytes
-    // into xterm for scrollback/cold-restore/snapshot, those queries would
-    // otherwise pipe replies into the freshly spawned shell as stray input
-    // ("?1;2c", "2026;2$y", OSC color fragments, ...). The replay sites
-    // engage the guard via replayIntoTerminal; here we drop everything
-    // xterm emits while the guard is active. See replay-guard.ts.
-    if (isPaneReplaying(session.deps.replayingPanesRef, session.pane.id)) {
+  session.forwardPtyInput = (data: string, wasUserInput = false): void => {
+    // Why: replaying recorded PTY bytes makes xterm auto-reply to embedded
+    // queries (DA1/DECRQM/OSC 10-11/CPR) via onData; those must not leak into
+    // the shell, but keystrokes typed mid-restore must survive. Pointer input
+    // stays dropped even though xterm flags it as user input: replayed bytes can
+    // leave mouse tracking armed until the guarded mode reset lands (a click
+    // would print SGR fragments on the fresh prompt), and a wheel over a
+    // replayed alt-screen frame becomes cursor keys that would recall history
+    // at that prompt once ?1049l lands. See replay-guard.ts.
+    if (
+      isPaneReplaying(session.deps.replayingPanesRef, session.pane.id) &&
+      (!wasUserInput ||
+        isXtermMouseReport(data) ||
+        (isXtermWheelCursorKey(data) && session.pane.terminal.buffer.active.type === 'alternate'))
+    ) {
       return
     }
     const currentPtyId = session.transport.getPtyId()
@@ -167,13 +175,21 @@ export function installPtyInputForward(session: ConnectPanePtySession): void {
       session.requestRecoveryForUndeliverableInput()
     }
   }
-  session.onDataDisposable = session.pane.terminal.onData((data) => {
-    if (session.deps.deferPtyInput) {
-      session.deps.deferPtyInput(session.pane.id, data, session.forwardPtyInput)
-      return
+  // Why bind once: provenance must survive deferPtyInput's later callback, and
+  // this is the per-keystroke hot path, so no closure allocation per onData event.
+  const forwardUserInput = (data: string): void => session.forwardPtyInput(data, true)
+  const forwardUnclassifiedInput = (data: string): void => session.forwardPtyInput(data, false)
+  session.onDataDisposable = subscribeToTerminalInputData(
+    session.pane.terminal,
+    (data, wasUserInput) => {
+      const forward = wasUserInput ? forwardUserInput : forwardUnclassifiedInput
+      if (session.deps.deferPtyInput) {
+        session.deps.deferPtyInput(session.pane.id, data, forward)
+        return
+      }
+      forward(data)
     }
-    session.forwardPtyInput(data)
-  })
+  )
   session.imeCompositionRouteDisposable = installTerminalImeCompositionRoute({
     terminalElement: session.pane.terminal.element,
     terminal: session.pane.terminal,

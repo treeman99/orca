@@ -254,12 +254,12 @@
       "summary": "같은 워크트리 워커를 코디네이터 옆 컬럼으로 자동 분할. 앵커는 main 이 만들고 렌더러가 해석한다 — 전달 라인이 끊기면 조용히 탭 하나로 떨어진다.",
       "present": [
         {
-          "file": "src/main/runtime/rpc/methods/orchestration-workers.ts",
-          "contains": "...resolveWorkerPaneAnchor(coordinatorTabId, coordinatorTerminal, resolvedWorktree!)",
+          "file": "src/main/runtime/rpc/methods/orchestration/worker/local-worker-start.ts",
+          "contains": "...workerPaneAnchorForStart(coordinatorPane, coordinatorWorktreeId, resolvedWorktree!)",
           "why": "worker-start 가 앵커를 만드는 유일한 줄. 같은 워크트리 판정은 바이트 비교가 아니라 정규화 비교여야 한다 — Windows 에서 PTY 의 worktreeId 표기(드라이브 문자 대소문자·구분자·WSL UNC 별칭)가 스토어 행과 달라도 같은 워크트리이며, 바이트 비교는 그 경우 워커를 코디네이터 그룹의 탭 하나로 떨어뜨렸다."
         },
         {
-          "file": "src/main/runtime/rpc/methods/orchestration-worker-topology.ts",
+          "file": "src/main/runtime/rpc/methods/orchestration/worker/worker-pane-anchor-terminal.ts",
           "contains": "paneGroupPlacement"
         },
         {
@@ -286,6 +286,14 @@
           "file": "src/renderer/src/components/sidebar/worktree-agent-live-index-patch.ts",
           "contains": "return [tabWorktreeId, attributedWorktreeId]",
           "why": "워커 페인이 코디네이터 탭 안에 있고 워커는 다른 워크트리에서 일하므로, 사이드바 행은 두 카드 모두에 들어가야 한다. upstream 은 한 곳만 고르며(`??`), 그러면 tabs-hydration 이 빈 버킷을 지울 때마다 돌고 있는 워커 행이 반대편 카드로 옮겨 가 사이드바에서 사라진 것처럼 보인다."
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/orchestration/worker/worker-topology.ts",
+          "contains": "workerPaneAnchorEffect(args, args, terminal)"
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/orchestration-worker-mode-opacity.test.ts",
+          "contains": "expect(showTerminal).not.toHaveBeenCalledWith('structworker_coord')"
         }
       ]
     },
@@ -363,11 +371,11 @@
       "summary": "완료된 워커 탭 자동 닫기 — send 와 read 양쪽 정착 지점.",
       "present": [
         {
-          "file": "src/main/runtime/rpc/methods/orchestration-send-point-to-point.ts",
+          "file": "src/main/runtime/rpc/methods/orchestration/messaging/send-point-to-point.ts",
           "contains": "autoCloseSettledWorkerTerminal"
         },
         {
-          "file": "src/main/runtime/rpc/methods/orchestration-check-direct.ts",
+          "file": "src/main/runtime/rpc/methods/orchestration/messaging/check-direct.ts",
           "contains": "autoCloseSettledWorkerTerminal"
         }
       ]
@@ -513,7 +521,7 @@
         },
         {
           "file": "src/renderer/src/components/terminal-pane/terminal-pane-hook-order-parity.test.ts",
-          "contains": "'99d8a55341b00faa4be59061caa19f0740cd4c7a61d8f9892c4aa6400f4d4a45'",
+          "contains": "'603694338b74754d0607a11f5f27a6097c1cbbb09da0062365a7493bbacdf352'",
           "why": "훅 개수·useMemo 개수는 upstream 과 같고 식별자만 다르다(useOptionalLinkRoutingPreferenceDialog). 다이제스트는 그 차이를 보므로 포크 전용 값이며, 머지가 upstream 값으로 되돌리면 빨개진다."
         }
       ]
@@ -528,7 +536,7 @@
         },
         {
           "file": "src/shared/child-process/child-process-import-boundary.test.ts",
-          "contains": "const DIRECT_IMPORTER_PIN = 154",
+          "contains": "const DIRECT_IMPORTER_PIN = 153",
           "why": "v1.4.197 이 upstream 자기 수(158)로 숫자 백스톱을 추가했다. 이 빌드는 포크 소유 직접 import 8건을 runProcess/spawnProcess/runProcessSync 로 이관했고, upstream 이 가진 2건(skills CLI 핸들러·local-builds)은 지웠으므로 158 보다 2 낮은 156 이다. 머지가 158 로 되돌리면 래칫이 확보한 땅을 다시 열어 준다."
         },
         {

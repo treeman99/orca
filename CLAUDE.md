@@ -10,7 +10,7 @@ The contribution rules above (design system, cross-platform, SSH, Git compatibil
 
 Node 24 + pnpm 12 (`packageManager` is pinned; upstream v1.4.194 moved 10 → 12 and relocated every `pnpm.*` block from `package.json` to `pnpm-workspace.yaml`, deleting `.npmrc`). `engines` declares Node 24 and every CI job pins it via `node-version-file: package.json`; nothing sets `engine-strict`, so pnpm only warns on a newer Node. **Install pnpm with `npm install -g pnpm`, not `corepack enable`** — a corepack shim shadows that pnpm on PATH and corepack does not read `.npmrc`, so its downloads bypass a corporate mirror or proxy. `docs/reference/pnpm-12-corepack-install.md` covers that and the other two ways this bites on a locked-down Windows machine.
 
-`pnpm install` runs a postinstall (`rebuild-native-deps.mjs`) that compiles native deps against **Electron's** ABI, not the host Node's. `pnpm test`, `pnpm dev`, and `pnpm start` first run `ensure-native-runtime.mjs`, which re-targets `node-pty` at whichever runtime is about to load it (`--runtime=node` for tests, `--runtime=electron` for dev). Its `Native modules still do not load for Node <v>` message means node-pty could not be loaded *or rebuilt* — the usual cause is that `pnpm install` never ran, not that the Node major is wrong.
+`pnpm install` runs a postinstall (`rebuild-native-deps.mjs`) that compiles native deps against **Electron's** ABI, not the host Node's. `pnpm test`, `pnpm dev`, and `pnpm start` first run `ensure-native-runtime.mjs`, which re-targets `node-pty` at whichever runtime is about to load it (`--runtime=node` for tests, `--runtime=electron` for dev). Its `Native modules still do not load for Node <v>` message means node-pty could not be loaded _or rebuilt_ — the usual cause is that `pnpm install` never ran, not that the Node major is wrong.
 
 ```bash
 pnpm dev                 # Electron app in watch mode
@@ -66,13 +66,13 @@ The `--mode e2e` build is what exposes `window.__store`; a plain `pnpm build` re
 
 Orca is an Electron app that runs many CLI coding agents in parallel git worktrees, locally or on remote hosts. Five deployable pieces:
 
-| Piece | Entry | Role |
-| --- | --- | --- |
-| Main | `src/main/index.ts` | Electron main; owns all state that must survive a renderer reload |
-| Preload | `src/preload/index.ts` | the single audited `contextBridge` IPC contract |
-| Renderer | `src/renderer/index.html` → `src/renderer/src/main.tsx` | React 19 + Zustand + Tailwind v4/shadcn |
-| Relay | `src/relay/relay.ts` | standalone daemon shipped to remote hosts over SCP |
-| CLI | `src/cli/index.ts` | `orca` binary; drives a running app over a local socket |
+| Piece    | Entry                                                   | Role                                                              |
+| -------- | ------------------------------------------------------- | ----------------------------------------------------------------- |
+| Main     | `src/main/index.ts`                                     | Electron main; owns all state that must survive a renderer reload |
+| Preload  | `src/preload/index.ts`                                  | the single audited `contextBridge` IPC contract                   |
+| Renderer | `src/renderer/index.html` → `src/renderer/src/main.tsx` | React 19 + Zustand + Tailwind v4/shadcn                           |
+| Relay    | `src/relay/relay.ts`                                    | standalone daemon shipped to remote hosts over SCP                |
+| CLI      | `src/cli/index.ts`                                      | `orca` binary; drives a running app over a local socket           |
 
 Plus `mobile/` (Expo companion that pairs to the desktop runtime) and `native/` (per-OS binaries for Computer Use and macOS notification status).
 
@@ -106,7 +106,7 @@ Rules when you touch this:
 
 ### Terminal state is main-owned
 
-Main ingests PTY bytes into a bounded headless xterm model *before* forwarding to the renderer; the renderer is a view with a capped hidden-output queue that marks itself stale and re-syncs from a serialized snapshot on reveal. Before touching terminal output, visibility, or scrollback, read the modules themselves — `src/main/terminal-scrollback-snapshots.ts`, `src/main/daemon/`, and `src/renderer/src/components/terminal-pane/` (upstream deleted the `docs/terminal-main-owned-state.md` this used to point at).
+Main ingests PTY bytes into a bounded headless xterm model _before_ forwarding to the renderer; the renderer is a view with a capped hidden-output queue that marks itself stale and re-syncs from a serialized snapshot on reveal. Before touching terminal output, visibility, or scrollback, read the modules themselves — `src/main/terminal-scrollback-snapshots.ts`, `src/main/daemon/`, and `src/renderer/src/components/terminal-pane/` (upstream deleted the `docs/terminal-main-owned-state.md` this used to point at).
 
 ### Renderer state
 
@@ -124,7 +124,7 @@ One Zustand store (`src/renderer/src/store/index.ts`) composed from ~190 slices 
 - **Localization** — user-facing strings go through i18n (`src/renderer/src/i18n/locales/*.json`, en/es/ja/ko/zh). `pnpm sync:localization-catalog` fixes catalog drift; `pnpm audit:localization` reports uncovered strings. The auditor flags user-visible JSX props (`label`, `placeholder`, `tooltip`, `aria-label`, …) holding raw literals.
 - **Skill guides** — `skills/<topic>/SKILL.md` is the source; `skill-guides/` and `skill-stubs/` are generated. After editing a skill run `pnpm generate:bundled-skill-guides` and `pnpm generate:skill-bundle-manifest`. Guide names in `config/scripts/generate-bundled-skill-guides.mjs` are a compatibility ledger — renames add aliases, never remove them.
 - **No project-owned `.d.ts` in `src/preload` or `src/shared`** — `skipLibCheck: true` (inherited from `@electron-toolkit/tsconfig`) silently widens unresolved names to `any` there, so a broken IPC signature passes typecheck. A `find` step in CI fails the build.
-- **Patch integrity** — `config/scripts/pnpm-patch-integrity.test.mjs` compares every hunk header against its body in *both* directions (a body that is too long is corruption just as a truncated one is) and asserts the Spectre requirement is gone from the two Windows native packages. `windows-process-tree-patch-contract.test.mjs` pins that patch LF-only and hash-synced with the lockfile.
+- **Patch integrity** — `config/scripts/pnpm-patch-integrity.test.mjs` compares every hunk header against its body in _both_ directions (a body that is too long is corruption just as a truncated one is) and asserts the Spectre requirement is gone from the two Windows native packages. `windows-process-tree-patch-contract.test.mjs` pins that patch LF-only and hash-synced with the lockfile.
 - **Reliability gates** — `config/reliability-gates.jsonc` tracks cross-platform invariants and their maturity (`experimental` → `soak` → `blocking`).
 - **Styled scrollbars / feature-wall asset budget / macOS entitlements** — dedicated `check:*` scripts.
 
@@ -167,11 +167,11 @@ Orca 버전 업그레이드는 반드시 다음 순서로 진행한다:
 `config/scripts/fork-feature-ledger.test.mjs` 가 이를 강제하고 `pnpm lint` 에 물려 있다
 (`pnpm check:fork-feature-ledger` 로 단독 실행). 세 방향을 본다:
 
-| 검사 | 잡는 사고 |
-| --- | --- |
-| `features[].present` — 파일에 그 문자열이 있는가 | 게이트·전달 라인이 리팩터링과 함께 사라진 것 |
-| `absentPaths` / `absentSymbols` | 제거한 표면이 새 경로로 되살아난 것 |
-| `policySwitchMinConsumers` — 정책 스위치별 소비 지점 하한 | 어느 레인에서 게이트가 통째로 빠진 것 |
+| 검사                                                      | 잡는 사고                                    |
+| --------------------------------------------------------- | -------------------------------------------- |
+| `features[].present` — 파일에 그 문자열이 있는가          | 게이트·전달 라인이 리팩터링과 함께 사라진 것 |
+| `absentPaths` / `absentSymbols`                           | 제거한 표면이 새 경로로 되살아난 것          |
+| `policySwitchMinConsumers` — 정책 스위치별 소비 지점 하한 | 어느 레인에서 게이트가 통째로 빠진 것        |
 
 하한을 쓰고 정확한 수를 쓰지 않는 이유: upstream 이 이미 게이트된 레인에 호출지점을 정당하게
 늘리는 일이 있고 그것으로 빌드가 깨져서는 안 된다. **줄어드는 방향만이 사고다.**
@@ -189,7 +189,7 @@ upstream 새 트리에서 grep 하면 어느 모듈로 갔는지 나온다(READM
 ### 새 기능·수정을 만들 때 (fork sync 가 아닌, 사용자와 함께 하는 작업)
 
 **upstream 파일을 건드렸다면 같은 커밋에서 원장에 등재한다.** 판정 기준은 하나다 —
-*upstream 이 이 파일을 쪼개면 내 변경이 사라지는가?* 그렇다면 등재 대상이다.
+_upstream 이 이 파일을 쪼개면 내 변경이 사라지는가?_ 그렇다면 등재 대상이다.
 
 - upstream 파일에 끼워 넣은 게이트·전달 라인·등록 한 줄 → `features[].present` 에 추가
 - upstream 기능을 지웠다면 → `absentPaths` / `absentSymbols` 에 추가
@@ -230,4 +230,4 @@ VS Code 소스 제어 패널과 서브모듈 취급, VS Code 로 열기, Conflue
 
 `docs/STYLEGUIDE.md` (mandatory for UI work), `docs/reference/git-compatibility.md` (Git 2.25 baseline, `GitCapabilityCache`), `docs/reference/linux-glibc-compatibility.md`, `docs/reference/headless-linux-server.md` (`orca serve`), `.github/CONTRIBUTING.md` (PR expectations, maintainer release flow). Loose `docs/*.md` files are per-feature design notes, not general guides.
 
-Fork-specific (Korean): `README.md` (build, GHES, Bedrock, fork sync), `docs/reference/enterprise-policy.md` (policy file schema, fleet deployment, verification), `docs/reference/external-integrations-audit.md` (what leaves the machine, what the lockdown covers, and the residual-risk register), `docs/reference/windows-corporate-build.md` (Windows installer build), `docs/reference/macos-dev-ui-check.md` (check the corporate UI from a macOS `pnpm dev` run, no installer), `docs/reference/local-dev-run.md` (Windows-side local verification: what `pnpm dev` vs `build:unpack` vs the installer each prove, and what none of them can), `docs/reference/pnpm-12-corepack-install.md` (why a locked-down Windows machine fails to install pnpm, and the three causes that are not pnpm itself — read it before blaming the pinned version). **README §6 is the fork-sync ledger**: it records what this fork deleted from upstream and, for each, the collateral edits that come back *without a conflict* on the next merge — check those by hand, not by trusting a clean merge. Keep the audit document honest — it is what a corporate security reviewer reads, and overstating the lockdown there is worse than saying nothing.
+Fork-specific (Korean): `README.md` (build, GHES, Bedrock, fork sync), `docs/reference/enterprise-policy.md` (policy file schema, fleet deployment, verification), `docs/reference/external-integrations-audit.md` (what leaves the machine, what the lockdown covers, and the residual-risk register), `docs/reference/windows-corporate-build.md` (Windows installer build), `docs/reference/macos-dev-ui-check.md` (check the corporate UI from a macOS `pnpm dev` run, no installer), `docs/reference/local-dev-run.md` (Windows-side local verification: what `pnpm dev` vs `build:unpack` vs the installer each prove, and what none of them can), `docs/reference/pnpm-12-corepack-install.md` (why a locked-down Windows machine fails to install pnpm, and the three causes that are not pnpm itself — read it before blaming the pinned version). **README §6 is the fork-sync ledger**: it records what this fork deleted from upstream and, for each, the collateral edits that come back _without a conflict_ on the next merge — check those by hand, not by trusting a clean merge. Keep the audit document honest — it is what a corporate security reviewer reads, and overstating the lockdown there is worse than saying nothing.

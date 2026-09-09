@@ -4,12 +4,10 @@ const { detectCommandsMock, guideModuleLoadMock, runOfflineMock, runtimeClientCo
   vi.hoisted(() => ({
     detectCommandsMock: vi.fn(() => new Set<string>(['claude'])),
     guideModuleLoadMock: vi.fn(),
-    runOfflineMock: vi.fn(
-      async (): Promise<{ lines: string[]; failedNames: string[] }> => ({
-        lines: ['alpha: wrote 2 location(s)'],
-        failedNames: []
-      })
-    ),
+    runOfflineMock: vi.fn(async (): Promise<{ lines: string[]; failedNames: string[] }> => ({
+      lines: ['alpha: wrote 2 location(s)'],
+      failedNames: []
+    })),
     runtimeClientConstructorMock: vi.fn()
   }))
 
@@ -201,7 +199,7 @@ describe('orca skills CLI', () => {
     await main(['--help'], '/tmp/repo')
 
     expect(String(logSpy.mock.calls[0]?.[0])).toContain(
-      'Usage: orca skills get <topic> [--full] [--json]'
+      'Usage: orca skills get <topic> [--full | --reference <name>] [--json]'
     )
     expect(String(logSpy.mock.calls[1]?.[0])).toContain(
       'Commands:\n  installed          List installed skill selectors'
@@ -291,7 +289,7 @@ describe('orca skills CLI', () => {
     await main(['skills', 'install', '--skill'], '/tmp/repo')
 
     expect(process.exitCode).toBe(1)
-    expect(errorSpy).toHaveBeenCalledWith('Missing required --skill')
+    expect(errorSpy).toHaveBeenCalledWith('--skill requires a value; it was passed with none.')
     expect(runOfflineMock).not.toHaveBeenCalled()
   })
 

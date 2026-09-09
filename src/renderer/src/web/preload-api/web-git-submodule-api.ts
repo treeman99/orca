@@ -6,7 +6,17 @@ import { resolveRuntimeWorktreeByPath } from './web-runtime-worktree-catalog'
 type GitApi = NonNullable<Partial<PreloadApi>['git']>
 
 /** Submodule SCM over the runtime RPC surface, split out of web-git-api for max-lines. */
-export function createWebGitSubmoduleApi(): Pick<GitApi, 'submoduleDiscard' | 'submoduleRestorePointer' | 'submoduleList' | 'submoduleStage' | 'submoduleUnstage' | 'submoduleCommit' | 'submodulePush' | 'submodulePull'> {
+export function createWebGitSubmoduleApi(): Pick<
+  GitApi,
+  | 'submoduleDiscard'
+  | 'submoduleRestorePointer'
+  | 'submoduleList'
+  | 'submoduleStage'
+  | 'submoduleUnstage'
+  | 'submoduleCommit'
+  | 'submodulePush'
+  | 'submodulePull'
+> {
   return {
     submoduleDiscard: async ({ worktreePath, submodulePath, filePath }) => {
       const worktree = await resolveRuntimeWorktreeByPath(worktreePath)

@@ -110,6 +110,7 @@ export class RuntimeGitCommands {
     this.commitRuntimeGitSubmodule = submodule.commitRuntimeGitSubmodule.bind(submodule)
     this.pushRuntimeGitSubmodule = submodule.pushRuntimeGitSubmodule.bind(submodule)
     this.pullRuntimeGitSubmodule = submodule.pullRuntimeGitSubmodule.bind(submodule)
-    this.restoreRuntimeGitSubmodulePointer = submodule.restoreRuntimeGitSubmodulePointer.bind(submodule)
+    this.restoreRuntimeGitSubmodulePointer =
+      submodule.restoreRuntimeGitSubmodulePointer.bind(submodule)
   }
 }

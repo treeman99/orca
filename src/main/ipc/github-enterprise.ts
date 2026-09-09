@@ -180,9 +180,8 @@ async function loginWithToken(
 export function registerGithubEnterpriseHandlers(
   dependencies: Dependencies = defaultDependencies()
 ): void {
-  ipcMain.handle(
-    'githubEnterprise:getStatus',
-    (): Promise<GithubEnterpriseAuthStatus> => getStatus(dependencies)
+  ipcMain.handle('githubEnterprise:getStatus', (): Promise<GithubEnterpriseAuthStatus> =>
+    getStatus(dependencies)
   )
 
   // Re-reads gh rather than returning a stub: the host the user just typed may already

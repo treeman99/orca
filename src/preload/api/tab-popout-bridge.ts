@@ -10,7 +10,8 @@ export const tabPopoutApi = {
   open: (context: TabPopoutContext, targetWindowKey?: string | null): Promise<boolean> =>
     ipcRenderer.invoke('tabPopout:open', { context, targetWindowKey: targetWindowKey ?? null }),
   returnTab: (tabId: string): Promise<boolean> => ipcRenderer.invoke('tabPopout:return', { tabId }),
-  activate: (tabId: string): Promise<boolean> => ipcRenderer.invoke('tabPopout:activate', { tabId }),
+  activate: (tabId: string): Promise<boolean> =>
+    ipcRenderer.invoke('tabPopout:activate', { tabId }),
   snapshot: (): Promise<TabPopoutSnapshot> => ipcRenderer.invoke('tabPopout:snapshot'),
   requestWindowState: (windowKey: string): Promise<TabPopoutWindowState | null> =>
     ipcRenderer.invoke('tabPopout:requestWindowState', { windowKey }),

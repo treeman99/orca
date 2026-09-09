@@ -37,12 +37,12 @@ Orca는 여러 CLI 코딩 에이전트(Claude Code, Codex 등)를 **각자의 gi
 
 이 배포에서 **동작을 바꾸는 설정 값**은 네 군데에 흩어져 있고, **각각 읽는 주체가 다릅니다.** 어떤 값을 어디에 넣어야 하는지 헷갈리는 것이 이 배포의 가장 흔한 사고 원인이므로 먼저 정리합니다.
 
-| 버킷 | 위치 | 읽는 주체 | 넣는 사람 |
-| --- | --- | --- | --- |
-| **A. OS 환경 변수** | Windows 사용자/시스템 환경 변수 | Orca **외부**의 프로세스(`git`, `gh`, CLI, Node) 또는 Orca 시작 **전에** 존재해야 하는 값 | IT / 사용자 |
-| **B. 정책 파일** | `%ProgramData%\Orca\enterprise-policy.json` | **Orca 자신**(TypeScript 코드) | 관리자 전용 |
-| **C. Claude Code 설정** | `%USERPROFILE%\.claude\settings.json` | Bedrock 관련 키(`env`, `awsAuthRefresh`)는 **Claude Code CLI만.** 단 같은 파일의 `hooks`/`statusLine` 키는 **Orca도 읽고 씁니다** — 아래 C | 사용자 |
-| **D. 빌드 셸 전용** | 빌드하는 PowerShell 세션 안에서만 | `electron-builder`와 빌드 스크립트 (패키징 시점) | 빌드 담당자 |
+| 버킷                    | 위치                                        | 읽는 주체                                                                                                                                  | 넣는 사람   |
+| ----------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| **A. OS 환경 변수**     | Windows 사용자/시스템 환경 변수             | Orca **외부**의 프로세스(`git`, `gh`, CLI, Node) 또는 Orca 시작 **전에** 존재해야 하는 값                                                  | IT / 사용자 |
+| **B. 정책 파일**        | `%ProgramData%\Orca\enterprise-policy.json` | **Orca 자신**(TypeScript 코드)                                                                                                             | 관리자 전용 |
+| **C. Claude Code 설정** | `%USERPROFILE%\.claude\settings.json`       | Bedrock 관련 키(`env`, `awsAuthRefresh`)는 **Claude Code CLI만.** 단 같은 파일의 `hooks`/`statusLine` 키는 **Orca도 읽고 씁니다** — 아래 C | 사용자      |
+| **D. 빌드 셸 전용**     | 빌드하는 PowerShell 세션 안에서만           | `electron-builder`와 빌드 스크립트 (패키징 시점)                                                                                           | 빌드 담당자 |
 
 이 네 버킷은 **설정 값**만 다룹니다. **자격증명과 신뢰 저장소는 여기 없습니다** — `gh auth status` 인벤토리(§2), `git config`의 `http.sslBackend`/`http.sslCAInfo`(§2), `gateway-cli`가 자기 안에 들고 있는 게이트웨이 세션(§3.1), 은 각각 별도의 위치이며 해당 절에서 다룹니다.
 
@@ -50,12 +50,12 @@ Orca는 여러 CLI 코딩 에이전트(Claude Code, Codex 등)를 **각자의 gi
 
 ### A. OS 환경 변수 — 실제로 여기에 있어야 하는 것만
 
-| 변수 | 읽는 주체 | 필수? | 비고 |
-| --- | --- | --- | --- |
-| `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` | OS 표준. Orca의 Node 계층(대소문자 6종 + `NO_PROXY` 2종을 직접 읽습니다 — `src/shared/network-proxy.ts:13-21`), `git`, `gh`, Claude Code CLI, `gateway-cli`가 각자 읽음 | 사내 프록시 환경이면 **필수** | 앱 안의 프록시 설정(설정 → Advanced → Network)은 **비워 두는 편이 안전**합니다 — 아래 참고 |
-| `NODE_EXTRA_CA_CERTS` | **Node만.** Orca 메인 프로세스와 Node 기반 CLI | TLS 검사 프록시 환경이면 필요 | **`git`/`gh` 바이너리에는 아무 효과가 없습니다**(§2). `gateway-cli`가 사내 CA를 어떻게 신뢰하는지는 그 CLI의 계약이며 **미확인**입니다 *(이 행 전체가 Node/git 쪽 계약입니다 — 저장소에는 `NODE_EXTRA_CA_CERTS` 참조가 한 건도 없으므로 코드로 검증한 사실이 아닙니다)* |
-| `GH_HOST` | `gh` CLI 고유 변수 | **선택** | Orca는 정책의 `githubEnterpriseHost`가 비었을 때만 폴백으로 읽습니다(`src/shared/enterprise-policy.ts:366`). 정책에 호스트를 넣었다면 불필요 |
-| `ORCA_ENTERPRISE_POLICY` | Orca만 | **불필요** — 아래 참고 | 정책 **파일 경로**만 지정하는 변수. 이 포크가 추가한 유일한 런타임 환경 변수 |
+| 변수                                      | 읽는 주체                                                                                                                                                               | 필수?                         | 비고                                                                                                                                                                                                                                                                    |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` | OS 표준. Orca의 Node 계층(대소문자 6종 + `NO_PROXY` 2종을 직접 읽습니다 — `src/shared/network-proxy.ts:13-21`), `git`, `gh`, Claude Code CLI, `gateway-cli`가 각자 읽음 | 사내 프록시 환경이면 **필수** | 앱 안의 프록시 설정(설정 → Advanced → Network)은 **비워 두는 편이 안전**합니다 — 아래 참고                                                                                                                                                                              |
+| `NODE_EXTRA_CA_CERTS`                     | **Node만.** Orca 메인 프로세스와 Node 기반 CLI                                                                                                                          | TLS 검사 프록시 환경이면 필요 | **`git`/`gh` 바이너리에는 아무 효과가 없습니다**(§2). `gateway-cli`가 사내 CA를 어떻게 신뢰하는지는 그 CLI의 계약이며 **미확인**입니다 _(이 행 전체가 Node/git 쪽 계약입니다 — 저장소에는 `NODE_EXTRA_CA_CERTS` 참조가 한 건도 없으므로 코드로 검증한 사실이 아닙니다)_ |
+| `GH_HOST`                                 | `gh` CLI 고유 변수                                                                                                                                                      | **선택**                      | Orca는 정책의 `githubEnterpriseHost`가 비었을 때만 폴백으로 읽습니다(`src/shared/enterprise-policy.ts:366`). 정책에 호스트를 넣었다면 불필요                                                                                                                            |
+| `ORCA_ENTERPRISE_POLICY`                  | Orca만                                                                                                                                                                  | **불필요** — 아래 참고        | 정책 **파일 경로**만 지정하는 변수. 이 포크가 추가한 유일한 런타임 환경 변수                                                                                                                                                                                            |
 
 > [!IMPORTANT]
 > **설치 프로그램이 기본 정책을 이미 싣고 있으므로 `ORCA_ENTERPRISE_POLICY`는 전혀 필요하지 않습니다.**
@@ -161,11 +161,11 @@ gemini는 `--yolo`(:11) 식으로 27종이 매핑돼 있습니다. 일부만 켜
 
 **안 켜질 때 — 원인은 셋뿐입니다.**
 
-| 증상 | 원인 |
-| --- | --- |
-| `--dangerously-skip-permissions cannot be used with root/sudo privileges for security reasons` | root/sudo로 실행했습니다. 일반 사용자로 실행하세요 |
-| `Bypass permissions mode was disabled by settings` | 설정에 `permissions.disableBypassPermissionsMode`가 켜져 있습니다. 관리형 설정으로 배포됐다면 사용자가 못 풉니다 |
-| 경고 다이얼로그가 뜨고 멈춤 | 최초 1회 수락 절차입니다. 승인하면 이후 세션부터 안 뜹니다 |
+| 증상                                                                                           | 원인                                                                                                             |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `--dangerously-skip-permissions cannot be used with root/sudo privileges for security reasons` | root/sudo로 실행했습니다. 일반 사용자로 실행하세요                                                               |
+| `Bypass permissions mode was disabled by settings`                                             | 설정에 `permissions.disableBypassPermissionsMode`가 켜져 있습니다. 관리형 설정으로 배포됐다면 사용자가 못 풉니다 |
+| 경고 다이얼로그가 뜨고 멈춤                                                                    | 최초 1회 수락 절차입니다. 승인하면 이후 세션부터 안 뜹니다                                                       |
 
 > **이 포크의 정책 파일(버킷 B)은 권한 모드를 통제하지 않습니다.** `enterprise-policy.ts`에 permission
 > 관련 키가 없습니다 — `allowedAgents`는 *어떤 에이전트를 띄울 수 있는가*만 정하고 *그 에이전트가 권한을
@@ -174,14 +174,14 @@ gemini는 `--yolo`(:11) 식으로 27종이 매핑돼 있습니다. 일부만 켜
 
 ### D. 빌드 셸 전용 — 사용자 환경에는 절대 넣지 않습니다
 
-| 변수 | 역할 | 근거 |
-| --- | --- | --- |
-| `ORCA_WIN_PUBLISHER_NAME` | 설치 프로그램의 Authenticode publisherName. 기본값은 `SignPath Foundation` | `config/electron-builder.config.cjs:330-332` |
-| `ORCA_DISABLE_PUBLISH_TARGET=1` | `publish` 타깃을 `null`로 만들어 업데이터 메타데이터를 아예 생성하지 않음 | `:543-551` (의도는 `:540-542` 주석) |
-| `WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD` | electron-builder 고유의 Windows 코드 서명 입력 | electron-builder 계약 |
-| `ORCA_MAC_RELEASE` | **반드시 비어 있어야 합니다.** `1`이면 `forceCodeSigning`이 최상위 설정으로 켜져(`:450`, 값 출처 `:29-30`) 서명 없는 Windows 빌드가 실패합니다 | `:29-30`, `:450` |
-| `ORCA_STRICT_ELECTRON_INSTALL=1` | `pnpm install`의 postinstall이 Electron 바이너리 설치 실패를 **묵인하고 넘어가지 않게** 합니다. §1의 빌드 순서가 이 값을 켭니다 | `config/scripts/rebuild-native-deps.mjs:282` |
-| `GH_TOKEN` / `GITHUB_TOKEN` / `GITHUB_RELEASE_TOKEN` | electron-builder가 릴리스 업로드에 쓰는 자격증명. §1에서 **지우는** 대상입니다 — 남아 있으면 `--publish never`와 함께 쓰더라도 실수로 upstream에 올릴 여지를 남깁니다 | electron-builder 계약 |
+| 변수                                                 | 역할                                                                                                                                                                  | 근거                                         |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `ORCA_WIN_PUBLISHER_NAME`                            | 설치 프로그램의 Authenticode publisherName. 기본값은 `SignPath Foundation`                                                                                            | `config/electron-builder.config.cjs:330-332` |
+| `ORCA_DISABLE_PUBLISH_TARGET=1`                      | `publish` 타깃을 `null`로 만들어 업데이터 메타데이터를 아예 생성하지 않음                                                                                             | `:543-551` (의도는 `:540-542` 주석)          |
+| `WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`              | electron-builder 고유의 Windows 코드 서명 입력                                                                                                                        | electron-builder 계약                        |
+| `ORCA_MAC_RELEASE`                                   | **반드시 비어 있어야 합니다.** `1`이면 `forceCodeSigning`이 최상위 설정으로 켜져(`:450`, 값 출처 `:29-30`) 서명 없는 Windows 빌드가 실패합니다                        | `:29-30`, `:450`                             |
+| `ORCA_STRICT_ELECTRON_INSTALL=1`                     | `pnpm install`의 postinstall이 Electron 바이너리 설치 실패를 **묵인하고 넘어가지 않게** 합니다. §1의 빌드 순서가 이 값을 켭니다                                       | `config/scripts/rebuild-native-deps.mjs:282` |
+| `GH_TOKEN` / `GITHUB_TOKEN` / `GITHUB_RELEASE_TOKEN` | electron-builder가 릴리스 업로드에 쓰는 자격증명. §1에서 **지우는** 대상입니다 — 남아 있으면 `--publish never`와 함께 쓰더라도 실수로 upstream에 올릴 여지를 남깁니다 | electron-builder 계약                        |
 
 이 표의 변수들은 **빌드·패키징 시점에만** 읽힙니다. 설치된 Orca는 어느 것도 읽지 않으므로 `setx`로 심을 이유가 전혀 없습니다.
 
@@ -215,22 +215,21 @@ pnpm exec electron-builder --config config/electron-builder.config.cjs --win --x
 
 **설치 프로그램을 만들지 않고 화면만 확인하려면** — 맥북에서 `pnpm dev`로 잠금이 적용된 UI를 그대로 볼 수 있습니다. 비패키징 인스턴스에서는 `ORCA_ENTERPRISE_POLICY`가 정책 탐색 1순위이므로 `%ProgramData%`도 관리자 권한도 필요하지 않습니다. 절차·확인 지점·dev로는 확인할 수 없는 항목은 **[macOS dev 빌드 UI 확인 가이드](docs/reference/macos-dev-ui-check.md)** 를 보세요.
 
-
 ### 1.1 GitHub Actions로 빌드 — Windows + Linux
 
 빌드 머신(특히 Linux)이 없을 때 씁니다. `.github/workflows/enterprise-build.yml` 은 위 §1 절차를
 GitHub 러너에서 그대로 재현하는 **포크 전용** 레인입니다. upstream 의 `release-cut.yml` 에서 태그 컷,
 SignPath 서명, 텔레메트리 빌드 식별자, 벤더 릴리스 업로드를 걷어낸 것입니다.
 
-- **실행**: Actions 탭 → `enterprise build` → *Run workflow* → 브랜치와 `platforms`(both/windows/linux) 선택.
+- **실행**: Actions 탭 → `enterprise build` → _Run workflow_ → 브랜치와 `platforms`(both/windows/linux) 선택.
   CLI 로는 `gh workflow run enterprise-build.yml --ref enterprise/samsungds -f platforms=both`.
   **`workflow_dispatch` 전용입니다** — 푸시로는 돌지 않습니다.
 - **산출물**(워크플로 아티팩트, 실행 페이지 하단에서 zip 으로 내려받습니다)
 
-  | 아티팩트 | 내용 |
-  | --- | --- |
-  | `orca-windows-x64` | `orca-windows-setup.exe` (NSIS, per-user, 무서명) |
-  | `orca-linux-x64` | `orca-linux.AppImage`, `orca-ide_<ver>_amd64.deb`, `orca-ide-<ver>.x86_64.rpm` |
+  | 아티팩트           | 내용                                                                           |
+  | ------------------ | ------------------------------------------------------------------------------ |
+  | `orca-windows-x64` | `orca-windows-setup.exe` (NSIS, per-user, 무서명)                              |
+  | `orca-linux-x64`   | `orca-linux.AppImage`, `orca-ide_<ver>_amd64.deb`, `orca-ide-<ver>.x86_64.rpm` |
 
 - **정책은 세 OS 공통으로 실립니다.** `resources/enterprise-policy.json` 은 `commonExtraResources` 로
   들어가므로(§4) 리눅스 패키지도 잠금이 적용된 상태로 나옵니다. 워크플로가 패키징 직후
@@ -311,15 +310,15 @@ Bedrock 인증은 **Claude Code CLI 자체**가 자격증명 체인으로 처리
 
 Orca의 책임 경계는 AWS SSO 시절과 **동일합니다** — 로그인 명령을 실행하고 상태를 보여줄 뿐, 토큰·키를 읽지도 저장하지도 않고 **환경변수도 주입하지 않습니다.** 그 경계가 실제로 지켜지는지 코드로 확인한 항목입니다.
 
-| 확인 항목 | 결과 | 근거 |
-| --- | --- | --- |
-| Orca가 virtual key/토큰을 읽거나 저장하는가 | **아니오.** 이 레인이 다루는 것은 CLI 실행과 그 출력뿐입니다 | `src/shared/gateway-auth.ts` 헤더 주석이 계약을 명시. `src/main/gateway/`에 자격증명 저장소가 없습니다 |
-| Orca가 자격증명 환경변수를 주입하는가 | **아니오.** virtual key 전달은 `gateway-cli`가 알아서 합니다 | `buildGatewayCommandEnv()`가 만드는 것은 **CLI 자신을 스폰할 때 쓰는 env**(= `process.env` + Windows에서 레지스트리 PATH 재병합)이고, 에이전트 PTY 환경이 아닙니다 |
-| PTY 환경에 화이트리스트가 있는가 | **아니오.** `process.env` 전체를 상속한 뒤 소수의 명시적 `delete`만 적용 | `providers/local-pty-provider.ts`·`daemon/pty-subprocess.ts`의 `stripInheritedBuildModeEnv(process.env)` 스프레드 |
-| Orca가 지우는 `AWS_*` 변수 | **`AWS_BEARER_TOKEN_BEDROCK` 단 하나** (`CLAUDE_AUTH_ENV_VARS`) | `src/main/claude-accounts/environment.ts`. ⚠️ **virtual key 방식이 이 변수를 쓰는지는 미확인** — 쓴다면 §3.3의 `disableManagedClaudeAccounts`가 "권장"이 아니라 **동작 조건**이 됩니다 |
-| `HOME`/`USERPROFILE`을 바꾸는가 | **아니오.** 프로덕션 코드의 모든 참조가 읽기입니다 → `gateway-cli`가 자기 설정·캐시를 정상적으로 찾습니다 | 읽기 지점: `providers/pty-default-cwd.ts`, `relay/pty-shell-utils.ts`, `relay/relay-command-env.ts`. 재검증: `grep -rn USERPROFILE src/main src/shared src/relay` |
-| `CLAUDE_CONFIG_DIR`을 리다이렉트하는가 | 상속값이 이미 있을 때만. 사내는 설정하지 않으므로 `%USERPROFILE%\.claude`가 그대로 쓰입니다 | `claude-accounts/runtime-paths.ts`의 `getRuntimePaths()` |
-| `gateway-cli`를 어디서 찾는가 | **PATH만** 해석합니다 | `src/main/gateway/gateway-cli-command.ts`의 `resolveGatewayCommand()`. 설치 경로가 미확인이라 경로 추측을 넣지 않았습니다 |
+| 확인 항목                                   | 결과                                                                                                      | 근거                                                                                                                                                                                   |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Orca가 virtual key/토큰을 읽거나 저장하는가 | **아니오.** 이 레인이 다루는 것은 CLI 실행과 그 출력뿐입니다                                              | `src/shared/gateway-auth.ts` 헤더 주석이 계약을 명시. `src/main/gateway/`에 자격증명 저장소가 없습니다                                                                                 |
+| Orca가 자격증명 환경변수를 주입하는가       | **아니오.** virtual key 전달은 `gateway-cli`가 알아서 합니다                                              | `buildGatewayCommandEnv()`가 만드는 것은 **CLI 자신을 스폰할 때 쓰는 env**(= `process.env` + Windows에서 레지스트리 PATH 재병합)이고, 에이전트 PTY 환경이 아닙니다                     |
+| PTY 환경에 화이트리스트가 있는가            | **아니오.** `process.env` 전체를 상속한 뒤 소수의 명시적 `delete`만 적용                                  | `providers/local-pty-provider.ts`·`daemon/pty-subprocess.ts`의 `stripInheritedBuildModeEnv(process.env)` 스프레드                                                                      |
+| Orca가 지우는 `AWS_*` 변수                  | **`AWS_BEARER_TOKEN_BEDROCK` 단 하나** (`CLAUDE_AUTH_ENV_VARS`)                                           | `src/main/claude-accounts/environment.ts`. ⚠️ **virtual key 방식이 이 변수를 쓰는지는 미확인** — 쓴다면 §3.3의 `disableManagedClaudeAccounts`가 "권장"이 아니라 **동작 조건**이 됩니다 |
+| `HOME`/`USERPROFILE`을 바꾸는가             | **아니오.** 프로덕션 코드의 모든 참조가 읽기입니다 → `gateway-cli`가 자기 설정·캐시를 정상적으로 찾습니다 | 읽기 지점: `providers/pty-default-cwd.ts`, `relay/pty-shell-utils.ts`, `relay/relay-command-env.ts`. 재검증: `grep -rn USERPROFILE src/main src/shared src/relay`                      |
+| `CLAUDE_CONFIG_DIR`을 리다이렉트하는가      | 상속값이 이미 있을 때만. 사내는 설정하지 않으므로 `%USERPROFILE%\.claude`가 그대로 쓰입니다               | `claude-accounts/runtime-paths.ts`의 `getRuntimePaths()`                                                                                                                               |
+| `gateway-cli`를 어디서 찾는가               | **PATH만** 해석합니다                                                                                     | `src/main/gateway/gateway-cli-command.ts`의 `resolveGatewayCommand()`. 설치 경로가 미확인이라 경로 추측을 넣지 않았습니다                                                              |
 
 `HOME`/`USERPROFILE`을 건드리지 않는다는 마지막 두 항목이 여전히 핵심입니다 — `gateway-cli`가 로그인 상태를 어디에 두든, Orca가 그 위치를 옮기지 않기 때문에 앱 안에서 로그인하든 터미널에서 로그인하든 같은 세션이 됩니다.
 
@@ -371,13 +370,12 @@ Orca의 책임 경계는 AWS SSO 시절과 **동일합니다** — 로그인 명
 
 - **`설정 → Agents`의 에이전트별 env는 OS 값을 덮어씁니다(shadow).** 빈 값을 넣으면 변수가 삭제되는 게 아니라 **빈 문자열로 덮어써지고 그 빈 문자열이 이깁니다.** `AWS_REGION=` 한 줄이 `{AWS_REGION: ''}`로 파싱되고(`src/renderer/src/components/settings/agent-default-env-draft.ts:24-32`), 정규화가 빈 문자열을 보존하며(`src/shared/tui-agent-launch-defaults.ts:62-67`), 병합에서 override가 최종 승자입니다(`src/shared/git-credential-prompt-env.ts:11`). 지우려면 **항목 자체를 삭제**하세요.
 - **WSL 게스트는 호스트와 별개로 로그인해야 합니다.** 게스트의 게이트웨이 로그인 상태는 Windows 호스트의 것과 **별개**입니다 — virtual key가 어디에 보관되는지는 미확인이지만, 게스트는 자기 홈 디렉터리를 쓰고 Orca는 `HOME`/`USERPROFILE`을 다리로 놓지 않으므로(§3.1) 호스트 로그인이 게스트에 보일 길이 없습니다. AWS SSO 시절 토큰 캐시가 호스트와 게스트에서 다른 파일이었던 것과 같은 구조이고, 로그인 주체만 `gateway-cli`로 바뀌었습니다. 그리고 `wsl.exe`는 `WSLENV`에 등재된 변수만 가져오는데 Orca가 등재하는 것은 `ORCA_*` 계열(`src/main/pty/wsl-orca-env.ts:77-102`), `CODEX_HOME`/`ORCA_CODEX_HOME`/`CLAUDE_CONFIG_DIR`/Hermes·p10k 변수, git credential 가드 키(`src/shared/git-credential-prompt-env.ts:112`)뿐이라 **자격증명 성격의 변수는 어느 등재 지점에도 없습니다.** 따라서 WSL 프로젝트는 **게스트 안에서 따로** 구성해야 합니다:
-  1. 게스트에 `gateway-cli`를 설치하고 **게스트 안에서 `gateway-cli login`을 별도로 실행** — Windows 쪽 로그인은 게스트에 보이지 않습니다. *(`gateway-cli`가 WSL 게스트에서 어떻게 동작하는지, 게스트에 설치본이 제공되는지는 **미확인**입니다. 사내 배포 담당에게 확인하세요.)*
+  1. 게스트에 `gateway-cli`를 설치하고 **게스트 안에서 `gateway-cli login`을 별도로 실행** — Windows 쪽 로그인은 게스트에 보이지 않습니다. _(`gateway-cli`가 WSL 게스트에서 어떻게 동작하는지, 게스트에 설치본이 제공되는지는 **미확인**입니다. 사내 배포 담당에게 확인하세요.)_
   2. 게스트에 Claude Code CLI를 설치하고 **게스트의** `~/.claude/settings.json`에 Bedrock 블록을 둡니다. Windows 쪽 파일은 읽히지 않습니다.
   3. 리전/플래그처럼 **자격증명이 아닌** 값만 Windows에서 넘기고 싶다면 `setx WSLENV "AWS_REGION/u:CLAUDE_CODE_USE_BEDROCK/u"`처럼 `WSLENV`를 직접 채우세요 — Orca는 기존 `WSLENV`를 **보존하고 append만** 하므로 이 값이 살아남습니다(`src/shared/wsl-env.ts:5-16`). **자격증명 자체는 이 방법으로 넘길 수 없습니다.**
-- **SSH 원격 호스트도 각자 로그인해야 합니다.** 호스트 env를 조립하는 `buildPtyHostEnv`는 SSH 경로에서 아예 호출되지 않고(계약은 `src/main/ipc/pty.ts:1684-1689` 주석, 게이트는 `:6125-6128`의 `!args.connectionId`), 릴레이는 **자기 자신의 `process.env`**(SSH exec 채널이 준 환경)에 렌더러가 보낸 env만 얹어 PTY를 만듭니다(`src/relay/pty-handler.ts:596-607`). 따라서 원격에서 별도로 `gateway-cli login`을 수행하고, 원격의 `~/.claude/settings.json`과 로그인 셸 프로필에 설정을 두어야 합니다. *(원격 호스트에서의 `gateway-cli` 동작 — 특히 브라우저를 띄울 수 없는 헤드리스 호스트에서 OIDC 흐름이 어떻게 끝나는지 — 도 **미확인**입니다.)*
+- **SSH 원격 호스트도 각자 로그인해야 합니다.** 호스트 env를 조립하는 `buildPtyHostEnv`는 SSH 경로에서 아예 호출되지 않고(계약은 `src/main/ipc/pty.ts:1684-1689` 주석, 게이트는 `:6125-6128`의 `!args.connectionId`), 릴레이는 **자기 자신의 `process.env`**(SSH exec 채널이 준 환경)에 렌더러가 보낸 env만 얹어 PTY를 만듭니다(`src/relay/pty-handler.ts:596-607`). 따라서 원격에서 별도로 `gateway-cli login`을 수행하고, 원격의 `~/.claude/settings.json`과 로그인 셸 프로필에 설정을 두어야 합니다. _(원격 호스트에서의 `gateway-cli` 동작 — 특히 브라우저를 띄울 수 없는 헤드리스 호스트에서 OIDC 흐름이 어떻게 끝나는지 — 도 **미확인**입니다.)_
 - **`enforceNetworkAllowlist`는 Bedrock 호출과도, 게이트웨이 로그인과도 무관합니다.** Electron session과 메인 프로세스 `fetch`만 감싸므로(`src/main/enterprise/enterprise-network-guard.ts:128-136`) 자식 프로세스(Claude Code CLI, `gateway-cli`, `git`, `gh`)의 egress에는 적용되지 않습니다. `bedrock-runtime.<region>.amazonaws.com`이나 사내 IdP·게이트웨이 호스트를 `allowedNetworkHosts`에 넣을 필요가 없고, 넣어도 CLI에는 아무 효과가 없습니다.
 - `setx` 후 데몬 staleness — §0의 경고 박스를 참고하세요. Bedrock 설정을 OS 환경 변수로 넣었을 때 "설정했는데 안 먹는다"의 1순위 원인입니다.
-
 
 ## 4. 외부 연동 잠금 — 관리자 소유 정책 파일
 
@@ -387,12 +385,12 @@ Orca의 책임 경계는 AWS SSO 시절과 **동일합니다** — 로그인 명
 
 **패키징 빌드 — 사용자 PC에 설치된 `.exe`. 플릿에서 유일하게 의미 있는 순서입니다.**
 
-| 순위 | 위치 | 비고 |
-| --- | --- | --- |
-| 1 | **머신 전역** — `%ProgramData%\Orca\enterprise-policy.json` (`:58-68`) | 중앙(GPO/Intune)에서 값을 **덮어쓸** 위치. 선택입니다 |
-| 2 | **번들** — `<설치폴더>\resources\enterprise-policy.json` (`:236-244`) | **설치 프로그램에 내장된 기본값.** 저장소 원본은 `resources/enterprise-policy.json` |
-| 3 | `ORCA_ENTERPRISE_POLICY` 환경 변수 | 명시 경로가 **후보에 추가**될 뿐. `off`/`none`/`disabled`/`false`/`0`은 **무시됩니다**(`:41`, `:97`) |
-| 4 | 사용자별 — `<userData>\enterprise-policy.json` | 개인 테스트용 |
+| 순위 | 위치                                                                   | 비고                                                                                                 |
+| ---- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 1    | **머신 전역** — `%ProgramData%\Orca\enterprise-policy.json` (`:58-68`) | 중앙(GPO/Intune)에서 값을 **덮어쓸** 위치. 선택입니다                                                |
+| 2    | **번들** — `<설치폴더>\resources\enterprise-policy.json` (`:236-244`)  | **설치 프로그램에 내장된 기본값.** 저장소 원본은 `resources/enterprise-policy.json`                  |
+| 3    | `ORCA_ENTERPRISE_POLICY` 환경 변수                                     | 명시 경로가 **후보에 추가**될 뿐. `off`/`none`/`disabled`/`false`/`0`은 **무시됩니다**(`:41`, `:97`) |
+| 4    | 사용자별 — `<userData>\enterprise-policy.json`                         | 개인 테스트용                                                                                        |
 
 **비패키징(`pnpm dev`·vitest)에서만** `ORCA_ENTERPRISE_POLICY`가 1순위를 가져가고, 무력화 값으로 탐색 전체를 끌 수 있습니다(`:99-106`; 테스트 스위트가 이 값을 씁니다). 번들 후보는 비패키징에서 **최후순위**로만 들어옵니다(`:110-111` — 후보는 `[머신 전역, 사용자별, 체크아웃의 resources/enterprise-policy.json]`, 경로 해석은 `:258-272` `devCheckoutPolicyPath`, 설계 의도는 `:80-87` 주석). 그래서 `pnpm dev`가 별도 설정 없이도 플릿 UI를 보여 주고([macOS dev UI 점검](docs/reference/macos-dev-ui-check.md)), 무력화 값을 쓰는 vitest·E2E 격리는 그대로 유지됩니다.
 
@@ -421,19 +419,19 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다(`enterprise-p
 }
 ```
 
-| 키 | 기본값 | 무엇을 끄는가 (검증한 근거) |
-| --- | --- | --- |
-| `lockdown` | `false` | 마스터 스위치. 추가로 **Chromium의 DNS-over-HTTPS 자동 승격을 끄고** OS 리졸버로 고정합니다(`src/main/enterprise/enterprise-secure-dns.ts:19-24`, 배선 `src/main/index.ts:2084`), **`node:https` 직접 다운로드를 거부합니다**(`enterprise-direct-download-guard.ts:17-25`) |
-| `disableTelemetry` | `lockdown` 상속 | PostHog 텔레메트리(`telemetry/consent.ts:88`) + 진단 번들 **업로드 레인**(`observability/index.ts:103`, `:120-133`). **로컬 NDJSON 로그는 계속 기록됩니다** — 네트워크만 막습니다. 앱 내 피드백·크래시 리포트 전송은 정책이 아니라 **코드에서 제거**되었습니다 |
-| `disableAutoUpdate` | `lockdown` 상속 | 사내 GHES(`githubEnterpriseHost`)의 `updateReleaseRepository`(기본 `daegun-kim/Orca_ds`) 릴리스 태그를 읽어 **"새 버전이 있습니다" 팝업**을 띄우는 레인을 끕니다. 게이트는 `app-update/app-update-check-service.ts`의 `check()` 한 곳. ⚠️ **벤더 인앱 업데이터는 여전히 코드에 없습니다** — 이 키를 `false`로 둬도 다운로드·설치·자가교체는 일어나지 않고 `electron-updater`도 의존성이 아닙니다. 팝업의 유일한 동작은 사내 릴리스 페이지를 브라우저로 여는 것입니다 |
-| `updateReleaseRepository` | `null` → `daegun-kim/Orca_ds` | 위 릴리스 조회가 볼 저장소(`OWNER/REPO`). `lockdown`을 상속하지 않는 **값**입니다. URL은 받지 않습니다 |
-| `disableStarNag` | `lockdown` 상속 | github.com SaaS로 가는 star 조회/쓰기 — `github/client.ts:341`(`checkOrcaStarred`), `:527`(`starOrca`). **게이트를 서비스가 아니라 클라이언트 함수에 뒀습니다** — 넛지 서비스(`star-nag/service.ts:121`) 말고도 `star-nag/direct-star-attempt.ts:9`, `star-nag/agent-value-moment.ts:46`, IPC 핸들러 `ipc/github.ts:1210`·`:1213`이 같은 함수로 들어옵니다 |
-| `disableCloudRelay` | `lockdown` 상속 | `orca-profiles/profile-cloud-auth-config.ts:82`이 "미구성"으로 응답 → Orca Cloud 로그인, 조직 멤버 조회(`orca-profiles/profile-cloud-org-members-service.ts:119`), 그리고 **데스크톱↔모바일 페어링 릴레이**(`src/main/index.ts:3065-3068`이 `configured`일 때만 `DesktopRelayService`를 만듭니다)가 한꺼번에 꺼집니다. 단일 초크포인트임을 `:76-78` 주석이 명시 |
-| `disableUsagePolling` | `lockdown` 상속 | AI 벤더 사용량/레이트리밋 폴링. 게이트는 `rate-limits/service/service-state.ts:32`, 진입점은 `start()`(`:353`), Codex 리셋 크레딧(`:478`), 계정 스위처 프리뷰 2종(`:572`, `:652`), `fetchAll`(`:998`), `fetchCodexOnly`(`:1063`), `fetchClaudeOnly`(`:1125`), `fetchGrokOnly`(`:1190`). 벤더 백엔드로 POST하는 경로는 예외를 던집니다 |
-| `disableManagedClaudeAccounts` | `lockdown` 상속 | Orca 관리형 Claude 계정 — `platform.claude.com` OAuth 토큰 회전(게이트 `claude-accounts/oauth-refresh.ts:131-133`)과 에이전트 PTY로 가는 환경에서 AWS Bedrock 자격증명을 지우는 동작(게이트 `runtime-auth-service.ts:613-616` + `environment.ts:22`)을 함께 끕니다. **Bedrock 플릿에서는 필수 — §3.3** |
-| `disableSpellcheck` | `lockdown` 상속 | Chromium 맞춤법 사전 CDN 다운로드. 자체 세션을 갖는 WebContents는 메인 창의 게이트를 상속하지 않으므로 **여섯 곳**에 개별로 걸려 있습니다: 메인 창(`window/createMainWindow.ts:306`), webview 게스트(`:494`), 임베디드 브라우저 팝업(`browser/browser-manager-guest-popup-policy.ts:30`), 오프스크린 브라우저(`browser/offscreen-browser-backend.ts:45`), 대시보드 팝아웃(`window/dashboard-popout-window.ts:181`), PDF 렌더러(`lib/html-to-pdf.ts:46`) |
-| `enforceNetworkAllowlist` | **항상 `false`** (상속 안 함) | 아래 4.3 |
-| `allowedNetworkHosts` | `[]` | 허용 호스트 목록. `enforceNetworkAllowlist`가 켜졌을 때만 의미가 있습니다 |
+| 키                             | 기본값                        | 무엇을 끄는가 (검증한 근거)                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lockdown`                     | `false`                       | 마스터 스위치. 추가로 **Chromium의 DNS-over-HTTPS 자동 승격을 끄고** OS 리졸버로 고정합니다(`src/main/enterprise/enterprise-secure-dns.ts:19-24`, 배선 `src/main/index.ts:2084`), **`node:https` 직접 다운로드를 거부합니다**(`enterprise-direct-download-guard.ts:17-25`)                                                                                                                                                                                           |
+| `disableTelemetry`             | `lockdown` 상속               | PostHog 텔레메트리(`telemetry/consent.ts:88`) + 진단 번들 **업로드 레인**(`observability/index.ts:103`, `:120-133`). **로컬 NDJSON 로그는 계속 기록됩니다** — 네트워크만 막습니다. 앱 내 피드백·크래시 리포트 전송은 정책이 아니라 **코드에서 제거**되었습니다                                                                                                                                                                                                       |
+| `disableAutoUpdate`            | `lockdown` 상속               | 사내 GHES(`githubEnterpriseHost`)의 `updateReleaseRepository`(기본 `daegun-kim/Orca_ds`) 릴리스 태그를 읽어 **"새 버전이 있습니다" 팝업**을 띄우는 레인을 끕니다. 게이트는 `app-update/app-update-check-service.ts`의 `check()` 한 곳. ⚠️ **벤더 인앱 업데이터는 여전히 코드에 없습니다** — 이 키를 `false`로 둬도 다운로드·설치·자가교체는 일어나지 않고 `electron-updater`도 의존성이 아닙니다. 팝업의 유일한 동작은 사내 릴리스 페이지를 브라우저로 여는 것입니다 |
+| `updateReleaseRepository`      | `null` → `daegun-kim/Orca_ds` | 위 릴리스 조회가 볼 저장소(`OWNER/REPO`). `lockdown`을 상속하지 않는 **값**입니다. URL은 받지 않습니다                                                                                                                                                                                                                                                                                                                                                               |
+| `disableStarNag`               | `lockdown` 상속               | github.com SaaS로 가는 star 조회/쓰기 — `github/client.ts:341`(`checkOrcaStarred`), `:527`(`starOrca`). **게이트를 서비스가 아니라 클라이언트 함수에 뒀습니다** — 넛지 서비스(`star-nag/service.ts:121`) 말고도 `star-nag/direct-star-attempt.ts:9`, `star-nag/agent-value-moment.ts:46`, IPC 핸들러 `ipc/github.ts:1210`·`:1213`이 같은 함수로 들어옵니다                                                                                                           |
+| `disableCloudRelay`            | `lockdown` 상속               | `orca-profiles/profile-cloud-auth-config.ts:82`이 "미구성"으로 응답 → Orca Cloud 로그인, 조직 멤버 조회(`orca-profiles/profile-cloud-org-members-service.ts:119`), 그리고 **데스크톱↔모바일 페어링 릴레이**(`src/main/index.ts:3065-3068`이 `configured`일 때만 `DesktopRelayService`를 만듭니다)가 한꺼번에 꺼집니다. 단일 초크포인트임을 `:76-78` 주석이 명시                                                                                                      |
+| `disableUsagePolling`          | `lockdown` 상속               | AI 벤더 사용량/레이트리밋 폴링. 게이트는 `rate-limits/service/service-state.ts:32`, 진입점은 `start()`(`:353`), Codex 리셋 크레딧(`:478`), 계정 스위처 프리뷰 2종(`:572`, `:652`), `fetchAll`(`:998`), `fetchCodexOnly`(`:1063`), `fetchClaudeOnly`(`:1125`), `fetchGrokOnly`(`:1190`). 벤더 백엔드로 POST하는 경로는 예외를 던집니다                                                                                                                                |
+| `disableManagedClaudeAccounts` | `lockdown` 상속               | Orca 관리형 Claude 계정 — `platform.claude.com` OAuth 토큰 회전(게이트 `claude-accounts/oauth-refresh.ts:131-133`)과 에이전트 PTY로 가는 환경에서 AWS Bedrock 자격증명을 지우는 동작(게이트 `runtime-auth-service.ts:613-616` + `environment.ts:22`)을 함께 끕니다. **Bedrock 플릿에서는 필수 — §3.3**                                                                                                                                                               |
+| `disableSpellcheck`            | `lockdown` 상속               | Chromium 맞춤법 사전 CDN 다운로드. 자체 세션을 갖는 WebContents는 메인 창의 게이트를 상속하지 않으므로 **여섯 곳**에 개별로 걸려 있습니다: 메인 창(`window/createMainWindow.ts:306`), webview 게스트(`:494`), 임베디드 브라우저 팝업(`browser/browser-manager-guest-popup-policy.ts:30`), 오프스크린 브라우저(`browser/offscreen-browser-backend.ts:45`), 대시보드 팝아웃(`window/dashboard-popout-window.ts:181`), PDF 렌더러(`lib/html-to-pdf.ts:46`)              |
+| `enforceNetworkAllowlist`      | **항상 `false`** (상속 안 함) | 아래 4.3                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `allowedNetworkHosts`          | `[]`                          | 허용 호스트 목록. `enforceNetworkAllowlist`가 켜졌을 때만 의미가 있습니다                                                                                                                                                                                                                                                                                                                                                                                            |
 
 전체 스키마와 예제는 **[엔터프라이즈 정책 파일 레퍼런스](docs/reference/enterprise-policy.md)** 를 보세요.
 
@@ -450,7 +448,7 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다(`enterprise-p
 
 켜면 두 곳을 막습니다(`enterprise-network-guard.ts:79-97`, `:99-122`):
 
-- `session.defaultSession`의 `webRequest.onBeforeRequest` — 이 세션을 지나는 요청. 렌더러 요청이 대표적입니다. 로그 라벨은 `renderer request`(`:93`) *(세션 범위는 Electron 계약이지 이 저장소 코드의 사실은 아닙니다 — 실제 차단 여부는 배포 전 1대에서 확인하세요.)*
+- `session.defaultSession`의 `webRequest.onBeforeRequest` — 이 세션을 지나는 요청. 렌더러 요청이 대표적입니다. 로그 라벨은 `renderer request`(`:93`) _(세션 범위는 Electron 계약이지 이 저장소 코드의 사실은 아닙니다 — 실제 차단 여부는 배포 전 1대에서 확인하세요.)_
 - 메인 프로세스의 global `fetch` 래퍼(`:111`, 라벨 `main-process fetch`) — Node의 global fetch를 쓰는 메인 클라이언트용. `network/proxy-settings.ts`의 사내 프록시는 Electron 세션에만 적용되어 global fetch를 못 보기 때문입니다(`enterprise-network-guard.ts:3-7`)
 
 `githubEnterpriseHost`는 항상 허용 목록에 자동 추가되고(`enterprise-policy.ts:369-372`), loopback은 언제나 통과합니다(`enterprise-network-guard.ts:47-55`). 차단은 호스트당 한 줄씩 stderr로 보고됩니다(`:36-45`).
@@ -472,9 +470,9 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다(`enterprise-p
 
 ### 5.1 산출물 — per-user NSIS 설치 프로그램
 
-`config/electron-builder.config.cjs:356-365`의 `nsis` 블록은 `oneClick`과 `perMachine`을 **설정하지 않습니다.** 산출물 이름은 `orca-windows-setup.exe`로 고정입니다(`:357`). 따라서 electron-builder 기본값이 적용되어 **원클릭·사용자별 설치**가 되고, `%LOCALAPPDATA%\Programs\` 아래에 설치되며 관리자 권한이 필요 없습니다. *(여기서 코드로 검증한 것은 두 키가 설정되지 않았다는 사실까지입니다. `oneClick: true`/`perMachine: false` 기본값과 그에 따른 설치 위치·권한은 electron-builder/NSIS의 계약이므로 배포 전 1대에서 확인하세요.)*
+`config/electron-builder.config.cjs:356-365`의 `nsis` 블록은 `oneClick`과 `perMachine`을 **설정하지 않습니다.** 산출물 이름은 `orca-windows-setup.exe`로 고정입니다(`:357`). 따라서 electron-builder 기본값이 적용되어 **원클릭·사용자별 설치**가 되고, `%LOCALAPPDATA%\Programs\` 아래에 설치되며 관리자 권한이 필요 없습니다. _(여기서 코드로 검증한 것은 두 키가 설정되지 않았다는 사실까지입니다. `oneClick: true`/`perMachine: false` 기본값과 그에 따른 설치 위치·권한은 electron-builder/NSIS의 계약이므로 배포 전 1대에서 확인하세요.)_
 
-- 무인 설치: `orca-windows-setup.exe /S` — NSIS 원클릭 설치 프로그램의 표준 동작입니다. *(electron-builder/NSIS의 계약이지 이 저장소 코드의 사실은 아닙니다. 배포 전 1대에서 검증하세요.)*
+- 무인 설치: `orca-windows-setup.exe /S` — NSIS 원클릭 설치 프로그램의 표준 동작입니다. _(electron-builder/NSIS의 계약이지 이 저장소 코드의 사실은 아닙니다. 배포 전 1대에서 검증하세요.)_
 - 관리자 권한이 필요 없으므로 사용자 단위 소프트웨어 배포 채널(Intune 사용자 대상 앱 등)로 밀 수 있습니다.
 - ⚠️ **그 대가**: 설치 폴더가 사용자 소유이므로, 여기에 내장한 번들 정책(§5.2)은 표준 사용자가 지울 수 있습니다. 이걸 막으려면 `%ProgramData%` 배치(ACL 포함) 또는 perMachine 설치가 필요합니다 — [외부 연동 감사](docs/reference/external-integrations-audit.md) §0.2 #21.
 - 제거 시 `%LOCALAPPDATA%` 아래로 재배치된 터미널 데몬을 정리하는 NSIS 스크립트가 포함되어 있습니다(`:361-364`, 스크립트는 `config/nsis/daemon-host-uninstall.nsh`).
@@ -487,8 +485,8 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다(`enterprise-p
 
 - 대상: **`%ProgramData%\Orca\enterprise-policy.json` — 기본 머신 전역 경로를 쓰세요.** 패키징 빌드에서 이 경로가 1순위이고 환경 변수도, 번들 정책도 이것을 밀어낼 수 없기 때문입니다(§4.1). **`ORCA_ENTERPRISE_POLICY`는 배포하지 마세요** — 필요하지 않고, 개발·검증용입니다.
 - ⚠️ **배포한 파일의 문법을 검증하세요.** 깨진 파일은 무시되고 **번들 정책으로 되돌아갑니다** — 잠금은 유지되지만 관리자가 의도한 예외가 조용히 사라집니다(§4.1).
-- **ACL을 함께 고정하세요 — 사용자가 쓸 수 있는 정책 파일은 정책이 아니라 기본값입니다.** 관리자가 넣어 둔 파일은 기본 ACL에서 표준 사용자가 수정·삭제할 수 없지만, `%ProgramData%` 루트는 표준 사용자도 새 폴더·파일을 만들 수 있으므로 **파일이 아직 없는 머신에서는 사용자가 자기 소유의 정책 파일을 먼저 만들 수 있습니다.** 배포 스크립트에서 폴더 상속을 끊고 `Users`를 읽기 전용으로 내리세요 — 구체적인 `icacls` 명령은 [엔터프라이즈 정책 파일 레퍼런스](docs/reference/enterprise-policy.md) §6-1에 있습니다. *(Windows ACL 동작이지 이 저장소 코드의 사실은 아닙니다.)*
-- 수단: GPO 파일 기본 설정, Intune 구성 프로필/스크립트, SCCM 패키지 등 기존 구성 관리 채널. *(운영 권고 — 코드가 강제하는 바가 아닙니다.)*
+- **ACL을 함께 고정하세요 — 사용자가 쓸 수 있는 정책 파일은 정책이 아니라 기본값입니다.** 관리자가 넣어 둔 파일은 기본 ACL에서 표준 사용자가 수정·삭제할 수 없지만, `%ProgramData%` 루트는 표준 사용자도 새 폴더·파일을 만들 수 있으므로 **파일이 아직 없는 머신에서는 사용자가 자기 소유의 정책 파일을 먼저 만들 수 있습니다.** 배포 스크립트에서 폴더 상속을 끊고 `Users`를 읽기 전용으로 내리세요 — 구체적인 `icacls` 명령은 [엔터프라이즈 정책 파일 레퍼런스](docs/reference/enterprise-policy.md) §6-1에 있습니다. _(Windows ACL 동작이지 이 저장소 코드의 사실은 아닙니다.)_
+- 수단: GPO 파일 기본 설정, Intune 구성 프로필/스크립트, SCCM 패키지 등 기존 구성 관리 채널. _(운영 권고 — 코드가 강제하는 바가 아닙니다.)_
 - 순서는 상관없습니다. 정책 파일이 앱보다 먼저 들어가도 되고 나중에 들어가도 되지만, 정책은 프로세스 시작 시 1회만 읽히므로(`enterprise-policy-file.ts:325-368`) **이미 실행 중인 Orca는 재시작해야** 반영됩니다.
 
 #### 적용 확인 — NDJSON 로그의 `enterprise.policy` 스팬
@@ -510,7 +508,7 @@ Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "enterpr
 
 이 포크는 버전 문자열도 앱 식별자도 바꾸지 않습니다. `package.json`의 `version`은 upstream 값(`1.4.155`) 그대로이고, `appId`는 `com.stablyai.orca`, `productName`은 `Orca`입니다(`config/electron-builder.config.cjs:53`, `:118-119`). **즉 앱 안의 버전·이름만으로는 사내 빌드와 공개 빌드를 구분할 수 없습니다.**
 
-실무 권고 *(운영 관례이지 코드가 보장하는 것이 아닙니다)*:
+실무 권고 _(운영 관례이지 코드가 보장하는 것이 아닙니다)_:
 
 1. **정책 파일 존재 여부를 자산 관리로 감시** — `%ProgramData%\Orca\enterprise-policy.json`이 없는 머신이 곧 안 잠긴 머신입니다. 실행 파일이 어느 빌드인지보다 이쪽이 실질적인 판정 기준입니다.
 2. **`ORCA_DISABLE_PUBLISH_TARGET=1`로 빌드** — `publish` 타깃이 `null`이 되어 업데이터 메타데이터가 아예 안 실립니다. 그러면 이 설치본은 upstream 릴리스 피드로 덮어써질 수 없습니다(`config/electron-builder.config.cjs:543-551`).
@@ -574,12 +572,12 @@ git push origin enterprise/samsungds
 git diff --name-status v1.4.163..HEAD   # A=신규, M=upstream 파일 수정, D=삭제
 ```
 
-| 성격 | 파일 | 리베이스 충돌 |
-| --- | --- | --- |
-| **신규(포크 전용)** | `src/shared/enterprise-policy.ts`(+`.test.ts`), `src/main/enterprise/**` 24개(정책 파일 탐색·트레이스·네트워크 가드·직접 다운로드 가드·secure DNS·에뮬레이터/원격 서버/에이전트 허용목록 가드·픽스처·테스트), `src/main/rate-limits/usage-polling-disabled-providers.ts`(+`.test.ts`), `src/main/observability/observability-consent.test.ts`, `src/main/claude-accounts/environment.test.ts`, `src/main/emulator/android/scrcpy-server-download.test.ts`, `config/vitest-enterprise-policy-isolation.ts`, `docs/reference/*.md` 5개, `.claude/harness/*.md` 3개(규칙 원장 — [7절](#7-오케스트레이션-규칙-원장)) | 거의 없음 |
-| **포크가 삭제한 표면** | upstream 대비 **123개 파일**을 지웠습니다. 도메인별로 피드백 제출 12개(`ipc/feedback*`, `sidebar/SidebarFeedback*`, `lib/feedback-image-attachments*`, `crash-reporting/crash-feedback-diagnostic-bundle.ts`), 크래시 리포트 7개, local-builds 7개, orca-profiles 4개, artifacts 3개 등. 게이트를 다는 대신 표면 자체를 없앤 경우입니다 | **가장 위험한 범주입니다.** upstream이 지운 파일을 수정하면 modify/delete 충돌이 나고, incoming을 수용하면 **표면이 통째로 되살아납니다** — 파일이 통째로 돌아오므로 게이트 grep에도 타입체크에도 잡히지 않습니다. 동기화마다 `comm -23 <(git ls-tree -r --name-only <옛태그>) <(git ls-tree -r --name-only HEAD)` 로 삭제 목록을 뽑아 upstream 변경분과 교집합을 확인하세요 |
-| **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄). 문서: `skill-guides/orchestration.md`의 `## Project Rule Ledger` 절 + `## Next Action`의 원장 로드 한 구절 | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다. 오케스트레이션 가이드 절은 `config/scripts/orchestration-skill-guidance.test.mjs`가 지키므로 유실 시 테스트가 먼저 붉어집니다 |
-| **포크가 재작성해 소유한 문서** | `README.md`(upstream 원문 268줄을 사내 문서로 전면 교체 — 남은 공통 문장이 거의 없어 자동 병합이 되지 않습니다), `CLAUDE.md`(upstream은 `@AGENTS.md` 한 줄짜리 11바이트 스텁 → 126줄로 확장) | **둘 다 upstream에도 존재하므로 upstream이 손댈 때마다 반드시 충돌합니다.** 리베이스에서 사내 버전을 남기려면 `git checkout --theirs README.md CLAUDE.md` — **리베이스에서는 `--ours`가 재배치 대상(upstream), `--theirs`가 재생 중인 사내 커밋**이라 머지와 의미가 뒤집혀 있습니다. 그다음 upstream 변경분 중 필요한 것만 수동으로 반영하세요 |
+| 성격                              | 파일                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 리베이스 충돌                                                                                                                                                                                                                                                                                                                                                                |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **신규(포크 전용)**               | `src/shared/enterprise-policy.ts`(+`.test.ts`), `src/main/enterprise/**` 24개(정책 파일 탐색·트레이스·네트워크 가드·직접 다운로드 가드·secure DNS·에뮬레이터/원격 서버/에이전트 허용목록 가드·픽스처·테스트), `src/main/rate-limits/usage-polling-disabled-providers.ts`(+`.test.ts`), `src/main/observability/observability-consent.test.ts`, `src/main/claude-accounts/environment.test.ts`, `src/main/emulator/android/scrcpy-server-download.test.ts`, `config/vitest-enterprise-policy-isolation.ts`, `docs/reference/*.md` 5개, `.claude/harness/*.md` 3개(규칙 원장 — [7절](#7-오케스트레이션-규칙-원장))                                                                                                                                                                                                                                                                                                                          | 거의 없음                                                                                                                                                                                                                                                                                                                                                                    |
+| **포크가 삭제한 표면**            | upstream 대비 **123개 파일**을 지웠습니다. 도메인별로 피드백 제출 12개(`ipc/feedback*`, `sidebar/SidebarFeedback*`, `lib/feedback-image-attachments*`, `crash-reporting/crash-feedback-diagnostic-bundle.ts`), 크래시 리포트 7개, local-builds 7개, orca-profiles 4개, artifacts 3개 등. 게이트를 다는 대신 표면 자체를 없앤 경우입니다                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | **가장 위험한 범주입니다.** upstream이 지운 파일을 수정하면 modify/delete 충돌이 나고, incoming을 수용하면 **표면이 통째로 되살아납니다** — 파일이 통째로 돌아오므로 게이트 grep에도 타입체크에도 잡히지 않습니다. 동기화마다 `comm -23 <(git ls-tree -r --name-only <옛태그>) <(git ls-tree -r --name-only HEAD)` 로 삭제 목록을 뽑아 upstream 변경분과 교집합을 확인하세요 |
+| **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄). 문서: `skill-guides/orchestration.md`의 `## Project Rule Ledger` 절 + `## Next Action`의 원장 로드 한 구절 | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다. 오케스트레이션 가이드 절은 `config/scripts/orchestration-skill-guidance.test.mjs`가 지키므로 유실 시 테스트가 먼저 붉어집니다                                                                                                                                    |
+| **포크가 재작성해 소유한 문서**   | `README.md`(upstream 원문 268줄을 사내 문서로 전면 교체 — 남은 공통 문장이 거의 없어 자동 병합이 되지 않습니다), `CLAUDE.md`(upstream은 `@AGENTS.md` 한 줄짜리 11바이트 스텁 → 126줄로 확장)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | **둘 다 upstream에도 존재하므로 upstream이 손댈 때마다 반드시 충돌합니다.** 리베이스에서 사내 버전을 남기려면 `git checkout --theirs README.md CLAUDE.md` — **리베이스에서는 `--ours`가 재배치 대상(upstream), `--theirs`가 재생 중인 사내 커밋**이라 머지와 의미가 뒤집혀 있습니다. 그다음 upstream 변경분 중 필요한 것만 수동으로 반영하세요                               |
 
 #### 자식 프로세스는 창구를 지난다 — `runProcess`/`spawnProcess` (v1.4.197부터 숫자로 강제)
 
@@ -590,13 +588,13 @@ upstream v1.4.197이 "`node:child_process`를 직접 import 하는 파일 수"�
 
 **v1.4.197 머지에서 8건을 전부 이관했습니다.**
 
-| 무엇 | 오르카에서 언제 도나 | 어디로 |
-| --- | --- | --- |
-| `gateway/gateway-cli-availability.ts` | 설정 → Gateway 를 열 때 `gateway-cli --version` | `runProcess` |
-| `gateway/gateway-verify.ts` | 같은 화면에서 로그인 상태 확인 `gateway-cli verify` | `runProcess` |
-| `relay/fs-handler-git-search-submodules.ts` | SSH 원격에 ripgrep 이 없어 `git grep` 으로 대체 검색할 때 | `runProcess` + `spawnProcess` |
-| `git/submodule-write-test-repo.ts` | 서브모듈 테스트 픽스처 | `runProcessSync` |
-| 타입 전용 4건 | 스폰하지 않음 — 타입만 빌려 씀 | `ChildProcessHandle`, `ExecFileSync` |
+| 무엇                                        | 오르카에서 언제 도나                                      | 어디로                               |
+| ------------------------------------------- | --------------------------------------------------------- | ------------------------------------ |
+| `gateway/gateway-cli-availability.ts`       | 설정 → Gateway 를 열 때 `gateway-cli --version`           | `runProcess`                         |
+| `gateway/gateway-verify.ts`                 | 같은 화면에서 로그인 상태 확인 `gateway-cli verify`       | `runProcess`                         |
+| `relay/fs-handler-git-search-submodules.ts` | SSH 원격에 ripgrep 이 없어 `git grep` 으로 대체 검색할 때 | `runProcess` + `spawnProcess`        |
+| `git/submodule-write-test-repo.ts`          | 서브모듈 테스트 픽스처                                    | `runProcessSync`                     |
+| 타입 전용 4건                               | 스폰하지 않음 — 타입만 빌려 씀                            | `ChildProcessHandle`, `ExecFileSync` |
 
 **왜 중요한가.** 이관 전에도 이 파일들은 `windowsHide: true` 를 직접 달고 있어서 "검은 창 번쩍"은
 막혀 있었습니다. 창구가 추가로 보장하는 것은 **`.cmd`/`.bat` argv 인코딩**(게이트웨이 CLI 가
@@ -625,9 +623,9 @@ PR 트리거이며, 사내 보안 리뷰어가 우리 저장소에서 벤더 배
 
 **같이 지운 것 — 이걸 빠뜨리면 CI가 깨집니다.**
 
-| 무엇 | 어디 | 왜 |
-| --- | --- | --- |
-| `/cloud/`·`cloud-*.yml`·`cloud-sql-rollout-lease/` 3행 | `.github/CODEOWNERS` | 존재하지 않는 경로를 가리키게 됩니다 |
+| 무엇                                                                  | 어디                                            | 왜                                                                     |
+| --------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
+| `/cloud/`·`cloud-*.yml`·`cloud-sql-rollout-lease/` 3행                | `.github/CODEOWNERS`                            | 존재하지 않는 경로를 가리키게 됩니다                                   |
 | `passes the staging confirmation through the step environment` 케이스 | `config/scripts/release-blocker-fixes.test.mjs` | `cloud-prove-relay-asia-staging.yml`을 직접 읽으므로 ENOENT로 죽습니다 |
 
 **다음 동기화에서 할 일 — 매번 반복됩니다.**
@@ -653,11 +651,11 @@ upstream v1.4.195가 **Next.js 문서 사이트**(`docs/site/`, 115파일 + 자�
 
 **같이 지운 것 — 이걸 빠뜨리면 CI가 깨집니다.**
 
-| 무엇 | 어디 | 왜 |
-| --- | --- | --- |
-| `docs-production-dispatch` 잡 | `.github/workflows/release-cut.yml` | `gh workflow run docs.yml`을 호출하므로 워크플로가 없으면 릴리스 컷에서 실패합니다 |
+| 무엇                                                                                            | 어디                                                                        | 왜                                                                                               |
+| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `docs-production-dispatch` 잡                                                                   | `.github/workflows/release-cut.yml`                                         | `gh workflow run docs.yml`을 호출하므로 워크플로가 없으면 릴리스 컷에서 실패합니다               |
 | `docs.yml#{check,production,release_gate}` 3행 + `release-cut.yml#docs-production-dispatch` 1행 | `config/scripts/release-cut-token-permissions.test.mjs`의 `EXPECTED_MATRIX` | 이 게이트는 워크플로 잡 목록을 리터럴로 못 박습니다. 남겨 두면 "존재하지 않는 잡"으로 빨개집니다 |
-| `.gitignore`의 `!docs/site/` · `!docs/site/**` 2행 | `.gitignore` | upstream이 추가한 허용목록 예외. 지워야 `docs/**` 무시가 다시 이 트리를 덮습니다 |
+| `.gitignore`의 `!docs/site/` · `!docs/site/**` 2행                                              | `.gitignore`                                                                | upstream이 추가한 허용목록 예외. 지워야 `docs/**` 무시가 다시 이 트리를 덮습니다                 |
 
 **다음 동기화에서 할 일 — 매번 반복됩니다.**
 
@@ -711,15 +709,15 @@ git grep -L 'EnterprisePolicy' -- 'src/main/*/[a-z]*-structured-launch-resolutio
 v1.4.196은 **`max-lines` 우회 34건을 한 릴리스에서 청산**했습니다(`config/max-lines-baseline.txt`에서 34행 제거,
 추가 0행). 그 목록이 이 포크의 게이트가 박혀 있던 파일과 거의 겹칩니다:
 
-| 해체된 파일 | 변화 | upstream이 옮긴 곳 |
-| --- | --- | --- |
-| `src/main/index.ts` | 3,805 → 65줄 | `src/main/startup/**` (33개 신규) |
-| `src/main/runtime/orca-runtime.ts` | −44,399줄 | `src/main/runtime/**` (490개 신규) |
-| `src/preload/index.ts` | −5,302줄 | `src/preload/api/*-bridge.ts` (90개 신규) |
-| `src/main/rate-limits/service.ts` | −2,180줄 | `src/main/rate-limits/service/**` |
-| `src/main/browser/browser-manager.ts` | −2,590줄 | `browser-manager-{bindings,guest-popup-policy,types,...}.ts` |
-| `src/renderer/src/store/slices/{ui,tabs}.ts` | −5,025줄 | `slices/{ui,tabs}/**` |
-| `components/{StatusBar,Terminal,TerminalPane,AutomationsPage}.tsx` | −11,875줄 | 각 디렉터리의 hook/surface 모듈 |
+| 해체된 파일                                                        | 변화         | upstream이 옮긴 곳                                           |
+| ------------------------------------------------------------------ | ------------ | ------------------------------------------------------------ |
+| `src/main/index.ts`                                                | 3,805 → 65줄 | `src/main/startup/**` (33개 신규)                            |
+| `src/main/runtime/orca-runtime.ts`                                 | −44,399줄    | `src/main/runtime/**` (490개 신규)                           |
+| `src/preload/index.ts`                                             | −5,302줄     | `src/preload/api/*-bridge.ts` (90개 신규)                    |
+| `src/main/rate-limits/service.ts`                                  | −2,180줄     | `src/main/rate-limits/service/**`                            |
+| `src/main/browser/browser-manager.ts`                              | −2,590줄     | `browser-manager-{bindings,guest-popup-policy,types,...}.ts` |
+| `src/renderer/src/store/slices/{ui,tabs}.ts`                       | −5,025줄     | `slices/{ui,tabs}/**`                                        |
+| `components/{StatusBar,Terminal,TerminalPane,AutomationsPage}.tsx` | −11,875줄    | 각 디렉터리의 hook/surface 모듈                              |
 
 **이 상황의 함정은 셋입니다.**
 
@@ -738,6 +736,7 @@ v1.4.196은 **`max-lines` 우회 34건을 한 릴리스에서 청산**했습니�
 
    포크 전용 모듈(포크tip에는 있고 upstream 태그에는 없는 `src/**/*.ts`)의 **호출지점 수**도 같이 떠 두면
    guard 모듈이 통째로 고아가 된 경우까지 잡힙니다(v1.4.196 시점 706건 → 머지 후 715건).
+
 3. **되살아난 표면은 충돌로 뜨지 않는다.** 포크가 지운 기능을 upstream이 **새 경로에 새 파일로** 다시 만들면
    git은 그냥 추가합니다. v1.4.196에서 31건이 그렇게 들어왔습니다 — `src/main/updater.ts`가
    `src/main/updater/**` 16개로, preload 인라인 API가 `api/{updater,feedback,bitbucket}-bridge.ts`로,
@@ -781,12 +780,12 @@ v1.4.196에서는 이 방법으로 3,804건의 실패 파일에서 **진짜 회�
 메모리를 구조적으로 볼 수 없기 때문**입니다(세션 메모리는 작업 디렉터리 키). dispatch spec이
 규칙을 워커에게 전달하는 유일한 경로입니다.
 
-| 무엇 | 어디 | 성격 |
-| --- | --- | --- |
-| 프로토콜(동작 규정) | `skill-guides/orchestration.md`의 `## Project Rule Ledger` | 바이너리에 임베드 |
-| 규칙 데이터 | `.claude/harness/rules.md` | 커밋. 블록 12개 / 200줄 상한 |
-| 승격 후보 | `.claude/harness/candidates.md` | 커밋. 어떤 컨텍스트에도 안 들어감 |
-| 폐기 이력 | `.claude/harness/retired.md` | 커밋. 부활 방지용 |
+| 무엇                | 어디                                                       | 성격                              |
+| ------------------- | ---------------------------------------------------------- | --------------------------------- |
+| 프로토콜(동작 규정) | `skill-guides/orchestration.md`의 `## Project Rule Ledger` | 바이너리에 임베드                 |
+| 규칙 데이터         | `.claude/harness/rules.md`                                 | 커밋. 블록 12개 / 200줄 상한      |
+| 승격 후보           | `.claude/harness/candidates.md`                            | 커밋. 어떤 컨텍스트에도 안 들어감 |
+| 폐기 이력           | `.claude/harness/retired.md`                               | 커밋. 부활 방지용                 |
 
 **패키징 경로 — URL로 설치해도 동작합니다.** 프로토콜은 스킬 파일이 아니라 바이너리가 서빙합니다.
 
@@ -812,7 +811,7 @@ skill-guides/orchestration.md          ← 유일한 편집 대상
 항상 사람이 승인합니다. 관측 2회 미만, `pnpm lint`/`pnpm typecheck`가 이미 잡는 것, 기존 블록과
 scope가 겹치는 것, 이 머신에서만 참인 것은 승격하지 않습니다.
 
-> **프로토콜은 사내 빌드에만 실립니다.** 원장 *데이터*(`.claude/harness/`)는 프로젝트마다 다르고
+> **프로토콜은 사내 빌드에만 실립니다.** 원장 _데이터_(`.claude/harness/`)는 프로젝트마다 다르고
 > 저장소에 커밋되지만, *동작 규정*은 이 포크의 `orca` 바이너리가 서빙합니다. 공개 upstream Orca
 > 설치본으로 같은 프로젝트를 열면 `orca skills get orchestration`에 이 절이 없어 원장이 그대로
 > 무시됩니다 — 파일은 있는데 아무도 안 읽는 상태가 되므로, 팀에 공유할 때 사내 빌드 사용 여부를
@@ -824,10 +823,10 @@ scope가 겹치는 것, 이 머신에서만 참인 것은 승격하지 않습니
 
 에이전트가 사내 위키를 읽을 수 있도록 **URL + 토큰**만 받습니다.
 
-| 항목 | 값 |
-| --- | --- |
-| 기본 URL | `https://confluence-mirror.samsungds.net` |
-| 토큰 | Confluence → 프로필 → **Personal Access Tokens** 에서 발급 |
+| 항목        | 값                                                               |
+| ----------- | ---------------------------------------------------------------- |
+| 기본 URL    | `https://confluence-mirror.samsungds.net`                        |
+| 토큰        | Confluence → 프로필 → **Personal Access Tokens** 에서 발급       |
 | 사용자 이름 | **보통 비워 둡니다.** 채우면 자격증명이 Basic으로 나갑니다(아래) |
 
 - **자체 호스팅(Server / Data Center) 전용입니다.** Atlassian Cloud 주소(`*.atlassian.net`)는
@@ -845,15 +844,15 @@ scope가 겹치는 것, 이 머신에서만 참인 것은 승격하지 않습니
 
 **설정 → 연동 → 사내 Confluence**의 **연결 테스트**가 알려 주는 것과 대처:
 
-| 결과 | 뜻과 대처 |
-| --- | --- |
-| **리다이렉트된다고 나온다** | 넣은 URL이 최종 주소가 아닙니다. 메시지가 **가야 할 주소를 알려 주니** 그걸 URL 칸에 넣으세요. `http://`로 넣어 서버가 `https://`로 301을 주는 경우가 가장 흔합니다 |
-| **토큰이 거부됐다(401/403)** | 주소는 맞고 토큰이 문제입니다. 다시 발급하세요 |
-| **Basic 인증을 요구한다고 나온다** | 서버가 베어러 토큰을 안 받은 것입니다. **PAT는 Confluence Server/DC 7.9 이상에만 있고**, 그 이하이거나 PAT를 꺼 둔 설치본은 **사용자 이름 + 비밀번호**를 받습니다 — 사용자 이름 칸을 채우면 Basic으로 나갑니다. 이미 채웠는데도 계속 나면 앞단 프록시가 `Authorization` 헤더를 떼고 있을 수 있습니다 |
-| **그 URL에 API가 없다(404)** | 설치본이 하위 경로에 있는 경우입니다. `…/confluence` 처럼 경로까지 넣으세요 |
-| **CAPTCHA를 요구한다고 나온다** | 로그인 실패가 누적돼 계정이 잠긴 상태입니다. 브라우저로 한 번 로그인해 CAPTCHA를 풀고 다시 테스트하세요 — **토큰 문제가 아닙니다** |
-| **게이트웨이가 답한 것 같다고 나온다** | Confluence 자신의 인증 헤더가 하나도 없는 401입니다. 앞단 SSO 게이트웨이가 막은 것이니 주소를 관리자와 확인하세요 |
-| **토큰에 공백/줄바꿈이 있다고 나온다** | 줄바꿈된 메일·표에서 복사하면 중간에 개행이 섞입니다. 한 줄로 다시 붙여넣으세요 |
+| 결과                                   | 뜻과 대처                                                                                                                                                                                                                                                                                            |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **리다이렉트된다고 나온다**            | 넣은 URL이 최종 주소가 아닙니다. 메시지가 **가야 할 주소를 알려 주니** 그걸 URL 칸에 넣으세요. `http://`로 넣어 서버가 `https://`로 301을 주는 경우가 가장 흔합니다                                                                                                                                  |
+| **토큰이 거부됐다(401/403)**           | 주소는 맞고 토큰이 문제입니다. 다시 발급하세요                                                                                                                                                                                                                                                       |
+| **Basic 인증을 요구한다고 나온다**     | 서버가 베어러 토큰을 안 받은 것입니다. **PAT는 Confluence Server/DC 7.9 이상에만 있고**, 그 이하이거나 PAT를 꺼 둔 설치본은 **사용자 이름 + 비밀번호**를 받습니다 — 사용자 이름 칸을 채우면 Basic으로 나갑니다. 이미 채웠는데도 계속 나면 앞단 프록시가 `Authorization` 헤더를 떼고 있을 수 있습니다 |
+| **그 URL에 API가 없다(404)**           | 설치본이 하위 경로에 있는 경우입니다. `…/confluence` 처럼 경로까지 넣으세요                                                                                                                                                                                                                          |
+| **CAPTCHA를 요구한다고 나온다**        | 로그인 실패가 누적돼 계정이 잠긴 상태입니다. 브라우저로 한 번 로그인해 CAPTCHA를 풀고 다시 테스트하세요 — **토큰 문제가 아닙니다**                                                                                                                                                                   |
+| **게이트웨이가 답한 것 같다고 나온다** | Confluence 자신의 인증 헤더가 하나도 없는 401입니다. 앞단 SSO 게이트웨이가 막은 것이니 주소를 관리자와 확인하세요                                                                                                                                                                                    |
+| **토큰에 공백/줄바꿈이 있다고 나온다** | 줄바꿈된 메일·표에서 복사하면 중간에 개행이 섞입니다. 한 줄로 다시 붙여넣으세요                                                                                                                                                                                                                      |
 
 > ⚠️ **왜 리다이렉트를 따라가지 않는가** — 웹 표준상 리다이렉트가 **주소(origin)를 바꾸면
 > `Authorization` 헤더가 제거**됩니다(`http:`→`https:`도 바뀐 것으로 봅니다). 그대로 따라가면
@@ -867,8 +866,8 @@ scope가 겹치는 것, 이 머신에서만 참인 것은 승격하지 않습니
 
 ## 개발 / 저장소 구조
 
-- 아키텍처와 명령어 개요: [`CLAUDE.md`](CLAUDE.md) *(upstream의 `@AGENTS.md` 스텁을 이 포크가 확장한 파일)*
-- 프로젝트 규칙(크로스플랫폼, Git 호환성, 디자인 시스템 등): [`AGENTS.md`](AGENTS.md) *(upstream 원본, 손대지 않음)*
+- 아키텍처와 명령어 개요: [`CLAUDE.md`](CLAUDE.md) _(upstream의 `@AGENTS.md` 스텁을 이 포크가 확장한 파일)_
+- 프로젝트 규칙(크로스플랫폼, Git 호환성, 디자인 시스템 등): [`AGENTS.md`](AGENTS.md) _(upstream 원본, 손대지 않음)_
 - 사내 커스터마이즈의 핵심:
   - `src/shared/enterprise-policy.ts` — 순수 리졸버 + 타입 (파일 I/O 없음)
   - `src/main/enterprise/enterprise-policy-file.ts` — 정책 파일 탐색·파싱·캐시

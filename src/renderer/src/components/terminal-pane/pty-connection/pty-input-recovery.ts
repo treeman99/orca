@@ -25,9 +25,7 @@ import type { ConnectPanePtySession } from './connect-pane-pty-session'
 
 /** Transport creation, terminal capability replies, viewport claims, and undeliverable-input recovery. */
 export function installPtyInputRecovery(session: ConnectPanePtySession): void {
-  session.markAcceptedTerminalInputSent = (
-    generation = session.terminalInputGeneration
-  ): void => {
+  session.markAcceptedTerminalInputSent = (generation = session.terminalInputGeneration): void => {
     session.markTerminalInputSent(generation)
     session.recordTerminalInputForHibernationFallback()
   }

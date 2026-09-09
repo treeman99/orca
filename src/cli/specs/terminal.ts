@@ -1,6 +1,7 @@
 import type { CommandSpec } from '../args'
 import { GLOBAL_FLAGS } from '../args'
 import { TERMINAL_CLOSE_COMMAND_SPEC } from './terminal-close'
+import { TERMINAL_SEND_COMMAND_SPEC } from './terminal-send'
 
 export const TERMINAL_COMMAND_SPECS: CommandSpec[] = [
   {
@@ -42,13 +43,7 @@ export const TERMINAL_COMMAND_SPECS: CommandSpec[] = [
       'orca terminal read --terminal term_abc123 --screen --json'
     ]
   },
-  {
-    path: ['terminal', 'send'],
-    summary: 'Send input to a live terminal',
-    usage:
-      'orca terminal send [--terminal <handle>] [--text <text>] [--enter] [--interrupt] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'terminal', 'text', 'enter', 'interrupt']
-  },
+  TERMINAL_SEND_COMMAND_SPEC,
   {
     path: ['terminal', 'wait'],
     summary: 'Wait for a terminal condition',

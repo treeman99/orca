@@ -10,11 +10,11 @@
 
 ## 1. 세 가지 실행 방식 — 무엇이 확인되는가
 
-| 방식 | 명령 | `app.isPackaged` | userData | 여기서만 되는 것 | 여기서는 안 되는 것 |
-| --- | --- | --- | --- | --- | --- |
-| **개발 인스턴스** | `pnpm dev` | `false` | `%APPDATA%\orca-dev` | 정책 진단(stderr)이 터미널에 그대로 보임, 임의 경로 정책 파일, 실사용 프로필과 격리 | 패키징 전용 우선순위 규칙, 텔레메트리 실경로 |
-| **언팩 패키징** | `pnpm build:unpack` → `dist\win-unpacked\Orca.exe` | `true` | `%APPDATA%\Orca` (**실사용 프로필**) | 환경변수가 머신 전역 정책을 못 이긴다는 보안 속성 실증 | 설치/제거, 바로가기, 서명 |
-| **설치 프로그램** | [빌드 가이드 §4](./windows-corporate-build.md) | `true` | 동일 | 전부 | — |
+| 방식              | 명령                                               | `app.isPackaged` | userData                             | 여기서만 되는 것                                                                    | 여기서는 안 되는 것                          |
+| ----------------- | -------------------------------------------------- | ---------------- | ------------------------------------ | ----------------------------------------------------------------------------------- | -------------------------------------------- |
+| **개발 인스턴스** | `pnpm dev`                                         | `false`          | `%APPDATA%\orca-dev`                 | 정책 진단(stderr)이 터미널에 그대로 보임, 임의 경로 정책 파일, 실사용 프로필과 격리 | 패키징 전용 우선순위 규칙, 텔레메트리 실경로 |
+| **언팩 패키징**   | `pnpm build:unpack` → `dist\win-unpacked\Orca.exe` | `true`           | `%APPDATA%\Orca` (**실사용 프로필**) | 환경변수가 머신 전역 정책을 못 이긴다는 보안 속성 실증                              | 설치/제거, 바로가기, 서명                    |
+| **설치 프로그램** | [빌드 가이드 §4](./windows-corporate-build.md)     | `true`           | 동일                                 | 전부                                                                                | —                                            |
 
 **정책 검증의 대부분은 `pnpm dev`로 끝납니다.** 비패키징 프로세스에서는 `ORCA_ENTERPRISE_POLICY`가 탐색 1순위를 가져가므로(`enterprisePolicySearchPaths` — `src/main/enterprise/enterprise-policy-file.ts`) 관리자 권한도, `%ProgramData%` 쓰기도, 설치 프로그램도 필요 없습니다.
 
@@ -30,12 +30,12 @@
 
 **그대로 필요한 것**:
 
-| 항목 | 이유 |
-| --- | --- |
-| Node(24 LTS 권장, 최신도 가능) + pnpm 12.0.0 | [빌드 가이드 §3](./windows-corporate-build.md) 그대로. 사내망에서 막히면 [pnpm 12 설치](./pnpm-12-corepack-install.md) |
+| 항목                                         | 이유                                                                                                                                                                                                                              |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node(24 LTS 권장, 최신도 가능) + pnpm 12.0.0 | [빌드 가이드 §3](./windows-corporate-build.md) 그대로. 사내망에서 막히면 [pnpm 12 설치](./pnpm-12-corepack-install.md)                                                                                                            |
 | **VS 2022 Build Tools + Python 3** (Windows) | `pnpm install`의 postinstall이 네이티브 모듈을 **Electron ABI로 컴파일**합니다(`CLAUDE.md`, `config/scripts/rebuild-native-deps.mjs`). 개발 실행이라고 건너뛰지 않습니다 — 준비 부담의 대부분이 여기 있고, 그건 빌드와 동일합니다 |
-| 네트워크 또는 사내 미러 | `pnpm install`이 npm 레지스트리 · Electron 바이너리 · node-gyp 헤더를 받습니다. 폐쇄망 전략은 [빌드 가이드 §6](./windows-corporate-build.md) |
-| Git 2.25 이상 | 앱이 실행 중에 쓰는 것과 같은 바이너리 |
+| 네트워크 또는 사내 미러                      | `pnpm install`이 npm 레지스트리 · Electron 바이너리 · node-gyp 헤더를 받습니다. 폐쇄망 전략은 [빌드 가이드 §6](./windows-corporate-build.md)                                                                                      |
+| Git 2.25 이상                                | 앱이 실행 중에 쓰는 것과 같은 바이너리                                                                                                                                                                                            |
 
 `gh`는 GHES 연동을 시험할 때만 필요합니다(§6-2).
 
@@ -69,14 +69,14 @@ macOS/Linux에서 개발한다면 마지막 두 줄만 동일하게 실행하면
 
 ## 4. 개발 인스턴스는 설치본과 어디가 다른가
 
-| | `pnpm dev` | 설치본 |
-| --- | --- | --- |
-| `userData` | `%APPDATA%\orca-dev` (`src/main/startup/configure-process.ts`). `ORCA_DEV_USER_DATA_PATH`로 더 격리 가능 | `%APPDATA%\Orca` |
-| 정책 환경변수 | `ORCA_ENTERPRISE_POLICY`가 **1순위**, 무력화 값으로 탐색 전체를 끌 수 있음 | 후보 **추가**만 가능(`enterprise-policy-file.ts`) |
-| `[enterprise-policy]` / `[enterprise-network]` stderr | **터미널에 그대로 보임** | 콘솔 없는 GUI 프로세스라 소실(`enterprise-policy-file.ts`) |
-| 자동 업데이트 | 양쪽 모두 **벤더 업데이터는 소스에 없음** — electron-updater 피드·넛지·changelog·릴리스 채널·자동 설치 모듈이 삭제된 상태 그대로입니다([감사 문서 §3](./external-integrations-audit.md)). 대신 **사내 GHES 릴리스 태그 조회 + "새 버전" 팝업** 레인 하나가 있고(감사 §3.0), `disableAutoUpdate`가 그 레인을 끕니다 — **dead switch가 아닙니다** | 동일 |
-| 텔레메트리 전송 | 키가 컴파일 상수라 dev 빌드는 **전송 자체가 불가**(`CLAUDE.md`) | 정책·동의에 따름 |
-| 트레이스 로그 | `%APPDATA%\orca-dev\logs\main.trace.ndjson` | `%APPDATA%\Orca\logs\main.trace.ndjson` |
+|                                                       | `pnpm dev`                                                                                                                                                                                                                                                                                                                                      | 설치본                                                     |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `userData`                                            | `%APPDATA%\orca-dev` (`src/main/startup/configure-process.ts`). `ORCA_DEV_USER_DATA_PATH`로 더 격리 가능                                                                                                                                                                                                                                        | `%APPDATA%\Orca`                                           |
+| 정책 환경변수                                         | `ORCA_ENTERPRISE_POLICY`가 **1순위**, 무력화 값으로 탐색 전체를 끌 수 있음                                                                                                                                                                                                                                                                      | 후보 **추가**만 가능(`enterprise-policy-file.ts`)          |
+| `[enterprise-policy]` / `[enterprise-network]` stderr | **터미널에 그대로 보임**                                                                                                                                                                                                                                                                                                                        | 콘솔 없는 GUI 프로세스라 소실(`enterprise-policy-file.ts`) |
+| 자동 업데이트                                         | 양쪽 모두 **벤더 업데이터는 소스에 없음** — electron-updater 피드·넛지·changelog·릴리스 채널·자동 설치 모듈이 삭제된 상태 그대로입니다([감사 문서 §3](./external-integrations-audit.md)). 대신 **사내 GHES 릴리스 태그 조회 + "새 버전" 팝업** 레인 하나가 있고(감사 §3.0), `disableAutoUpdate`가 그 레인을 끕니다 — **dead switch가 아닙니다** | 동일                                                       |
+| 텔레메트리 전송                                       | 키가 컴파일 상수라 dev 빌드는 **전송 자체가 불가**(`CLAUDE.md`)                                                                                                                                                                                                                                                                                 | 정책·동의에 따름                                           |
+| 트레이스 로그                                         | `%APPDATA%\orca-dev\logs\main.trace.ndjson`                                                                                                                                                                                                                                                                                                     | `%APPDATA%\Orca\logs\main.trace.ndjson`                    |
 
 정리하면 **`disableTelemetry`의 "실제로 나가지 않는다"는 개발 인스턴스로 증명할 수 없습니다.** 정책이 그 값으로 해석됐다는 것까지만 §5로 확인하고, 게이트 동작 자체는 §8이나 설치본에서 보세요.
 
@@ -151,7 +151,7 @@ Select-String -Path "$env:APPDATA\orca-dev\logs\main.trace.ndjson" -Pattern "ent
 속성별 의미는 [레퍼런스 §7-2](./enterprise-policy.md). 실제 채택된 파일 경로(`…source_path`), 탐색한 후보 전체(`…searched_paths`), lockdown 상속 스위치 값(`…switches`), 허용 에이전트(`…allowed_agents`), floor로 깔린 빌드 정책(`…baseline_path`·`…baseline_applied_keys`), GHES 호스트, 망 허용목록, 경고 원문이 들어갑니다.
 
 > `allowedAgents`가 `switches`와 **따로** 기록되는 이유: 이 키는 lockdown을 상속하지 않습니다. 키가 없거나 오타가 나면 다른 속성은 전부 "잠김"으로 보이는데 에이전트만 전부 선택 가능한 상태가 되므로, `(unrestricted)`라는 값 자체가 판정 근거입니다.
->
+
 ⚠️ 셸에 `CI`, `GITHUB_ACTIONS` 등이 설정돼 있으면 **로컬 파일 로깅 자체가 꺼져** 이 파일이 생기지 않습니다(`src/main/observability/index.ts`). dev 셸에서는 지우고 실행하세요.
 
 ### 6-2. GHES (`githubEnterpriseHost`)
@@ -238,14 +238,14 @@ pnpm build:unpack        # dist\win-unpacked\Orca.exe
 
 ## 10. 자주 밟는 것
 
-| 증상 | 원인 | 대처 |
-| --- | --- | --- |
-| `pnpm dev`가 `Native modules still do not load for Node <v>` | `pnpm install`을 안 했거나 postinstall이 실패 | `pnpm install` 재실행. Windows면 VS Build Tools·Python부터 (`CLAUDE.md`) |
-| 정책 파일을 고쳤는데 그대로 | 프로세스당 1회 캐시(`enterprise-policy-file.ts`) | 앱 재시작 (HMR로는 안 됨) |
-| 아무 잠금도 안 걸리고 경고도 없음 | 경로 오타 — ENOENT는 경고를 내지 않습니다. `off` 값이 남아 §5-D 기본값까지 껐을 수도 있습니다 | 스팬의 `…searched_paths`와 `…source_path` 대조(§6-1) |
-| 고친 게 화면에 전혀 반영되지 않음 | 이 체크아웃이 아닌 다른 Orca를 보고 있음 | dev 인스턴스는 앱 이름이 **`Orca Dev`**, 창 제목이 `Orca: <브랜치>`입니다. 설치본에는 이 저장소의 커밋이 하나도 없습니다 |
-| 정책은 맞는데 특정 화면만 안 먹음 | 그 피커가 필터를 안 탐 | 오류 토스트가 뜨면 초크포인트는 살아 있는 것 — 화면 쪽 게이트를 붙이세요(§6-4) |
-| `main.trace.ndjson`이 아예 없음 | 셸에 `CI` 등이 설정됨 | 해당 변수 제거 후 재실행(`observability/index.ts`) |
-| 개발에선 잠기는데 `pnpm test`는 안 잠김 | 의도된 격리 | §7 |
-| 환경변수로 지정한 경로가 무시됨 | 언팩·설치본으로 시험한 것 | 1순위는 비패키징에서만(§5-A, §8) |
-| `dev:web`에서 정책·GHES가 안 보임 | 메인 프로세스 기능 | `pnpm dev` |
+| 증상                                                         | 원인                                                                                          | 대처                                                                                                                     |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm dev`가 `Native modules still do not load for Node <v>` | `pnpm install`을 안 했거나 postinstall이 실패                                                 | `pnpm install` 재실행. Windows면 VS Build Tools·Python부터 (`CLAUDE.md`)                                                 |
+| 정책 파일을 고쳤는데 그대로                                  | 프로세스당 1회 캐시(`enterprise-policy-file.ts`)                                              | 앱 재시작 (HMR로는 안 됨)                                                                                                |
+| 아무 잠금도 안 걸리고 경고도 없음                            | 경로 오타 — ENOENT는 경고를 내지 않습니다. `off` 값이 남아 §5-D 기본값까지 껐을 수도 있습니다 | 스팬의 `…searched_paths`와 `…source_path` 대조(§6-1)                                                                     |
+| 고친 게 화면에 전혀 반영되지 않음                            | 이 체크아웃이 아닌 다른 Orca를 보고 있음                                                      | dev 인스턴스는 앱 이름이 **`Orca Dev`**, 창 제목이 `Orca: <브랜치>`입니다. 설치본에는 이 저장소의 커밋이 하나도 없습니다 |
+| 정책은 맞는데 특정 화면만 안 먹음                            | 그 피커가 필터를 안 탐                                                                        | 오류 토스트가 뜨면 초크포인트는 살아 있는 것 — 화면 쪽 게이트를 붙이세요(§6-4)                                           |
+| `main.trace.ndjson`이 아예 없음                              | 셸에 `CI` 등이 설정됨                                                                         | 해당 변수 제거 후 재실행(`observability/index.ts`)                                                                       |
+| 개발에선 잠기는데 `pnpm test`는 안 잠김                      | 의도된 격리                                                                                   | §7                                                                                                                       |
+| 환경변수로 지정한 경로가 무시됨                              | 언팩·설치본으로 시험한 것                                                                     | 1순위는 비패키징에서만(§5-A, §8)                                                                                         |
+| `dev:web`에서 정책·GHES가 안 보임                            | 메인 프로세스 기능                                                                            | `pnpm dev`                                                                                                               |

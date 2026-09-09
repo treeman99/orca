@@ -117,4 +117,3 @@ describe('prepareRendererForAppRestart', () => {
     expect(aborted).toHaveBeenCalledTimes(1)
   })
 })
-

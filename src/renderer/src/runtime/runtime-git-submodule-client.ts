@@ -6,10 +6,7 @@ import {
 import { callRuntimeRpc } from './runtime-rpc-client'
 import { getActiveRuntimeTarget } from './runtime-client-target'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
-import {
-  resolveLocalWorktreePath,
-  type RuntimeGitContext
-} from './runtime-git-client-context'
+import { resolveLocalWorktreePath, type RuntimeGitContext } from './runtime-git-client-context'
 
 /** Discard a file inside a submodule. `filePath` is relative to the SUBMODULE root. */
 export async function discardRuntimeGitSubmodulePath(

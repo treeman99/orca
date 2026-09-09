@@ -20,11 +20,11 @@
 
 ## 2. 이미 닫힌 경로 (다시 파지 말 것)
 
-| 커밋 | 닫은 경로 | 재현 |
-| --- | --- | --- |
-| `76c3108665` | payload 없는 재부착이 복원된 행 위에 이전 실행의 커서를 남김 → 뷰포트를 스크롤백으로 밀어냄 | 헤드리스 |
-| `a122a4becb` | 죽은 에이전트 TUI 의 짝 없는 `?1049h` 때문에 blanking 이 alt 버퍼에서 돌아 normal 버퍼의 대화가 남음 → 조건부 `?1049l` + 모드 그라운딩 | 헤드리스 |
-| (2026-09-08, 커밋 안 함) | "blanking 뒤 페인이 커지면 xterm 이 스크롤백을 뷰포트로 다시 끌어내린다" | **반증** — xterm `Buffer.resize` 는 커서 아래에 빈 행이 있으면 스크롤백을 당기지 않는다 |
+| 커밋                     | 닫은 경로                                                                                                                              | 재현                                                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `76c3108665`             | payload 없는 재부착이 복원된 행 위에 이전 실행의 커서를 남김 → 뷰포트를 스크롤백으로 밀어냄                                            | 헤드리스                                                                                |
+| `a122a4becb`             | 죽은 에이전트 TUI 의 짝 없는 `?1049h` 때문에 blanking 이 alt 버퍼에서 돌아 normal 버퍼의 대화가 남음 → 조건부 `?1049l` + 모드 그라운딩 | 헤드리스                                                                                |
+| (2026-09-08, 커밋 안 함) | "blanking 뒤 페인이 커지면 xterm 이 스크롤백을 뷰포트로 다시 끌어내린다"                                                               | **반증** — xterm `Buffer.resize` 는 커서 아래에 빈 행이 있으면 스크롤백을 당기지 않는다 |
 
 ## 3. 진단 로그로 경로를 잡는다
 
@@ -38,15 +38,15 @@ Select-String -Path "$env:APPDATA\Orca\logs\orca-diagnostic.log" -Pattern "termi
 한 줄은 `event=… tab=… pty=… grid=<cols>x<rows> baseY=<스크롤백 행 수> cursor=<row>,<col>
 alt=<대체 화면 여부> conpty=<네이티브 ConPTY 여부> visible=…` 에 이벤트별 필드가 붙는다.
 
-| event | 뜻 | 겹침과의 관계 |
-| --- | --- | --- |
-| `layout-restore` | TerminalPane 마운트에서 영속화된 스크롤백을 새 xterm 에 그림 (`buffers`=복원한 페인 수, `refs`=디스크 스크롤백 참조 여부, `generation`=탭 세대) | **같은 tab 에 두 번 나오면** 재마운트다 — 두 번째 복원이 살아 있는 ConPTY 위에 써진다 |
-| `fresh-spawn-blank` | 죽은 세션 자리에 새 셸을 띄우기 전 뷰포트 정리 (`blanked`, `marker`=복원 행이 있었는지, `forced`) | `blanked=false` 인데 이전 내용이 보이면 마커 유실이다 |
-| `reattach-payloadless` | 살아 있는 PTY 에 붙었는데 스냅샷이 없음 (`blanked`, `marker`, `repainted`) | `blanked=false marker=true` 는 76c3108665 가 못 잡은 순서다 |
-| `reattach-snapshot` / `reattach-replay` | 데몬·릴레이가 준 화면을 지우고 다시 그림 (`dims`, `cold`, `owner`) | `dims` 가 `grid` 와 다르면 fit 후 ConPTY 재그림을 기다려야 한다 |
-| `cold-restore-repaint` | main 체크포인트로 지우고 다시 그린 뒤 blanking (`dims`, `blankRows`, `chars`) | |
-| `snapshot-restore` | 숨김 중 버린 바이트를 main 헤드리스 모델 스냅샷으로 복구 (`dims`, `image`, `owner`, `frame`) | **프로젝트 전환 경로.** `image=false` 면 모델이 비어 있어 아무것도 다시 그리지 못한 것이다 |
-| `snapshot-unavailable` | 복구 스냅샷을 못 받아 경고만 출력 | 이 뒤의 라이브 출력은 어긋난 커서로 들어온다 |
+| event                                   | 뜻                                                                                                                                              | 겹침과의 관계                                                                              |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `layout-restore`                        | TerminalPane 마운트에서 영속화된 스크롤백을 새 xterm 에 그림 (`buffers`=복원한 페인 수, `refs`=디스크 스크롤백 참조 여부, `generation`=탭 세대) | **같은 tab 에 두 번 나오면** 재마운트다 — 두 번째 복원이 살아 있는 ConPTY 위에 써진다      |
+| `fresh-spawn-blank`                     | 죽은 세션 자리에 새 셸을 띄우기 전 뷰포트 정리 (`blanked`, `marker`=복원 행이 있었는지, `forced`)                                               | `blanked=false` 인데 이전 내용이 보이면 마커 유실이다                                      |
+| `reattach-payloadless`                  | 살아 있는 PTY 에 붙었는데 스냅샷이 없음 (`blanked`, `marker`, `repainted`)                                                                      | `blanked=false marker=true` 는 76c3108665 가 못 잡은 순서다                                |
+| `reattach-snapshot` / `reattach-replay` | 데몬·릴레이가 준 화면을 지우고 다시 그림 (`dims`, `cold`, `owner`)                                                                              | `dims` 가 `grid` 와 다르면 fit 후 ConPTY 재그림을 기다려야 한다                            |
+| `cold-restore-repaint`                  | main 체크포인트로 지우고 다시 그린 뒤 blanking (`dims`, `blankRows`, `chars`)                                                                   |                                                                                            |
+| `snapshot-restore`                      | 숨김 중 버린 바이트를 main 헤드리스 모델 스냅샷으로 복구 (`dims`, `image`, `owner`, `frame`)                                                    | **프로젝트 전환 경로.** `image=false` 면 모델이 비어 있어 아무것도 다시 그리지 못한 것이다 |
+| `snapshot-unavailable`                  | 복구 스냅샷을 못 받아 경고만 출력                                                                                                               | 이 뒤의 라이브 출력은 어긋난 커서로 들어온다                                               |
 
 **읽는 법:** 겹침이 난 페인의 `pty` 로 줄을 모아 **시간 순서**를 본다. ConPTY 는 항상 절대 좌표로
 그리므로, 겹침은 conhost 가 그린 **뒤에** xterm 에 복원 바이트가 써질 때만 생긴다. 즉 마지막

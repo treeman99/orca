@@ -3,8 +3,9 @@
 // Lifted out of orchestration-workers.ts because that file sits at the max-lines cap and this
 // decision needs a comparison the inline ternary got wrong for a release.
 
+import { parsePaneKey } from '../../../../shared/stable-pane-id'
 import { runtimeWorktreeIdsEqual } from '../../runtime-worktree-path-identity'
-import type { WorkerEffect } from './orchestration-worker-topology'
+import type { WorkerEffect } from './orchestration/worker/worker-topology'
 
 export type WorkerPaneAnchor = { coordinatorWorktreeId: string } & (
   | { coordinatorTabId: string }
@@ -36,4 +37,14 @@ export function resolveWorkerPaneAnchor(
     return { paneAnchorSkipped: 'worker-worktree-differs', coordinatorWorktreeId }
   }
   return { coordinatorTabId, coordinatorWorktreeId }
+}
+
+/** The worker-start call site's shape: it holds the coordinator's pane key, not its tab id. */
+export function workerPaneAnchorForStart(
+  coordinatorPane: string | null,
+  coordinatorWorktreeId: string,
+  worker: { id: string }
+): WorkerPaneAnchor {
+  const coordinatorTabId = coordinatorPane ? parsePaneKey(coordinatorPane)?.tabId : undefined
+  return resolveWorkerPaneAnchor(coordinatorTabId, { worktreeId: coordinatorWorktreeId }, worker)
 }

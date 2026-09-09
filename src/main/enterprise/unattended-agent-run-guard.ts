@@ -45,6 +45,11 @@ export function unattendedAgentRunSkip(
 ): { runId: string; status: 'skipped_policy'; workspaceId: string | null; error: string } | null {
   const refusal = unattendedAgentRunRefusal(trigger)
   return refusal
-    ? { runId: run.id, status: 'skipped_policy', workspaceId: automation.workspaceId, error: refusal }
+    ? {
+        runId: run.id,
+        status: 'skipped_policy',
+        workspaceId: automation.workspaceId,
+        error: refusal
+      }
     : null
 }

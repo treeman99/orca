@@ -60,7 +60,8 @@ export async function initializeMainProcessPlugins(runtime: OrcaRuntimeService):
     hostVersion: app.getVersion(),
     // Feature flag: with the setting off, discovery returns nothing and no
     // plugin code path runs at all.
-    isPluginSystemEnabled: () => isPluginSystemAllowed(state.store?.getSettings().pluginSystemEnabled),
+    isPluginSystemEnabled: () =>
+      isPluginSystemAllowed(state.store?.getSettings().pluginSystemEnabled),
     getDisabledPlugins: () => normalizePluginIdList(state.store?.getSettings().disabledPlugins),
     getPluginConsents: () => normalizePluginConsents(state.store?.getSettings().pluginConsents),
     getDevPluginPaths: () => normalizePluginIdList(state.store?.getSettings().devPluginPaths),

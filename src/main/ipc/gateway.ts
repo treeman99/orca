@@ -85,9 +85,8 @@ export function registerGatewayHandlers(
 ): void {
   ipcMain.handle('gateway:getStatus', (): Promise<GatewayStatus> => getStatus(dependencies))
 
-  ipcMain.handle(
-    'gateway:login',
-    (event): Promise<GatewayLoginResult> => login(event.sender, dependencies)
+  ipcMain.handle('gateway:login', (event): Promise<GatewayLoginResult> =>
+    login(event.sender, dependencies)
   )
 
   ipcMain.handle('gateway:cancelLogin', (): void => {

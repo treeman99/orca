@@ -31,11 +31,10 @@ function read(relativePath) {
 
 /** Consumers of one policy switch, excluding the resolver and its own tests. */
 function countPolicySwitchConsumers(switchName) {
-  const out = execFileSync(
-    'git',
-    ['grep', '-c', '--', `.${switchName}`, '--', 'src/'],
-    { cwd: projectDir, encoding: 'utf8' }
-  )
+  const out = execFileSync('git', ['grep', '-c', '--', `.${switchName}`, '--', 'src/'], {
+    cwd: projectDir,
+    encoding: 'utf8'
+  })
   let total = 0
   for (const line of out.split('\n')) {
     if (!line) {
@@ -62,7 +61,10 @@ function matchesInDirectory(pattern) {
   }
   const basename = pattern.slice(pattern.lastIndexOf('/') + 1)
   const matcher = new RegExp(
-    `^${basename.split('*').map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`
+    `^${basename
+      .split('*')
+      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('.*')}$`
   )
   return readdirSync(directory).filter((entry) => matcher.test(entry))
 }
@@ -81,9 +83,10 @@ describe('fork feature ledger', () => {
     'keeps every anchor of %s',
     (_id, feature) => {
       for (const anchor of feature.present) {
-        expect(existsSync(join(projectDir, anchor.file)), `${feature.id}: ${anchor.file} is gone`).toBe(
-          true
-        )
+        expect(
+          existsSync(join(projectDir, anchor.file)),
+          `${feature.id}: ${anchor.file} is gone`
+        ).toBe(true)
         // Why the message spells out the recovery: whoever hits this is mid-merge and
         // needs to know the line moved with upstream's code, not that it was wrong.
         expect(

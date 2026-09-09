@@ -1,13 +1,14 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
+import { assertAgentPromptRescuedIfStalled } from './agent-prompt-submit-evidence'
 import { OrcaRuntimeWithResolveTerminalPane } from './orca-runtime-resolve-terminal-pane'
 import { PROVEN_ABSENT_LEAF_PTY_TTL_MS } from './orca-runtime-core'
 import type { RuntimeTerminalSend } from '../../shared/runtime-types'
+import type { RuntimeAgentPromptWriteOptions } from './runtime-terminal-contracts'
 import {
   assertTerminalInputWithinLimitWithYield,
   buildTerminalSendPayload
 } from './terminal-send-payload'
 import { buildAgentPromptPasteBytes } from '../../shared/agent-prompt-injection'
-import { assertAgentPromptRescuedIfStalled } from './agent-prompt-submit-evidence'
 
 export class OrcaRuntimeWithControllerKnowsPtyIsLive extends OrcaRuntimeWithResolveTerminalPane {
   protected controllerKnowsPtyIsLive(ptyId: string): boolean {
@@ -125,12 +126,13 @@ export class OrcaRuntimeWithControllerKnowsPtyIsLive extends OrcaRuntimeWithReso
   async sendTerminalAgentPrompt(
     handle: string,
     prompt: string,
-    options: {
-      beforeWrite?: (ptyId: string) => void | Promise<void>
-      suffixFailureError?: string
-      signal?: AbortSignal
-    } = {}
+    options: RuntimeAgentPromptWriteOptions = {}
   ): Promise<RuntimeTerminalSend> {
+    // Why gated: upstream's queued lane answers a swallowed Enter by returning an
+    // input_accepted receipt the caller settles later, and it must never be resent into
+    // ("--wait-submit ... never resends"). The fork's rescue keeps the lane upstream still
+    // leaves silent — a plain `terminal send` or coordinator follow-up with no request id.
+    const rescueSwallowedEnter = !options.acceptQueued || !options.requestId
     // Why here and not at the callers: every Orca-written prompt reaches a pane through this
     // method — worker dispatch, coordinator follow-ups, `terminal send --agent-prompt` — and an
     // agent that cannot read a paste frame cannot read one from any of them.
@@ -146,7 +148,7 @@ export class OrcaRuntimeWithControllerKnowsPtyIsLive extends OrcaRuntimeWithReso
       await assertTerminalInputWithinLimitWithYield(payload)
       const generation = this.getPtyLifecycleGeneration(pty.pty.ptyId)
       const activityBaseline = this.getAgentPromptActivity(handle, pty.pty.ptyId)
-      const { submits, stalled } = await this.serializeAgentPromptSubmission(
+      const delivery = await this.serializeAgentPromptSubmission(
         pty.pty.ptyId,
         generation,
         async () => {
@@ -161,14 +163,22 @@ export class OrcaRuntimeWithControllerKnowsPtyIsLive extends OrcaRuntimeWithReso
           )
         }
       )
-      const bytesWritten = Buffer.byteLength(payload, 'utf8') + submits
-      const { outcome: submit, statusObserved } = await this.resubmitAgentPromptIfStillUnsubmitted(
-        handle,
-        pty.pty.ptyId,
-        activityBaseline
+      const bytesWritten = Buffer.byteLength(payload, 'utf8') + delivery.submits
+      const { outcome: submit, statusObserved } = rescueSwallowedEnter
+        ? await this.resubmitAgentPromptIfStillUnsubmitted(handle, pty.pty.ptyId, activityBaseline)
+        : { outcome: undefined, statusObserved: false }
+      assertAgentPromptRescuedIfStalled(
+        delivery.stalled === true,
+        submit ?? 'unverified',
+        statusObserved
       )
-      assertAgentPromptRescuedIfStalled(stalled, submit, statusObserved)
-      return { handle, accepted: true, bytesWritten, submit }
+      return {
+        handle,
+        accepted: true,
+        bytesWritten,
+        ...(submit ? { submit } : {}),
+        ...(delivery.prompt ? { prompt: delivery.prompt } : {})
+      }
     }
 
     const { leaf } = this.getLiveLeafForHandle(handle)
@@ -183,28 +193,26 @@ export class OrcaRuntimeWithControllerKnowsPtyIsLive extends OrcaRuntimeWithReso
     }
     const generation = this.getPtyLifecycleGeneration(leaf.ptyId)
     const activityBaseline = this.getAgentPromptActivity(handle, leaf.ptyId)
-    const { submits, stalled } = await this.serializeAgentPromptSubmission(
-      leaf.ptyId,
-      generation,
-      async () => {
-        this.assertLiveTerminalHandleTargetsPty(handle, leaf.ptyId!)
-        this.assertAgentPromptGeneration(leaf.ptyId!, generation)
-        return await this.writeTerminalAgentPrompt(
-          handle,
-          leaf.ptyId!,
-          generation,
-          payload,
-          options
-        )
-      }
+    const delivery = await this.serializeAgentPromptSubmission(leaf.ptyId, generation, async () => {
+      this.assertLiveTerminalHandleTargetsPty(handle, leaf.ptyId!)
+      this.assertAgentPromptGeneration(leaf.ptyId!, generation)
+      return await this.writeTerminalAgentPrompt(handle, leaf.ptyId!, generation, payload, options)
+    })
+    const bytesWritten = Buffer.byteLength(payload, 'utf8') + delivery.submits
+    const { outcome: submit, statusObserved } = rescueSwallowedEnter
+      ? await this.resubmitAgentPromptIfStillUnsubmitted(handle, leaf.ptyId, activityBaseline)
+      : { outcome: undefined, statusObserved: false }
+    assertAgentPromptRescuedIfStalled(
+      delivery.stalled === true,
+      submit ?? 'unverified',
+      statusObserved
     )
-    const bytesWritten = Buffer.byteLength(payload, 'utf8') + submits
-    const { outcome: submit, statusObserved } = await this.resubmitAgentPromptIfStillUnsubmitted(
+    return {
       handle,
-      leaf.ptyId,
-      activityBaseline
-    )
-    assertAgentPromptRescuedIfStalled(stalled, submit, statusObserved)
-    return { handle, accepted: true, bytesWritten, submit }
+      accepted: true,
+      bytesWritten,
+      ...(submit ? { submit } : {}),
+      ...(delivery.prompt ? { prompt: delivery.prompt } : {})
+    }
   }
 }

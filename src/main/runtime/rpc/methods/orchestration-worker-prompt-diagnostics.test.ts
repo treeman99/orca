@@ -76,7 +76,12 @@ describe('worker prompt diagnostics', () => {
   })
 
   it('records the composer wait and how the write ended', () => {
-    recordWorkerPromptComposer({ taskId: 'task_1', agent: 'opencode', ready: false, elapsedMs: 8000 })
+    recordWorkerPromptComposer({
+      taskId: 'task_1',
+      agent: 'opencode',
+      ready: false,
+      elapsedMs: 8000
+    })
     recordWorkerPromptDispatch({
       taskId: 'task_1',
       agent: 'opencode',

@@ -32,9 +32,7 @@ export function useTerminalWorkspaceStoreBindings(controller: TerminalWorkspaceF
   const terminalShortcutPolicy = useAppStore(
     (state) => state.settings?.terminalShortcutPolicy ?? 'orca-first'
   )
-  const mobileEmulatorEnabled = useAppStore(
-    (state) => isMobileEmulatorAvailable(state.settings)
-  )
+  const mobileEmulatorEnabled = useAppStore((state) => isMobileEmulatorAvailable(state.settings))
   const setActiveTabType = useAppStore((state) => state.setActiveTabType)
   const setActiveFile = useAppStore((state) => state.setActiveFile)
   const closeFile = useAppStore((state) => state.closeFile)

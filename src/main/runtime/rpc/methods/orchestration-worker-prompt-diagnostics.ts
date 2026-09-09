@@ -96,3 +96,14 @@ export function recordWorkerPromptDispatch(args: {
     submit: args.dispatched.submit ?? 'unknown'
   })
 }
+
+/** Positional wrapper: the worker-start call site is at the max-lines cap. */
+export function recordWorkerReadiness(
+  runtime: Parameters<typeof recordWorkerPromptReadiness>[0],
+  taskId: string,
+  agent: TuiAgent | null | undefined,
+  handle: string,
+  wait: Parameters<typeof recordWorkerPromptReadiness>[1]['wait']
+): Promise<void> {
+  return recordWorkerPromptReadiness(runtime, { taskId, agent, handle, wait })
+}

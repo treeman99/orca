@@ -17,9 +17,8 @@ type PolicySource = () => Parameters<typeof toEnterprisePolicyView>[0]
 export function registerEnterprisePolicyHandlers(
   getPolicy: PolicySource = getEnterprisePolicy
 ): void {
-  ipcMain.handle(
-    'enterprisePolicy:get',
-    (): EnterprisePolicyView => toEnterprisePolicyView(getPolicy())
+  ipcMain.handle('enterprisePolicy:get', (): EnterprisePolicyView =>
+    toEnterprisePolicyView(getPolicy())
   )
 
   // Why a synchronous channel too: the renderer gates are read from module-scope

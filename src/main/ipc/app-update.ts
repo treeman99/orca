@@ -24,9 +24,8 @@ export function registerAppUpdateHandlers(): void {
 
   ipcMain.handle('appUpdate:getStatus', (): AppUpdateCheckStatus => service.getStatus())
   ipcMain.handle('appUpdate:check', (): Promise<AppUpdateCheckStatus> => service.check())
-  ipcMain.handle(
-    'appUpdate:dismissVersion',
-    (_event, raw: unknown): AppUpdateCheckStatus => service.dismissVersion(readVersionArg(raw))
+  ipcMain.handle('appUpdate:dismissVersion', (_event, raw: unknown): AppUpdateCheckStatus =>
+    service.dismissVersion(readVersionArg(raw))
   )
   // Why the status and not an argument: a renderer-supplied URL would make this a
   // general "open anything" channel; the only page this lane may open is the one

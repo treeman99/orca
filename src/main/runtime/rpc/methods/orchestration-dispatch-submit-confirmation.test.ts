@@ -5,7 +5,7 @@
 // suite cannot carry it away.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RpcContext } from '../core'
-import { createOrchestrationRpcHarness } from './orchestration-rpc-test-harness'
+import { createOrchestrationRpcHarness } from './orchestration/rpc-test-harness'
 import type { OrchestrationDb } from '../../orchestration/db'
 import type { OrcaRuntimeService } from '../../orca-runtime'
 

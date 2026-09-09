@@ -50,7 +50,9 @@ export class OrcaRuntimeForkSurface extends OrcaRuntimeWithResolveWaiter {
         this.killClosedTerminalTabPty(ptyId)
       }
     }
-    for (const candidate of this.legacyWorkerRecovery.prepare().candidates) {
+    // Upstream v1.4.199 dropped the controller's `prepare()`; the plan port it wrapped is
+    // still the one source of recovery candidates, so read it directly.
+    for (const candidate of this.legacyWorkerRecoveryPersistence.prepare().candidates) {
       const closed = closures.some(
         (closure) =>
           closure.tabId === candidate.tabId &&

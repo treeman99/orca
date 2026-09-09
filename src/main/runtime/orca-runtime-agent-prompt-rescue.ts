@@ -16,7 +16,7 @@ import {
   classifyAgentPromptSubmitEvidence,
   type AgentPromptSubmitVerdict
 } from './agent-prompt-submit-evidence'
-import { OrcaRuntimeWithSerializeAgentPromptSubmission } from './orca-runtime-serialize-agent-prompt-submission'
+import { OrcaRuntimeWithAgentPromptRequestCorrelation } from './orca-runtime-agent-prompt-request-correlation'
 
 export type AgentPromptSubmitOutcome = 'verified' | 'unverified' | 'resent'
 
@@ -35,7 +35,9 @@ type AgentPromptRescueForwardRefs = {
  * The fork's Enter-rescue for a swallowed agent prompt, plus the plain-text delivery lane
  * for agents that cannot read a bracketed paste frame under ConPTY.
  */
-export class OrcaRuntimeWithAgentPromptRescue extends OrcaRuntimeWithSerializeAgentPromptSubmission {
+// Why above the request-correlation layer and not beside it: the rescue only runs after upstream's
+// verifier has had its say, so it must see that layer's members. Chain, do not fork the chain.
+export class OrcaRuntimeWithAgentPromptRescue extends OrcaRuntimeWithAgentPromptRequestCorrelation {
   private get forward(): AgentPromptRescueForwardRefs {
     return this as unknown as AgentPromptRescueForwardRefs
   }
@@ -44,7 +46,8 @@ export class OrcaRuntimeWithAgentPromptRescue extends OrcaRuntimeWithSerializeAg
   // sendTerminalAgentPrompt — worker dispatch, coordinator follow-ups, `terminal send
   // --agent-prompt` — and an agent that cannot read a paste frame cannot read one from any.
   protected usesPlainTextPromptDelivery(handle: string): boolean {
-    const ptyId = this.forward.getLivePtyForHandle(handle)?.pty.ptyId ?? this.tryGetLeafPtyId(handle)
+    const ptyId =
+      this.forward.getLivePtyForHandle(handle)?.pty.ptyId ?? this.tryGetLeafPtyId(handle)
     const agent = ptyId ? this.forward.getPtyAgent(ptyId) : null
     return agent !== null && TUI_AGENT_CONFIG[agent].promptDeliveryMode === 'plain-text'
   }
@@ -56,7 +59,11 @@ export class OrcaRuntimeWithAgentPromptRescue extends OrcaRuntimeWithSerializeAg
   ): Promise<RuntimeTerminalSend> {
     // Why sanitized here too: dropping the paste frame must not also drop the escape
     // neutralization it carried — a prompt with a raw ESC would otherwise drive the terminal.
-    return this.sendTerminal(handle, { text: sanitizeAgentPromptText(prompt), enter: true }, options)
+    return this.sendTerminal(
+      handle,
+      { text: sanitizeAgentPromptText(prompt), enter: true },
+      options
+    )
   }
 
   protected tryGetLeafPtyId(handle: string): string | null {

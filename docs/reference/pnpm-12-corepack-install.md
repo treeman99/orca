@@ -41,11 +41,11 @@ shim 을 만듭니다. PATH 에서 대개 그쪽이 `%APPDATA%\npm\pnpm.cmd` 보
 `HTTPS_PROXY`/`ProxyAgent`/`NODE_EXTRA_CA_CERTS` 처리도 0건입니다. 맨 `fetch()` 로
 `registry.npmjs.org` 에 직접 나갑니다.
 
-| | `.npmrc`(미러·프록시·CA) 읽나 |
-| --- | --- |
-| `npm` | ✅ |
-| `pnpm` | ✅ |
-| `corepack` | ❌ |
+|            | `.npmrc`(미러·프록시·CA) 읽나 |
+| ---------- | ----------------------------- |
+| `npm`      | ✅                            |
+| `pnpm`     | ✅                            |
+| `corepack` | ❌                            |
 
 **고침:**
 
@@ -255,7 +255,6 @@ pnpm --version
 핀된 버전을 내려받아 그걸로 실행합니다(`pnpm --version`조차 그렇습니다). 손으로 배치한 pnpm이
 이미 `12.0.0`이라 그 단계가 통째로 없어집니다. 바이너리 탐색도
 `node_modules/@pnpm/exe.*` → `<루트>\pnpm-native.exe` → 다운로드 순이라, 위 배치면 첫 단계에서 끝납니다.
-
 
 ---
 

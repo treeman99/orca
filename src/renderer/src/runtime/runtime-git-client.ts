@@ -7,7 +7,7 @@ import {
   unstageRuntimeGitSubmodulePaths as unstageRuntimeGitSubmodulePathsImplementation,
   commitRuntimeGitSubmodule as commitRuntimeGitSubmoduleImplementation,
   pushRuntimeGitSubmodule as pushRuntimeGitSubmoduleImplementation,
-  pullRuntimeGitSubmodule as pullRuntimeGitSubmoduleImplementation,
+  pullRuntimeGitSubmodule as pullRuntimeGitSubmoduleImplementation
 } from './runtime-git-submodule-client'
 import {
   getRuntimeGitBranchCompare as getRuntimeGitBranchCompareImplementation,

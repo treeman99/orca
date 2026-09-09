@@ -6,7 +6,7 @@ const completeWorkerTerminalRelease = vi.hoisted(() =>
   vi.fn(async () => ({ state: 'released', processAction: 'closed_agent_terminal' }))
 )
 
-vi.mock('../rpc/methods/orchestration-worker-release-completion', () => ({
+vi.mock('../rpc/methods/orchestration/worker/worker-release-completion', () => ({
   completeWorkerTerminalRelease
 }))
 

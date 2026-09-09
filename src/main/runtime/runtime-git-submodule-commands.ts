@@ -1,7 +1,4 @@
-import {
-  discardSubmoduleChanges,
-  restoreSubmodulePointer
-} from '../git/status'
+import { discardSubmoduleChanges, restoreSubmodulePointer } from '../git/status'
 import {
   commitSubmoduleChanges,
   listSubmodules,
@@ -75,11 +72,7 @@ export class RuntimeGitSubmoduleCommands {
     const relativePaths = filePaths.map((filePath) => normalizeRuntimeGitRelativePath(filePath))
     const provider = requireRuntimeGitProvider(target)
     if (provider) {
-      await provider.stageSubmoduleFiles(
-        target.worktree.path,
-        relativeSubmodulePath,
-        relativePaths
-      )
+      await provider.stageSubmoduleFiles(target.worktree.path, relativeSubmodulePath, relativePaths)
       return { ok: true }
     }
     await stageSubmoduleFiles(
@@ -127,11 +120,7 @@ export class RuntimeGitSubmoduleCommands {
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
     const provider = requireRuntimeGitProvider(target)
     if (provider) {
-      return provider.commitSubmodule(
-        target.worktree.path,
-        relativeSubmodulePath,
-        message
-      )
+      return provider.commitSubmodule(target.worktree.path, relativeSubmodulePath, message)
     }
     return commitSubmoduleChanges(
       target.worktree.path,
@@ -150,11 +139,7 @@ export class RuntimeGitSubmoduleCommands {
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
     const provider = requireRuntimeGitProvider(target)
     if (provider) {
-      await provider.pushSubmodule(
-        target.worktree.path,
-        relativeSubmodulePath,
-        publish
-      )
+      await provider.pushSubmodule(target.worktree.path, relativeSubmodulePath, publish)
       return { ok: true }
     }
     await pushSubmodule(
@@ -175,10 +160,7 @@ export class RuntimeGitSubmoduleCommands {
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
     const provider = requireRuntimeGitProvider(target)
     if (provider) {
-      await provider.pullSubmodule(
-        target.worktree.path,
-        relativeSubmodulePath
-      )
+      await provider.pullSubmodule(target.worktree.path, relativeSubmodulePath)
       return { ok: true }
     }
     await pullSubmodule(

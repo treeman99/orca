@@ -12,6 +12,7 @@ import { useAppStore } from '@/store'
 import type { AppState } from '@/store/types'
 import WorktreeJumpPalette from './WorktreeJumpPalette'
 import { makePaneKey } from '../../../shared/stable-pane-id'
+import { encodePaletteIdentity } from '@/lib/palette-match/palette-ranking'
 import {
   LEAF_ID,
   makeAgentEntry,
@@ -156,8 +157,19 @@ async function renderPalette(overrides: Partial<AppState>): Promise<void> {
 }
 function getTabRowIds(): string[] {
   return [
-    ...testContainer.querySelectorAll<HTMLElement>('[data-command-item^="workspace-tab:"]')
-  ].map((node) => (node.dataset.commandItem ?? '').replace('workspace-tab:', ''))
+    ...testContainer.querySelectorAll<HTMLElement>(
+      `[data-command-item^="${encodePaletteIdentity(['workspace-tab'])}"]`
+    )
+  ]
+    .map((node) => node.dataset.commandItem ?? '')
+    .map(
+      (id) =>
+        Object.values(useAppStore.getState().unifiedTabsByWorktree)
+          .flat()
+          .find(
+            (tab) => encodePaletteIdentity(['workspace-tab', '', tab.worktreeId, tab.id]) === id
+          )?.id ?? ''
+    )
 }
 describe('WorktreeJumpPalette recent chats & terminals', () => {
   beforeEach(() => {

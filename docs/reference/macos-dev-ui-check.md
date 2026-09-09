@@ -21,17 +21,17 @@
 
 ## 1. 확인할 수 있는 것과 없는 것
 
-| 확인 가능 (macOS dev) | 확인 불가 — Windows 실기 필요 |
-| --- | --- |
-| 정책 파일 파싱·경고, 채택된 값 (trace 기록) | `%ProgramData%\Orca` ACL, 머신 전역 경로 우선순위 |
-| 설정 → 연동의 **사내 GitHub (Enterprise)** 섹션과 정책 호스트 프리필 | `gh` 자격증명 저장소(맥은 Keychain, Windows는 gh 자체 저장소) |
-| `allowedAgents`로 에이전트/모델 피커가 좁혀지는지 | NSIS per-user 설치, 무서명 실행 |
-| **업데이트·피드백 항목이 메뉴·트레이·설정·사이드바에 아예 없는지** (정책 무관 — 코드에서 제거) | — |
-| **설정 → 모바일 / 음성 / 원격 Orca 서버 탭이 사라지는지** | — |
+| 확인 가능 (macOS dev)                                                                                | 확인 불가 — Windows 실기 필요                                                    |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| 정책 파일 파싱·경고, 채택된 값 (trace 기록)                                                          | `%ProgramData%\Orca` ACL, 머신 전역 경로 우선순위                                |
+| 설정 → 연동의 **사내 GitHub (Enterprise)** 섹션과 정책 호스트 프리필                                 | `gh` 자격증명 저장소(맥은 Keychain, Windows는 gh 자체 저장소)                    |
+| `allowedAgents`로 에이전트/모델 피커가 좁혀지는지                                                    | NSIS per-user 설치, 무서명 실행                                                  |
+| **업데이트·피드백 항목이 메뉴·트레이·설정·사이드바에 아예 없는지** (정책 무관 — 코드에서 제거)       | —                                                                                |
+| **설정 → 모바일 / 음성 / 원격 Orca 서버 탭이 사라지는지**                                            | —                                                                                |
 | **AI 제공업체 계정에 사내 게이트웨이 로그인과 사내 모델만 남는지** (`disableVendorProviderAccounts`) | `gateway-cli` 실제 로그인 흐름(맥에 그 CLI가 없으면 미설치 경고까지만 확인 가능) |
-| **Computer Use 승인 창** — 에이전트에게 다른 앱을 클릭시키면 확인 창이 뜨는지 | Windows `runtime.ps1` 경유 동작 |
-| **"GitHub 요청이 가는 곳" 표시 — 설정 → 연동, 그리고 설정 → Git 및 소스 제어** | — |
-| 잠금 상태의 화면 구성 전반(레이아웃·문구·번역) | WSL 런타임 패스스루, `powershell.exe` 기반 Computer Use |
+| **Computer Use 승인 창** — 에이전트에게 다른 앱을 클릭시키면 확인 창이 뜨는지                        | Windows `runtime.ps1` 경유 동작                                                  |
+| **"GitHub 요청이 가는 곳" 표시 — 설정 → 연동, 그리고 설정 → Git 및 소스 제어**                       | —                                                                                |
+| 잠금 상태의 화면 구성 전반(레이아웃·문구·번역)                                                       | WSL 런타임 패스스루, `powershell.exe` 기반 Computer Use                          |
 
 정책 스위치 대부분은 **"네트워크로 안 나가는 것"** 이라 화면에 아무 변화가 없습니다. 그건 UI가 아니라 §4의 trace로 확인하세요.
 
@@ -62,12 +62,12 @@ Electron 헤더로 빌드되고, 둘 다 N-API 애드온입니다).
 
 macOS의 탐색 후보는 이 순서입니다:
 
-| 순위 (dev) | 경로 | 비고 |
-| --- | --- | --- |
-| 1 | `$ORCA_ENTERPRISE_POLICY` | **비패키징에서만** 1순위. 값을 바꿔 볼 때 쓰는 자리 |
-| 2 | `/Library/Application Support/Orca/enterprise-policy.json` | 머신 전역. `sudo` 필요 |
-| 3 | `~/Library/Application Support/orca-dev/enterprise-policy.json` | dev 인스턴스의 userData(§4). 환경변수 없이 쓰고 싶을 때 |
-| 4 | `<체크아웃>/resources/enterprise-policy.json` | **저장소에 이미 있는 사내 기본값.** 아무것도 안 하면 이게 걸립니다 |
+| 순위 (dev) | 경로                                                            | 비고                                                               |
+| ---------- | --------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 1          | `$ORCA_ENTERPRISE_POLICY`                                       | **비패키징에서만** 1순위. 값을 바꿔 볼 때 쓰는 자리                |
+| 2          | `/Library/Application Support/Orca/enterprise-policy.json`      | 머신 전역. `sudo` 필요                                             |
+| 3          | `~/Library/Application Support/orca-dev/enterprise-policy.json` | dev 인스턴스의 userData(§4). 환경변수 없이 쓰고 싶을 때            |
+| 4          | `<체크아웃>/resources/enterprise-policy.json`                   | **저장소에 이미 있는 사내 기본값.** 아무것도 안 하면 이게 걸립니다 |
 
 `ORCA_ENTERPRISE_POLICY=off`(또는 `none`/`disabled`/`false`/`0`)로 두면 탐색 자체를 끕니다 — 잠금 없는 상태와 비교할 때 씁니다.
 
@@ -126,8 +126,8 @@ ORCA_ENTERPRISE_POLICY=~/orca-dev-policy/enterprise-policy.json pnpm dev
 
 사내 관련 사용자 데이터도 이 dev 프로필 안에 떨어집니다:
 
-| 무엇 | 경로 |
-| --- | --- |
+| 무엇                        | 경로                                                                 |
+| --------------------------- | -------------------------------------------------------------------- |
 | 사용자가 저장한 GHES 호스트 | 사용자 프로파일 (`~/Library/Application Support/orca-dev/profiles/`) |
 
 ---
@@ -148,9 +148,15 @@ grep -h enterprise.policy ~/Library/Application\ Support/orca-dev/logs/main.trac
 {
   "enterprise.policy.source_path": "/Users/<you>/orca-dev-policy/enterprise-policy.json",
   "enterprise.policy.lockdown": true,
-  "enterprise.policy.switches": { "disableTelemetry": true, "disableAutoUpdate": true, "disableStarNag": true,
-                                   "disableCloudRelay": true, "disableUsagePolling": true,
-                                   "disableManagedClaudeAccounts": true, "disableSpellcheck": true },
+  "enterprise.policy.switches": {
+    "disableTelemetry": true,
+    "disableAutoUpdate": true,
+    "disableStarNag": true,
+    "disableCloudRelay": true,
+    "disableUsagePolling": true,
+    "disableManagedClaudeAccounts": true,
+    "disableSpellcheck": true
+  },
   "enterprise.policy.github_enterprise_host": "github.samsungds.net",
   "enterprise.policy.allowed_network_hosts": ["github.samsungds.net"],
   "enterprise.policy.warnings": []
@@ -170,12 +176,12 @@ grep -h enterprise.policy ~/Library/Application\ Support/orca-dev/logs/main.trac
 
 앱 화면은 한국어입니다. 사내 커스터마이즈가 UI에 드러나는 지점은 네 곳뿐입니다.
 
-| 어디 | 무엇이 보여야 하는가 |
-| --- | --- |
-| **설정 → 연동**, 맨 위 | **사내 GitHub (Enterprise)** 섹션. `githubEnterpriseHost`가 `GitHub 호스트`에 프리필. `브라우저로 로그인` + `토큰으로 연결`(개인용 액세스 토큰) 두 경로. `gh`가 없으면 노란 경고 배너 |
-| **설정 → AI 제공업체 계정**, 아래쪽 | **사내 게이트웨이 로그인** 섹션. `gateway-cli` 설치 감지, `verify` 결과로 그리는 상태 배지, 미설치 경고 배너. 프로필 선택 UI는 **없는 것이 정상**입니다 — `gateway-cli login`은 인자를 받지 않습니다. **맥에 `gateway-cli`가 없으면 경고 배너가 뜨는 것까지가 dev 확인 범위**이고, 실제 로그인·브라우저 띄우기는 `gateway-cli` 몫입니다 |
-| **에이전트/모델 피커, 에이전트 설정, 하단 사용량 미터** | `allowedAgents`에 없는 벤더(codex/gemini/opencode/grok …)가 **사라짐** |
-| **설정 → 개인정보 및 텔레메트리 / 고급** | 잠금 스위치들은 화면 문구를 바꾸지 않습니다. 여기서 확인하려 하지 말고 §5를 보세요 |
+| 어디                                                    | 무엇이 보여야 하는가                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **설정 → 연동**, 맨 위                                  | **사내 GitHub (Enterprise)** 섹션. `githubEnterpriseHost`가 `GitHub 호스트`에 프리필. `브라우저로 로그인` + `토큰으로 연결`(개인용 액세스 토큰) 두 경로. `gh`가 없으면 노란 경고 배너                                                                                                                                                   |
+| **설정 → AI 제공업체 계정**, 아래쪽                     | **사내 게이트웨이 로그인** 섹션. `gateway-cli` 설치 감지, `verify` 결과로 그리는 상태 배지, 미설치 경고 배너. 프로필 선택 UI는 **없는 것이 정상**입니다 — `gateway-cli login`은 인자를 받지 않습니다. **맥에 `gateway-cli`가 없으면 경고 배너가 뜨는 것까지가 dev 확인 범위**이고, 실제 로그인·브라우저 띄우기는 `gateway-cli` 몫입니다 |
+| **에이전트/모델 피커, 에이전트 설정, 하단 사용량 미터** | `allowedAgents`에 없는 벤더(codex/gemini/opencode/grok …)가 **사라짐**                                                                                                                                                                                                                                                                  |
+| **설정 → 개인정보 및 텔레메트리 / 고급**                | 잠금 스위치들은 화면 문구를 바꾸지 않습니다. 여기서 확인하려 하지 말고 §5를 보세요                                                                                                                                                                                                                                                      |
 
 각 화면의 위치는 코드로: `IntegrationsPane.tsx:19`(GHES 섹션), `AccountsPane.tsx`(self-hosted 모델 섹션).
 설정 검색(`⌘F`)은 제목·설명·키워드에 대한 부분 문자열 일치라(`settings-search.ts:82`) `사내`, `github`, `gh`, `호스트`,

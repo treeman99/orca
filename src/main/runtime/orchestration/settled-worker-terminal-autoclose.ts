@@ -1,6 +1,6 @@
 import type { OrcaRuntimeService } from '../orca-runtime'
 import { writeDiagnosticLine } from '../../observability/diagnostic-log'
-import { completeWorkerTerminalRelease } from '../rpc/methods/orchestration-worker-release-completion'
+import { completeWorkerTerminalRelease } from '../rpc/methods/orchestration/worker/worker-release-completion'
 
 /**
  * Close a worker's terminal — and with it its tab and its pane — the moment the

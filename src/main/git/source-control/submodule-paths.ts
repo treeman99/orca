@@ -53,10 +53,7 @@ function trimSubmodulePathsCache(): void {
   }
 }
 
-function getCachedSubmodulePaths(
-  cacheKey: string,
-  now: number
-): GitSubmoduleConfigEntry[] | null {
+function getCachedSubmodulePaths(cacheKey: string, now: number): GitSubmoduleConfigEntry[] | null {
   const cached = submodulePathsCache.get(cacheKey)
   if (!cached) {
     return null

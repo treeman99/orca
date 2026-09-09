@@ -18,10 +18,8 @@ export const githubEnterpriseApi = {
   logout: (args: { host: string }): Promise<void> =>
     ipcRenderer.invoke('githubEnterprise:logout', args),
   onLoginProgress: (callback: (progress: GithubEnterpriseLoginProgress) => void): (() => void) => {
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      progress: GithubEnterpriseLoginProgress
-    ) => callback(progress)
+    const listener = (_event: Electron.IpcRendererEvent, progress: GithubEnterpriseLoginProgress) =>
+      callback(progress)
     ipcRenderer.on('githubEnterprise:loginProgress', listener)
     return () => ipcRenderer.removeListener('githubEnterprise:loginProgress', listener)
   }

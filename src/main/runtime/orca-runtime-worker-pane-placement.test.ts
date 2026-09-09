@@ -44,7 +44,9 @@ function stubLaunchScope(runtime: OrcaRuntimeService): void {
   })
 }
 
-function attachRuntime(runtime: OrcaRuntimeService): { revealTerminalSession: ReturnType<typeof vi.fn> } {
+function attachRuntime(runtime: OrcaRuntimeService): {
+  revealTerminalSession: ReturnType<typeof vi.fn>
+} {
   const revealTerminalSession = vi.fn().mockResolvedValue({ tabId: 'tab-1' })
   runtime.setPtyController({
     spawn: vi.fn().mockResolvedValue({ id: 'pty-1' }),
