@@ -124,6 +124,10 @@
         {
           "file": "src/main/runtime/runtime-account-controller.ts",
           "contains": "assertVendorAccountRegistrationAllowed()"
+        },
+        {
+          "file": "src/main/ipc/minimax-credentials.ts",
+          "contains": "assertVendorAccountRegistrationAllowed()"
         }
       ]
     },
@@ -593,7 +597,7 @@
     "disableUsagePolling": 3,
     "disableManagedClaudeAccounts": 3,
     "disableRemoteOrcaServer": 3,
-    "disableVendorProviderAccounts": 3,
+    "disableVendorProviderAccounts": 4,
     "allowedNetworkHosts": 3,
     "disableCloudRelay": 2,
     "disableStarNag": 2,
