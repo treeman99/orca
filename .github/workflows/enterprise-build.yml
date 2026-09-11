@@ -189,9 +189,22 @@ jobs:
 
       # Why: glibc 플로어 게이트는 정적 검사다. 패키징된 pty.node 를 실제로
       # 로드해 보는 것이 런타임 증명에 해당한다.
+      # Why the retry: 스모크는 ubuntu:20.04 컨테이너 안에서 archive.ubuntu.com 을 apt 로
+      # 받는데, 그 연결이 간헐적으로 끊긴다(2026-09-11 run 34569537984, 'Connection failed').
+      # 스크립트는 upstream 파일이라 여기서 감싼다. 실패 원인이 네트워크가 아니면 3회 모두
+      # 같은 오류로 죽으므로 진짜 회귀는 그대로 드러난다.
       - name: Load packaged node-pty on the Linux floor
         if: runner.os == 'Linux'
-        run: node config/scripts/run-linux-packaged-node-pty-floor-smoke.mjs --app-dir dist/linux-unpacked
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3; do
+            if node config/scripts/run-linux-packaged-node-pty-floor-smoke.mjs --app-dir dist/linux-unpacked; then
+              exit 0
+            fi
+            echo "::warning::node-pty floor smoke attempt ${attempt} failed"
+            [ "${attempt}" -lt 3 ] && sleep 30
+          done
+          exit 1
 
       - name: Verify Linux package contents
         if: runner.os == 'Linux'
