@@ -38,13 +38,15 @@ export function createTerminalWheelGestureTracker(element: HTMLElement | null | 
     }
   }
   const options: AddEventListenerOptions = { capture: true, passive: true }
-  element?.addEventListener('wheel', onGesture, options)
-  element?.addEventListener('touchmove', onGesture, options)
+  // xterm exposes `element` before it is a real DOM node in some harnesses; no node, no gesture.
+  const target = typeof element?.addEventListener === 'function' ? element : null
+  target?.addEventListener('wheel', onGesture, options)
+  target?.addEventListener('touchmove', onGesture, options)
   return {
     isActive: () => active,
     dispose: () => {
-      element?.removeEventListener('wheel', onGesture, options)
-      element?.removeEventListener('touchmove', onGesture, options)
+      target?.removeEventListener('wheel', onGesture, options)
+      target?.removeEventListener('touchmove', onGesture, options)
       if (clearTimer !== null) {
         clearTimeout(clearTimer)
         clearTimer = null

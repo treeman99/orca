@@ -546,7 +546,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.196`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.200`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune

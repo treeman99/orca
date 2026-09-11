@@ -310,9 +310,19 @@
       "summary": "같은 워크트리 워커를 코디네이터 옆 컬럼으로 자동 분할. 앵커는 main 이 만들고 렌더러가 해석한다 — 전달 라인이 끊기면 조용히 탭 하나로 떨어진다.",
       "present": [
         {
+          "file": "src/main/runtime/rpc/methods/orchestration/worker/worker-start-agent-placement.ts",
+          "contains": "...workerPaneAnchorForStart(args.coordinatorPane, args.coordinatorWorktreeId, {",
+          "why": "worker-start 가 앵커를 만드는 유일한 줄(v1.4.200 이 local-worker-start 에서 placeWorkerAgent 로 추출). 같은 워크트리 판정은 바이트 비교가 아니라 정규화 비교여야 한다 — Windows 에서 PTY 의 worktreeId 표기(드라이브 문자 대소문자·구분자·WSL UNC 별칭)가 스토어 행과 달라도 같은 워크트리이며, 바이트 비교는 그 경우 워커를 코디네이터 그룹의 탭 하나로 떨어뜨렸다."
+        },
+        {
           "file": "src/main/runtime/rpc/methods/orchestration/worker/local-worker-start.ts",
-          "contains": "...workerPaneAnchorForStart(coordinatorPane, coordinatorWorktreeId, resolvedWorktree!)",
-          "why": "worker-start 가 앵커를 만드는 유일한 줄. 같은 워크트리 판정은 바이트 비교가 아니라 정규화 비교여야 한다 — Windows 에서 PTY 의 worktreeId 표기(드라이브 문자 대소문자·구분자·WSL UNC 별칭)가 스토어 행과 달라도 같은 워크트리이며, 바이트 비교는 그 경우 워커를 코디네이터 그룹의 탭 하나로 떨어뜨렸다."
+          "contains": "coordinatorPane,\n      coordinatorWorktreeId,",
+          "why": "앵커 입력 두 개를 placeWorkerAgent 로 넘기는 전달 라인. 끊기면 타입체크가 잡지만, upstream 이 인자 객체를 다시 쪼개면 같이 사라진다."
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/orchestration/worker/worker-worktree-creation.ts",
+          "contains": "paneAnchorSkipped: 'new-worktree' as const",
+          "why": "새 워크트리 워커는 코디네이터 옆에 앉을 수 없다 — 그 사실을 dispatch effect 에 남겨 '분할 설정이 꺼진 것'과 구분한다. v1.4.200 이 createWorkerWorktree 를 worker-topology 에서 이 파일로 옮겼다."
         },
         {
           "file": "src/main/runtime/rpc/methods/orchestration/worker/worker-pane-anchor-terminal.ts",
@@ -353,8 +363,33 @@
         },
         {
           "file": "src/renderer/src/components/terminal-pane/pty-connection/direct-ssh-retry-status.ts",
-          "contains": "subscribeToTerminalTypedUserInput(session.pane.terminal, {",
-          "why": "user_takeover 는 타이핑·붙여넣기·IME 입력에서만 나야 한다. upstream 은 xterm 의 user-input 신호를 그대로 쓰는데 그 신호는 마우스 추적 보고와 휠이 합성한 화살표 키에도 켜진다 — 분할로 보이게 된 워커 패널 위에서 휠 한 번에 디스패치가 user_owned 로 뒤집혔다(2026-09-11 실측). 이 줄이 원래 호출(subscribeToTerminalUserInput)로 돌아가면 증상이 그대로 재발한다."
+          "contains": "// Fork: worker takeover reporting lives in installTypedUserInputTakeover",
+          "why": "user_takeover 는 타이핑·붙여넣기·IME 입력에서만 나야 한다. upstream 은 이 자리에서 xterm 의 user-input 신호를 그대로 reportWorkerTerminalUserInput 에 잇는데 그 신호는 마우스 추적 보고와 휠이 합성한 화살표 키에도 켜진다 — 분할로 보이게 된 워커 패널 위에서 휠 한 번에 디스패치가 user_owned 로 뒤집혔다(2026-09-11 실측). upstream 의 호출이 이 블록으로 되돌아오면 증상이 그대로 재발한다."
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/connect-pane-pty.ts",
+          "contains": "installTypedUserInputTakeover(session)",
+          "why": "타이핑 판별 구독은 입력 전달기(installPtyInputForward) 뒤에 붙어야 한다 — onData 첫 구독자는 전달기여야 deferPtyInput 과 테스트 하네스가 그대로 돈다. 이 한 줄이 빠지면 takeover 가 아예 안 난다."
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/session-reconcile-dispose.ts",
+          "contains": "session.typedUserInputTakeoverDisposable?.dispose()"
+        }
+      ]
+    },
+    {
+      "id": "orchestration-worker-prompt-diagnostics",
+      "summary": "워커 프롬프트 배달 진단 — 준비 판정 로그(worker-prompt-ready), 컴포저 대기, submit 결과를 실은 dispatch_input effect. 세 줄 다 upstream 의 worker-start 파일 안에 있어 추출 때마다 같이 사라진다.",
+      "present": [
+        {
+          "file": "src/main/runtime/rpc/methods/orchestration/worker/local-worker-start.ts",
+          "contains": "await recordWorkerReadiness(runtime, task.id, agent, terminalHandle, wait)",
+          "why": "tui-idle 판정 직후 터미널 제목을 함께 남긴다. opencode 가 아직 제목을 못 그린 창에 프롬프트가 들어가 사라지는 사고를 사용자 PC 로그로 확정하기 위한 것."
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/orchestration/worker/worker-start-readiness-settlement.ts",
+          "contains": "await deliverWorkerDispatchInput({",
+          "why": "upstream 의 deliverWorkerDispatchPreamble 을 포크의 래퍼로 바꿔 부르는 유일한 줄. 되돌아가면 컴포저 대기·프롬프트 진단·submit 경고가 한꺼번에 빠지고, 미확인 제출이 'accepted' 로만 보인다. v1.4.200 이 이 호출을 local-worker-start 에서 여기로 추출했다."
         }
       ]
     },

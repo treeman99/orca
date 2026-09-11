@@ -289,6 +289,7 @@ export function installSessionReconcileDispose(session: ConnectPanePtySession): 
       session.imeCompositionRouteDisposable.dispose()
       session.onDataDisposable.dispose()
       session.userInputActivityDisposable?.dispose()
+      session.typedUserInputTakeoverDisposable?.dispose()
       session.terminalCapabilityRepliesDisposable.dispose()
       session.onResizeDisposable.dispose()
       session.pane.container.removeEventListener(
