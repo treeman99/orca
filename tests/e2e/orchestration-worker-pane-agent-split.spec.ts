@@ -37,7 +37,7 @@ const { appendFileSync } = require('node:fs')
 function ledger(event) {
   try { appendFileSync(process.env.ORCA_E2E_INPUT_LEDGER, JSON.stringify({ agent: 'opencode', ...event }) + '\\n') } catch {}
 }
-process.stdout.write('\\u001b[?2004h')
+process.stdout.write('\\u001b[?2004h\\u001b[?1000h\\u001b[?1002h\\u001b[?1006h')
 setTimeout(() => {
   process.stdout.write('\\u001b]0;OC | e2e\\u0007opencode e2e\\n')
   process.stdout.write('\\u001b[?25h')
@@ -189,6 +189,7 @@ for (const agent of ['claude', 'opencode'] as const satisfies readonly FakeAgent
       effects: WorkerEffect[]
       state: string
       lastError?: string
+      dispatchId: string
     }>('orchestration.workerStart', {
       task: task.result.task.id,
       from: coordinator.result.terminal.handle,
@@ -241,5 +242,31 @@ for (const agent of ['claude', 'opencode'] as const satisfies readonly FakeAgent
     await expect(
       orcaPage.locator(`[data-testid="sortable-tab"][data-tab-id="${coordinatorTabId}"]`)
     ).toHaveAttribute('data-active', 'true')
+
+    // A split pane is visible, so the pointer can reach it. xterm flags mouse-tracking reports
+    // (and the arrow keys it synthesizes for a wheel on an alternate screen) as user input; in
+    // the field one scroll over the new opencode column flipped the dispatch to user_takeover
+    // with no keystroke. Ownership must survive a wheel; only typing hands the pane over.
+    const ownershipOf = async (): Promise<string> => {
+      const shown = await client.call<{ terminalResource?: { ownershipState?: string } }>(
+        'orchestration.workerShow',
+        { dispatch: started.result.dispatchId }
+      )
+      return shown.result.terminalResource?.ownershipState ?? 'missing'
+    }
+    expect(await ownershipOf()).toBe('owned')
+    const workerLeafId = await orcaPage.evaluate((tabId) => {
+      const layout = window.__store?.getState().terminalLayoutsByTabId?.[tabId]
+      return Object.keys(layout?.ptyIdsByLeafId ?? {})[0] ?? null
+    }, workerTabId)
+    expect(workerLeafId).toBeTruthy()
+    const workerPane = orcaPage.locator(`.pane[data-leaf-id="${workerLeafId}"]`)
+    const box = await workerPane.boundingBox()
+    expect(box).not.toBeNull()
+    await orcaPage.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+    await orcaPage.mouse.wheel(0, 120)
+    await orcaPage.mouse.wheel(0, -120)
+    await orcaPage.waitForTimeout(1500)
+    expect(await ownershipOf()).toBe('owned')
   })
 }

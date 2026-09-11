@@ -10,7 +10,7 @@ import {
   RESET_KITTY_KEYBOARD_PROTOCOL,
   RESET_TERMINAL_CURSOR_STYLE
 } from '../../../../../shared/terminal-mode-reset-profiles'
-import { subscribeToTerminalUserInput } from '../terminal-user-input-signal'
+import { subscribeToTerminalTypedUserInput } from '../terminal-typed-user-input'
 import {
   isLocalNativeWindowsConpty,
   resolveWindowsShellOverride
@@ -298,15 +298,13 @@ export function installDirectSshRetryStatus(session: ConnectPanePtySession): voi
   // "input after done" forever. The core user-input signal fires only for real
   // input, so hibernation activity records from it; onData recording remains
   // solely as the fallback when the internal API is unavailable.
-  session.recordRealUserTerminalInput = (): void => {
-    session.recordTerminalInputForHibernation()
-    // Takeover must never fire from the onData fallback below: it mixes in auto-replies.
-    reportWorkerTerminalUserInput(session.cacheKey, session.runtimeEnvironmentId)
-  }
-  session.userInputActivityDisposable = subscribeToTerminalUserInput(
-    session.pane.terminal,
-    session.recordRealUserTerminalInput
-  )
+  // Takeover must never fire from the onData fallback below (it mixes in auto-replies), and
+  // never from a pointer gesture: a wheel over a split worker pane is not the user taking over.
+  session.userInputActivityDisposable = subscribeToTerminalTypedUserInput(session.pane.terminal, {
+    onUserInput: () => session.recordTerminalInputForHibernation(),
+    onTypedInput: () =>
+      reportWorkerTerminalUserInput(session.cacheKey, session.runtimeEnvironmentId)
+  })
   session.recordTerminalInputForHibernationFallback = (): void => {
     if (session.userInputActivityDisposable === null) {
       session.recordTerminalInputForHibernation()

@@ -298,6 +298,11 @@
         {
           "file": "src/main/runtime/rpc/methods/orchestration-worker-mode-opacity.test.ts",
           "contains": "expect(showTerminal).not.toHaveBeenCalledWith('structworker_coord')"
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/direct-ssh-retry-status.ts",
+          "contains": "subscribeToTerminalTypedUserInput(session.pane.terminal, {",
+          "why": "user_takeover 는 타이핑·붙여넣기·IME 입력에서만 나야 한다. upstream 은 xterm 의 user-input 신호를 그대로 쓰는데 그 신호는 마우스 추적 보고와 휠이 합성한 화살표 키에도 켜진다 — 분할로 보이게 된 워커 패널 위에서 휠 한 번에 디스패치가 user_owned 로 뒤집혔다(2026-09-11 실측). 이 줄이 원래 호출(subscribeToTerminalUserInput)로 돌아가면 증상이 그대로 재발한다."
         }
       ]
     },
