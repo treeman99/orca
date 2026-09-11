@@ -254,6 +254,58 @@
       ]
     },
     {
+      "id": "enterprise-bundled-skill-offline-install",
+      "summary": "스킬 설치·업데이트를 번들 복사로 처리하는 레인 — 패키징에 싣는 줄, 누락 시 하드 실패, 업데이트 버튼이 스폰하는 자체 CLI, 인쇄되는 명령의 초크포인트.",
+      "present": [
+        {
+          "file": "config/electron-builder.config.cjs",
+          "contains": "to: 'skills/packages'",
+          "why": "이 줄이 빠지면 설치할 바이트 자체가 패키지에 없다. electron-builder 는 extraResources 원본이 없어도 경고만 찍고 진행한다."
+        },
+        {
+          "file": "config/electron-builder.config.cjs",
+          "contains": "verifyPackagedSkillPackages(resourcesDir)",
+          "why": "번들 누락을 afterPack 에서 하드 실패시키는 지점. 이것이 빠지면 위 줄이 사라진 것도 조용히 통과한다."
+        },
+        {
+          "file": "src/main/ipc/skills.ts",
+          "contains": "resolveSkillUpdateCliInvocation",
+          "why": "앱의 업데이트 버튼이 npx 가 아니라 번들된 자기 CLI(패키지 빌드에서는 resources/bin/orca*)를 스폰하게 하는 주입 지점."
+        },
+        {
+          "file": "src/main/skills/skill-update-run.ts",
+          "contains": "resolveCliInvocation",
+          "why": "upstream 은 이 실행기가 npx 를 띄운다. 포크는 호출자가 CLI 를 주입하도록 시그니처를 바꿨다 — 되돌아가면 폐쇄망에서 업데이트가 완주하지 못한다."
+        },
+        {
+          "file": "src/cli/handlers/skills.ts",
+          "contains": "runOfflineSkillMutation",
+          "why": "orca skills install/update 가 오프라인 엔진을 타는 호출 한 줄. 엔진 자체(bundled-skill-install.ts)는 포크 전용 파일이라 충돌하지 않지만, 이 호출은 upstream 파일 안에 있다."
+        },
+        {
+          "file": "src/shared/agent-feature-install-commands.ts",
+          "contains": "ORCA_CLI_COMMAND_NAME",
+          "why": "설정·피처월·온보딩·Linear·에뮬레이터가 인쇄하는 설치 명령의 초크포인트. upstream 은 여기서 npx 문자열을 만든다."
+        }
+      ]
+    },
+    {
+      "id": "fork-orca-cli-skill-text",
+      "summary": "orca-cli 스킬 본문의 포크 수정 — 제거한 스킬 공유 서술과 더한 트리거 문구. 포크가 내용을 고친 유일한 번들 스킬이다.",
+      "present": [
+        {
+          "file": "skills/orca-cli/SKILL.md",
+          "contains": "use orca cli",
+          "why": "포크가 더한 트리거 문구. upstream 은 이 파일을 통째로 다시 쓴 적이 있고(v1.4.198 이 7개 가이드를 재작성), 그때 포크 문구는 충돌 없이 사라진다."
+        },
+        {
+          "file": "skills/orca-cli/SKILL.md",
+          "contains": "cardStatus",
+          "why": "같은 재작성에서 함께 사라지는 포크 문구."
+        }
+      ]
+    },
+    {
       "id": "orchestration-worker-pane",
       "summary": "같은 워크트리 워커를 코디네이터 옆 컬럼으로 자동 분할. 앵커는 main 이 만들고 렌더러가 해석한다 — 전달 라인이 끊기면 조용히 탭 하나로 떨어진다.",
       "present": [
@@ -589,6 +641,21 @@
       "file": ".github/workflows/release-cut.yml",
       "symbol": "docs-production-dispatch",
       "why": "docs 사이트 배포 레인을 지웠다. 이 잡은 충돌 없이 자동 병합으로 되살아난다(README §6)."
+    },
+    {
+      "file": "src/shared/agent-feature-install-commands.ts",
+      "symbol": "npx ${",
+      "why": "인쇄되는 설치·업데이트 명령이 npx 로 되돌아가면 registry.npmjs.org 와 github.com 을 둘 다 요구한다. 폐쇄망에서는 설치도 업데이트도 완주 불가다."
+    },
+    {
+      "file": "skills/orca-cli/SKILL.md",
+      "symbol": "share skills",
+      "why": "스킬 공유 레인은 소스에서 제거했다. 스킬 본문이 upstream 판으로 되돌아오면 없는 기능을 에이전트에게 안내하게 된다."
+    },
+    {
+      "file": "skills/orca-cli/SKILL.md",
+      "symbol": "skill sharing",
+      "why": "위와 같은 이유. upstream 판 description 이 돌아왔는지 가리키는 두 번째 표지다."
     }
   ],
   "policySwitchMinConsumers": {
