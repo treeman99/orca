@@ -7,7 +7,7 @@
 //
 // Nothing here leaves the machine. It is off unless the user turns it on.
 
-import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from 'node:fs'
+import { appendFile, mkdir, rename, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import { getLogsDirectory } from './logs-directory'
@@ -65,19 +65,43 @@ export function formatDiagnosticLine(topic: string, fields: Record<string, unkno
   return `[${DIAGNOSTIC_LOG_TAG} ${timestamp()}] ${topic}${formatted ? ` ${formatted}` : ''}`
 }
 
-function rotateIfLarge(filePath: string): void {
+async function rotateIfLarge(filePath: string): Promise<void> {
   try {
-    if (statSync(filePath).size < MAX_BYTES) {
+    if ((await stat(filePath)).size < MAX_BYTES) {
       return
     }
-    renameSync(filePath, `${filePath}.1`)
+    await rename(filePath, `${filePath}.1`)
   } catch {
     // Missing file is the normal first-write case; a failed rotate must not lose the line.
   }
 }
 
+// Why a promise chain and not sync fs: callers run on main's event loop, which also forwards
+// every keystroke to the PTY, and on an EDR-scanned Windows disk four sync syscalls per line
+// can hold that loop. The chain keeps lines in call order.
+let pendingWrites: Promise<void> = Promise.resolve()
+
+async function appendDiagnosticLine(
+  directory: string,
+  filePath: string,
+  line: string
+): Promise<void> {
+  try {
+    await mkdir(directory, { recursive: true })
+    await rotateIfLarge(filePath)
+    await appendFile(filePath, line, 'utf8')
+    warnedPath = null
+  } catch (err) {
+    // Why once per path: a bad directory would otherwise repeat this on every line.
+    if (warnedPath !== filePath) {
+      warnedPath = filePath
+      console.warn(`[diagnostic-log] cannot write ${filePath}:`, err)
+    }
+  }
+}
+
 /**
- * Append one line. Silent no-op while the setting is off, and never throws — a
+ * Queue one line. Silent no-op while the setting is off, and never throws — a
  * troubleshooting aid must not be able to break the flow it is observing.
  */
 export function writeDiagnosticLine(topic: string, fields: Record<string, unknown> = {}): void {
@@ -87,18 +111,12 @@ export function writeDiagnosticLine(topic: string, fields: Record<string, unknow
   }
   const directory = resolveDiagnosticLogDirectory(settings)
   const filePath = join(directory, DIAGNOSTIC_LOG_FILENAME)
-  try {
-    mkdirSync(directory, { recursive: true })
-    if (existsSync(filePath)) {
-      rotateIfLarge(filePath)
-    }
-    appendFileSync(filePath, `${formatDiagnosticLine(topic, fields)}\n`, 'utf8')
-    warnedPath = null
-  } catch (err) {
-    // Why once per path: a bad directory would otherwise repeat this on every line.
-    if (warnedPath !== filePath) {
-      warnedPath = filePath
-      console.warn(`[diagnostic-log] cannot write ${filePath}:`, err)
-    }
-  }
+  // Why format now: the timestamp belongs to the event, not to when the queue drains.
+  const line = `${formatDiagnosticLine(topic, fields)}\n`
+  pendingWrites = pendingWrites.then(() => appendDiagnosticLine(directory, filePath, line))
+}
+
+/** Resolves once every queued line has been written (or has failed quietly). */
+export function flushDiagnosticLog(): Promise<void> {
+  return pendingWrites
 }

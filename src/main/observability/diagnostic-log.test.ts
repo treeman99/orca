@@ -1,12 +1,13 @@
 import { mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import {
   bindDiagnosticLogSettings,
   DIAGNOSTIC_LOG_FILENAME,
   DIAGNOSTIC_LOG_TAG,
+  flushDiagnosticLog,
   formatDiagnosticLine,
   resolveDiagnosticLogDirectory,
   writeDiagnosticLine
@@ -36,21 +37,23 @@ afterEach(() => {
 })
 
 describe('diagnostic log', () => {
-  it('writes nothing while the setting is off', () => {
+  it('writes nothing while the setting is off', async () => {
     const dir = tempDir()
     bind({ diagnosticLogEnabled: false, diagnosticLogDirectory: dir })
 
     writeDiagnosticLine('worker-pane-main', { task: 't1' })
+    await flushDiagnosticLog()
 
     expect(existsSync(join(dir, DIAGNOSTIC_LOG_FILENAME))).toBe(false)
   })
 
-  it('appends one tagged line per record once enabled', () => {
+  it('appends one tagged line per record once enabled', async () => {
     const dir = tempDir()
     bind({ diagnosticLogEnabled: true, diagnosticLogDirectory: dir })
 
     writeDiagnosticLine('worker-pane-main', { task: 't1', agent: 'opencode' })
     writeDiagnosticLine('worker-pane-renderer', { group: 'none', skip: 'preference-off' })
+    await flushDiagnosticLog()
 
     const lines = readLog(dir).trimEnd().split('\n')
     expect(lines).toHaveLength(2)
@@ -59,6 +62,25 @@ describe('diagnostic log', () => {
     expect(lines[0]).toContain(`[${DIAGNOSTIC_LOG_TAG} `)
     expect(lines[0]).toContain('worker-pane-main task=t1 agent=opencode')
     expect(lines[1]).toContain('worker-pane-renderer group=none skip=preference-off')
+  })
+
+  // Why: the caller is main's event loop, which also forwards keystrokes to the PTY — sync disk
+  // I/O here stalled typing on EDR-scanned Windows disks.
+  it('leaves the disk untouched on the caller stack and keeps lines in call order', async () => {
+    const dir = join(tempDir(), 'nested')
+    bind({ diagnosticLogEnabled: true, diagnosticLogDirectory: dir })
+
+    for (let i = 0; i < 20; i += 1) {
+      writeDiagnosticLine('terminal-restore', { seq: i })
+    }
+    expect(existsSync(dir)).toBe(false)
+
+    await flushDiagnosticLog()
+    const seqs = readLog(dir)
+      .trimEnd()
+      .split('\n')
+      .map((line) => line.replace(/.*seq=/, ''))
+    expect(seqs).toEqual(Array.from({ length: 20 }, (_, i) => String(i)))
   })
 
   it('keeps a line to one token per field so it survives being retyped', () => {
@@ -82,9 +104,18 @@ describe('diagnostic log', () => {
     )
   })
 
-  it('does not throw when the configured folder cannot be written', () => {
+  it('does not throw when the configured folder cannot be written', async () => {
     bind({ diagnosticLogEnabled: true, diagnosticLogDirectory: join(tempDir(), 'x\0y') })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
     expect(() => writeDiagnosticLine('worker-pane-main', { task: 't1' })).not.toThrow()
+    await expect(flushDiagnosticLog()).resolves.toBeUndefined()
+    // A failed line must not wedge the queue for the next folder.
+    const dir = tempDir()
+    bind({ diagnosticLogEnabled: true, diagnosticLogDirectory: dir })
+    writeDiagnosticLine('worker-pane-main', { task: 't2' })
+    await flushDiagnosticLog()
+    expect(readLog(dir)).toContain('task=t2')
+    warn.mockRestore()
   })
 })
