@@ -3,6 +3,7 @@ import {
   type BackgroundMountTerminalWorktreeDetail
 } from '@/constants/terminal'
 import { parseExecutionHostId } from '../../../../shared/execution-host'
+import { resolveColdActivationTabDeferThreshold } from './windows-cold-activation-threshold'
 
 const pendingMounts = new Map<string, BackgroundMountTerminalWorktreeDetail>()
 const requestListeners = new Set<() => void>()
@@ -236,7 +237,8 @@ export function planColdActivationTabDeferral(opts: {
     }
   }
   const deferredCount = allTabIds.length - initial.size
-  if (deferredCount <= COLD_ACTIVATION_TAB_DEFER_THRESHOLD) {
+  const threshold = resolveColdActivationTabDeferThreshold(COLD_ACTIVATION_TAB_DEFER_THRESHOLD)
+  if (deferredCount <= threshold) {
     restrictions.delete(worktreeId)
     deferredMountTabIdsByWorktree.delete(worktreeId)
     return false

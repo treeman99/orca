@@ -731,6 +731,17 @@
           "why": "v1.4.201 이 추가한 시작 시 프로브 루프. 정책이 켜지면 상태 소유자 자체를 만들지 않는다."
         }
       ]
+    },
+    {
+      "id": "windows-cold-activation-eager-mount",
+      "summary": "Windows 에서 워크트리 활성화 시 숨은 탭 4개 이하는 전환 중에 한꺼번에 mount 한다(v1.4.200 동작). v1.4.201(#20034)이 예산을 0 으로 내려 숨은 형제 mount 가 reveal 직후 idle 프레임으로 밀리며, Windows 사내 빌드에서 Claude 패널 타이핑·커서가 간헐적으로 한동안 안 그려지는 신고와 겹쳤다.",
+      "present": [
+        {
+          "file": "src/renderer/src/components/terminal/background-terminal-worktree-mount.ts",
+          "contains": "const threshold = resolveColdActivationTabDeferThreshold(COLD_ACTIVATION_TAB_DEFER_THRESHOLD)",
+          "why": "planColdActivationTabDeferral 의 비교식. 빠지면 Windows 도 upstream 의 visible-only 전환으로 돌아가고 타입체크·기존 테스트는 초록이다."
+        }
+      ]
     }
   ],
   "absentPaths": [
