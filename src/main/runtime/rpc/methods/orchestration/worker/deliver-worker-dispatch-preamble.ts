@@ -1,7 +1,5 @@
-import type {
-  AgentPromptSubmitOutcome,
-  RuntimeTerminalSend
-} from '../../../../../../shared/runtime-terminal-contracts'
+import type { RuntimeTerminalSend } from '../../../../../../shared/runtime-terminal-contracts'
+import type { AgentPromptSubmitOutcome } from '../../../../../../shared/terminal-fork-fields'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { buildDispatchPreamble } from '../../../../orchestration/preamble'
 import { sendStructuredWorkerPreamble } from '../../orchestration-structured-worker-session'

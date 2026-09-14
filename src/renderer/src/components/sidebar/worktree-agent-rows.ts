@@ -79,7 +79,7 @@ function isRetainedLegacyAliasOfSeenStablePane(args: {
 
 function markSeenPaneKeyForCurrentTab(args: {
   paneKey: string | undefined
-  currentTabIds: Set<string>
+  currentTabsById: ReadonlyMap<string, TerminalTab>
   terminalLayoutsByTabId?: Record<string, TerminalLayoutSnapshot | undefined>
   seenPaneKeys: Set<string>
 }): void {
@@ -88,14 +88,14 @@ function markSeenPaneKeyForCurrentTab(args: {
   }
   const parsed = parsePaneKey(args.paneKey)
   if (parsed) {
-    if (args.currentTabIds.has(parsed.tabId)) {
+    if (args.currentTabsById.has(parsed.tabId)) {
       args.seenPaneKeys.add(args.paneKey)
     }
     return
   }
 
   const legacy = parseLegacyNumericPaneKey(args.paneKey)
-  if (!legacy || !args.currentTabIds.has(legacy.tabId)) {
+  if (!legacy || !args.currentTabsById.has(legacy.tabId)) {
     return
   }
   args.seenPaneKeys.add(args.paneKey)
@@ -113,7 +113,7 @@ function markCompletedWorkerParentPaneKeysSeen(args: {
   retained: RetainedAgentEntry[]
   runtimeAgentOrchestrationByPaneKey?: Record<string, AgentStatusOrchestrationContext>
   terminalLayoutsByTabId?: Record<string, TerminalLayoutSnapshot | undefined>
-  currentTabIds: Set<string>
+  currentTabsById: ReadonlyMap<string, TerminalTab>
   seenPaneKeys: Set<string>
 }): void {
   const markEntry = (entry: AgentStatusEntry): void => {
@@ -125,7 +125,7 @@ function markCompletedWorkerParentPaneKeysSeen(args: {
     // visible parent pane still has a stale spinner title.
     markSeenPaneKeyForCurrentTab({
       paneKey: rowEntry.orchestration?.parentPaneKey,
-      currentTabIds: args.currentTabIds,
+      currentTabsById: args.currentTabsById,
       terminalLayoutsByTabId: args.terminalLayoutsByTabId,
       seenPaneKeys: args.seenPaneKeys
     })
@@ -151,7 +151,7 @@ export function buildWorktreeAgentRows(args: {
 }): DashboardAgentRow[] {
   const rows: DashboardAgentRow[] = []
   const seenPaneKeys = new Set<string>()
-  const currentTabIds = new Set(args.tabs.map((tab) => tab.id))
+  const currentTabsById = new Map(args.tabs.map((tab) => [tab.id, tab] as const))
 
   const entriesByTabId = new Map<string, AgentStatusEntry[]>()
   for (const entry of args.entries) {
@@ -200,7 +200,7 @@ export function buildWorktreeAgentRows(args: {
     retained: args.retained,
     runtimeAgentOrchestrationByPaneKey: args.runtimeAgentOrchestrationByPaneKey,
     terminalLayoutsByTabId: args.terminalLayoutsByTabId,
-    currentTabIds,
+    currentTabsById,
     seenPaneKeys
   })
 
@@ -271,11 +271,12 @@ export function buildWorktreeAgentRows(args: {
       ra.entry,
       args.runtimeAgentOrchestrationByPaneKey
     )
+    const tab = currentTabsById.get(ra.tab.id) ?? ra.tab
     rows.push({
       paneKey: rowEntry.paneKey,
       entry: rowEntry,
-      tab: ra.tab,
-      agentType: resolveRowAgentType(rowEntry, ra.tab),
+      tab,
+      agentType: resolveRowAgentType(rowEntry, tab),
       rowSource: 'retained',
       state: 'done',
       startedAt: ra.startedAt

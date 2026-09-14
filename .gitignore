@@ -111,6 +111,9 @@ docs/**
 !docs/mobile-terminal-shortcut-bar.md
 !docs/source-control-submodules-as-repositories.md
 !docs/reference/
+!docs/reference/agent-pty-transcript-capture.md
+!docs/reference/agent-status-store.md
+!docs/reference/antigravity-readiness-evidence.md
 !docs/reference/git-compatibility.md
 !docs/reference/pnpm-12-corepack-install.md
 !docs/reference/headless-linux-server.md

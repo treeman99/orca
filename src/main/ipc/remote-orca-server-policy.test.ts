@@ -12,6 +12,9 @@ const remote = vi.hoisted(() => ({
 }))
 vi.mock('../../shared/remote-runtime-client', () => remote)
 
+// v1.4.201 routes the status probe through the host status owner, which publishes to windows.
+vi.mock('electron', () => ({ BrowserWindow: { getAllWindows: () => [] } }))
+
 const store = vi.hoisted(() => ({
   resolveEnvironment: vi.fn(() => ({ id: 'env-1', runtimeId: 'rt-1', createdAt: 1 })),
   markEnvironmentUsed: vi.fn()

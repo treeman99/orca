@@ -15611,5 +15611,13 @@
       "description": "분리된 탭을 표시하지 못했습니다. 다시 시도하거나 창을 닫아 탭을 되돌리세요."
     },
     "returnTab": "탭을 메인 창으로 되돌리기"
+  },
+  "notifications": {
+    "agentStatus": {
+      "needsInput": "입력 필요",
+      "working": "작업 중",
+      "stopped": "중지됨",
+      "finished": "완료됨"
+    }
   }
 }

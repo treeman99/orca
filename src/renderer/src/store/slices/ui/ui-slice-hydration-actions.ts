@@ -51,6 +51,7 @@ import {
 } from '../persisted-ui-write-baseline'
 import {
   hydrateTrustedOrcaHooks,
+  hydrateUnexpectedSignoutDismissal,
   normalizeHydratedVisibleWorkspaceHostIds,
   preserveStringArrayIdentity,
   sanitizeHydratedActiveView,
@@ -224,6 +225,7 @@ export function createUiHydrationActions(set: UISliceSet, _get: UISliceGet): Par
             }
             return DEFAULT_PET_ID
           })(),
+          ...hydrateUnexpectedSignoutDismissal(s, ui.dismissedUnexpectedSignoutVersion),
           osc52ClipboardDefaultOnNoticePending: ui.osc52ClipboardDefaultOnNoticePending === true,
           browserDefaultUrl: ui.browserDefaultUrl ?? null,
           browserDefaultSearchEngine: ui.browserDefaultSearchEngine ?? null,

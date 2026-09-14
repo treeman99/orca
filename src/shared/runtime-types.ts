@@ -165,7 +165,6 @@ export type {
   RuntimeTerminalRead,
   RuntimeTerminalRename,
   RuntimeTerminalResolvePane,
-  AgentPromptSubmitOutcome,
   RuntimeTerminalSend,
   RuntimeTerminalShow,
   RuntimeTerminalSplit,
@@ -206,3 +205,4 @@ export type {
   RuntimeMarkdownReadTabResult,
   RuntimeMarkdownSaveTabResult
 } from './mobile-markdown-document'
+export type { AgentPromptSubmitOutcome } from './terminal-fork-fields'

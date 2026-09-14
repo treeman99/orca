@@ -128,6 +128,21 @@
         {
           "file": "src/main/ipc/minimax-credentials.ts",
           "contains": "assertVendorAccountRegistrationAllowed()"
+        },
+        {
+          "file": "src/main/runtime/push/push-gateway-origin.ts",
+          "contains": "if (ORCA_CLOUD_REMOVED)",
+          "why": "v1.4.201 이 벤더 푸시 게이트웨이(push.onorca.dev)를 Orca Cloud 설정 밖에 새로 두었다. 이 줄이 빠지면 환경변수나 기본 호스트로 다시 열린다."
+        },
+        {
+          "file": "src/main/runtime/push/desktop-push-service.ts",
+          "contains": "if (!options.gatewayUrl)",
+          "why": "데스크톱 main 과 헤드리스 orcad 가 게이트웨이 클라이언트를 만드는 유일한 지점. origin 이 비면 서비스를 만들지 않는다."
+        },
+        {
+          "file": "src/main/orca-profiles/orca-cloud-host-absence.test.ts",
+          "contains": "'push.onorca.dev'",
+          "why": "벤더 호스트 리터럴이 소스·테스트 픽스처로 되돌아오는 것을 잡는 감사 목록."
         }
       ]
     },
@@ -374,6 +389,11 @@
         {
           "file": "src/renderer/src/components/terminal-pane/pty-connection/session-reconcile-dispose.ts",
           "contains": "session.typedUserInputTakeoverDisposable?.dispose()"
+        },
+        {
+          "file": "src/shared/runtime-terminal-contracts.ts",
+          "contains": "RuntimeTerminalCreateBaseRequestPayload = TerminalCreateForkFields & {",
+          "why": "워커 패널 앵커(paneGroupPlacement)가 terminal.create 계약에 실리는 자리. 빠져도 타입이 안 깨지는 호출지점이 있다."
         }
       ]
     },
@@ -491,6 +511,11 @@
         {
           "file": "src/main/runtime/orca-runtime-write-terminal-agent-prompt.ts",
           "contains": "stalled: true"
+        },
+        {
+          "file": "src/shared/runtime-terminal-contracts.ts",
+          "contains": "RuntimeTerminalSend = TerminalSendForkFields & {",
+          "why": "v1.4.201 에서 max-lines 때문에 포크 필드(submit)를 terminal-fork-fields.ts 로 뺐다. 교차 타입이 빠지면 terminal.send 영수증의 submit 이 조용히 사라진다."
         }
       ]
     },
@@ -545,6 +570,16 @@
           "file": "src/main/runtime/runtime-git-submodule-commands.ts",
           "contains": "requireRuntimeGitProvider(target)",
           "why": "v1.4.197 이 RuntimeGitTarget.connectionId 를 없애고 실행 호스트 라우팅으로 바꿨다. 이 파일 9곳이 옛 필드를 쓰고 있었다."
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/git-params.ts",
+          "contains": "shared/rpc-contract/git-submodule-params",
+          "why": "v1.4.201 이 RPC 파라미터 스키마를 shared/rpc-contract 로 옮기며 이 파일을 re-export 목록으로 바꿨다. 포크 서브모듈 스키마 re-export 한 줄이 빠지면 git.ts 의 서브모듈 RPC 가 import 에러로 죽는다."
+        },
+        {
+          "file": "src/shared/rpc-contract/client-ui-params.ts",
+          "contains": "'vscode-source-control'",
+          "why": "우측 사이드바 탭 스키마. 빠지면 VS Code 소스 제어 탭을 연 상태의 ui.set 페이로드 전체가 거부된다."
         }
       ]
     },
@@ -555,6 +590,11 @@
         {
           "file": "src/main/runtime/runtime-github-review-mutation-commands.ts",
           "contains": "stackMergeIntent"
+        },
+        {
+          "file": "src/shared/rpc-contract/github-pull-request-update-params.ts",
+          "contains": "stackMergeIntent",
+          "why": "v1.4.201 이 MergePr 스키마를 이 파일로 옮겼다. 필드가 빠지면 zod 가 인자를 조용히 벗겨 스택 병합이 늘 거부된다."
         }
       ]
     },
@@ -641,6 +681,56 @@
           "why": "upstream 은 66. 이 빌드는 updater·벤더 forge 레인을 지워 스폰 파일이 2개 적고, 래칫은 핀이 실제 수와 같기를 요구한다(낮추는 방향만 허용)."
         }
       ]
+    },
+    {
+      "id": "windows-ghostty-import-hidden",
+      "summary": "Ghostty 는 Windows 빌드가 없으므로 Windows 데스크톱에서 Ghostty 테마 가져오기 버튼과 검색 항목을 숨긴다.",
+      "present": [
+        {
+          "file": "src/renderer/src/components/settings/TerminalAppearanceSection.tsx",
+          "contains": "ghosttyImportAvailable &&"
+        },
+        {
+          "file": "src/renderer/src/components/settings/terminal-search.ts",
+          "contains": "getTerminalAppearanceSearchEntriesWithImportsExceptGhostty"
+        },
+        {
+          "file": "src/renderer/src/components/settings/AppearancePane.tsx",
+          "contains": "showGhosttyImport: !isDesktopWindows"
+        },
+        {
+          "file": "src/renderer/src/hooks/settings-navigation-interface-sections.ts",
+          "contains": "showGhosttyImport:"
+        }
+      ]
+    },
+    {
+      "id": "enterprise-remote-orca-server",
+      "summary": "disableRemoteOrcaServer: 이 데스크톱이 다른 Orca 에 붙는 모든 아웃바운드 소켓을 막는다. v1.4.201 이 status 프로브를 상태 소유자로 옮기며 시작 시 저장된 환경을 모두 프로브하는 루프를 새로 열었다.",
+      "present": [
+        {
+          "file": "src/main/ipc/runtime-environment-transport-routing.ts",
+          "contains": "const refusal = remoteOrcaServerRefusal<RuntimeStatus>()"
+        },
+        {
+          "file": "src/main/ipc/runtime-environment-transport-routing.ts",
+          "contains": "const refusal = remoteOrcaServerRefusal<unknown>()"
+        },
+        {
+          "file": "src/main/ipc/runtime-environment-transport-routing.ts",
+          "contains": "assertRemoteOrcaServerAllowed()"
+        },
+        {
+          "file": "src/main/ipc/runtime-environment-status-owner.ts",
+          "contains": "const refusal = remoteOrcaServerRefusal<RuntimeStatus>()",
+          "why": "모든 status.get 프로브(시작 루프·재연결·refresh)가 지나는 초크포인트. 빠지면 저장된 원격 Orca 에 status.get 과 shared-control 연결이 나간다."
+        },
+        {
+          "file": "src/main/ipc/runtime-environments.ts",
+          "contains": "const bootProbeEnvironments = isRemoteOrcaServerDisabled()",
+          "why": "v1.4.201 이 추가한 시작 시 프로브 루프. 정책이 켜지면 상태 소유자 자체를 만들지 않는다."
+        }
+      ]
     }
   ],
   "absentPaths": [
@@ -664,7 +754,11 @@
     "src/renderer/src/store/slices/ui/ui-slice-update-actions.ts",
     "cloud",
     ".github/workflows/cloud-*.yml",
-    ".github/actions/cloud-sql-rollout-lease"
+    ".github/actions/cloud-sql-rollout-lease",
+    "tests/e2e/relay-region-compatibility.unit.test.ts",
+    "tests/e2e/relay-region-correction.unit.test.ts",
+    "src/main/runtime/push/push-host-proof-vector.test.ts",
+    "src/shared/rpc-contract/updater-params.ts"
   ],
   "absentSymbols": [
     {
@@ -691,6 +785,21 @@
       "file": "skills/orca-cli/SKILL.md",
       "symbol": "skill sharing",
       "why": "위와 같은 이유. upstream 판 description 이 돌아왔는지 가리키는 두 번째 표지다."
+    },
+    {
+      "file": ".github/workflows/unit-tests.yml",
+      "symbol": "@orca-cloud/relay",
+      "why": "cloud/ 를 지웠다. 이 스텝은 없는 디렉터리에 cloud 릴레이 의존성을 설치하려 하고, v1.4.201 에서 충돌 없이 들어왔다."
+    },
+    {
+      "file": "config/reliability-gates.jsonc",
+      "symbol": "relay-region-correction.unit.test",
+      "why": "cloud/ 릴레이 소스를 import 하는 테스트를 지웠다. 게이트 항목만 되살아나면 check:reliability-gates 가 없는 파일을 가리킨다."
+    },
+    {
+      "file": "src/shared/rpc-contract/rpc-params-catalog.generated.ts",
+      "symbol": "'updater.check'",
+      "why": "인앱 업데이터 RPC 는 제거했다. v1.4.201 이 스키마를 shared 로 옮기며 카탈로그에 되살렸다 — 재생성하면 사라져야 한다."
     }
   ],
   "policySwitchMinConsumers": {

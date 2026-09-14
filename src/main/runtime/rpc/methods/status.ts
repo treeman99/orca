@@ -1,6 +1,6 @@
-import { defineMethod, type RpcMethod } from '../core'
+import { defineMethod } from '../core'
 
-export const STATUS_METHODS: RpcMethod[] = [
+export const STATUS_METHODS = [
   defineMethod({
     name: 'status.get',
     params: null,

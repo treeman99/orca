@@ -15065,5 +15065,13 @@
       "notice": "ripgrep no está instalado, así que la búsqueda usa un respaldo limitado basado en git.",
       "skippedSubmodules": "Se omitieron estos submódulos porque el filtro de archivos no tiene equivalente dentro de ellos: {{value0}}"
     }
+  },
+  "notifications": {
+    "agentStatus": {
+      "needsInput": "necesita información",
+      "working": "trabajando",
+      "stopped": "detenido",
+      "finished": "finalizado"
+    }
   }
 }

@@ -7,10 +7,10 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-// The vendor account and relay hosts this build removes. Other `onorca.dev` addresses are
-// intentionally still present and belong to unrelated features — the docs and changelog links, the
-// plugin kill list, and the vendor-link guard's own host table — so match these two exactly.
-const REMOVED_HOSTS = ['login.onorca.dev', 'relay.onorca.dev']
+// The vendor account, relay, and push gateway hosts this build removes. Other `onorca.dev` addresses
+// are intentionally still present and belong to unrelated features — the docs and changelog links,
+// the plugin kill list, and the vendor-link guard's own host table — so match these exactly.
+const REMOVED_HOSTS = ['login.onorca.dev', 'relay.onorca.dev', 'push.onorca.dev']
 
 const SRC_ROOT = new URL('../../', import.meta.url).pathname
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts']

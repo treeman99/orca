@@ -1,7 +1,8 @@
 import { app, ipcMain } from 'electron'
 import { randomUUID } from 'node:crypto'
-import { resolveEnvironment } from '../../shared/runtime-environment-store'
+import { listEnvironments, resolveEnvironment } from '../../shared/runtime-environment-store'
 import { toBinaryPayload } from './runtime-subscription-binary-payload'
+import { isRemoteOrcaServerDisabled } from '../enterprise/remote-orca-server-guard'
 import type { RemoteRuntimeSubscription } from '../../shared/remote-runtime-client'
 import type { Store } from '../persistence'
 import {
@@ -9,14 +10,16 @@ import {
   registerRuntimeEnvironmentConnectivityHandlers,
   registerRuntimeEnvironmentPassiveHandlers
 } from './runtime-environment-connectivity-handlers'
-import { closeRemoteRuntimeRequestConnection } from './runtime-environment-request-connections'
+import {
+  closeRemoteRuntimeRequestConnection,
+  getRuntimeEnvironmentStatusOwner
+} from './runtime-environment-request-connections'
 import { registerRuntimeEnvironmentRecoveryHandler } from './runtime-environment-recovery-handler'
 import {
   advanceRuntimeEnvironmentTransportGeneration,
   getRuntimeEnvironmentTransportGeneration
 } from './runtime-environment-transport-generation'
 import {
-  clearSharedControlSupport,
   resetSharedControlSupport,
   subscribeRuntimeEnvironment
 } from './runtime-environment-transport-routing'
@@ -65,7 +68,6 @@ export function invalidateRuntimeEnvironmentTransport(environmentId: string): Pr
   advanceRuntimeEnvironmentCapabilityIncarnation(environmentId)
   advanceRuntimeEnvironmentTransportGeneration(environmentId)
   closeRemoteRuntimeRequestConnection(environmentId)
-  clearSharedControlSupport(environmentId)
   closeSubscriptionsForEnvironment(environmentId)
   return retirePairedRuntimeBrowserClientHostEnvironment(
     environmentId,
@@ -98,6 +100,15 @@ export function registerRuntimeEnvironmentHandlers(store: Store): void {
   })
   registerRuntimeEnvironmentRecoveryHandler()
   registerRuntimeEnvironmentPassiveHandlers(getUserDataPath)
+  // Fork: no boot probe of saved remote Orca servers under disableRemoteOrcaServer.
+  const bootProbeEnvironments = isRemoteOrcaServerDisabled()
+    ? []
+    : listEnvironments(getUserDataPath())
+  for (const environment of bootProbeEnvironments) {
+    if (!isRuntimeEnvironmentManuallyDisconnected(environment.id)) {
+      getRuntimeEnvironmentStatusOwner(getUserDataPath(), environment.id).activate()
+    }
+  }
   ipcMain.handle(
     'runtimeEnvironments:subscribe',
     async (

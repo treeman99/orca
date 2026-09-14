@@ -15204,5 +15204,13 @@
       "notice": "未安装 ripgrep，因此正在使用功能受限的 git 检索。",
       "skippedSubmodules": "无法将文件过滤条件转换为子模块内的等价形式，因此跳过了这些子模块：{{value0}}"
     }
+  },
+  "notifications": {
+    "agentStatus": {
+      "needsInput": "需要输入",
+      "working": "处理中",
+      "stopped": "已停止",
+      "finished": "已完成"
+    }
   }
 }

@@ -1339,8 +1339,6 @@
         "ff908adfe9": "Loading jump targets",
         "lastActiveTime": "Last active {{value0}} ago",
         "paletteHostBadge": "Host: {{value0}}",
-        "paletteOpenTabBranch": "Branch name",
-        "paletteOpenTabWorkspace": "Workspace name",
         "pluginCommandFailed": "Could not run the plugin command.",
         "projectBadge": "Project",
         "projectsGroupsHeader": "Projects & Groups",
@@ -2808,7 +2806,10 @@
           "c98ce191da": "This diff has no modified-side file to open",
           "e836faacfa": "Switch to side-by-side diff",
           "f0fd4174b5": "Open file tab to use rich markdown editing",
-          "fb8331694e": "Open Preview to the Side"
+          "fb8331694e": "Open Preview to the Side",
+          "revealInFinder": "Reveal in Finder",
+          "openContainingFolder": "Open Containing Folder",
+          "revealInFileExplorer": "Reveal in File Explorer"
         },
         "EditorPanelMarkdownActionsMenu": {
           "10c39d58c1": "Hide front matter",
@@ -5431,7 +5432,10 @@
             "f61af83316": "New Folder",
             "f729bcd97d": "Failed to download folder '{{value0}}'.",
             "f9d7ca753d": "Copy Paths",
-            "fc747429bf": "Rename"
+            "fc747429bf": "Rename",
+            "revealInFinder": "Reveal in Finder",
+            "openContainingFolder": "Open Containing Folder",
+            "revealInFileExplorer": "Reveal in File Explorer"
           },
           "FileExplorerToolbar": {
             "31b4c3195d": "More Explorer Actions",
@@ -13810,9 +13814,10 @@
               "ead7b8ee15": "It has changed files. Use Force Delete to delete it anyway.",
               "locked": "This workspace is locked by Git. Run git worktree unlock <worktree-path> from its repository, then retry deletion.",
               "lockedReason": "This workspace is locked by Git. Git reported: {{value0}}. Run git worktree unlock <worktree-path> from its repository, then retry deletion.",
-              "runningAgentSession": "This workspace still has running agent sessions, so Orca stopped before deleting any files. Force Delete will close them and discard any work they hold.",
+              "runningAgentSession": "Orca could not confirm every agent session in this workspace has closed, so it stopped before deleting any files. Use Force Delete to remove it anyway.",
               "unstoppedPty": "Orca could not confirm every terminal in this workspace has exited, so it stopped before deleting any files. Use Force Delete to remove it anyway.",
-              "unstoppedPtyLive": "This workspace still has running terminals, so Orca stopped before deleting any files. Force Delete will kill them and discard any uncommitted work they hold."
+              "unstoppedPtyLive": "This workspace still has running terminals, so Orca stopped before deleting any files. Force Delete will kill them and discard any uncommitted work they hold.",
+              "runningAgentSessionLive": "This workspace still has running agent sessions that Orca could not close, so it stopped before deleting any files. Force Delete will discard any work they hold."
             }
           }
         },
@@ -15182,7 +15187,10 @@
             "e3ff145b98": "Split Left",
             "e5ff31ccaf": "Close Tabs To The Right",
             "f7c3d7d5af": "Split Right",
-            "fdd29eb669": "Pin Tab"
+            "fdd29eb669": "Pin Tab",
+            "revealInFinder": "Reveal in Finder",
+            "openContainingFolder": "Open Containing Folder",
+            "revealInFileExplorer": "Reveal in File Explorer"
           },
           "QuickLaunchBotMenuItems": {
             "8d7334a6cd": "Bot conversations",
@@ -16020,6 +16028,21 @@
             "vmProvisioningTitle": "Provisioning VM"
           }
         }
+      },
+      "UnexpectedSignoutCard": {
+        "9f2c1a4b7d": "You've been signed out",
+        "3e8f5c2a91": "Dismiss",
+        "7b4d9e1f2a": "Sign in again as {{value0}} to restore Artifact sharing, Orca Relay, and skill sharing.",
+        "5a1c8d3e6f": "Sign in again to restore Artifact sharing, Orca Relay, and skill sharing.",
+        "1f6b2c9d4e": "What you get back",
+        "8d2e4f7a1b": "Artifact sharing",
+        "2c9a5b6e8d": "Publish HTML and Markdown files and manage every shared link from Orca.",
+        "6e3f1a9c5b": "Orca Relay",
+        "4b7d2e8f1a": "Connect Orca Mobile to this desktop across cellular or any Wi-Fi.",
+        "9a4c6b2d7e": "Skill sharing",
+        "3d8e5f1b9c": "Share skills behind an unlisted link and install them on any machine you use.",
+        "7e1a9c4d2f": "Signing in…",
+        "c5b3e8a17d": "Sign in to Orca"
       }
     },
     "hooks": {
@@ -17073,12 +17096,38 @@
         "detailsUnavailable": "Task details are unavailable for this session.",
         "monitor": "Background monitor",
         "monitoring": "Monitoring background tasks",
-        "runningList": "Running background tasks",
         "stop": "Stop",
         "stopAll": "Stop background tasks",
         "stopTask": "Stop {{value0}}",
         "task": "Background task",
-        "workflow": "Background workflow"
+        "workflow": "Background workflow",
+        "countAgentsOne": "1 agent",
+        "countAgentsMany": "{{value0}} agents",
+        "countShellOne": "1 shell",
+        "countShellMany": "{{value0}} shells",
+        "countShellCommandOne": "1 shell command",
+        "countMonitorsOne": "1 monitor",
+        "countMonitorsMany": "{{value0}} monitors",
+        "countWorkflowsOne": "1 workflow",
+        "countWorkflowsMany": "{{value0}} workflows",
+        "countTasksOne": "1 task",
+        "countTasksMany": "{{value0}} tasks",
+        "headerTotal": "{{value0}} background tasks",
+        "stateWorking": "working",
+        "stateMonitoring": "monitoring",
+        "stateWaiting": "waiting",
+        "stateBlocked": "blocked",
+        "stateDone": "done",
+        "stateIdle": "stopped",
+        "stateUnverifiable": "unverifiable",
+        "reasonWaiting": "needs approval",
+        "reasonUnverifiable": "no contact",
+        "reasonBlocked": "failed",
+        "groupAgents": "Agents",
+        "groupShell": "Shell",
+        "groupMonitors": "Monitors",
+        "groupWorkflows": "Workflows",
+        "groupTasks": "Tasks"
       },
       "composer": {
         "attach": "Attach file",
@@ -18061,6 +18110,14 @@
     "taskUrl": {
       "createHint": "Create worktree from {{value0}}",
       "loadingHint": "Loading {{value0}}…"
+    }
+  },
+  "notifications": {
+    "agentStatus": {
+      "needsInput": "needs input",
+      "working": "working",
+      "stopped": "stopped",
+      "finished": "finished"
     }
   }
 }

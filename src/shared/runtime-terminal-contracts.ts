@@ -10,7 +10,7 @@ import type { RuntimeListingHostScope } from './runtime-listing-host-scope'
 import type { RuntimeMobileSessionTabsResult } from './runtime-session-contracts'
 import type { TabGroupLayoutNode } from './tab-types'
 import type { TerminalExitCause } from './terminal-exit-cause'
-import type { TerminalPaneGroupPlacement } from './terminal-pane-placement'
+import type { TerminalCreateForkFields, TerminalSendForkFields } from './terminal-fork-fields'
 import type { TerminalPaneLayoutNode } from './terminal-tab-types'
 import type { TuiAgent } from './tui-agent'
 
@@ -206,17 +206,11 @@ export type RuntimeTerminalRename = {
   title: string | null
 }
 
-// Why: 'verified' means the agent was observed working on the prompt; 'resent'
-// means a swallowed Enter was rescued; 'unverified' means the write went out but
-// nothing proved the agent took it — the caller has to look, not assume.
-export type AgentPromptSubmitOutcome = 'verified' | 'resent' | 'unverified'
-
-export type RuntimeTerminalSend = {
+export type RuntimeTerminalSend = TerminalSendForkFields & {
   handle: string
   accepted: boolean
   bytesWritten: number
   refusedReason?: 'no-agent' | 'permission'
-  submit?: AgentPromptSubmitOutcome
   /**
    * Present only when a durable agent-session lease refused the write. Additive and optional: an
    * old client sees the `accepted: false` it already handles and ignores this field.
@@ -251,7 +245,7 @@ export type RuntimeTerminalAgentStatus = {
 
 export type RuntimeTerminalPresentation = 'background' | 'focused'
 
-type RuntimeTerminalCreateBaseRequestPayload = {
+type RuntimeTerminalCreateBaseRequestPayload = TerminalCreateForkFields & {
   requestId: string
   worktreeId?: string
   afterTabId?: string
@@ -270,8 +264,6 @@ type RuntimeTerminalCreateBaseRequestPayload = {
   activate?: boolean
   presentation?: RuntimeTerminalPresentation
   surfaceOwner?: false
-  /** Advisory worker-column anchor; the renderer drops it when it cannot honor it. */
-  paneGroupPlacement?: TerminalPaneGroupPlacement
 }
 
 export type RuntimeTerminalCreateRequestPayload =
@@ -339,6 +331,10 @@ export type RuntimeTerminalClose = {
 
 export type RuntimeTerminalWaitCondition = 'exit' | 'tui-idle'
 
+// Why both spellings: the codex-* members were published by every host before the agent-neutral
+// rename, so they are permanent — a client still has to read them off an older host. This build
+// keeps a codex-* reason only where the matched wording is plausibly Codex's own; every matcher
+// that inspects no agent publishes the agent-* spelling.
 export type RuntimeTerminalWaitBlockedReason =
   | 'codex-update-prompt'
   | 'codex-trust-workspace'
@@ -346,6 +342,11 @@ export type RuntimeTerminalWaitBlockedReason =
   | 'codex-model-migration-prompt'
   | 'codex-hooks-review-prompt'
   | 'codex-interactive-prompt'
+  | 'agent-update-prompt'
+  | 'agent-trust-workspace'
+  | 'agent-cwd-prompt'
+  | 'agent-hooks-review-prompt'
+  | 'agent-interactive-prompt'
   | 'agent-approval-prompt'
 
 export type RuntimeTerminalWait = {

@@ -546,7 +546,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.200`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.201`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -627,6 +627,9 @@ PR 트리거이며, 사내 보안 리뷰어가 우리 저장소에서 벤더 배
 | --------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
 | `/cloud/`·`cloud-*.yml`·`cloud-sql-rollout-lease/` 3행                | `.github/CODEOWNERS`                            | 존재하지 않는 경로를 가리키게 됩니다                                   |
 | `passes the staging confirmation through the step environment` 케이스 | `config/scripts/release-blocker-fixes.test.mjs` | `cloud-prove-relay-asia-staging.yml`을 직접 읽으므로 ENOENT로 죽습니다 |
+| `tests/e2e/relay-region-{compatibility,correction}.unit.test.ts`, `src/main/runtime/push/push-host-proof-vector.test.ts` (v1.4.201) | 테스트 | `../../cloud/…` 를 import 하므로 수집 단계에서 죽습니다 |
+| `desktop-relay.region-correction-idle-cutover` 게이트 항목 (v1.4.201) | `config/reliability-gates.jsonc` | 위 테스트만 가리키므로 `check:reliability-gates` 가 없는 파일로 빨개집니다 |
+| `Install relay integration dependencies` 스텝 (v1.4.201) | `.github/workflows/unit-tests.yml` | `working-directory: cloud` 에서 `@orca-cloud/relay` 를 설치합니다 |
 
 **다음 동기화에서 할 일 — 매번 반복됩니다.**
 
@@ -637,6 +640,11 @@ PR 트리거이며, 사내 보안 리뷰어가 우리 저장소에서 벤더 배
 2. 빨개지면 `git rm -rqf cloud .github/workflows/cloud-*.yml .github/actions/cloud-sql-rollout-lease`.
 3. `.github/CODEOWNERS`와 `release-blocker-fixes.test.mjs`는 **자동 병합됩니다** — 충돌 표시 없이
    되살아나므로 직접 확인하세요.
+4. **`cloud/` 를 import 하는 코드는 `src/`·`tests/` 에도 들어옵니다**(v1.4.201 에서 3건). 판별식은
+   `git grep -n -E "cloud/(apps|packages)|@orca-cloud/" -- src tests config .github` — 주석 외에는 비어야 합니다.
+   upstream 이 벤더 클라우드에 기능을 붙일 때마다 데스크톱 쪽 클라이언트도 같이 오므로, 그 클라이언트가
+   `ORCA_CLOUD_REMOVED` 뒤에 있는지도 봐야 합니다 — v1.4.201 의 푸시 게이트웨이는 일부러 그 밖에 있었습니다
+   (감사 문서 §3.1).
 
 #### 디렉터리 통째로 지운 것 — `docs/site` (v1.4.195에서 제거)
 

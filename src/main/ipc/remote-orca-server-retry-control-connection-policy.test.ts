@@ -30,6 +30,7 @@ const {
 }))
 
 vi.mock('electron', () => ({
+  BrowserWindow: { getAllWindows: () => [] },
   app: { getPath: getPathMock },
   ipcMain: {
     handle: handleMock,
@@ -48,18 +49,22 @@ vi.mock('../../shared/remote-runtime-client', () => ({
   subscribeRemoteRuntimeRequest: vi.fn()
 }))
 
-vi.mock('./runtime-environment-request-connections', () => ({
-  sendRemoteRuntimeConnectionRequest: vi.fn(),
-  sendRemoteRuntimeSharedControlRequest: vi.fn(),
-  subscribeRemoteRuntimeSharedControlRequest: vi.fn(),
-  getRemoteRuntimeSharedControlDiagnostics: vi.fn(() => null),
-  reconnectRemoteRuntimeSharedControlConnection: vi.fn(),
-  retryRemoteRuntimeSharedControlConnectionsNow: vi.fn(),
-  retryRemoteRuntimeSharedControlConnectionNow: retryRemoteRuntimeSharedControlConnectionNowMock,
-  ensureRemoteRuntimeSharedControlConnection: vi.fn(),
-  pauseRemoteRuntimeSharedControlRetry: vi.fn(),
-  closeRemoteRuntimeRequestConnection: vi.fn()
-}))
+// v1.4.201 status owners live behind this module; the harness keeps the production owner.
+vi.mock('./runtime-environment-request-connections', async () => {
+  const { withRuntimeStatusOwners } = await import('./runtime-environments-ipc-test-harness')
+  return withRuntimeStatusOwners({
+    sendRemoteRuntimeConnectionRequest: vi.fn(),
+    sendRemoteRuntimeSharedControlRequest: vi.fn(() => new Promise(() => {})),
+    subscribeRemoteRuntimeSharedControlRequest: vi.fn(),
+    getRemoteRuntimeSharedControlDiagnostics: vi.fn(() => null),
+    reconnectRemoteRuntimeSharedControlConnection: vi.fn(),
+    retryRemoteRuntimeSharedControlConnectionsNow: vi.fn(),
+    retryRemoteRuntimeSharedControlConnectionNow: retryRemoteRuntimeSharedControlConnectionNowMock,
+    ensureRemoteRuntimeSharedControlConnection: vi.fn(),
+    pauseRemoteRuntimeSharedControlRetry: vi.fn(),
+    closeRemoteRuntimeRequestConnection: vi.fn()
+  })
+})
 
 import { REMOTE_ORCA_SERVER_DISABLED_BY_POLICY } from '../enterprise/remote-orca-server-guard'
 import { registerRuntimeEnvironmentHandlers } from './runtime-environments'

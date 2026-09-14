@@ -1,3 +1,4 @@
+import { NotificationCardStack } from '../components/NotificationCardStack'
 import { Suspense } from 'react'
 import { lazyWithRetry as lazy } from '@/lib/lazy-with-retry'
 import { translate } from '@/i18n/i18n'
@@ -52,6 +53,11 @@ const DictationController = lazy(() =>
 const SshPassphraseDialog = lazy(() =>
   import('../components/settings/SshPassphraseDialog').then((module) => ({
     default: module.SshPassphraseDialog
+  }))
+)
+const UnexpectedSignoutCard = lazy(() =>
+  import('../components/UnexpectedSignoutCard').then((module) => ({
+    default: module.UnexpectedSignoutCard
   }))
 )
 const ContextualTourOverlay = lazy(() =>
@@ -258,9 +264,16 @@ export function AppRootSurfaces(props: {
           </OverlayBoundary>
         </Suspense>
       ) : null}
-      <OverlayBoundary boundaryId="overlay.star-nag" resetKey={activeView}>
-        <StarNagCard />
-      </OverlayBoundary>
+      <NotificationCardStack>
+        <Suspense fallback={null}>
+          <OverlayBoundary boundaryId="overlay.unexpected-signout" resetKey={activeView}>
+            <UnexpectedSignoutCard />
+          </OverlayBoundary>
+        </Suspense>
+        <OverlayBoundary boundaryId="overlay.star-nag" resetKey={activeView}>
+          <StarNagCard />
+        </OverlayBoundary>
+      </NotificationCardStack>
       <OverlayBoundary boundaryId="overlay.star-nag-toast" resetKey={activeView}>
         <StarNagToastHost />
       </OverlayBoundary>

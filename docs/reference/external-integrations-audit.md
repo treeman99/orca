@@ -170,6 +170,16 @@
 >
 > ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다. 기존 `file:line` 인용은 이 판에서 전면 재검증하지 않았습니다.
 
+> **v1.4.201 갱신 (2026-09-14).** 이 판에서 재검증한 것은 **v1.4.200 → v1.4.201 구간의 델타**입니다(트리 diff 1,540 파일, +91,858/−20,874, 신규 583건 · 삭제 7건 · 수정 946건 · 이름변경 4건). 판정은 양 태그의 프로덕션 네트워크 호출지점 집합 대조(라인 문자열) + **주입형 fetch(`options.fetch ?? globalThis.fetch`, `fetchImpl`) 호출지점 대조** + 스킴 URL 리터럴 차집합 + `openExternal`·`loadURL`/`setWindowOpenHandler`·단일 슬롯 리스너·IPC 채널(여러 줄 형태 포함)·RPC 메서드·CLI 커맨드·spawn 지점·의존성(락파일 두 번째 YAML 문서의 패키지 이름)·`.github/` 차집합 + 신규 파일 583건의 도메인 분류와 네트워크 프리미티브가 있는 도메인 정밀 검토입니다. 나머지 확정 항목은 각자의 기준 시점 서술이며 이번에 다시 열어보지 않았습니다.
+>
+> 🆕 **신규 외부 목적지 1건 — 모바일 백그라운드 푸시 게이트웨이 `push.onorca.dev`. 이 빌드에서 제거했습니다(§3.1).** 리터럴 호출지점 집합은 95 → 95로 **변화가 없었습니다** — 새 레인이 `PushGatewayClient` 에 주입된 `fetchImpl` 로 요청을 보내서, 지난 판까지의 grep 방식으로는 0건으로 보였습니다. 이번 판부터 주입형 fetch 호출지점을 따로 셉니다. 업스트림은 이 레인을 **일부러 `getOrcaCloudAuthConfig()` 밖에** 두었으므로(주석: "deliberately not gated on cloud sign-in") 기존 `ORCA_CLOUD_REMOVED`·`disableCloudRelay` 로는 막히지 않았고, `disableMobilePairing` 은 신규 등록만 막을 뿐 이미 저장된 등록(유효 7일)으로의 전송은 막지 못했습니다. 제거 전 레인이 보내던 것은 호스트 공개키, 폰의 APNs/FCM 디바이스 토큰, 알림 제목(≤80자)·본문(≤180자, **에이전트의 마지막 응답 또는 도구 입력**)·`worktreeId`(**워크트리 절대경로 포함**)이고, 게이트웨이가 이를 FCM/APNs 로 2차 전달합니다. 그 밖에 `openExternal`류 112 → 112, 단일 슬롯 리스너 신규 0건, 신규 spawn 0건, 신규 npm 패키지 0개(`electron` 43.6.0 → 43.7.0 버전 범프뿐, `--frozen-lockfile --lockfile-only` 통과, `electron-updater` 0회), 신규 RPC 2건(`notifications.registerPush`/`unregisterPush` — 위 레인), 신규 IPC 2건(`notifications:getDesktopAwayState`·`runtimeEnvironments:getStatusSnapshots`, 둘 다 로컬 읽기)입니다.
+>
+> 🔒 **포크 게이트 — 유실 0건, 신규 우회로 1건을 막았습니다.** 정책 호출지점 **62 → 62**(라인 내용 동일), 스위치별 소비 라인 수 전부 동일, 원장 앵커 47 → 52건 통과. **다만 업스트림이 원격 Orca 서버의 status 프로브를 `runtime-environment-status-owner.ts` 로 옮기고, 앱 시작 시 저장된 모든 원격 환경에 프로브를 보내는 루프(`runtime-environments.ts`)를 새로 열었습니다.** 이 경로는 `disableRemoteOrcaServer` 가 지키던 세 입구(status/call/subscribe)를 지나지 않아, 정책이 켜진 PC 도 저장해 둔 원격 Orca 에 부팅마다 `status.get` 을 보내고 응답이 오면 연결을 맺었을 것입니다. 벤더 목적지는 아니지만(사용자가 등록한 서버) 정책 약속이 깨지는 형태라, 상태 소유자의 `request` 와 시작 루프 두 곳에 가드를 두고 행동 테스트(`remote-orca-server-boot-probe-policy.test.ts`)와 원장 항목 `enterprise-remote-orca-server` 를 추가했습니다. 에이전트 실행 레인의 쌍둥이 대조·신규 스폰 지점은 이상 없음입니다.
+>
+> ➕ **부수 관찰.** ① `cloud/` 에 푸시 게이트웨이 서버(`apps/push` 67파일 등 114파일)가 새로 들어와 삭제했고, `cloud/` 를 import 하는 테스트 3건과 이를 가리키던 신뢰성 게이트 1건·`unit-tests.yml` 설치 스텝도 함께 지웠습니다. ② 신규 CI 워크플로 2개(`pi-owner-runtime.yml`·`pi-provider-runtime.yml`, npm 에서 `@earendil-works/pi-coding-agent` 설치)는 origin 에서 비활성화했습니다. ③ **§0.2 #1 서브프로세스 범위의 변화**: Pi 로 커밋 메시지를 생성할 때 `--no-extensions` 가 더는 붙지 않아 사용자가 설치한 Pi 확장이 로드됩니다(Orca 가 여는 소켓이 아니라 Pi 프로세스의 동작). ④ `docs/relay-region-correction/` 6건은 벤더 릴레이 운영 설계 문서로 빌드 산출물에 실리지 않습니다(`'!docs{,/**/*}'`). ⑤ 신규 `UnexpectedSignoutCard`(Orca Cloud 재로그인 유도)는 `ORCA_CLOUD_REMOVED` 로 인증이 늘 미구성이라 표시되지 않습니다.
+>
+> ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다. 기존 `file:line` 인용은 이 판에서 전면 재검증하지 않았습니다.
+
 > **⚠️ 델타 판정의 기준은 `git log`가 아니라 트리 diff입니다.** 업스트림은 릴리스 브랜치에 태그를 달고 그 태그들은 서로의 자손이 아닙니다. 같은 변경이 main과 릴리스 브랜치에 다른 SHA로 존재하면 `git log <old>..<new>`에는 나타나되 트리에는 차이가 없으므로, **로그는 델타를 과대 계상합니다.** 실례: `git log v1.4.178..v1.4.180`에는 Artifacts 관련 커밋 3건(`24c68087bd` 수동 공유 #13369, `05160cd08e` 능력 게이팅 #13368, `2f221bdbfe` 관리 UI #13356)이 보이지만 `git diff --name-only v1.4.178 v1.4.180 -- '*artifact*' '*Artifact*'`는 **비어 있습니다** — 두 태그의 artifact 트리는 동일하며 그 기능들은 이미 v1.4.178 트리에 있었습니다(§3.1). 그러므로 델타 감사는 `git diff --name-status <old> <new>` 기준으로 하고 로그는 맥락 파악에만 쓰십시오. **함정은 양방향입니다** — 로그만 보고 "이번에 새로 들어왔다"고 오판하는 것과, 트리가 같은 것을 보고 "업스트림이 이 레인을 접었다"고 안심하는 것 둘 다 틀립니다(후자의 경우 업스트림은 계속 개발 중이며, 다만 그 작업이 더 이른 태그에 이미 들어와 있었을 뿐입니다).
 
 ---
@@ -571,7 +581,7 @@ git grep -n "from: 'skills'" -- config/electron-builder.config.cjs
 
 ---
 
-## 3.1 벤더 클라우드 레인 4종 (🚫 코드에서 제거됨, v1.4.178~)
+## 3.1 벤더 클라우드 레인 5종 (🚫 코드에서 제거됨, v1.4.178~)
 
 §3과 같은 성격입니다 — 정책이 아니라 소스에서 차단했으므로, 정책 파일이 없거나 파싱에 실패해도 되살아나지 않습니다.
 
@@ -581,6 +591,7 @@ git grep -n "from: 'skills'" -- config/electron-builder.config.cjs
 | **에이전트 스킬 공유** (v1.4.188 신규) | **양방향 두 호스트** — 메타데이터는 `share.onorca.dev`(`/v1/skill-shares/…`), 아카이브 자체는 `storage.googleapis.com`(**업로드·다운로드 모두**) | **선택한 스킬 디렉터리 전체를 tar.gz으로 압축한 바이트**(상한 `SKILL_PACKAGE_MAX_COMPRESSED_BYTES`) — SKILL.md 본문, 딸린 스크립트·참조 파일이 그대로 포함됩니다. 메타 레인으로는 공유 id, 선택적 버전 id, `installTarget`(`local`/`remote`), 그리고 요청이 드러내는 소스 IP·TLS SNI. **발행 방향에만 `Bearer` 토큰이 붙고 설치 방향에는 붙지 않습니다** | 요청 함수 `skillCloudRequest()` (`src/main/skills/skill-cloud-request.ts`) + 다운로드 `downloadSkillPackageGrant()` (`src/main/skills/skill-package-download.ts`) + 링크 파서 `parseSkillShareId()` (`src/shared/skill-share-link.ts`) |
 | **Orca Cloud 로그인**                  | 벤더 로그인 호스트 `/v1/desktop/auth/{authorize,session,refresh,capabilities,profile,org,logout,relay-token}`                                    | OAuth 세션·프로필·조직 정보                                                                                                                                                                                                                                                                                                                              | `getOrcaCloudAuthConfig()` (`src/main/orca-profiles/profile-cloud-auth-config.ts`)                                                                                                                                                     |
 | **모바일 페어링 릴레이 디렉터**        | 벤더 릴레이 호스트                                                                                                                               | 릴레이 초대 토큰, 릴레이 경유 터미널 브리지, **(v1.4.185~) 리전 카탈로그 조회 `GET {director}/v1/regions`와 셀 origin별 지연 프로브 `GET {origin}/health`**(3샘플 × 최대 2 origin × 2 리전, 24h 캐시 — `src/main/runtime/relay/relay-region-preference.ts:182,218`)                                                                                      | 동일 — `DesktopRelayService`는 이 호출이 `configured`일 때만 생성됩니다 (`src/main/index.ts`). 리전 프로브도 그 생성자 안에서 배선되므로 같은 초크포인트가 덮습니다                                                                    |
+| **모바일 백그라운드 푸시 게이트웨이** (v1.4.201 신규) | `push.onorca.dev` `/v1/host/{challenge,session}`, `/v1/devices`, `/v1/send` → 게이트웨이가 FCM/APNs 로 2차 전달 | 호스트 공개키, 폰 디바이스 토큰, 알림 제목·본문(**에이전트 마지막 응답 또는 도구 입력**, ≤180자), `worktreeId`(**절대경로 포함**). 평문 JSON over HTTPS — E2EE 아님 | `resolvePushGatewayOrigin` 이 origin 을 비우고 `DesktopPushService.create()` 가 서비스를 만들지 않음 — 데스크톱·`orca serve`·orcad 공통 |
 
 **⚠️ Artifacts — v1.4.180 재확인: 로그와 트리가 어긋납니다.** `git log v1.4.178..v1.4.180`에는 Artifacts 후속 커밋 3건(수동 공유 #13369, 능력 게이팅 #13368, 관리 UI #13356)이 보이지만 **트리는 v1.4.178과 동일합니다** — `git diff --name-only v1.4.178 v1.4.180 -- '*artifact*' '*Artifact*'`가 비어 있습니다. 그 작업은 이미 v1.4.178 트리에 들어와 있었고, 포크의 제거(`f259c8d780`)가 여전히 표면 전부를 덮습니다. **로그만 보고 "이번에 새로 들어왔다"고 읽지 마십시오**(문서 상단 방법론). 반대로 **트리가 같다고 해서 업스트림이 이 레인을 접은 것도 아니므로**, 아래 소스 감사 테스트는 계속 필요합니다.
 
@@ -589,6 +600,7 @@ git grep -n "from: 'skills'" -- config/electron-builder.config.cjs
 - **Artifacts**: API 클라이언트가 목적지를 `onorca.dev` 호스트로 **잠가 둡니다**(`artifact-cloud-config.ts`). 사내 호스트로 돌릴 수 없으므로, 사내 소스를 사내 인프라에 두면서 이 기능을 켜는 설정 조합이 존재하지 않습니다. 업스트림의 off-by-default(`artifactSharingEnabled`)는 **에이전트가 공개 링크를 만들지 못하게 하는 사용자 설정**이지 배포 통제 수단이 아닙니다 — UI에서 두 번 클릭이면 켜집니다.
 - **에이전트 스킬 공유**: 세 가지가 겹칩니다. ① 목적지 잠금은 Artifacts와 **같은 코드**입니다 — `skill-cloud-request.ts`가 `resolveArtifactCloudApiUrl()`을 재사용하므로 사내 호스트로 돌릴 수 없고, 아카이브는 `storage.googleapis.com`에서만 받습니다. ② 업스트림의 `agentSkillSharingEnabled`는 **발행 방향만** 보는 사용자 설정이고, 설치 방향에는 검사 자체가 없습니다. ③ **결정적인 이유는 릴레이입니다** — `getEnterprisePolicy()`는 `electron`을 import하므로 릴레이 esbuild 번들에 들어갈 수 없고, 정책 파일은 원격 SSH 호스트에 배포되지도 않습니다(그 호스트에서는 `lockdown: false`로 해석됩니다). 반면 `src/shared`의 컴파일타임 상수는 **가드하는 코드와 함께 릴레이 번들에 실립니다.** 즉 이 레인에서는 **정책 스위치라는 선택지가 물리적으로 존재하지 않습니다.** 같은 이유로 `enforceNetworkAllowlist`도 답이 아닙니다 — 그 가드는 `session.defaultSession`과 **메인 프로세스의** global `fetch`만 감싸므로(§0.2 #1) 원격 호스트에서 릴레이 자신이 여는 소켓을 **구조적으로 볼 수 없습니다.**
 - **클라우드/릴레이**: `disableCloudRelay`로 이미 덮여 있었지만, 그건 관리자의 선택입니다. **모바일 페어링을 쓰려고 그 스위치를 끄는 것은 정당한 구성인데, 그러면 벤더 로그인과 릴레이가 같이 되살아납니다.** 이 빌드는 둘 다 쓰지 않으므로 정책 한 줄 뒤에 두지 않습니다.
+- **푸시 게이트웨이**(v1.4.201): 업스트림이 계정 없이 호스트 키쌍으로 인증하도록 만들어 **클라우드 인증 설정 밖**에 두었습니다. 그래서 위의 `ORCA_CLOUD_REMOVED` 가 덮지 못했고, `disableMobilePairing` 도 신규 등록만 막을 뿐 저장된 등록(유효 7일)으로의 전송은 막지 못합니다. 목적지를 사내 호스트로 돌릴 수단도 없습니다(서버 구현은 삭제한 `cloud/` 에만 있음). 초크포인트는 `DesktopPushService.create()` 입니다 — 데스크톱·`orca serve`·orcad 세 실행 형태가 모두 이 함수를 지나며, `getOrcaPushGatewayUrl()` 에 걸면 orcad 경로(`resolvePushGatewayOrigin` 직접 호출)를 놓칩니다. 벤더 호스트 리터럴도 삭제했고 `ORCA_PUSH_GATEWAY_URL` 환경변수로도 복구되지 않습니다. 회귀 방지는 `src/main/runtime/push/push-gateway-removal.test.ts` 와 `orca-cloud-host-absence.test.ts` 의 `REMOVED_HOSTS` 입니다. 폰이 등록을 요청하면 호스트는 `gateway_unreachable` 로 응답합니다(호스트는 여전히 `notifications.remote-push.v1` 을 광고합니다 — 업스트림 계약 파일을 건드리지 않으려고 남겼습니다).
 
 **초크포인트 선택이 중요했습니다.** Artifacts는 `share`/`publish`/`update`만 업스트림 capability 게이트를 통과하고 `list`/`getPublishedLink`/`unshare`/`delete` 4종은 **의도적으로 무게이트**입니다(옛 링크를 감사·회수할 수 있어야 한다는 이유). 7개 RPC가 전부 지나가는 `withAuth`에 걸어야 다 막힙니다. 특히 dev 빌드의 `authToken` 우회는 인증 설정 검사를 건너뛰므로 **그 분기보다 앞**에 두어야 합니다.
 
@@ -611,9 +623,9 @@ git grep -n "from: 'skills'" -- config/electron-builder.config.cjs
 **검증**:
 
 ```bash
-# 빈 결과여야 합니다. 두 호스트를 이름으로 부르는 것이 존재 이유인 파일 2개만 제외합니다 —
+# 빈 결과여야 합니다. 세 호스트를 이름으로 부르는 것이 존재 이유인 파일 2개만 제외합니다 —
 # 제거 사실을 문서화하는 모듈과, 그 부재를 검사하는 테스트 자신.
-git grep -n 'login\.onorca\.dev\|relay\.onorca\.dev' -- src/ \
+git grep -n 'login\.onorca\.dev\|relay\.onorca\.dev\|push\.onorca\.dev' -- src/ \
   | grep -v 'shared/orca-cloud-removal.ts\|orca-cloud-host-absence.test.ts'
 
 # 스킬 공유의 두 목적지. 여기서 나오는 것은 **매처와 허용목록뿐**이어야 하고,

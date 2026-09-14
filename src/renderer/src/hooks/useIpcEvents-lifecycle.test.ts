@@ -30,7 +30,7 @@ const EXPECTED_DIRECT_CALLBACK_METHODS = [
   'runtime.onNativeChatLaunchDraftResolved',
   'runtime.onTerminalDriverChanged',
   'runtime.onTerminalFitOverrideChanged',
-  'runtimeEnvironments.onSharedControlDiagnostics',
+  'runtimeEnvironments.onStatusChanged',
   'settings.onChanged',
   'ssh.onCredentialRequest',
   'ssh.onCredentialResolved',
@@ -103,7 +103,7 @@ const EXPECTED_DIRECT_CALLBACK_METHODS = [
 const EXPECTED_CALLBACK_REGISTRATION_SEQUENCE = [
   'ui.onMobileMarkdownRequest',
   'automations.onChanged',
-  'runtimeEnvironments.onSharedControlDiagnostics',
+  'runtimeEnvironments.onStatusChanged',
   'repos.onChanged',
   'worktrees.onChanged',
   'worktrees.onHeadIdentitiesChanged',
@@ -376,7 +376,7 @@ describe('useIpcEvents App-lifetime lifecycle', () => {
     ).toEqual([
       'ui.onMobileMarkdownRequest',
       'automations.onChanged',
-      'runtimeEnvironments.onSharedControlDiagnostics',
+      'runtimeEnvironments.onStatusChanged',
       'runtimeEnvironments.subscribe',
       ...EXPECTED_CALLBACK_REGISTRATION_SEQUENCE.slice(3)
     ])

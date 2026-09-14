@@ -63,11 +63,11 @@ export {
 } from './terminal-window-setup-search'
 
 type TerminalAppearanceSearchOptions = {
-  showWarpImport?: boolean
+  showDesktopThemeImports?: boolean
   showGhosttyImport?: boolean
 }
 
-const getTerminalAppearanceSearchEntriesWithoutWarp = createLocalizedCatalog(
+const getTerminalAppearanceSearchEntriesWithoutImports = createLocalizedCatalog(
   (): SettingsSearchEntry[] => [
     ...getTerminalTypographySearchEntries(),
     ...getTerminalCursorSearchEntries(),
@@ -79,11 +79,19 @@ const getTerminalAppearanceSearchEntriesWithoutWarp = createLocalizedCatalog(
   ]
 )
 
-// Why: compose rather than filter — entry titles are localized, so matching on
-// an English title would leak the Warp entry back in under non-English locales.
-const getTerminalAppearanceSearchEntriesWithWarp = createLocalizedCatalog(
+// Compose catalogs because translated titles cannot reliably identify desktop-only entries.
+const getTerminalAppearanceSearchEntriesWithImports = createLocalizedCatalog(
   (): SettingsSearchEntry[] => [
-    ...getTerminalAppearanceSearchEntriesWithoutWarp(),
+    ...getTerminalAppearanceSearchEntriesWithoutImports(),
+    ...getTerminalGhosttyImportSearchEntries(),
+    ...getTerminalWarpImportSearchEntries(),
+    ...getTerminalYamlImportSearchEntries()
+  ]
+)
+
+const getTerminalAppearanceSearchEntriesWithImportsExceptGhostty = createLocalizedCatalog(
+  (): SettingsSearchEntry[] => [
+    ...getTerminalAppearanceSearchEntriesWithoutImports(),
     ...getTerminalWarpImportSearchEntries(),
     ...getTerminalYamlImportSearchEntries()
   ]
@@ -92,15 +100,14 @@ const getTerminalAppearanceSearchEntriesWithWarp = createLocalizedCatalog(
 export function getTerminalAppearanceSearchEntries(
   options: TerminalAppearanceSearchOptions = {}
 ): SettingsSearchEntry[] {
-  const base =
-    (options.showWarpImport ?? true)
-      ? getTerminalAppearanceSearchEntriesWithWarp()
-      : getTerminalAppearanceSearchEntriesWithoutWarp()
+  if (!(options.showDesktopThemeImports ?? true)) {
+    return getTerminalAppearanceSearchEntriesWithoutImports()
+  }
   // Why: the search index must mirror the visible controls, and Ghostty ships no
   // Windows build — see isGhosttyImportAvailable in TerminalAppearanceSection.
   return (options.showGhosttyImport ?? true)
-    ? [...base, ...getTerminalGhosttyImportSearchEntries()]
-    : base
+    ? getTerminalAppearanceSearchEntriesWithImports()
+    : getTerminalAppearanceSearchEntriesWithImportsExceptGhostty()
 }
 
 export function getTerminalPaneSearchEntries(platform: {

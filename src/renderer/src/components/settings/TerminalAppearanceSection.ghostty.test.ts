@@ -529,24 +529,8 @@ describe('TerminalAppearanceSection ghostty import wiring', () => {
     expect(findComponentByTypeName(element, 'TerminalFontSizeSetting')).toBeNull()
   })
 
-  it('keeps the Ghostty import button for a Windows browser on a paired web client', () => {
-    vi.stubGlobal('window', {
-      __ORCA_WEB_CLIENT__: true,
-      location: { pathname: '/web-index.html' },
-      api: { platform: { get: () => ({ platform: 'win32' }) } }
-    })
-
-    const element = TerminalAppearanceSection({
-      settings: {} as never,
-      updateSettings: () => {},
-      systemPrefersDark: true,
-      terminalFontSuggestions: [],
-      ghostty: ghosttyMock,
-      warpThemes: warpThemesMock
-    })
-
-    expect(findButtons(element).some((button) => button.text === 'Import from Ghostty')).toBe(true)
-  })
+  // Fork: the Windows-browser web client case is gone — since v1.4.201 web clients hide every
+  // desktop theme import (upstream 'hides the theme import affordance on paired web clients').
 
   it('opens typography advanced inside the typography section for advanced searches', () => {
     mockSettingsSearchQuery = 'line height'
@@ -581,7 +565,35 @@ describe('TerminalAppearanceSection ghostty import wiring', () => {
 
     expect(findTerminalThemeCatalogSection(element)?.props.showThemeImport).toBe(false)
     expect(findWarpThemeImportModal(element)).toBeNull()
+    expect(findButtons(element).some((button) => button.text === 'Import from Ghostty')).toBe(false)
+    expect(findGhosttyImportModal(element)).toBeNull()
   })
+
+  it.each([false, true])(
+    'hides Ghostty search results on web clients with forceVisiblePrimary=%s',
+    (forceVisiblePrimary) => {
+      vi.stubGlobal('window', { __ORCA_WEB_CLIENT__: true })
+      mockSettingsSearchQuery = 'ghostty'
+
+      const element = TerminalAppearanceSection({
+        settings: {} as never,
+        updateSettings: () => {},
+        systemPrefersDark: true,
+        terminalFontSuggestions: [],
+        ghostty: ghosttyMock,
+        warpThemes: warpThemesMock,
+        forceVisiblePrimary
+      })
+
+      expect(findButtons(element).some((button) => button.text === 'Import from Ghostty')).toBe(
+        false
+      )
+      expect(findGhosttyImportModal(element)).toBeNull()
+      if (!forceVisiblePrimary) {
+        expect(findComponentByTypeName(element, 'SettingsSubsectionHeader')).toBeNull()
+      }
+    }
+  )
 
   it('passes hook state to GhosttyImportModal', () => {
     const element = TerminalAppearanceSection({

@@ -8,13 +8,23 @@ import { normalizeKagiSessionLink } from '../../../../../shared/browser-url'
 /**
  * Upstream ships these beside the in-app updater actions (`ui-slice-update-actions.ts`).
  * This build has no updater, so that module is dropped and its non-updater members —
- * full-screen state, the browser defaults, and the one-shot OSC 52 notice — live here.
+ * full-screen state, the browser defaults, the one-shot OSC 52 notice, and the
+ * unexpected-sign-out card's dismissal — live here.
  */
-export function createUiShellPreferenceActions(
-  set: UISliceSet,
-  _get: UISliceGet
-): Partial<UISlice> {
+export function createUiShellPreferenceActions(set: UISliceSet, get: UISliceGet): Partial<UISlice> {
   return {
+    dismissedUnexpectedSignoutVersion: null,
+    unexpectedSignoutDismissedVersions: [],
+    dismissUnexpectedSignoutCard: (version) => {
+      if (get().unexpectedSignoutDismissedVersions.includes(version)) {
+        return
+      }
+      set({
+        dismissedUnexpectedSignoutVersion: version,
+        unexpectedSignoutDismissedVersions: [...get().unexpectedSignoutDismissedVersions, version]
+      })
+      void window.api.ui.set({ dismissedUnexpectedSignoutVersion: version }).catch(console.error)
+    },
     osc52ClipboardDefaultOnNoticePending: false,
     clearOsc52ClipboardDefaultOnNotice: () => {
       // Why clear locally first: a failed persist must not re-toast this session. It will

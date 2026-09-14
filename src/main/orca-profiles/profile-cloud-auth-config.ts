@@ -1,6 +1,11 @@
 import { app } from 'electron'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { ORCA_CLOUD_REMOVED, ORCA_CLOUD_REMOVED_MESSAGE } from '../../shared/orca-cloud-removal'
+import {
+  cleanCloudServiceUrl as cleanUrl,
+  cleanCloudServiceOrigin as cleanOrigin
+} from '../../shared/cloud-service-url'
+import { resolvePushGatewayOrigin } from '../runtime/push/push-gateway-origin'
 
 export type OrcaCloudAuthConfig = {
   apiBaseUrl: string
@@ -35,37 +40,8 @@ function isPackagedOrcaBuild(): boolean {
   }
 }
 
-function cleanUrl(value: string | undefined, allowLoopbackHttp: boolean): string | null {
-  const trimmed = value?.trim()
-  if (!trimmed) {
-    return null
-  }
-  try {
-    const parsed = new URL(trimmed)
-    const loopbackHost =
-      parsed.hostname === '127.0.0.1' ||
-      parsed.hostname === 'localhost' ||
-      parsed.hostname === '[::1]'
-    if (parsed.protocol !== 'https:' && !(loopbackHost && allowLoopbackHttp)) {
-      return null
-    }
-    return parsed.toString().replace(/\/$/, '')
-  } catch {
-    return null
-  }
-}
-
 function endpoint(baseUrl: string, path: string): string {
   return new URL(path, `${baseUrl}/`).toString()
-}
-
-function cleanOrigin(value: string | undefined, allowLoopbackHttp: boolean): string | null {
-  const cleaned = cleanUrl(value, allowLoopbackHttp)
-  if (!cleaned) {
-    return null
-  }
-  const parsed = new URL(cleaned)
-  return parsed.pathname === '/' && !parsed.search && !parsed.hash ? parsed.origin : null
 }
 
 export function getOrcaCloudAuthConfig(
@@ -137,6 +113,18 @@ export function getOrcaCloudAuthConfig(
       scope: env.ORCA_CLOUD_AUTH_SCOPE?.trim() || DEFAULT_SCOPE
     }
   }
+}
+
+/**
+ * Where the host registers phones for background push. Deliberately outside
+ * OrcaCloudAuthConfig: the push gateway authenticates with the host keypair, so an
+ * accountless host reaches it on exactly the same path as a signed-in one.
+ */
+export function getOrcaPushGatewayUrl(
+  env: NodeJS.ProcessEnv = process.env,
+  packaged: boolean = isPackagedOrcaBuild()
+): string {
+  return resolvePushGatewayOrigin(env, packaged)
 }
 
 export function allowsPlaintextOrcaCloudSession(

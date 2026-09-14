@@ -164,6 +164,10 @@ export type UISlicePersistence = {
   editorFontZoomLevel: number
   setEditorFontZoomLevel: (level: number) => void
   hydratePersistedUI: (ui: PersistedUIState, source?: 'startup' | 'sync') => void
+  /** App version that dismissed the unexpected-sign-out card; null = never dismissed. */
+  dismissedUnexpectedSignoutVersion: string | null
+  unexpectedSignoutDismissedVersions: string[]
+  dismissUnexpectedSignoutCard: (version: string) => void
   /** True on the launch where the OSC 52 default-on migration overrode a persisted `false`. */
   osc52ClipboardDefaultOnNoticePending: boolean
   clearOsc52ClipboardDefaultOnNotice: () => void

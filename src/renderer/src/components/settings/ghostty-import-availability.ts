@@ -7,9 +7,9 @@ import { isWebClientLocation } from '@/lib/web-client-location'
  * Onboarding already gates its discovery row to darwin (`ThemeStep`); the settings
  * button was the one entry point that shipped ungated.
  *
- * The web client is deliberately exempt: `getRendererAppPlatform()` reports the
- * browser's OS, not the host whose filesystem the main process actually reads, so
- * a Windows browser attached to a macOS/Linux `orca serve` must keep the button.
+ * The web client is exempt because `getRendererAppPlatform()` reports the browser's
+ * OS, not the host's; since v1.4.201 the web client hides every desktop theme import
+ * anyway (`showDesktopThemeImports`), so this only decides the Windows desktop case.
  */
 export function isGhosttyImportAvailable(): boolean {
   return isWebClientLocation() || getRendererAppPlatform() !== 'win32'

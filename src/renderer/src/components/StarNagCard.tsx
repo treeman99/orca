@@ -24,6 +24,7 @@ export function StarNagCard(): React.JSX.Element | null {
   const [busy, setBusy] = useState(false)
   const [mode, setMode] = useState<StarNagMode>('gh')
   const mountedRef = useMountedRef()
+
   useEffect(() => {
     const unsubscribeShow = window.api.starNag.onShow((payload) => {
       if (payload?.surface && payload.surface !== 'card') {
@@ -139,7 +140,7 @@ export function StarNagCard(): React.JSX.Element | null {
   }
 
   return (
-    <div className="fixed bottom-10 right-4 z-40 w-[360px] max-w-[calc(100vw-32px)] max-[480px]:left-4 max-[480px]:right-4 max-[480px]:w-auto">
+    <div>
       <Card className="py-0 gap-0" role="complementary" aria-labelledby="star-nag-heading">
         <div className="flex flex-col gap-2.5 p-3.5">
           <div className="flex items-start justify-between gap-2">
