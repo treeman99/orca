@@ -483,6 +483,22 @@
       ]
     },
     {
+      "id": "freeze-diagnostics",
+      "summary": "앱 전체 프리즈 증거 — 진단 로그가 켜져 있을 때만 main 이벤트 루프 지연(freeze-main)과 렌더러 long animation frame(freeze-renderer)을 같은 벽시계로 한 줄씩 남긴다. Windows '입력 중 앱이 굳는다' 신고에서 어느 프로세스가 굳었는지 가르기 위한 것.",
+      "present": [
+        {
+          "file": "src/renderer/src/main.tsx",
+          "contains": "installRendererLongFrameDiagnostic()",
+          "why": "렌더러 관측기를 켜는 유일한 호출. upstream 이 부트스트랩을 쪼개면 이 줄만 남지 않고, 타입체크도 테스트도 부재를 못 잡는다 — freeze-main 줄만 남아 '렌더러는 멀쩡했다'로 오판하게 된다."
+        },
+        {
+          "file": "src/main/ipc/register-core-handlers/register-core-handlers.ts",
+          "contains": "registerDiagnosticLogHandlers(store)",
+          "why": "main 루프 지연 관측기는 이 등록 함수 안(포크 전용 src/main/ipc/diagnostic-log.ts)에서 설치된다. 이 줄이 빠지면 진단 로그 IPC 와 함께 freeze-main 도 사라진다."
+        }
+      ]
+    },
+    {
       "id": "orchestration-worker-autoclose",
       "summary": "완료된 워커 탭 자동 닫기 — send 와 read 양쪽 정착 지점.",
       "present": [

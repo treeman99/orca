@@ -12,6 +12,7 @@ import {
   resolveDiagnosticLogDirectory,
   writeDiagnosticLine
 } from '../observability/diagnostic-log'
+import { installMainLoopStallMonitor } from '../observability/main-loop-stall-monitor-install'
 import { isTrustedUIRenderer } from './ui'
 
 // Bounded so a renderer bug cannot fill the disk with one long line.
@@ -48,6 +49,7 @@ export function registerDiagnosticLogHandlers(store: Store): void {
   ipcMain.removeHandler('diagnosticLog:status')
 
   bindDiagnosticLogSettings(store)
+  installMainLoopStallMonitor(store)
 
   ipcMain.handle('diagnosticLog:write', (event, args: unknown): boolean => {
     const topic = readTopic(args)

@@ -24,12 +24,15 @@ import { startEnterprisePolicySync } from './enterprise/enterprise-policy-access
 import { getOrCreateRendererRoot } from './lib/react-renderer-root'
 import { primeTerminalWebglAddon } from './lib/pane-manager/pane-webgl-renderer'
 import { installBrowserClientPageRenderer } from './components/browser-pane/browser-client-page-renderer-installation'
+import { installRendererLongFrameDiagnostic } from './lib/renderer-long-frame-diagnostic-install'
 
 recordRendererCrashBreadcrumb('renderer_bootstrap_started', { dev: import.meta.env.DEV })
 installRendererCrashDiagnostics()
 startEnterprisePolicySync()
 installTypingLatencyDiagnostic()
 installAutomationHostDiagnostic()
+// Fork: freeze evidence for the opt-in troubleshooting log; observes nothing while it is off.
+installRendererLongFrameDiagnostic()
 
 if (
   import.meta.env.DEV &&
