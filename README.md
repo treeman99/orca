@@ -226,10 +226,13 @@ SignPath 서명, 텔레메트리 빌드 식별자, 벤더 릴리스 업로드를
   **`workflow_dispatch` 전용입니다** — 푸시로는 돌지 않습니다.
 - **산출물**(워크플로 아티팩트, 실행 페이지 하단에서 zip 으로 내려받습니다)
 
-  | 아티팩트           | 내용                                                                           |
-  | ------------------ | ------------------------------------------------------------------------------ |
-  | `orca-windows-x64` | `orca-windows-setup.exe` (NSIS, per-user, 무서명)                              |
-  | `orca-linux-x64`   | `orca-linux.AppImage`, `orca-ide_<ver>_amd64.deb`, `orca-ide-<ver>.x86_64.rpm` |
+  | 아티팩트                 | 내용                                                                                 |
+  | ------------------------ | ------------------------------------------------------------------------------------ |
+  | `orca-windows-x64-<ver>` | `orca-windows-setup-<ver>.exe` (NSIS, per-user, 무서명)                              |
+  | `orca-linux-x64-<ver>`   | `orca-linux-<ver>.AppImage`, `orca-ide_<ver>_amd64.deb`, `orca-ide-<ver>.x86_64.rpm` |
+
+  `<ver>` 는 `package.json` 의 `version` 입니다. 버전은 워크플로가 패키징 뒤에 파일명에 붙이므로
+  로컬 빌드(§1)의 산출물 이름은 그대로 `orca-windows-setup.exe` / `orca-linux.AppImage` 입니다.
 
 - **정책은 세 OS 공통으로 실립니다.** `resources/enterprise-policy.json` 은 `commonExtraResources` 로
   들어가므로(§4) 리눅스 패키지도 잠금이 적용된 상태로 나옵니다. 워크플로가 패키징 직후

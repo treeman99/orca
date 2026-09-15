@@ -95,6 +95,19 @@ jobs:
           node-version-file: package.json
           cache: pnpm
 
+      # Why: 산출물 파일명과 아티팩트(zip) 이름에 버전을 붙이기 위해 한 번만 읽는다.
+      # 파일명·아티팩트 이름에 그대로 들어가므로 형식을 검증한다.
+      - name: Resolve app version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::unexpected package.json version: $version"
+            exit 1
+          fi
+          echo "ORCA_VERSION=$version" >>"$GITHUB_ENV"
+
       # Why: pnpm 번들 node-gyp 가 Linux 러너에서 네이티브 postinstall 을 깨뜨린다.
       - name: Use external node-gyp to avoid pnpm's bundled copy (Linux only)
         if: runner.os == 'Linux'
@@ -187,6 +200,17 @@ jobs:
           }
           Get-Item dist/orca-windows-setup.exe | Format-List Name, Length
 
+      # Why 여기서 이름을 바꾸는가: electron-builder 설정의 `orca-windows-setup.${ext}` /
+      # `orca-linux.${ext}` 는 upstream 릴리스 자산 검증·업데이트 E2E·설정 테스트가 고정값으로
+      # 읽는다. 설정을 바꾸면 그쪽이 깨지고 fork sync 마다 충돌점이 되므로 사내 레인에서만 붙인다.
+      - name: Stamp version into Windows installer name
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Move-Item dist/orca-windows-setup.exe "dist/orca-windows-setup-$env:ORCA_VERSION.exe"
+          Get-Item "dist/orca-windows-setup-$env:ORCA_VERSION.exe" | Format-List Name, Length
+
       # Why: glibc 플로어 게이트는 정적 검사다. 패키징된 pty.node 를 실제로
       # 로드해 보는 것이 런타임 증명에 해당한다.
       # Why the retry: 스모크는 ubuntu:20.04 컨테이너 안에서 archive.ubuntu.com 을 apt 로
@@ -213,19 +237,27 @@ jobs:
           test -f dist/linux-unpacked/resources/enterprise-policy.json
           ls -la dist/*.AppImage dist/*.deb dist/*.rpm
 
+      # Why: deb/rpm 은 electron-builder 설정에서 이미 버전을 싣는다. AppImage 만 고정 이름이다.
+      - name: Stamp version into Linux AppImage name
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          mv dist/orca-linux.AppImage "dist/orca-linux-${ORCA_VERSION}.AppImage"
+          ls -la dist/*.AppImage dist/*.deb dist/*.rpm
+
       - name: Upload Windows installer
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v7
         with:
-          name: orca-windows-x64
-          path: dist/orca-windows-setup.exe
+          name: orca-windows-x64-${{ env.ORCA_VERSION }}
+          path: dist/orca-windows-setup-${{ env.ORCA_VERSION }}.exe
           if-no-files-found: error
 
       - name: Upload Linux packages
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v7
         with:
-          name: orca-linux-x64
+          name: orca-linux-x64-${{ env.ORCA_VERSION }}
           path: |
             dist/*.AppImage
             dist/*.deb
