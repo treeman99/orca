@@ -245,7 +245,7 @@ export function ingestGitGrepLine(
 
 export function finalize(acc: SearchAccumulator, engine?: SearchEngine): SearchResult {
   const result: SearchResult = normalizeSearchResult({
-    files: Array.from(acc.fileMap.values()).filter((file) => file.matches.length > 0),
+    files: Array.from(acc.fileMap.values()),
     totalMatches: acc.totalMatches,
     truncated: acc.truncated
   })

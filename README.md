@@ -549,7 +549,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.201`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.203`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -626,13 +626,13 @@ PR 트리거이며, 사내 보안 리뷰어가 우리 저장소에서 벤더 배
 
 **같이 지운 것 — 이걸 빠뜨리면 CI가 깨집니다.**
 
-| 무엇                                                                  | 어디                                            | 왜                                                                     |
-| --------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
-| `/cloud/`·`cloud-*.yml`·`cloud-sql-rollout-lease/` 3행                | `.github/CODEOWNERS`                            | 존재하지 않는 경로를 가리키게 됩니다                                   |
-| `passes the staging confirmation through the step environment` 케이스 | `config/scripts/release-blocker-fixes.test.mjs` | `cloud-prove-relay-asia-staging.yml`을 직접 읽으므로 ENOENT로 죽습니다 |
-| `tests/e2e/relay-region-{compatibility,correction}.unit.test.ts`, `src/main/runtime/push/push-host-proof-vector.test.ts` (v1.4.201) | 테스트 | `../../cloud/…` 를 import 하므로 수집 단계에서 죽습니다 |
-| `desktop-relay.region-correction-idle-cutover` 게이트 항목 (v1.4.201) | `config/reliability-gates.jsonc` | 위 테스트만 가리키므로 `check:reliability-gates` 가 없는 파일로 빨개집니다 |
-| `Install relay integration dependencies` 스텝 (v1.4.201) | `.github/workflows/unit-tests.yml` | `working-directory: cloud` 에서 `@orca-cloud/relay` 를 설치합니다 |
+| 무엇                                                                                                                                | 어디                                            | 왜                                                                         |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------- |
+| `/cloud/`·`cloud-*.yml`·`cloud-sql-rollout-lease/` 3행                                                                              | `.github/CODEOWNERS`                            | 존재하지 않는 경로를 가리키게 됩니다                                       |
+| `passes the staging confirmation through the step environment` 케이스                                                               | `config/scripts/release-blocker-fixes.test.mjs` | `cloud-prove-relay-asia-staging.yml`을 직접 읽으므로 ENOENT로 죽습니다     |
+| `tests/e2e/relay-region-{compatibility,correction}.unit.test.ts`, `src/main/runtime/push/push-host-proof-vector.test.ts` (v1.4.201) | 테스트                                          | `../../cloud/…` 를 import 하므로 수집 단계에서 죽습니다                    |
+| `desktop-relay.region-correction-idle-cutover` 게이트 항목 (v1.4.201)                                                               | `config/reliability-gates.jsonc`                | 위 테스트만 가리키므로 `check:reliability-gates` 가 없는 파일로 빨개집니다 |
+| `Install relay integration dependencies` 스텝 (v1.4.201)                                                                            | `.github/workflows/unit-tests.yml`              | `working-directory: cloud` 에서 `@orca-cloud/relay` 를 설치합니다          |
 
 **다음 동기화에서 할 일 — 매번 반복됩니다.**
 
@@ -662,11 +662,12 @@ upstream v1.4.195가 **Next.js 문서 사이트**(`docs/site/`, 115파일 + 자�
 
 **같이 지운 것 — 이걸 빠뜨리면 CI가 깨집니다.**
 
-| 무엇                                                                                            | 어디                                                                        | 왜                                                                                               |
-| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `docs-production-dispatch` 잡                                                                   | `.github/workflows/release-cut.yml`                                         | `gh workflow run docs.yml`을 호출하므로 워크플로가 없으면 릴리스 컷에서 실패합니다               |
-| `docs.yml#{check,production,release_gate}` 3행 + `release-cut.yml#docs-production-dispatch` 1행 | `config/scripts/release-cut-token-permissions.test.mjs`의 `EXPECTED_MATRIX` | 이 게이트는 워크플로 잡 목록을 리터럴로 못 박습니다. 남겨 두면 "존재하지 않는 잡"으로 빨개집니다 |
-| `.gitignore`의 `!docs/site/` · `!docs/site/**` 2행                                              | `.gitignore`                                                                | upstream이 추가한 허용목록 예외. 지워야 `docs/**` 무시가 다시 이 트리를 덮습니다                 |
+| 무엇                                                                                            | 어디                                                                        | 왜                                                                                                                                                                                                      |
+| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs-production-dispatch` 잡                                                                   | `.github/workflows/release-cut.yml`                                         | `gh workflow run docs.yml`을 호출하므로 워크플로가 없으면 릴리스 컷에서 실패합니다                                                                                                                      |
+| `docs.yml#{check,production,release_gate}` 3행 + `release-cut.yml#docs-production-dispatch` 1행 | `config/scripts/release-cut-token-permissions.test.mjs`의 `EXPECTED_MATRIX` | 이 게이트는 워크플로 잡 목록을 리터럴로 못 박습니다. 남겨 두면 "존재하지 않는 잡"으로 빨개집니다                                                                                                        |
+| `.gitignore`의 `!docs/site/` · `!docs/site/**` 2행                                              | `.gitignore`                                                                | upstream이 추가한 허용목록 예외. 지워야 `docs/**` 무시가 다시 이 트리를 덮습니다                                                                                                                        |
+| 번역 README 6개의 `../site/public/docs/*` 미디어 4종 (v1.4.203)                                 | `docs/readme/README.*.md`                                                   | `check:readme-local-links`가 추적 안 된 경로로 빨개집니다. 같은 파일의 사본인 `resources/onboarding/feature-wall/tile-{01,05,08}`(`*.recorded-at.json`의 `sourceGif`가 원본을 적어 둡니다)로 바꿨습니다 |
 
 **다음 동기화에서 할 일 — 매번 반복됩니다.**
 
@@ -680,6 +681,10 @@ upstream v1.4.195가 **Next.js 문서 사이트**(`docs/site/`, 115파일 + 자�
    판정기는 그 테스트 자신입니다 — `pnpm test config/scripts/release-cut-token-permissions.test.mjs`가
    초록이면 4행이 정확히 빠져 있는 것입니다.
 5. `.gitignore`의 3행(주석 포함)은 upstream 원문과 충돌합니다. 포크 주석을 남기세요.
+6. upstream이 README 미디어를 `docs/site/public/`로 다시 옮기면 번역 README가 **자동 병합**되고
+   `pnpm lint`의 `check:readme-local-links`가 경로를 그대로 알려 줍니다. 같은 GIF의 사본을
+   `resources/onboarding/feature-wall/*.recorded-at.json`의 `sourceGif`로 찾아 바꾸세요.
+   루트 `README.md`는 포크 소유라 해당 없습니다.
 
 > **되살아나도 제품은 안전합니다** — 번들 제외와 저장소 게이트는 upstream 쪽 장치라 그대로 유효합니다.
 > 이 절차는 "감사 표면을 늘리지 않는다"는 유지 작업이지 보안 게이트가 아닙니다. 그러니 급하게 되돌리지 말고

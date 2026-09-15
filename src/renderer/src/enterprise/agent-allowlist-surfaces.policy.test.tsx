@@ -100,6 +100,7 @@ function makeDraft(overrides: Partial<AutomationDraft> = {}): AutomationDraft {
     time: '09:00',
     dayOfWeek: '1',
     customSchedule: '',
+    savedSchedule: null,
     missedRunGraceMinutes: '',
     scheduleWarning: null,
     ...overrides

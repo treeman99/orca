@@ -22,6 +22,7 @@ function fixture() {
 }
 
 const registrar = {
+  test: vi.fn(async () => ({ accepted: true }) as const),
   register: vi.fn(async () => ({ registered: true }) as never),
   unregister: vi.fn(async () => ({ unregistered: true }))
 }
