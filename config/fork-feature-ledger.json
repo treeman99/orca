@@ -499,6 +499,17 @@
       ]
     },
     {
+      "id": "mobile-dismissal-write-push-gate",
+      "summary": "모바일 알림 dismissal 기록을 푸시 레지스트라가 있을 때만 쓴다. #19935 가 완료 알림·ack 마다 main 에서 writeSecureJsonFile(Windows 는 icacls 동기 spawn)을 돌려, v1.4.201 Windows 에서 인터럽트 직후 입력 시 앱 전체가 굳었다. 포크는 벤더 푸시 게이트웨이를 제거해 레지스트라가 설정되지 않으므로 기록할 대상이 없다.",
+      "present": [
+        {
+          "file": "src/main/runtime/runtime-mobile-notification-controller.ts",
+          "contains": "if (this.pushRegistrar) {",
+          "why": "dispatch 와 dismiss 가 모두 지나는 유일한 기록 지점. upstream 이 이 컨트롤러를 쪼개면 게이트만 빠지고 타입체크는 초록이다 — Windows 프리즈가 조용히 돌아온다."
+        }
+      ]
+    },
+    {
       "id": "orchestration-worker-autoclose",
       "summary": "완료된 워커 탭 자동 닫기 — send 와 read 양쪽 정착 지점.",
       "present": [

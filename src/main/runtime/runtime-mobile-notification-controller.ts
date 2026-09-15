@@ -108,14 +108,18 @@ export class RuntimeMobileNotificationController {
       }
     }
     const seq = this.replay.record(event)
-    try {
-      this.dismissalStore?.record({
-        ...event,
-        notificationSeq: seq,
-        notificationEpoch: this.replay.epoch
-      })
-    } catch {
-      console.warn('[notifications] Could not persist dismissal recovery state')
+    // Fork: no registrar means no push was delivered, so there is nothing to reconcile — and each
+    // record() spawns icacls synchronously on Windows, freezing main on every completion and ack.
+    if (this.pushRegistrar) {
+      try {
+        this.dismissalStore?.record({
+          ...event,
+          notificationSeq: seq,
+          notificationEpoch: this.replay.epoch
+        })
+      } catch {
+        console.warn('[notifications] Could not persist dismissal recovery state')
+      }
     }
     notifyRuntimeListeners(
       this.listeners,
