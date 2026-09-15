@@ -13006,7 +13006,9 @@
           "d396773ef0": "checking",
           "e565171a7c": "Keyboard Shortcuts",
           "eb9884e55b": "Discord",
-          "f8a2c91d4e": "Milestones"
+          "f8a2c91d4e": "Milestones",
+          "downloadOrca": "Download Orca",
+          "downloadSkills": "Download Skills"
         },
         "SidebarToolbar": {
           "19e32d0e5f": "Open folder picker to add a project",

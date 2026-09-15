@@ -4474,7 +4474,9 @@
           "d396773ef0": "检查中",
           "f8a2c91d4e": "里程碑",
           "b7e4d2a19c": "入门引导",
-          "c4f8e1b72a": "X"
+          "c4f8e1b72a": "X",
+          "downloadOrca": "下载 Orca",
+          "downloadSkills": "下载技能"
         },
         "SidebarToolbar": {
           "19e32d0e5f": "打开文件夹选择器以添加项目",

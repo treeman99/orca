@@ -258,6 +258,20 @@ describe('SidebarSettingsHelpMenu', () => {
     expect(mocks.shellOpenUrl).toHaveBeenCalledWith('https://discord.gg/fzjDKHxv8Q')
   })
 
+  // Fork guard: corporate download pages for Orca builds and the skill bundle.
+  it.each([
+    ['Download Orca', 'https://github.samsungds.net/daegun-kim/Orca_ds/releases'],
+    ['Download Skills', 'https://github.samsungds.net/daegun-kim/ORCA_skill']
+  ])('opens %s on the corporate GHES host', async (label, url) => {
+    const container = await renderMenu()
+
+    await act(async () => {
+      findMenuItem(container, label).click()
+    })
+
+    expect(mocks.shellOpenUrl).toHaveBeenCalledWith(url)
+  })
+
   it('renders X link', () => {
     const html = renderToStaticMarkup(<SidebarSettingsHelpMenu />)
     expect(html).toContain('>X<')

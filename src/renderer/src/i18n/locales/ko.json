@@ -4442,7 +4442,9 @@
           "f8a2c91d4e": "마일스톤",
           "b7e4d2a19c": "온보딩",
           "c4f8e1b72a": "X",
-          "botGuide": "봇 사용법"
+          "botGuide": "봇 사용법",
+          "downloadOrca": "Orca 다운로드",
+          "downloadSkills": "스킬 다운로드"
         },
         "SidebarToolbar": {
           "19e32d0e5f": "폴더 선택기를 열어 프로젝트를 추가하세요.",

@@ -769,6 +769,17 @@
           "why": "planColdActivationTabDeferral 의 비교식. 빠지면 Windows 도 upstream 의 visible-only 전환으로 돌아가고 타입체크·기존 테스트는 초록이다."
         }
       ]
+    },
+    {
+      "id": "help-menu-corporate-downloads",
+      "summary": "도움말(?) 메뉴 맨 위의 사내 GHES 다운로드 링크 2개(Orca 릴리스 페이지, 스킬 저장소). 벤더 링크가 아니므로 disableVendorLinks 로 숨기지 않는다.",
+      "present": [
+        {
+          "file": "src/renderer/src/components/sidebar/SidebarSettingsHelpMenu.tsx",
+          "contains": "<SidebarDownloadMenuItems />",
+          "why": "upstream 메뉴 파일에 끼운 유일한 줄. upstream 이 메뉴를 쪼개면 이 줄만 사라지고 타입체크는 초록이다."
+        }
+      ]
     }
   ],
   "absentPaths": [

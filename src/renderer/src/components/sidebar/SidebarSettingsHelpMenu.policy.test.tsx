@@ -155,6 +155,18 @@ describe('the Help menu under disableVendorLinks', () => {
     expect(labels.some((label) => label.includes('Keyboard Shortcuts'))).toBe(true)
   })
 
+  it('keeps the corporate download rows under lockdown', async () => {
+    policyState.current = { ...UNRESTRICTED, lockdown: true, disableVendorLinks: true }
+    const container = await renderMenu()
+    const labels = itemLabels(container)
+    for (const row of ['Download Orca', 'Download Skills']) {
+      expect(
+        labels.some((label) => label.includes(row)),
+        row
+      ).toBe(true)
+    }
+  })
+
   it('leaves no orphaned separator where the vendor block was', async () => {
     policyState.current = { ...UNRESTRICTED, disableVendorLinks: true }
     const container = await renderMenu()

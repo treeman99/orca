@@ -4445,7 +4445,9 @@
           "d396773ef0": "comprobando",
           "f8a2c91d4e": "Milestones",
           "b7e4d2a19c": "Onboarding",
-          "c4f8e1b72a": "X"
+          "c4f8e1b72a": "X",
+          "downloadOrca": "Descargar Orca",
+          "downloadSkills": "Descargar skills"
         },
         "SidebarToolbar": {
           "19e32d0e5f": "Abrir el selector de carpetas para agregar un proyecto",

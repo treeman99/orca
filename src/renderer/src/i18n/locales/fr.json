@@ -4809,7 +4809,9 @@
           "d396773ef0": "vérification",
           "f8a2c91d4e": "Jalons",
           "b7e4d2a19c": "Prise en main",
-          "c4f8e1b72a": "X"
+          "c4f8e1b72a": "X",
+          "downloadOrca": "Télécharger Orca",
+          "downloadSkills": "Télécharger les skills"
         },
         "SidebarToolbar": {
           "87d0064026": "Tableau des espaces de travail déplacé dans la barre inférieure",

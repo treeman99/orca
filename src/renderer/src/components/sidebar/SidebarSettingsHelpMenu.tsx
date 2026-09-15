@@ -30,6 +30,7 @@ import { SetupGuideProgressRing } from '../setup-guide/SetupGuideProgressRing'
 import { useSetupGuideProgress } from '../setup-guide/use-setup-guide-progress'
 import { translate } from '@/i18n/i18n'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
+import { SidebarDownloadMenuItems } from './SidebarDownloadMenuItems'
 
 // Lazy: the guide and its figures never load for a user who does not open it.
 
@@ -205,6 +206,7 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
           </TooltipContent>
         </Tooltip>
         <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-52">
+          <SidebarDownloadMenuItems />
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={openShortcutsSettings}>
             <Keyboard className="size-3.5" />

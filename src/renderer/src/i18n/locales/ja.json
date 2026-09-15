@@ -4426,7 +4426,9 @@
           "d396773ef0": "チェック中",
           "f8a2c91d4e": "マイルストーン",
           "b7e4d2a19c": "オンボーディング",
-          "c4f8e1b72a": "X"
+          "c4f8e1b72a": "X",
+          "downloadOrca": "Orca をダウンロード",
+          "downloadSkills": "スキルをダウンロード"
         },
         "SidebarToolbar": {
           "19e32d0e5f": "フォルダーピッカーを開いてプロジェクトを追加します",
