@@ -73,7 +73,7 @@ describe('packaged runtime resources', () => {
 
       expect(() => verifyPackagedMainRuntimeDeps(resourcesDir, asar)).not.toThrow()
     } finally {
-      await rm(resourcesDir, { recursive: true, force: true })
+      await removeTree(resourcesDir)
     }
   })
 

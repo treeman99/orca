@@ -13,17 +13,25 @@ vi.mock('./push-gateway-client', () => ({
 }))
 
 import { DeviceRegistry } from '../device-registry'
+import { RuntimeMobileNotificationController } from '../runtime-mobile-notification-controller'
 import { DesktopPushService } from './desktop-push-service'
 import { createPushHostKeypair } from './push-host-challenge-fixtures'
 import { PushUnregisterOutbox } from './push-unregister-outbox'
 import { resolvePushGatewayOrigin } from './push-gateway-origin'
 
-function createFromResolvedOrigin(env: NodeJS.ProcessEnv, packaged: boolean) {
+function createFromResolvedOrigin(
+  env: NodeJS.ProcessEnv,
+  packaged: boolean,
+  controller = new RuntimeMobileNotificationController()
+) {
   const userDataPath = mkdtempSync(join(tmpdir(), 'orca-push-removal-'))
   const registry = new DeviceRegistry(userDataPath)
   registry.addDevice('phone', 'mobile')
   return DesktopPushService.create({
-    runtime: { setMobilePushRegistrar: vi.fn(), onNotificationDispatched: vi.fn() } as never,
+    runtime: {
+      setMobilePushRegistrar: (registrar: never) => controller.setPushRegistrar(registrar),
+      onNotificationDispatched: vi.fn()
+    } as never,
     runtimeRpc: {
       getE2EEKeypair: () => createPushHostKeypair(),
       getDeviceRegistry: () => registry,
@@ -51,6 +59,22 @@ describe('removed vendor push gateway', () => {
       true
     )
     expect(service).toBeNull()
+    expect(gatewayClientConstructed).not.toHaveBeenCalled()
+  })
+
+  // Why: v1.4.203 added notifications.testPush, a second phone-triggered door into the gateway.
+  it('answers a paired phone test push as unavailable without building a gateway client', async () => {
+    const controller = new RuntimeMobileNotificationController()
+    // Same create → start sequence as startDesktopPushService.
+    createFromResolvedOrigin(
+      { ORCA_PUSH_GATEWAY_URL: 'https://push.gateway.test' },
+      true,
+      controller
+    )?.start()
+    await expect(controller.testPushDevice('phone')).resolves.toEqual({
+      accepted: false,
+      reason: 'unavailable'
+    })
     expect(gatewayClientConstructed).not.toHaveBeenCalled()
   })
 })
