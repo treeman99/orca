@@ -770,6 +770,32 @@
       ]
     },
     {
+      "id": "session-search-index-block",
+      "summary": "에이전트 세션 전문 검색 색인(v1.4.204 신규)을 이 빌드에서 막는다. 색인은 모든 에이전트 대화를 가공 없이 SQLite 파일로 복사하는데, 보존 기간·삭제 방식에 대한 사내 검토가 끝나기 전까지 설정·설정 파일 편집 어느 것으로도 켜지지 않는다. 검토가 끝나 풀 때는 상수와 이 항목을 같이 지운다.",
+      "present": [
+        {
+          "file": "src/shared/session-search-index-block.ts",
+          "contains": "export const SESSION_SEARCH_INDEX_BLOCKED: boolean = true",
+          "why": "포크 전용 파일이지만 값이 true 로 남아 있는 것 자체가 이 기능의 의미다. 검토 없이 false 로 바뀌지 않게 앵커로 둔다."
+        },
+        {
+          "file": "src/shared/ai-vault-search-settings.ts",
+          "contains": "enabled: !SESSION_SEARCH_INDEX_BLOCKED && 'enabled' in raw && raw.enabled === true",
+          "why": "설정을 읽고 쓰는 모든 곳(데스크톱 정책 소스·설정 IPC 저장·orcad)이 지나는 해석기. 빠지면 저장된 opt-in 이 그대로 켜짐으로 해석되고, 인스턴스 백스톱만 남아 상태가 enabled:true 로 보고된다."
+        },
+        {
+          "file": "src/main/ai-vault-search/session-search-instance.ts",
+          "contains": "if (!this.settings.enabled || SESSION_SEARCH_INDEX_BLOCKED) {",
+          "why": "인덱서와 DB 파일을 만드는 유일한 지점. upstream 에 호스트별 설정 브랜치(session-search-settings-hosts-*)가 있어 새 해석기가 위 게이트를 우회할 수 있다 — 그때 이 줄이 마지막 방어선이다."
+        },
+        {
+          "file": "config/vitest.config.ts",
+          "contains": "resolve('config/vitest-session-search-index-block-isolation.ts')",
+          "why": "스위트 전체에서 차단 상수를 false 로 목킹해 upstream 색인 테스트 18건을 살린다. 빠지면 그 18건이 이유 없이 빨개진다. 차단 자체의 증명은 session-search-index-block.test.ts 가 unmock 해서 한다."
+        }
+      ]
+    },
+    {
       "id": "windows-cold-activation-eager-mount",
       "summary": "Windows 에서 워크트리 활성화 시 숨은 탭 4개 이하는 전환 중에 한꺼번에 mount 한다(v1.4.200 동작). v1.4.201(#20034)이 예산을 0 으로 내려 숨은 형제 mount 가 reveal 직후 idle 프레임으로 밀리며, Windows 사내 빌드에서 Claude 패널 타이핑·커서가 간헐적으로 한동안 안 그려지는 신고와 겹쳤다.",
       "present": [

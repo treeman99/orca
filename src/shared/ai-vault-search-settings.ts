@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SESSION_SEARCH_INDEX_BLOCKED } from './session-search-index-block'
 
 /**
  * Consent and retention for the agent-session transcript index.
@@ -52,7 +53,8 @@ export function resolveAiVaultSearchSettings(
     return { ...DEFAULT_AI_VAULT_SEARCH_SETTINGS }
   }
   return {
-    enabled: 'enabled' in raw && raw.enabled === true,
+    // Fork: held off pending the corporate retention review; see session-search-index-block.ts.
+    enabled: !SESSION_SEARCH_INDEX_BLOCKED && 'enabled' in raw && raw.enabled === true,
     historyDays: normalizeAiVaultSearchHistoryDays('historyDays' in raw ? raw.historyDays : null)
   }
 }

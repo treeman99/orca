@@ -214,7 +214,8 @@ _upstream 이 이 파일을 쪼개면 내 변경이 사라지는가?_ 그렇다�
 
 **빌드에서 제거한 표면** — 인앱 자동 업데이트(+`electron-updater`), artifact 공유, 스킬 공유,
 Orca 클라우드, Bitbucket·Azure DevOps·Gitea, `docs/site` 배포 레인, 피드백·크래시 리포트 제출,
-사내 자체 호스팅 모델 레인.
+사내 자체 호스팅 모델 레인, 에이전트 세션 전문 검색 색인(보존·삭제 정책 사내 검토 전 보류 — 테스트는
+`config/vitest-session-search-index-block-isolation.ts` 가 차단을 풀고 돈다).
 
 **포크가 더한 기능** — 오케스트레이션 워커 패널 자동 분할(+최대 개수 설정, 완료 탭 자동 닫기,
 워커 프롬프트 진단 로그), opencode 평문 프롬프트 배달과 Enter 재전송 구제, 탭 팝아웃 창,
