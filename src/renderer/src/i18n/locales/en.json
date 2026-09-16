@@ -4209,7 +4209,9 @@
           },
           "ProjectViewStates": {
             "ac83c45672": "Switch to a Table or Roadmap view to work with this project in Orca.",
-            "e4cc8b14f2": "Orca renders table and roadmap project views. This view uses a layout it cannot render yet."
+            "e4cc8b14f2": "Orca renders table and roadmap project views. This view uses a layout it cannot render yet.",
+            "3b9c1d5e47": "This view has no items yet.",
+            "7e4a2f80c6": "Recently added items can take a while to appear."
           },
           "ProjectViewWrapper": {
             "030de75bc5": "This item matches multiple selected repositories.",
@@ -16089,14 +16091,16 @@
         "setupAgentStartupPolicySaveFailed": "Failed to save setup startup behavior."
       },
       "useGlobalFileDrop": {
-        "245faa95b9": "No remote workspace path is available for dropped files.",
         "38c9f034ff": "Failed to upload dropped files.",
         "d720e2f855": "Some dropped files could not be uploaded.",
-        "nativeDropPathsTooLarge": "Drop path list is too large.",
-        "nativeDropPathsTooLargeDescription": "Drop fewer files or use a shorter path list.",
-        "nativeDropTooManyPaths": "Drop contains too many files.",
+        "245faa95b9": "No remote workspace path is available for dropped files.",
         "nativeDropTooManyPathsDescription": "Drop {{value0}} or fewer files at a time.",
-        "ownerChanged": "Couldn't verify which host owns this workspace. Try again after it reconnects."
+        "nativeDropTooManyPaths": "Drop contains too many files.",
+        "nativeDropPathsTooLargeDescription": "Drop fewer files or use a shorter path list.",
+        "nativeDropPathsTooLarge": "Drop path list is too large.",
+        "ownerChanged": "Couldn't verify which host owns this workspace. Try again after it reconnects.",
+        "nativeDropUnresolvedPathsDescription": "Save them to disk first, then drop the saved files.",
+        "nativeDropUnresolvedPaths": "Orca couldn't read a path for the dropped files."
       },
       "useInstalledAgentSkills": {
         "unreadableSkillSource": "A skill folder did not respond, so this status may be incomplete."
@@ -17088,9 +17092,10 @@
     },
     "native-chat": {
       "approval": {
+        "title": "Allow {{value0}}?",
         "allow": "Allow",
         "deny": "Deny",
-        "title": "Allow {{value0}}?"
+        "cancel": "Cancel"
       },
       "backgroundTasks": {
         "agent": "Background agent",
@@ -17132,26 +17137,52 @@
         "groupTasks": "Tasks"
       },
       "composer": {
+        "imageUnsupported": "Image paste is not supported for this agent.",
+        "send": "Send",
+        "noPty": "No live terminal — toggle back to reconnect.",
+        "locked": "Input is held by another device.",
+        "placeholder": "Send a message…",
+        "mentionHint": "Referencing file:",
         "attach": "Attach file",
-        "availableAfterSessionStarts": "Available after the session starts.",
-        "chooseInAgentPicker": "Choose in agent picker…",
+        "startDictation": "Start dictation",
+        "stopDictation": "Stop dictation",
+        "noSkills": "No matching skills",
+        "noCommandsOrSkills": "No matching commands or skills",
+        "noCommands": "No matching commands",
         "commands": "Commands",
+        "skills": "Skills",
+        "loadingSkills": "Loading skills...",
+        "skillsLoaded": "Skills loaded",
+        "skillsUnavailableHost": "Skills are unavailable for this host",
+        "skillsLoadFailed": "Could not load skills from this host",
+        "retrySkills": "Retry",
+        "skillCommandCollision": "Also a skill name - agent decides",
+        "skillMultipleSources": "{{sourceCount}} sources - agent resolves",
+        "skillScopeProject": "Project",
+        "skillScopePersonal": "Personal",
+        "skillScopeBuiltIn": "Built-in",
+        "skillScopePlugin": "Plugin",
+        "localAttachmentUnsupported": "Local attachments are not available for remote sessions.",
+        "removeAttachment": "Remove attachment",
+        "pastedImageLabel": "Pasted image",
+        "imagePasteFailed": "Image paste failed.",
+        "imageSaving": "Saving pasted image…",
+        "worktreeNotReady": "Worktree not ready — try again in a moment.",
+        "uploadingAttachments": "Uploading {{value0}} file(s) to remote…",
+        "model": "Model",
         "effort": "Effort",
         "fastMode": "Fast mode",
-        "imagePasteFailed": "Image paste failed.",
-        "imagePreview": "Full-size image preview",
-        "imagePreviewUnavailable": "Preview unavailable",
-        "imageSaving": "Saving pasted image…",
-        "imageUnsupported": "Image paste is not supported for this agent.",
-        "loadingSkills": "Loading skills...",
-        "localAttachmentUnsupported": "Local attachments are not available for remote sessions.",
-        "locked": "Input is held by another device.",
-        "mentionHint": "Referencing file:",
-        "model": "Model",
-        "noCommands": "No matching commands",
-        "noCommandsOrSkills": "No matching commands or skills",
-        "noPty": "No live terminal — toggle back to reconnect.",
-        "noSkills": "No matching skills",
+        "thinking": "Thinking",
+        "options": "Options",
+        "sessionOptions": "Session options",
+        "chooseInAgentPicker": "Choose in agent picker…",
+        "toggleOption": "Toggle {{value0}}",
+        "pillAccessibleName": "{{value0}} {{value1}}",
+        "valueIsDefault": "Default",
+        "valueNotReported": "Not reported",
+        "sentNotConfirmed": "Sent to the agent — not confirmed",
+        "setWhenSessionStarts": "Set when the session starts.",
+        "availableAfterSessionStarts": "Available after the session starts.",
         "optionUpdateFailed": "Could not update option",
         "optionValue": {
           "fast": "Fast",
@@ -17160,40 +17191,16 @@
           "max": "Max",
           "medium": "Medium",
           "minimal": "Minimal",
-          "off": "Off",
-          "on": "On",
           "ultra": "Ultra",
           "xhigh": "Extra high"
         },
-        "options": "Options",
-        "pastedImageLabel": "Pasted image",
         "pendingAttachmentLimit": "Too many attachments are waiting. Finish composing before attaching more.",
-        "pillAccessibleName": "{{value0}} {{value1}}",
-        "placeholder": "Send a message…",
-        "removeAttachment": "Remove attachment",
-        "retrySkills": "Retry",
-        "send": "Send",
-        "sentNotConfirmed": "Sent to the agent — not confirmed",
-        "sessionOptions": "Session options",
-        "setWhenSessionStarts": "Set when the session starts.",
-        "skillCommandCollision": "Also a skill name - agent decides",
-        "skillMultipleSources": "{{sourceCount}} sources - agent resolves",
-        "skillScopeBuiltIn": "Built-in",
-        "skillScopePersonal": "Personal",
-        "skillScopePlugin": "Plugin",
-        "skillScopeProject": "Project",
-        "skills": "Skills",
-        "skillsLoadFailed": "Could not load skills from this host",
-        "skillsLoaded": "Skills loaded",
-        "skillsUnavailableHost": "Skills are unavailable for this host",
-        "startDictation": "Start dictation",
-        "stopDictation": "Stop dictation",
-        "thinking": "Thinking",
-        "toggleOption": "Toggle {{value0}}",
-        "uploadingAttachments": "Uploading {{value0}} file(s) to remote…",
-        "valueUnknown": "Current value unknown — pick On or Off",
         "viewAttachment": "View image",
-        "worktreeNotReady": "Worktree not ready — try again in a moment."
+        "imagePreview": "Full-size image preview",
+        "imagePreviewUnavailable": "Preview unavailable",
+        "workspaceAttachmentMismatch": "Files can only be attached to their source workspace.",
+        "attachmentOwnerChanged": "This workspace changed hosts while attaching — drop the files again.",
+        "attachmentUnreadable": "Couldn't read the dropped files."
       },
       "conversationCommand": {
         "pendingWork": "Wait for pending work and messages to finish before using this command.",
@@ -17371,6 +17378,10 @@
         "resolved": "Resolved",
         "resolver": "Answered on {{device}}",
         "cancelledBy": "Cancelled on {{device}}"
+      },
+      "drop": {
+        "title": "Drop to attach to this chat",
+        "subtitle": "Files are added to your message as paths the agent can read."
       }
     },
     "onboarding": {
@@ -17679,6 +17690,24 @@
           "readyOneMany": "1 workspace found, with {{value0}} cleanup suggestions.",
           "readyOneOne": "1 workspace found, with 1 cleanup suggestion.",
           "singleError": "Could not check {{value0}}: {{value1}}. Some workspaces may be missing. Refresh to try again."
+        }
+      }
+    },
+    "settings": {
+      "TerminalInteraction": {
+        "copyTrimsGutter": "Trim Gutter on Copy",
+        "copyTrimsGutterDescription": "Drop the left gutter agent output is painted behind, so copied text is not indented. Only the indent every selected line shares is removed."
+      },
+      "terminal": {
+        "clipboard": {
+          "search": {
+            "gutter": "gutter",
+            "indent": "indent",
+            "margin": "margin",
+            "leading": "leading",
+            "whitespace": "whitespace",
+            "spaces": "spaces"
+          }
         }
       }
     }

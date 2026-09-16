@@ -23,6 +23,8 @@ export type RemoteManagedHookInstallOptions = {
   deferTrustUntilConfigToml?: boolean
   /** Explicit GROK_HOME for remote runtimes that redirect Grok's config. */
   grokHomeDir?: string
+  /** Version reported by Claude on this execution host. */
+  claudeVersion?: string
   /** Stops before starting the next installer when the owning relay request
    *  is cancelled. Individual filesystem mutations remain atomic. */
   signal?: AbortSignal
@@ -41,7 +43,13 @@ type RemoteManagedHookInstaller = readonly [
 ]
 
 const REMOTE_MANAGED_HOOK_INSTALLERS: readonly RemoteManagedHookInstaller[] = [
-  ['claude', (sftp, remoteHome) => claudeHookService.installRemote(sftp, remoteHome)],
+  [
+    'claude',
+    (sftp, remoteHome, options) =>
+      claudeHookService.installRemote(sftp, remoteHome, {
+        claudeVersion: options?.claudeVersion
+      })
+  ],
   ['openclaude', (sftp, remoteHome) => openClaudeHookService.installRemote(sftp, remoteHome)],
   [
     'codex',

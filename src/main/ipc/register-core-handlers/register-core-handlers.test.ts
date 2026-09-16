@@ -30,6 +30,7 @@ const {
   registerRuntimeEnvironmentHandlersMock,
   registerEphemeralVmHandlersMock,
   registerAiVaultHandlersMock,
+  registerAiVaultSearchHandlersMock,
   registerOrcaProfileHandlersMock,
   registerCodexAccountHandlersMock,
   registerAgentHookHandlersMock,
@@ -102,6 +103,7 @@ const {
   registerRuntimeEnvironmentHandlersMock: vi.fn(),
   registerEphemeralVmHandlersMock: vi.fn(),
   registerAiVaultHandlersMock: vi.fn(),
+  registerAiVaultSearchHandlersMock: vi.fn(),
   registerOrcaProfileHandlersMock: vi.fn(),
   registerCodexAccountHandlersMock: vi.fn(),
   registerAgentHookHandlersMock: vi.fn(),
@@ -153,7 +155,8 @@ const getEnterprisePolicyMock = vi.hoisted(() =>
 
 vi.mock('electron', () => ({
   app: {
-    getPath: getPathMock
+    getPath: getPathMock,
+    once: vi.fn()
   },
   // Why: the fork's registrars (enterprise policy, GHES login, gateway sign-in) reach ipcMain
   // during registerCoreHandlers, which upstream's partial electron mock does not provide.
@@ -359,6 +362,10 @@ vi.mock('../ephemeral-vm', () => ({
 
 vi.mock('../ai-vault', () => ({
   registerAiVaultHandlers: registerAiVaultHandlersMock
+}))
+
+vi.mock('../ai-vault-search', () => ({
+  registerAiVaultSearchHandlers: registerAiVaultSearchHandlersMock
 }))
 
 vi.mock('../orca-profiles', () => ({

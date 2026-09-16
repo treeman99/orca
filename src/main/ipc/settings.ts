@@ -12,7 +12,9 @@ import { track } from '../telemetry/client'
 import { SETTINGS_CHANGED_WHITELIST, type SettingsChangedKey } from '../../shared/telemetry-events'
 import type { AgentAwakeService } from '../agent-awake-service'
 import { sanitizeFloatingWorkspaceDirectorySetting } from './floating-workspace-directory'
-import { applyAgentStatusHooksEnabledUnderEnterprisePolicy } from '../agent-hooks/enterprise-agent-hook-policy'
+// Aliased to upstream's name so the call site below stays byte-identical to upstream — the
+// enterprise gate lives in the wrapper, not here.
+import { applyAgentStatusHooksEnabledUnderEnterprisePolicy as applyAgentStatusHooksEnabled } from '../agent-hooks/enterprise-agent-hook-policy'
 import { recordManagedHookInstallFailure } from '../agent-hooks/install-telemetry'
 import { applyElectronProxySettings } from '../network/proxy-settings'
 import { applyBrowserSessionProxies } from '../browser/browser-session-proxy'
@@ -37,6 +39,8 @@ import {
   computerAwakeSettingsForMode,
   normalizeComputerAwakeMode
 } from '../../shared/computer-awake-mode'
+import { resolveAiVaultSearchSettings } from '../../shared/ai-vault-search-settings'
+import { applySessionSearchSettingsChange } from '../ai-vault-search/session-search-enablement'
 
 // Why: the whitelist is the source-of-truth for which keys we emit on. Casting
 // to a Set once at module load lets the IPC handler's per-key membership
@@ -161,6 +165,9 @@ export function registerSettingsHandlers(
     if ('appIcon' in args) {
       sanitizedArgs.appIcon = normalizeAppIconId(args.appIcon)
     }
+    if ('aiVaultSearch' in args) {
+      sanitizedArgs.aiVaultSearch = resolveAiVaultSearchSettings(args)
+    }
     if ('terminalCustomThemes' in args) {
       sanitizedArgs.terminalCustomThemes = normalizeTerminalCustomThemes(args.terminalCustomThemes)
     }
@@ -234,22 +241,18 @@ export function registerSettingsHandlers(
         !haveSameDisabledTuiAgents(before.disabledTuiAgents, result.disabledTuiAgents))
     if (hookSettingChanged) {
       try {
-        await applyAgentStatusHooksEnabledUnderEnterprisePolicy(
-          result.agentStatusHooksEnabled,
-          result,
-          {
-            userInitiated: true,
-            shouldHydrateShellPath: app.isPackaged,
-            onInstallError: recordManagedHookInstallFailure,
-            shouldContinue: (agent) => {
-              const settings = store.getSettings()
-              return (
-                settings.agentStatusHooksEnabled !== false &&
-                !settings.disabledTuiAgents.includes(agent)
-              )
-            }
+        await applyAgentStatusHooksEnabled(result.agentStatusHooksEnabled, result, {
+          userInitiated: true,
+          shouldHydrateShellPath: app.isPackaged,
+          onInstallError: recordManagedHookInstallFailure,
+          shouldContinue: (agent) => {
+            const settings = store.getSettings()
+            return (
+              settings.agentStatusHooksEnabled !== false &&
+              !settings.disabledTuiAgents.includes(agent)
+            )
           }
-        )
+        })
       } catch (error) {
         console.warn('[settings] failed to reconcile managed agent hooks:', error)
       }
@@ -270,6 +273,9 @@ export function registerSettingsHandlers(
     }
     if ('appIcon' in sanitizedArgs && before.appIcon !== result.appIcon) {
       applyAppIcon(result.appIcon)
+    }
+    if ('aiVaultSearch' in sanitizedArgs) {
+      applySessionSearchSettingsChange(before, result)
     }
 
     // Why: telemetry-plan.md§Settings — fire `settings_changed` only for

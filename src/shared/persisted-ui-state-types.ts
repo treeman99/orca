@@ -123,7 +123,7 @@ export type PersistedUIState = {
   usagePercentageDisplay?: UsagePercentageDisplay
   /** Client-side footer presentation; verbose preserves the pre-roster all-window default. */
   statusBarUsageMode?: StatusBarUsageMode
-  /** App version that last dismissed the unexpected-sign-out card; null = never. Re-arms on each new version while still signed out. */
+  /** Version when the sign-out notice was seen or dismissed; any value suppresses future appearances. */
   dismissedUnexpectedSignoutVersion?: string | null
   /** Whether Orca already tried triggering the macOS notification permission dialog; prevents re-firing every launch. */
   notificationPermissionRequested?: boolean
