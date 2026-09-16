@@ -65,7 +65,8 @@ describe('unexpected signout lifecycle', () => {
       dismissedUnexpectedSignoutVersion: '1.4.197',
       fetchOrcaProfileAuthStatus: vi.fn().mockResolvedValue(status)
     })
-    vi.mocked(window.api.updater.getVersion).mockResolvedValue('1.4.999')
+    // Fork: the updater bridge is removed; the app bridge serves the same version.
+    vi.mocked(window.api.app.getVersion).mockResolvedValue('1.4.999')
     render(<UnexpectedSignoutCard />)
     await act(async () => {})
     expect(screen.queryByRole('complementary')).toBeNull()

@@ -549,7 +549,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.203`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.204`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -762,6 +762,28 @@ v1.4.196은 **`max-lines` 우회 34건을 한 릴리스에서 청산**했습니�
    comm -23 <(git ls-tree -r --name-only <옛태그> | sort) <(git ls-tree -r --name-only <포크tip> | sort)  # 삭제 목록
    git diff --name-status <옛태그> <새태그> | awk '$1=="A"{print $2}'                                     # 신규 목록
    ```
+
+#### upstream 파일이 `max-lines` 상한에 닿을 때 — 별칭 임포트로 호출부를 되돌려라 (v1.4.204에서 실제로 겪음)
+
+v1.4.204가 `src/main/ipc/settings.ts`에 8줄을 더하자, 포크가 넣어 둔 4줄과 합쳐져 oxlint의 300줄
+상한을 **2줄** 넘겨 커밋 자체가 막혔습니다. 포크의 4줄은 새 코드가 아니라 **포맷 차이**였습니다 —
+게이트가 붙은 래퍼 이름(`applyAgentStatusHooksEnabledUnderEnterprisePolicy`)이 upstream 이름보다
+길어서 oxfmt가 인자 목록을 다르게 접었기 때문입니다.
+
+해법은 게이트를 빼는 것도, 모듈로 뽑는 것도 아니라 **별칭 임포트**였습니다:
+
+```ts
+// Aliased to upstream's name so the call site below stays byte-identical to upstream — the
+// enterprise gate lives in the wrapper, not here.
+import { applyAgentStatusHooksEnabledUnderEnterprisePolicy as applyAgentStatusHooksEnabled } from '../agent-hooks/enterprise-agent-hook-policy'
+```
+
+**이득이 둘입니다.** ① 호출부가 upstream과 **바이트 동일**해져 4줄이 줄고, ② 그 hunk는 앞으로
+**충돌하지 않습니다**. 대신 앵커가 호출부에서 임포트 줄로 옮겨 가므로 원장의 `contains`를 임포트
+문자열로 적어야 합니다(`applyAgentStatusHooksEnabledUnderEnterprisePolicy as applyAgentStatusHooksEnabled`).
+
+> 이 수법은 **래퍼의 시그니처가 upstream 함수와 같을 때만** 씁니다. 인자가 다르면 별칭이 거짓말이
+> 되고, 그때는 guard 모듈 추출이 맞습니다.
 
 **게이트를 다시 심을 때의 요령.** 새 위치는 기계적으로 찾을 수 있습니다 — 포크 hunk의 **컨텍스트 라인**을
 upstream 새 트리에서 grep하면 그 코드가 어느 모듈로 갔는지 나옵니다. 클래스 체인으로 쪼개진 런타임
