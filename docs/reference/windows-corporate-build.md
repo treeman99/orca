@@ -70,7 +70,7 @@ pnpm build:desktop                 → 성공 (typecheck→relay→cli→electro
 pnpm test <단위 테스트>             → 통과
 ```
 
-`pnpm install`은 `WARN Unsupported engine: wanted {"node":"24"}` 경고를 내지만 **계속 진행합니다** — `.npmrc`에 `engine-strict`가 없어 `package.json:250-252`의 `engines` 핀이 강제되지 않기 때문입니다.
+`pnpm install`은 `WARN Unsupported engine: wanted {"node":"24"}` 경고를 내지만 **계속 진행합니다** — `.npmrc`에 `engine-strict`가 없어 `package.json:321-323`의 `engines` 핀이 강제되지 않기 때문입니다.
 
 > **정직한 한계**: 위 실측은 macOS이고, Windows + 최신 Node 조합은 **CI에서도 저장소 이력에서도 한 번도 실행된 적이 없습니다.** 데스크톱 CI 잡은 전부 `node-version-file: package.json`으로 Node 24를 해석하고(모바일 릴리스 두 잡만 `node-version: 24`로 직접 적습니다 — `mobile-ios-release.yml:51`, `mobile-android-release.yml:44`), **릴리스** Windows 잡은 `windows-2022`에 고정되어 있습니다(`release-cut.yml:985`). 다만 Windows 러너가 전부 2022인 것은 아닙니다 — `computer-e2e.yml:190-192`의 `windows` 잡은 `windows-latest`를 씁니다.
 
