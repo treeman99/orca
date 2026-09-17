@@ -24,6 +24,7 @@ import type { TabDropZone } from './useTabDragSplit'
 import { translate } from '@/i18n/i18n'
 import type { AiVaultPrepareSessionResumeResult } from '../../../../shared/ai-vault-resume-preparation'
 import { activateAiVaultStructuredSession } from '@/lib/activate-ai-vault-structured-session'
+import { markAiVaultSessionReused } from '@/lib/ai-vault-session-reuse'
 
 type PaneDropTarget = {
   groupId: string
@@ -219,6 +220,12 @@ export default function AiVaultSessionDropLayer({
             'Session queued'
           )
         )
+      }
+      if (payload.sessionFilePath) {
+        markAiVaultSessionReused({
+          filePath: payload.sessionFilePath,
+          executionHostId: payload.sessionExecutionHostId
+        })
       }
       const preparation =
         payload.sessionFilePath &&

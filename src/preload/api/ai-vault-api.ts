@@ -39,6 +39,8 @@ export type AiVaultApi = {
   prepareSessionResume: (
     args: AiVaultPrepareSessionResumeArgs
   ) => Promise<AiVaultPrepareSessionResumeResult>
+  /** Fork: a past session was reused, so its session search retention restarts. Desktop only. */
+  markSessionReused?: (args: { filePath: string; executionHostId?: string }) => Promise<void>
   /** Lists the Task subagent transcripts of one session, on demand. */
   listSubagentSessions: (args: AiVaultSubagentListArgs) => Promise<AiVaultSubagentListResult>
   /** Full first user prompt for copy/reuse (re-parses one transcript). */

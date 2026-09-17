@@ -1,5 +1,6 @@
 import { cwdKey } from './session-search-file-records'
 import type { SessionSearchFilters } from './session-search-engine-types'
+import { SESSION_SEARCH_REUSED_SINCE_SQL } from './session-search-reuse'
 
 /** SQL fragments for the `sessions` WHERE clause; every condition is ANDed. */
 export type SessionRowFilter = {
@@ -37,8 +38,11 @@ export function sessionRowFilter(
 ): SessionRowFilter {
   const filter: SessionRowFilter = { conditions: [], values: [] }
   if (cutoffMs !== null) {
-    filter.conditions.push('id IN (SELECT session_row_id FROM files WHERE mtime_ms >= ?)')
-    filter.values.push(cutoffMs)
+    // Fork: a transcript reused inside the window still answers; see session-search-reuse.ts.
+    filter.conditions.push(
+      `id IN (SELECT session_row_id FROM files WHERE mtime_ms >= ? OR ${SESSION_SEARCH_REUSED_SINCE_SQL})`
+    )
+    filter.values.push(cutoffMs, cutoffMs)
   }
   if (filters.agents && filters.agents.length > 0) {
     filter.conditions.push(`agent IN (${filters.agents.map(() => '?').join(',')})`)

@@ -27,6 +27,7 @@ import {
 } from '../../shared/ai-vault-types'
 import { handleAiVaultGetFirstUserPrompt } from '../ai-vault/session-first-user-prompt-handler'
 import { registerAiVaultResumeHandler, type AiVaultResumeHandlerOptions } from './ai-vault-resume'
+import { registerAiVaultSessionReuseHandler } from './ai-vault-session-reuse'
 import {
   LOCAL_EXECUTION_HOST_ID,
   parseExecutionHostId,
@@ -303,6 +304,8 @@ export function registerAiVaultHandlers(options: AiVaultHandlerOptions = {}): vo
     }
   )
   registerAiVaultResumeHandler(options)
+  // Fork: reuse restarts session search retention.
+  registerAiVaultSessionReuseHandler()
   ipcMain.handle(
     'aiVault:listSubagentSessions',
     (_event, args?: AiVaultSubagentListArgs): Promise<AiVaultSubagentListResult> =>

@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import SyncDatabase from '../sqlite/sync-database'
 import { removeTreeSync } from '../../shared/windows-transient-lock-removal'
+import { ensureSessionSearchReuseTable } from './session-search-reuse'
 
 // The index stores transcript content as written, with no redaction. A secret in
 // a transcript is already plaintext under the user's home directory and is
@@ -131,6 +132,8 @@ function openExisting(path: string): SyncDatabase {
       db = openWithPragmas(path)
     }
     db.exec(SCHEMA_SQL)
+    // Fork: reuse restarts retention; see session-search-reuse.ts.
+    ensureSessionSearchReuseTable(db)
     db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
       'schema_version',
       String(SESSION_SEARCH_SCHEMA_VERSION)

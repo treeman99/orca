@@ -770,28 +770,102 @@
       ]
     },
     {
-      "id": "session-search-index-block",
-      "summary": "에이전트 세션 전문 검색 색인(v1.4.204 신규)을 이 빌드에서 막는다. 색인은 모든 에이전트 대화를 가공 없이 SQLite 파일로 복사하는데, 보존 기간·삭제 방식에 대한 사내 검토가 끝나기 전까지 설정·설정 파일 편집 어느 것으로도 켜지지 않는다. 검토가 끝나 풀 때는 상수와 이 항목을 같이 지운다.",
+      "id": "session-search-retention",
+      "summary": "에이전트 세션 전문 검색 색인의 사내 보존 규칙. 어떤 설정이든 최대 2주(\"전체 기간\"도 2주)이고, 사용자가 과거 세션을 다시 쓰면(재개·새 채팅 재개·재개 명령 복사·새 세션으로 이어가기·탭 드롭·첫 프롬프트 복사) 그 순간부터 2주가 다시 시작된다. Windows 앱 제거 시 색인 파일을 지운다(업데이트 때는 유지).",
       "present": [
         {
-          "file": "src/shared/session-search-index-block.ts",
-          "contains": "export const SESSION_SEARCH_INDEX_BLOCKED: boolean = true",
-          "why": "포크 전용 파일이지만 값이 true 로 남아 있는 것 자체가 이 기능의 의미다. 검토 없이 false 로 바뀌지 않게 앵커로 둔다."
+          "file": "src/shared/session-search-retention-cap.ts",
+          "contains": "export const SESSION_SEARCH_MAX_HISTORY_DAYS: number | null = 14",
+          "why": "값 자체가 규칙이다. 넓히려면 사내 보존 정책 변경이 먼저다."
         },
         {
           "file": "src/shared/ai-vault-search-settings.ts",
-          "contains": "enabled: !SESSION_SEARCH_INDEX_BLOCKED && 'enabled' in raw && raw.enabled === true",
-          "why": "설정을 읽고 쓰는 모든 곳(데스크톱 정책 소스·설정 IPC 저장·orcad)이 지나는 해석기. 빠지면 저장된 opt-in 이 그대로 켜짐으로 해석되고, 인스턴스 백스톱만 남아 상태가 enabled:true 로 보고된다."
+          "contains": "historyDays: capSessionSearchHistoryDays(null)",
+          "why": "설정이 없는 프로필의 기본값. 빠지면 상태·UI 가 \"전체 기간\"으로 보고된다(실제 창은 아래 줄이 막음)."
         },
         {
-          "file": "src/main/ai-vault-search/session-search-instance.ts",
-          "contains": "if (!this.settings.enabled || SESSION_SEARCH_INDEX_BLOCKED) {",
-          "why": "인덱서와 DB 파일을 만드는 유일한 지점. upstream 에 호스트별 설정 브랜치(session-search-settings-hosts-*)가 있어 새 해석기가 위 게이트를 우회할 수 있다 — 그때 이 줄이 마지막 방어선이다."
+          "file": "src/shared/ai-vault-search-settings.ts",
+          "contains": "return capSessionSearchHistoryDays(days <= 0 ? null : Math.min(HISTORY_DAYS_MAX, days))",
+          "why": "모든 창 계산(설정 해석·sessionSearchHistoryCutoffMs)이 지나는 초크포인트. 빠지면 보존 기간이 upstream 대로 무제한이 된다."
+        },
+        {
+          "file": "src/main/ai-vault-search/session-search-schema.ts",
+          "contains": "ensureSessionSearchReuseTable(db)",
+          "why": "재사용 기록 테이블. 빠지면 아래 SQL 이 전부 no such table 로 죽는다."
+        },
+        {
+          "file": "src/main/ai-vault-search/session-search-retention-delete.ts",
+          "contains": "WHERE path = ? AND mtime_ms < ? AND NOT ${SESSION_SEARCH_REUSED_SINCE_SQL}",
+          "why": "잠금 안 재확인. 목록 조회 쪽 제외는 최적화이고 이 줄이 방어선이다. 빠지면 재사용 세션이 5분마다 지워졌다 다시 색인돼 FTS 가 부푼다."
+        },
+        {
+          "file": "src/main/ai-vault-search/session-search-retention-delete.ts",
+          "contains": "pruneSessionSearchReuse(db, cutoffMs)"
+        },
+        {
+          "file": "src/main/ai-vault-search/session-search-row-filter.ts",
+          "contains": "mtime_ms >= ? OR ${SESSION_SEARCH_REUSED_SINCE_SQL}",
+          "why": "검색 결과 필터. 빠지면 재사용으로 되살린 세션이 색인에는 있는데 검색에 안 나온다."
+        },
+        {
+          "file": "src/main/ai-vault-search/session-search-index-pass.ts",
+          "contains": "cutoffMs: reused?.has(path) ? null : cutoffMs",
+          "why": "읽을지 결정. 빠지면 만료된 세션을 재사용해도 다시 색인되지 않는다."
+        },
+        {
+          "file": "src/main/ai-vault-search/session-search-store.ts",
+          "contains": "isSessionSearchPathReused(this.db, candidate.file.path, this.retentionCutoffMs)"
+        },
+        {
+          "file": "src/main/ai-vault/session-scanner-service-protocol.ts",
+          "contains": "operation: 'searchMarkReused'; paths: string[]",
+          "why": "색인 DB 는 스캐너 자식만 쓴다. 재사용 기록은 이 프로토콜 동작으로만 들어간다."
+        },
+        {
+          "file": "src/main/ai-vault/session-scanner-service-search.ts",
+          "contains": "recordSessionSearchReuseInDatabase(this.databasePath, request.paths, Date.now())"
+        },
+        {
+          "file": "src/main/ai-vault/session-scanner-service-spawn.ts",
+          "contains": "operation: 'searchMarkReused', paths"
+        },
+        {
+          "file": "src/main/ipc/ai-vault.ts",
+          "contains": "registerAiVaultSessionReuseHandler()"
+        },
+        {
+          "file": "src/preload/api/ai-vault-bridge.ts",
+          "contains": "ipcRenderer.invoke('aiVault:markSessionReused', args)"
+        },
+        {
+          "file": "src/renderer/src/lib/ai-vault-session-resume-preparation.ts",
+          "contains": "markAiVaultSessionReused(session)",
+          "why": "터미널 재개·새 채팅 재개·재개 명령 복사가 모두 지나는 렌더러 초크포인트. 일반 Claude 재개는 main 을 거치지 않으므로 여기서 알려야 한다."
+        },
+        {
+          "file": "src/renderer/src/components/right-sidebar/ai-vault-session-launch-actions.ts",
+          "contains": "markAiVaultSessionReused(session)",
+          "why": "새 세션으로 이어가기."
+        },
+        {
+          "file": "src/renderer/src/components/tab-group/AiVaultSessionDropLayer.tsx",
+          "contains": "markAiVaultSessionReused({",
+          "why": "탭으로 끌어다 놓아 재개."
+        },
+        {
+          "file": "src/renderer/src/components/right-sidebar/ai-vault-first-prompt-card.tsx",
+          "contains": "markAiVaultSessionReused({ filePath, executionHostId })",
+          "why": "첫 프롬프트 복사. 카드를 열기만 하는 것은 재사용이 아니다."
+        },
+        {
+          "file": "config/nsis/orca-installer-hooks.nsh",
+          "contains": "Delete \"$APPDATA\\Orca\\ai-vault\\session-search.sqlite\"",
+          "why": "실제 제거일 때만(${isUpdated} 가드 안). config/scripts/nsis-session-search-uninstall.test.mjs 가 가드 안에 있는지까지 본다."
         },
         {
           "file": "config/vitest.config.ts",
-          "contains": "resolve('config/vitest-session-search-index-block-isolation.ts')",
-          "why": "스위트 전체에서 차단 상수를 false 로 목킹해 upstream 색인 테스트 18건을 살린다. 빠지면 그 18건이 이유 없이 빨개진다. 차단 자체의 증명은 session-search-index-block.test.ts 가 unmock 해서 한다."
+          "contains": "resolve('config/vitest-session-search-retention-isolation.ts')",
+          "why": "스위트에서 2주 상한을 풀어 upstream 보존 테스트 9건을 살린다. 상한 증명은 session-search-retention-cap.test.ts 와 session-search-reuse-retention.test.ts 가 unmock 해서 한다."
         }
       ]
     },

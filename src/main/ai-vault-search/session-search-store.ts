@@ -12,6 +12,7 @@ import {
 } from './session-search-index-writer'
 import { deleteExpiredSearchFiles, drainOrphanedMessages } from './session-search-retention-delete'
 import { openSessionSearchDatabase } from './session-search-schema'
+import { isSessionSearchPathReused } from './session-search-reuse'
 
 /**
  * What a row still owes a reader.
@@ -144,7 +145,12 @@ export class SessionSearchStore {
    * would otherwise index rows the next purge deletes again.
    */
   private withinRetention(candidate: SessionFileCandidate): boolean {
-    return this.retentionCutoffMs === null || candidate.file.mtimeMs >= this.retentionCutoffMs
+    return (
+      this.retentionCutoffMs === null ||
+      candidate.file.mtimeMs >= this.retentionCutoffMs ||
+      // Fork: reuse restarts retention; see session-search-reuse.ts.
+      isSessionSearchPathReused(this.db, candidate.file.path, this.retentionCutoffMs)
+    )
   }
 
   indexedFile(path: string, identity: SessionSearchFileIdentity): SessionSearchIndexedFile | null {

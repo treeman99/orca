@@ -109,6 +109,11 @@ export function reconcileSessionSearchInService(): Promise<void> {
   return getSharedClient().request({ type: 'request', operation: 'searchReconcile' })
 }
 
+// Fork: reuse restarts session search retention; see ai-vault-search/session-search-reuse.ts.
+export function markSessionSearchReusedInService(paths: string[]): Promise<void> {
+  return getSharedClient().request({ type: 'request', operation: 'searchMarkReused', paths })
+}
+
 /** Boot and every settings change: push the policy and keep a child while the index runs. */
 export function updateSessionSearchInService(init: AiVaultSessionSearchInit): void {
   getSharedClient().updateSessionSearch(init)

@@ -6,7 +6,6 @@ import type {
 } from '../../shared/ai-vault-search-types'
 import { unavailableSessionSearchStatus } from '../../shared/ai-vault-search-client'
 import type { AiVaultSearchSettings } from '../../shared/ai-vault-search-settings'
-import { SESSION_SEARCH_INDEX_BLOCKED } from '../../shared/session-search-index-block'
 import { SessionSearchEngine } from './session-search-engine'
 import { SessionSearchIndexer } from './session-search-indexer'
 import { sessionSearchHistoryCutoffMs } from './session-search-retention-policy'
@@ -108,8 +107,7 @@ export class SessionSearchInstance {
   }
 
   private construct(): void {
-    // Fork: the backstop behind resolveAiVaultSearchSettings; see session-search-index-block.ts.
-    if (!this.settings.enabled || SESSION_SEARCH_INDEX_BLOCKED) {
+    if (!this.settings.enabled) {
       return
     }
     const { historyDays } = this.settings

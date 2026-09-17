@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { SESSION_SEARCH_INDEX_BLOCKED } from './session-search-index-block'
+import { capSessionSearchHistoryDays } from './session-search-retention-cap'
 
 /**
  * Consent and retention for the agent-session transcript index.
@@ -19,7 +19,8 @@ export type AiVaultSearchSettings = {
 
 export const DEFAULT_AI_VAULT_SEARCH_SETTINGS: AiVaultSearchSettings = {
   enabled: false,
-  historyDays: null
+  // Fork: capped retention; see session-search-retention-cap.ts.
+  historyDays: capSessionSearchHistoryDays(null)
 }
 
 const HISTORY_DAYS_MAX = 3_650
@@ -30,13 +31,14 @@ export const AiVaultSearchSettingsSchema: z.ZodType<AiVaultSearchSettings> = z.o
 })
 
 export function normalizeAiVaultSearchHistoryDays(value: unknown): number | null {
+  // Fork: every path to a window goes through the cap; see session-search-retention-cap.ts.
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
-    return null
+    return capSessionSearchHistoryDays(null)
   }
   // A fractional day floors to 0, which reads as "all history" on one side and
   // "now" on the other; make the two agree.
   const days = Math.floor(value)
-  return days <= 0 ? null : Math.min(HISTORY_DAYS_MAX, days)
+  return capSessionSearchHistoryDays(days <= 0 ? null : Math.min(HISTORY_DAYS_MAX, days))
 }
 
 /**
@@ -53,8 +55,7 @@ export function resolveAiVaultSearchSettings(
     return { ...DEFAULT_AI_VAULT_SEARCH_SETTINGS }
   }
   return {
-    // Fork: held off pending the corporate retention review; see session-search-index-block.ts.
-    enabled: !SESSION_SEARCH_INDEX_BLOCKED && 'enabled' in raw && raw.enabled === true,
+    enabled: 'enabled' in raw && raw.enabled === true,
     historyDays: normalizeAiVaultSearchHistoryDays('historyDays' in raw ? raw.historyDays : null)
   }
 }

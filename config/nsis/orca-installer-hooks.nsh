@@ -94,6 +94,23 @@
     ; Give the OS a moment to release the image lock before removing the tree.
     Sleep 500
     RMDir /r "$LOCALAPPDATA\Orca\daemon-host"
+    ; Fork: the session search index copies agent transcripts into SQLite, and that copy must not
+    ; outlive the app. Inside the ${isUpdated} guard so an update keeps the index. Electron keeps
+    ; userData per user even on a per-machine install, so read APPDATA in the current user's
+    ; context, as electron-builder's own deleteAppDataOnUninstall does. The daemon kill above has
+    ; already ended the scanner child that holds the file open. The path must stay in sync with
+    ; sessionSearchDatabasePath in src/main/ai-vault-search/session-search-database-path.ts and the
+    ; suffixes with removeSessionSearchDatabase in session-search-schema.ts.
+    ${if} $installMode == "all"
+      SetShellVarContext current
+    ${endIf}
+    Delete "$APPDATA\Orca\ai-vault\session-search.sqlite"
+    Delete "$APPDATA\Orca\ai-vault\session-search.sqlite-wal"
+    Delete "$APPDATA\Orca\ai-vault\session-search.sqlite-shm"
+    Delete "$APPDATA\Orca\ai-vault\session-search.sqlite-journal"
+    ${if} $installMode == "all"
+      SetShellVarContext all
+    ${endIf}
   ${endIf}
   ; Why outside the ${isUpdated} guard: customInstall rewrites these on every update, so
   ; dropping them during uninstallOldVersion is correct and keeps the pair symmetric.

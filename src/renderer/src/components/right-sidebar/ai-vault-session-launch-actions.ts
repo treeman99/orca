@@ -13,6 +13,7 @@ import { translate } from '@/i18n/i18n'
 import { agentLabel } from './ai-vault-session-filters'
 import type { AiVaultSessionResumeTargetState } from './ai-vault-session-resume'
 import { prepareAiVaultSessionContinuation } from './ai-vault-session-continuation'
+import { markAiVaultSessionReused } from '@/lib/ai-vault-session-reuse'
 import type { AgentSessionContinuationRequest } from '@/lib/agent-session-continuation'
 import { activateAiVaultStructuredSession } from '@/lib/activate-ai-vault-structured-session'
 import { isAgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
@@ -189,6 +190,7 @@ export function useAiVaultSessionLaunchActions({
         )
         return
       }
+      markAiVaultSessionReused(session)
       setContinuationRequest(
         prepareAiVaultSessionContinuation({
           session,

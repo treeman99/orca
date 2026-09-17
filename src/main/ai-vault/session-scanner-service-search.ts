@@ -7,6 +7,7 @@ import {
   type SessionSearchScanRoots
 } from '../ai-vault-search/session-search-scan-roots'
 import { sessionSearchSqliteAvailable } from '../ai-vault-search/session-search-sqlite-support'
+import { recordSessionSearchReuseInDatabase } from '../ai-vault-search/session-search-reuse-record'
 import type {
   AiVaultServiceRequest,
   AiVaultServiceResultValue,
@@ -15,7 +16,7 @@ import type {
 
 type SearchOperation = Extract<
   AiVaultServiceRequest,
-  { operation: 'searchSessions' | 'searchStatus' | 'searchReconcile' }
+  { operation: 'searchSessions' | 'searchStatus' | 'searchReconcile' | 'searchMarkReused' }
 >
 
 /**
@@ -61,7 +62,8 @@ export class SessionScannerServiceSearch {
     return (
       request.operation === 'searchSessions' ||
       request.operation === 'searchStatus' ||
-      request.operation === 'searchReconcile'
+      request.operation === 'searchReconcile' ||
+      request.operation === 'searchMarkReused'
     )
   }
 
@@ -72,6 +74,13 @@ export class SessionScannerServiceSearch {
         operation: 'searchStatus',
         value: instance?.status() ?? unavailableSessionSearchStatus()
       }
+    }
+    if (request.operation === 'searchMarkReused') {
+      // Fork: reuse restarts retention; nothing is stamped while no index is live.
+      if (instance?.running && this.databasePath) {
+        recordSessionSearchReuseInDatabase(this.databasePath, request.paths, Date.now())
+      }
+      return { operation: 'searchMarkReused', value: null }
     }
     if (request.operation === 'searchReconcile') {
       await instance?.reconcile()

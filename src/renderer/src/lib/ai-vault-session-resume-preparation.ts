@@ -4,10 +4,13 @@ import {
   isPerAccountManagedCodexHome
 } from '../../../shared/ai-vault-resume-preparation'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
+import { markAiVaultSessionReused } from './ai-vault-session-reuse'
 
 export async function prepareAiVaultSessionForResume(
   session: AiVaultSession
 ): Promise<AiVaultSession> {
+  // Fork: every resume path (terminal, new chat, copied command) passes here.
+  markAiVaultSessionReused(session)
   if (!session.structuredSession && !aiVaultSessionNeedsResumePreparation(session)) {
     return session
   }

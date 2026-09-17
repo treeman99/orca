@@ -40,6 +40,8 @@ export const aiVaultApi = {
     ipcRenderer.invoke('aiVault:cancelListSessions', args),
   prepareSessionResume: (args: AiVaultPrepareSessionResumeArgs) =>
     ipcRenderer.invoke('aiVault:prepareSessionResume', args),
+  markSessionReused: (args: { filePath: string; executionHostId?: string }): Promise<void> =>
+    ipcRenderer.invoke('aiVault:markSessionReused', args),
   listSubagentSessions: (args: AiVaultSubagentListArgs) =>
     ipcRenderer.invoke('aiVault:listSubagentSessions', args),
   getFirstUserPrompt: (args: AiVaultFirstUserPromptArgs) =>

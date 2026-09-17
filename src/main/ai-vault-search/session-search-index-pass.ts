@@ -8,6 +8,7 @@ import type { SessionFileCandidate } from '../ai-vault/session-scanner-types'
 import { fileIdentity } from './session-search-file-cursor'
 import { sessionSearchReadDecision } from './session-search-read-decision'
 import type { SessionSearchFileRow, SessionSearchStore } from './session-search-store'
+import { sessionSearchReusedPaths } from './session-search-reuse'
 
 export type SessionSearchIndexPassOptions = {
   signal?: AbortSignal
@@ -39,6 +40,8 @@ export async function runSessionSearchIndexPass(
 ): Promise<{ stats: SessionParseStats; outOfTime: boolean }> {
   const stats = createSessionParseStats()
   const cutoffMs = store.retentionCutoff
+  // Fork: a reused transcript is read whatever its mtime; see session-search-reuse.ts.
+  const reused = cutoffMs === null ? null : sessionSearchReusedPaths(store.connection, cutoffMs)
   let read = 0
   let outOfTime = false
   for (const candidate of candidates) {
@@ -51,7 +54,7 @@ export async function runSessionSearchIndexPass(
       // Only asked for a path the index holds something for; for the rest the
       // decision is already made and this would be a query per new file.
       cursor: row ? store.indexedFile(path, fileIdentity(candidate.file)) : null,
-      cutoffMs
+      cutoffMs: reused?.has(path) ? null : cutoffMs
     })
     if (decision === 'skip') {
       continue

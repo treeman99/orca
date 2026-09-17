@@ -214,14 +214,15 @@ _upstream 이 이 파일을 쪼개면 내 변경이 사라지는가?_ 그렇다�
 
 **빌드에서 제거한 표면** — 인앱 자동 업데이트(+`electron-updater`), artifact 공유, 스킬 공유,
 Orca 클라우드, Bitbucket·Azure DevOps·Gitea, `docs/site` 배포 레인, 피드백·크래시 리포트 제출,
-사내 자체 호스팅 모델 레인, 에이전트 세션 전문 검색 색인(보존·삭제 정책 사내 검토 전 보류 — 테스트는
-`config/vitest-session-search-index-block-isolation.ts` 가 차단을 풀고 돈다).
+사내 자체 호스팅 모델 레인.
 
 **포크가 더한 기능** — 오케스트레이션 워커 패널 자동 분할(+최대 개수 설정, 완료 탭 자동 닫기,
 워커 프롬프트 진단 로그), opencode 평문 프롬프트 배달과 Enter 재전송 구제, 탭 팝아웃 창,
 VS Code 소스 제어 패널과 서브모듈 취급, VS Code 로 열기, Confluence 연동, GHES 릴리스 태그
 업데이트 알림, 탭 닫기 시 세션 종료, 번들 스킬 오프라인 설치, 스택 PR 병합 옵트인,
-게이트웨이 CLI 로그인, 진단 로그.
+게이트웨이 CLI 로그인, 진단 로그, 세션 전문 검색 색인의 보존 규칙(최대 2주, 과거 세션을 다시 쓰면 그
+순간부터 2주 재시작, Windows 앱 제거 시 색인 파일 삭제 — 테스트는
+`config/vitest-session-search-retention-isolation.ts` 가 2주 상한을 풀고 돈다).
 
 **Windows 빌드** — napi 헤더 스테이징, windows-process-tree 패치 무결성, Electron 추출
 스테이징과 copy 폴백, blockmap 재생성, pnpm 12 의 실행 전 재설치 차단

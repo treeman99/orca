@@ -1,6 +1,7 @@
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import type SyncDatabase from '../sqlite/sync-database'
 import { deleteSearchMessages } from './session-search-message-rows'
+import { pruneSessionSearchReuse, SESSION_SEARCH_REUSED_SINCE_SQL } from './session-search-reuse'
 
 export const RETENTION_DELETE_ROWS_PER_STEP = 256
 // Why in step with the deletes rather than one sweep at the end: `auto_vacuum =
@@ -28,9 +29,12 @@ export async function deleteExpiredSearchFiles(
   yieldStep: () => Promise<void> = yieldToEventLoop
 ): Promise<void> {
   if (cutoffMs !== null) {
+    // Fork: a transcript reused inside the window is kept; see session-search-reuse.ts.
     const expired = db
-      .prepare('SELECT path FROM files WHERE mtime_ms < ? ORDER BY mtime_ms')
-      .all(cutoffMs) as { path: string }[]
+      .prepare(
+        `SELECT path FROM files WHERE mtime_ms < ? AND NOT ${SESSION_SEARCH_REUSED_SINCE_SQL} ORDER BY mtime_ms`
+      )
+      .all(cutoffMs, cutoffMs) as { path: string }[]
     for (const { path } of expired) {
       if (closed()) {
         return
@@ -40,8 +44,10 @@ export async function deleteExpiredSearchFiles(
         // Re-read under the lock: a read of this file may have landed since the
         // list was taken, which makes it new enough to keep.
         const file = db
-          .prepare('SELECT session_row_id FROM files WHERE path = ? AND mtime_ms < ?')
-          .get(path, cutoffMs) as { session_row_id: number | null } | undefined
+          .prepare(
+            `SELECT session_row_id FROM files WHERE path = ? AND mtime_ms < ? AND NOT ${SESSION_SEARCH_REUSED_SINCE_SQL}`
+          )
+          .get(path, cutoffMs, cutoffMs) as { session_row_id: number | null } | undefined
         if (file) {
           db.prepare('DELETE FROM sessions WHERE id = ?').run(file.session_row_id)
           db.prepare('DELETE FROM files WHERE path = ?').run(path)
@@ -53,6 +59,7 @@ export async function deleteExpiredSearchFiles(
       }
       await yieldStep()
     }
+    pruneSessionSearchReuse(db, cutoffMs)
   }
   await drainOrphanedMessages(db, closed, yieldStep)
 }

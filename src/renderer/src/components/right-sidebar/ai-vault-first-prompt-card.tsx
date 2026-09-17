@@ -7,6 +7,7 @@ import { translate } from '@/i18n/i18n'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import type { AiVaultSessionPromptPreview } from './ai-vault-session-display'
+import { markAiVaultSessionReused } from '@/lib/ai-vault-session-reuse'
 
 // Why: the main-process re-parse has no deadline of its own. Without this the
 // card can sit in `loading` forever on a huge or stalled transcript.
@@ -141,6 +142,8 @@ export function FirstPromptCard({
           return
         }
         return window.api.ui.writeClipboardText(copyText).then(() => {
+          // Fork: copying the prompt out is reuse; opening this card is not.
+          markAiVaultSessionReused({ filePath, executionHostId })
           setCopied(true)
           toast.success(promptCopiedLabel(loaded ? 'first-user-prompt' : preview?.source))
           window.setTimeout(() => {

@@ -37,8 +37,8 @@ export default defineConfig({
       resolve('config/scripts/vitest-host-ports-setup.ts'),
       // Why: the corporate policy file is ambient process state; see the setup file.
       resolve('config/vitest-enterprise-policy-isolation.ts'),
-      // Why: the fork's session-search index block would fail upstream's index cases; see the setup file.
-      resolve('config/vitest-session-search-index-block-isolation.ts')
+      // Why: the fork's session-search retention cap would fail upstream's retention cases; see the setup file.
+      resolve('config/vitest-session-search-retention-isolation.ts')
     ],
     // Why: the full suite runs heavy TS transforms plus real git/http fixtures;
     // the Vitest 5s defaults are too tight for the slowest integration cases.
