@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import { getConnectionId } from '@/lib/connection-context'
+import { basename } from '@/lib/path'
 import { bulkUnstageRuntimeGitPaths, type RuntimeGitContext } from '@/runtime/runtime-git-client'
 import { translate } from '@/i18n/i18n'
 import type { GitStatusEntry } from '../../../../../../shared/git-status-types'
@@ -9,6 +10,12 @@ import {
   runDiscardAllForArea,
   type DiscardAllArea
 } from './discard-all-sequence'
+import { discardDeletesEntryFile } from './discard-confirmation'
+import { readIpcErrorMessage } from '@/lib/ipc-error'
+import {
+  dismissSourceControlEntryFailureToast,
+  showSourceControlEntryFailureToast
+} from './source-control-entry-failure-toast'
 import type { PendingDiscardConfirmation } from './discard-dialog'
 import { discardSourceControlEntry } from './discard-entry'
 import type { SourceControlEntryGroups } from '../listing/section-order'
@@ -47,8 +54,11 @@ export function useSourceControlDiscardConfirmation({
   }
 
   const handleDiscard = useCallback(
-    async (entry: GitStatusEntry) => {
+    async (entry: GitStatusEntry): Promise<void> => {
+      // Why: only the discard itself is caught here — a refresh rejection would otherwise be
+      // reported as "Failed to discard" for a discard that already landed.
       try {
+        // Fork: a row inside a submodule, or the gitlink row itself, is not the parent's to restore.
         await discardSourceControlEntry({
           entry,
           activeRepoSettings,
@@ -57,19 +67,21 @@ export function useSourceControlDiscardConfirmation({
           discardSingle,
           refreshSubmodule
         })
-        await refreshActiveGitStatusAfterMutation()
       } catch (error) {
-        // Why surfaced rather than swallowed: an older SSH relay, an uninitialized submodule,
-        // and the not-a-repository-root guard all land here, and a silent catch made every one
-        // of them look like a button that simply does nothing.
-        console.error('[SourceControl] discard failure', error)
-        toast.error(
-          translate('sourceControl.discardFailed', 'Could not discard {{path}}: {{message}}', {
-            path: entry.path,
-            message: error instanceof Error ? error.message : String(error)
-          })
-        )
+        console.error('[SourceControl] discard failed', error)
+        // Why: bulk callers use discardSingle directly so they can aggregate failures into one toast.
+        showSourceControlEntryFailureToast({
+          operation: 'discard',
+          filePath: entry.path,
+          deletesFile: discardDeletesEntryFile(entry),
+          error,
+          worktreeId: activeWorktreeId,
+          worktreeName: worktreePath ? basename(worktreePath) : null
+        })
+        return
       }
+      dismissSourceControlEntryFailureToast(activeWorktreeId)
+      await refreshActiveGitStatusAfterMutation()
     },
     [
       activeRepoSettings,
@@ -122,11 +134,11 @@ export function useSourceControlDiscardConfirmation({
               'auto.components.right.sidebar.SourceControl.a5e5a11090',
               'Discard all failed — unable to unstage files before discard'
             ),
-            { description: errors[0] instanceof Error ? errors[0].message : undefined }
+            { description: readIpcErrorMessage(errors[0]) }
           )
         } else if (result.failed.length > 0) {
           // Why: show only the first error + a sample of failed paths to avoid a huge toast body on bulk failures.
-          const firstMsg = errors[0] instanceof Error ? errors[0].message : undefined
+          const firstMsg = readIpcErrorMessage(errors[0])
           const sample = result.failed.slice(0, 3).join(', ')
           const more = result.failed.length > 3 ? `, +${result.failed.length - 3} more` : ''
           toast.error(

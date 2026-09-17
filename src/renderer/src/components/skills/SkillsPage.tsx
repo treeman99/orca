@@ -4,6 +4,8 @@ import { useAppStore } from '@/store'
 import { discoverSkillsForRuntimeTarget } from '@/runtime/runtime-skills-client'
 import { useActiveSkillDiscoveryRuntimeTarget } from '@/hooks/use-active-skill-discovery-runtime-target'
 import { useMountedRef } from '@/hooks/useMountedRef'
+import { readIpcErrorDetail } from '@/lib/ipc-error'
+import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 import type { DiscoveredSkill, SkillDiscoveryResult } from '../../../../shared/skills'
 import { SkillsList } from './SkillsList'
 import { SkillInstallManagementDialog } from './SkillInstallManagementDialog'
@@ -20,7 +22,6 @@ import { scannedSkillSourceCount, summarizeSkillSources } from './skill-source-i
 import { useSkillDiscoveryHostLabel } from './use-skill-discovery-host-label'
 import { countSkillsBySource, filterSkills, type SkillsFilterState } from './skills-filter'
 import { skillAgentByRootPath, skillAgentOptions } from './skill-agent-filter'
-import { translate } from '@/i18n/i18n'
 import { INSTALLED_AGENT_SKILLS_CHANGED_EVENT } from '@/hooks/installed-agent-skills-change-event'
 
 // Local inventory only. The vendor lanes this page used to host — publish, install-from-link,
@@ -34,13 +35,22 @@ const NO_FILTERS: SkillsFilterState = {
   agent: 'all'
 }
 
+type SkillScanState = {
+  runtimeTarget: RuntimeClientTarget
+  result: SkillDiscoveryResult | null
+  error: { detail?: string } | null
+}
+
 export default function SkillsPage(): React.JSX.Element {
   const closeSkillsPage = useAppStore((s) => s.closeSkillsPage)
   const runtimeTarget = useActiveSkillDiscoveryRuntimeTarget()
   const hostLabel = useSkillDiscoveryHostLabel(runtimeTarget)
-  const [result, setResult] = useState<SkillDiscoveryResult | null>(null)
+  const [scanState, setScanState] = useState<SkillScanState | null>(null)
+  // Target identity changes on host switches and same-ID re-pairs.
+  const currentScan = scanState?.runtimeTarget === runtimeTarget ? scanState : null
+  const result = currentScan?.result ?? null
   const [loading, setLoading] = useState(true)
-  const [scanError, setScanError] = useState<string | null>(null)
+  const scanError = currentScan?.error ?? null
   const [managementOpen, setManagementOpen] = useState(false)
   const [filters, setFilters] = useState<SkillsFilterState>(NO_FILTERS)
   const mountedRef = useMountedRef()
@@ -61,17 +71,18 @@ export default function SkillsPage(): React.JSX.Element {
     try {
       const nextResult = await discoverSkillsForRuntimeTarget(runtimeTarget)
       if (isCurrentScan()) {
-        setResult(nextResult)
-        setScanError(null)
+        setScanState({ runtimeTarget, result: nextResult, error: null })
       }
     } catch (error) {
       console.error('Failed to discover skills:', error)
       if (isCurrentScan()) {
         // Why: a failed scan needs to stay on screen with a retry — a toast
         // disappears before the user can act on it.
-        setScanError(
-          translate('auto.components.skills.SkillsPage.ea72d6185b', 'Could not scan skills')
-        )
+        setScanState((current) => ({
+          runtimeTarget,
+          result: current?.runtimeTarget === runtimeTarget ? current.result : null,
+          error: { detail: readIpcErrorDetail(error) }
+        }))
       }
     } finally {
       if (isCurrentScan()) {
@@ -169,7 +180,7 @@ export default function SkillsPage(): React.JSX.Element {
       />
       {scanError ? (
         <SkillsScanErrorBand
-          message={scanError}
+          detail={scanError.detail}
           disabled={loading}
           onRetry={() => void loadSkills()}
         />
@@ -183,9 +194,9 @@ export default function SkillsPage(): React.JSX.Element {
             <SkillsList skills={visibleSkills} agentByRootPath={agentByRootPath} />
           ) : skills.length > 0 ? (
             <SkillsNoMatchesState onClearFilters={() => setFilters(NO_FILTERS)} />
-          ) : (
+          ) : result ? (
             <SkillsEmptyState onRefresh={() => void loadSkills()} />
-          )}
+          ) : null}
         </div>
       </section>
 

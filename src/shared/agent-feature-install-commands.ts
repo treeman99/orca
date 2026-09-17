@@ -1,4 +1,4 @@
-import { isSkillsCliAgentKeyShaped } from './skills-cli-agent-keys'
+import { isUsableSkillsCliAgentKey } from './skills-cli-agent-keys'
 
 /**
  * Default name of the registered Orca command. Hosts that register a different one —
@@ -30,7 +30,7 @@ export type AgentFeatureSkillCommandOptions = {
 function assertUsableAgents(agents: readonly string[]): void {
   // Why: an agent key Orca has no skills directory for would install nothing, and the
   // CLI rejects it loudly — catching the shape here keeps the printed command honest.
-  const unusable = agents.find((agent) => !isSkillsCliAgentKeyShaped(agent))
+  const unusable = agents.find((agent) => !isUsableSkillsCliAgentKey(agent))
   if (unusable !== undefined) {
     throw new Error(`"${unusable}" is not a usable install target.`)
   }

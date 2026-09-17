@@ -10,7 +10,7 @@ import {
   KNOWN_TUI_AGENT_DETECTION_COMMANDS,
   resolveDetectedTuiAgentIds
 } from '../../shared/tui-agent-detection-commands'
-import { isSkillsCliAgentKeyShaped, toSkillsCliAgentKeys } from '../../shared/skills-cli-agent-keys'
+import { isUsableSkillsCliAgentKey, toSkillsCliAgentKeys } from '../../shared/skills-cli-agent-keys'
 import { knownAgentSkillInstallAgentKeys } from '../../shared/agent-skill-install-roots'
 import { runOfflineSkillMutation, type OfflineSkillMutation } from './skills-offline-install'
 
@@ -86,7 +86,7 @@ function resolveInstallAgentKeys(flags: Map<string, string | boolean>): string[]
     if (keys.length === 0) {
       throw new RuntimeClientError('invalid_argument', 'Missing required --agent')
     }
-    const unusable = keys.find((key) => !isSkillsCliAgentKeyShaped(key))
+    const unusable = keys.find((key) => !isUsableSkillsCliAgentKey(key))
     if (unusable !== undefined) {
       // Why: the skills CLI drops a value starting with `-`, which leaves it with
       // no target and installs into every agent it knows.

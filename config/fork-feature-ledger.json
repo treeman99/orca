@@ -709,7 +709,7 @@
         },
         {
           "file": "src/shared/child-process/windows-console-visibility.test.ts",
-          "contains": "const UNHIDDEN_SPAWNER_PIN = 63",
+          "contains": "const UNHIDDEN_SPAWNER_PIN = 62",
           "why": "upstream 은 66. 이 빌드는 updater·벤더 forge 레인을 지워 스폰 파일이 2개 적고, 래칫은 핀이 실제 수와 같기를 요구한다(낮추는 방향만 허용)."
         }
       ]
