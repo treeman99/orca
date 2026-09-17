@@ -203,6 +203,18 @@
 > 📌 **`file:line` 인용.** 이번 머지로 바뀐 파일을 가리키는 포크 문서 인용 중 **포크 게이트를 가리키는 것**은 심볼로 다시 찾아 고쳤습니다 — `allowedAgents` 훅 초크포인트(부팅은 설치 전용 함수로 들어간다는 사실도 함께 바로잡았습니다), `blockedAgents`·`agent_blocked_by_policy` 보고 줄, 원격 설치 게이트, 플러그인 IPC 게이트(§0.2 #19 표), 텔레메트리 키 접힘(§2), `engines` 핀(`windows-corporate-build.md`). ⚠️ **여전히 밀려 있는 것이 있습니다** — README 의 `hook-service.ts`/`hook-settings.ts`/`github-api-repository.ts` 인용, 이 문서 §0.2 #6c 의 `NativeChatMessageList.tsx:40-66`, §0.2·§8 의 `ssh-relay-deploy.ts:948-1010`(`npm install` 은 현재 `installNativeDeps` `:1089` 안의 `:1176,1188`)은 **v1.4.204 이전부터 크게 어긋나 있던 것**이고 주장 자체를 다시 읽어야 고칠 수 있어 이번에 손대지 않았습니다. 따라가기 전에 심볼로 grep 하십시오.
 >
 > ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다.
+>
+> **v1.4.205 갱신 (2026-09-17).** 이 판에서 재검증한 것은 **v1.4.204 → v1.4.205 구간의 포크 유입 델타**(포크 tip `abf11380ce` → 머지 `d43a22e8ac`)입니다 — 1,187 파일, +56,502/−7,228, 신규 221 · 수정 954 · 삭제 4 · 이름변경 8. 판정 방법은 v1.4.204 판과 같습니다(리터럴·주입형 fetch 호출지점 라인 문자열 대조, 네트워크 프리미티브 보유 파일 집합, `openExternal`·`loadURL`·단일 슬롯 리스너, IPC 채널·RPC 메서드 선언 집합, 추가 라인 URL 호스트, 락파일 패키지 이름, `.github/`, `mobile/src`). 나머지 확정 항목은 각자의 기준 시점 서술이며 이번에 다시 열어보지 않았습니다.
+>
+> ✅ **앱 런타임의 신규 외부 목적지 0건.** 리터럴 네트워크 호출지점 157 → 157(라인 문자열 차집합 0), 주입형 fetch 89 → 89, `openExternal`·`loadURL`·리스너류 460 → 460, 네트워크 프리미티브 보유 파일 56 → 56(`XMLHttpRequest`·`EventSource`·`sendBeacon`·`net/tls.connect` 까지 넓힌 정규식 기준), RPC 메서드 선언 618 → 618, `mobile/src` 네트워크 파일 20 → 20, 프로덕션 추가 라인의 URL 호스트 0건입니다. IPC 채널은 975 → 976 으로 **`fs:uploadExternalFileToRuntime` 하나**가 늘었습니다 — 렌더러가 하던 파일 업로드 스트림을 main 으로 옮긴 것이고 목적지는 사용자가 페어링한 원격 Orca 런타임입니다. 경로는 `callRuntimeEnvironment` 를 지나며 그 첫 줄이 포크의 `remoteOrcaServerRefusal()` 이라 `disableRemoteOrcaServer` 정책이 그대로 덮습니다.
+>
+> 🔒 **빌드 시점 신규 외부 소스 1건 — 포크에서 뺐습니다.** upstream 이 lint 전용 devDependency `oxlint-plugin-anti-slop` 을 **git 의존성**(`github:dmmulroy/anti-slop#c44ef22c…`, lockfile 상 `codeload.github.com` tarball)으로 들였습니다. 사내 빌드의 `pnpm install` 은 사내 npm 미러만 타므로(`windows-corporate-build.md` §6) 이 tarball 은 외부 GitHub 에 직접 닿거나 설치를 실패시킵니다. 앱에 실리지 않는 도구라 의존성·스크립트·설정·`pr.yml` 단계를 제거했고, 원장이 lockfile 의 `codeload.github.com` 재등장까지 막습니다(README §6). 그 밖의 신규 패키지 53개(1,281 → 1,334)는 전부 npm 레지스트리 출처입니다 — `@shadcn/lint` 와 그 eslint 툴체인, `@oxlint/plugins`, tiptap 3.31.3 이 끌어온 `prosemirror-inputrules`. `electron-updater` 는 여전히 0회입니다.
+>
+> ➕ **부수 관찰.** ① 신규 워크플로 `git-command-termination-runtime.yml`(pull_request·수동) — upstream 워크플로 비활성 정책에 따라 origin 에서 꺼야 합니다. `release-cut.yml`·`unit-tests.yml`·`pr.yml` 도 바뀌었지만 지운 docs 배포 잡·릴레이 통합 스텝은 되살아나지 않았습니다. ② `cloud/` 신규 6파일과 수정 3파일, 포크가 지운 Bitbucket 카드·업데이터 하네스·artifact 클라우드 테스트가 다시 들어와 삭제했습니다(코드 경로 없음).
+>
+> 🔒 **포크 게이트 유실 0건.** 정책 게이트 호출 62건/56파일 머지 전후 동일, 쌍둥이 대조 음성, 원장 57 → 60(anti-slop 재유입 방지 3건).
+>
+> ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다.
 
 > **⚠️ 델타 판정의 기준은 `git log`가 아니라 트리 diff입니다.** 업스트림은 릴리스 브랜치에 태그를 달고 그 태그들은 서로의 자손이 아닙니다. 같은 변경이 main과 릴리스 브랜치에 다른 SHA로 존재하면 `git log <old>..<new>`에는 나타나되 트리에는 차이가 없으므로, **로그는 델타를 과대 계상합니다.** 실례: `git log v1.4.178..v1.4.180`에는 Artifacts 관련 커밋 3건(`24c68087bd` 수동 공유 #13369, `05160cd08e` 능력 게이팅 #13368, `2f221bdbfe` 관리 UI #13356)이 보이지만 `git diff --name-only v1.4.178 v1.4.180 -- '*artifact*' '*Artifact*'`는 **비어 있습니다** — 두 태그의 artifact 트리는 동일하며 그 기능들은 이미 v1.4.178 트리에 있었습니다(§3.1). 그러므로 델타 감사는 `git diff --name-status <old> <new>` 기준으로 하고 로그는 맥락 파악에만 쓰십시오. **함정은 양방향입니다** — 로그만 보고 "이번에 새로 들어왔다"고 오판하는 것과, 트리가 같은 것을 보고 "업스트림이 이 레인을 접었다"고 안심하는 것 둘 다 틀립니다(후자의 경우 업스트림은 계속 개발 중이며, 다만 그 작업이 더 이른 태그에 이미 들어와 있었을 뿐입니다).
 

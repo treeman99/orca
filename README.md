@@ -549,7 +549,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.204`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.205`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -762,6 +762,34 @@ v1.4.196은 **`max-lines` 우회 34건을 한 릴리스에서 청산**했습니�
    comm -23 <(git ls-tree -r --name-only <옛태그> | sort) <(git ls-tree -r --name-only <포크tip> | sort)  # 삭제 목록
    git diff --name-status <옛태그> <새태그> | awk '$1=="A"{print $2}'                                     # 신규 목록
    ```
+
+#### GitHub 에서 직접 받는 개발 의존성 — 사내 미러를 우회한다 (v1.4.205에서 제외)
+
+v1.4.205가 lint 전용 플러그인 `oxlint-plugin-anti-slop` 을 **npm 레지스트리가 아니라 git 의존성**
+(`github:dmmulroy/anti-slop#<커밋>`, lockfile 에서는 `codeload.github.com` tarball)으로 들여왔습니다.
+사내 빌드의 `pnpm install` 은 사내 npm 미러만 거치므로(`docs/reference/windows-corporate-build.md` §6)
+이 tarball 에서 설치가 실패할 수 있고, 앱에 실리지도 않는 lint 도구입니다. **포크에서 뺐습니다.**
+
+| 무엇                                                              | 어디                                        |
+| ----------------------------------------------------------------- | ------------------------------------------- |
+| `oxlint-plugin-anti-slop` devDependency                           | `package.json`                              |
+| `audit:anti-slop` · `sync:anti-slop-plugin` 스크립트, `lint` 체인 | `package.json`                              |
+| 플러그인 설정·동기화 스크립트                                     | `config/oxlint-anti-slop.json`, `config/scripts/sync-anti-slop-plugin.mjs` |
+| `Reject low-evidence patterns` 스텝                               | `.github/workflows/pr.yml`                  |
+
+**다음 동기화에서 할 일.** `package.json` 은 늘 포크판 + upstream 델타로 풀므로 의존성은 돌아오지 않지만,
+`pr.yml` 스텝과 두 설정 파일은 **충돌 없이 되살아납니다.** 원장이 잡습니다 — `absentSymbols` 에
+`package.json`·`pr.yml` 의 이름과 **lockfile 의 `codeload.github.com`** 이, `absentPaths` 에 두 파일이
+등재돼 있습니다. upstream 코드 곳곳의 `oxlint-disable anti-slop/...` 주석은 주석일 뿐이라 그대로 둡니다.
+
+> 같은 부류의 판별식: 동기화 뒤 `grep -c codeload.github.com pnpm-lock.yaml` 이 0 이어야 합니다.
+> git 의존성이 새로 들어오면 lockfile 에 이 호스트가 나타납니다.
+
+**함께 겪은 lockfile 함정.** 태그판 lockfile 에서 `--lockfile-only` 로 재계산하자, 포크가 **직접 선언한**
+`@tiptap/core`·`@tiptap/extension-code` 의 importer 버전이 peer 접미사 없이(`3.31.3`) 기록돼 `snapshots` 에
+없는 변형을 가리켰습니다. `--frozen-lockfile` 은 통과하는데 `node_modules/@tiptap/core` 가 끊어진 링크라
+`tc:web` 이 수백 건 실패합니다. importer `version` 을 peer 포함 스냅샷(`3.31.3(@tiptap/pm@3.31.3)`)으로
+맞추면 재계산 후에도 유지됩니다. 판별식은 `ls node_modules/@tiptap/core/package.json` 입니다.
 
 #### upstream 파일이 `max-lines` 상한에 닿을 때 — 별칭 임포트로 호출부를 되돌려라 (v1.4.204에서 실제로 겪음)
 
