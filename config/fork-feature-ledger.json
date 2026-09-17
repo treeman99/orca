@@ -612,6 +612,15 @@
           "file": "src/shared/rpc-contract/client-ui-params.ts",
           "contains": "'vscode-source-control'",
           "why": "우측 사이드바 탭 스키마. 빠지면 VS Code 소스 제어 탭을 연 상태의 ui.set 페이로드 전체가 거부된다."
+        },
+        {
+          "file": "src/renderer/src/components/right-sidebar/source-control/commit/use-discard-confirmation.ts",
+          "contains": "await discardSourceControlEntry({"
+        },
+        {
+          "file": "src/renderer/src/components/right-sidebar/source-control/commit/use-discard-confirmation.ts",
+          "contains": "refreshSubmodule: refreshSubmodule ?? noSubmoduleRefresh",
+          "why": "행 폐기가 서브모듈 안 파일과 gitlink 행을 서브모듈 저장소로 보낸다. v1.4.205 에서 upstream 이 같은 함수를 공용 실패 토스트로 고쳐 충돌했고, 인자를 선택으로 바꿔 upstream 훅 테스트를 건드리지 않았다 — 그래서 패널이 넘기는지는 타입체크가 못 잡는다."
         }
       ]
     },
@@ -922,7 +931,9 @@
     "tests/e2e/relay-region-compatibility.unit.test.ts",
     "tests/e2e/relay-region-correction.unit.test.ts",
     "src/main/runtime/push/push-host-proof-vector.test.ts",
-    "src/shared/rpc-contract/updater-params.ts"
+    "src/shared/rpc-contract/updater-params.ts",
+    "config/oxlint-anti-slop.json",
+    "config/scripts/sync-anti-slop-plugin.mjs"
   ],
   "absentSymbols": [
     {
@@ -964,6 +975,21 @@
       "file": "src/shared/rpc-contract/rpc-params-catalog.generated.ts",
       "symbol": "'updater.check'",
       "why": "인앱 업데이터 RPC 는 제거했다. v1.4.201 이 스키마를 shared 로 옮기며 카탈로그에 되살렸다 — 재생성하면 사라져야 한다."
+    },
+    {
+      "file": "package.json",
+      "symbol": "oxlint-plugin-anti-slop",
+      "why": "v1.4.205 가 들인 lint 전용 플러그인이 npm 레지스트리가 아니라 codeload.github.com 의 git 의존성이라 사내 npm 미러를 우회한다. 사내망 pnpm install 이 실패할 수 있어 포크에서 뺐다(audit:anti-slop·sync 스크립트·설정·pr.yml 단계 포함)."
+    },
+    {
+      "file": "pnpm-lock.yaml",
+      "symbol": "codeload.github.com",
+      "why": "git 호스팅 tarball 은 사내 npm 미러를 타지 못한다. lockfile 에 나타나면 사내 빌드의 pnpm install 이 외부 GitHub 에 닿는다."
+    },
+    {
+      "file": ".github/workflows/pr.yml",
+      "symbol": "audit:anti-slop",
+      "why": "포크에서 뺀 anti-slop 레인. pr.yml 은 자동 병합으로 이 단계를 되살린다."
     }
   ],
   "policySwitchMinConsumers": {

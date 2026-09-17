@@ -20,6 +20,8 @@ import type { PendingDiscardConfirmation } from './discard-dialog'
 import { discardSourceControlEntry } from './discard-entry'
 import type { SourceControlEntryGroups } from '../listing/section-order'
 
+const noSubmoduleRefresh = (): void => undefined
+
 export function useSourceControlDiscardConfirmation({
   activeRepoSettings,
   activeWorktreeId,
@@ -42,7 +44,8 @@ export function useSourceControlDiscardConfirmation({
   clearSelection: () => void
   discardMany: (paths: string[]) => Promise<void>
   discardSingle: (path: string) => Promise<void>
-  refreshSubmodule: (submodulePath: string) => void
+  // Fork: optional so upstream's hook tests stay untouched; the panel always passes it.
+  refreshSubmodule?: (submodulePath: string) => void
   refreshActiveGitStatusAfterMutation: () => Promise<void>
 }) {
   const [pendingDiscard, setPendingDiscard] = useState<PendingDiscardConfirmation | null>(null)
@@ -65,7 +68,7 @@ export function useSourceControlDiscardConfirmation({
           activeWorktreeId,
           worktreePath,
           discardSingle,
-          refreshSubmodule
+          refreshSubmodule: refreshSubmodule ?? noSubmoduleRefresh
         })
       } catch (error) {
         console.error('[SourceControl] discard failed', error)

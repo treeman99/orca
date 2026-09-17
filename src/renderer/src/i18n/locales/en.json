@@ -18086,7 +18086,6 @@
     }
   },
   "sourceControl": {
-    "discardFailed": "Could not discard {{path}}: {{message}}",
     "discardSubmoduleFileScope": "This file belongs to the submodule \"{{path}}\" and is restored to THAT submodule's HEAD, not to the commit this repository records.",
     "discardSubmodulePointerScope": "This restores the submodule \"{{path}}\" to the commit this repository records. The submodule ends up on a detached HEAD — the branch checked out inside it will not be kept.",
     "submoduleBranchDiffersFromParent": "(differs from root)",
