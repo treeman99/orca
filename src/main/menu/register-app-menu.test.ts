@@ -38,6 +38,7 @@ const isMac = process.platform === 'darwin'
 function buildMenuOptions() {
   return {
     onOpenSettings: vi.fn(),
+    onCheckForUpdates: vi.fn(),
     onBeforeReload: vi.fn(),
     onZoomIn: vi.fn(),
     onZoomOut: vi.fn(),
@@ -65,6 +66,30 @@ function getSubmenu(
 ): Electron.MenuItemConstructorOptions[] {
   const item = template.find((entry) => entry.label === label)
   return (item?.submenu ?? []) as Electron.MenuItemConstructorOptions[]
+}
+
+const UPDATE_CHECK_LABEL = 'Check for Updates...'
+
+/** Invoke a menu item's handler. The three Electron arguments are never read here. */
+function clickMenuItem(item: Electron.MenuItemConstructorOptions | undefined): void {
+  const click: ((...args: never[]) => void) | undefined = item?.click
+  click?.()
+}
+
+/** Role-bearing items carry no label, so name them by their role instead. */
+function entryNames(submenu: Electron.MenuItemConstructorOptions[]): (string | undefined)[] {
+  return submenu.map((item) => item.label ?? item.role)
+}
+
+function allLabels(template: Electron.MenuItemConstructorOptions[]): (string | undefined)[] {
+  return template.flatMap((menu) =>
+    ((menu.submenu ?? []) as Electron.MenuItemConstructorOptions[]).flatMap((item) => [
+      item.label,
+      ...((item.submenu ?? []) as Electron.MenuItemConstructorOptions[]).map(
+        (nested) => nested.label
+      )
+    ])
+  )
 }
 
 describe('registerAppMenu', () => {
@@ -331,28 +356,58 @@ describe('registerAppMenu', () => {
     expect(template.find((item) => item.label === 'File')).toBeUndefined()
   })
 
-  // Fork regression guard: an upstream rebase that restores any of these Help
-  // entries (or the update check anywhere in the menu bar) must turn this red.
-  it('keeps About as the only Help entry on every platform', () => {
+  // Fork regression guard, contract updated: the update check is no longer absent — it
+  // is OURS (the GHES release-tag lane), so the guard is now that it appears exactly
+  // once, where each platform puts it, and routes to the injected callback rather than
+  // to an upstream in-app updater. Crash reporting, the tour and the setup guide stay out.
+  it.each(['darwin', 'linux', 'win32'] as const)(
+    'offers the update check exactly once, where %s expects it',
+    (platform) => {
+      vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
+      registerAppMenu(buildMenuOptions())
+
+      const template = getTemplate()
+      expect(entryNames(getSubmenu(template, 'Help'))).toEqual(
+        platform === 'darwin' ? ['about'] : ['about', UPDATE_CHECK_LABEL]
+      )
+      if (platform === 'darwin') {
+        expect(entryNames(getSubmenu(template, 'Orca')).slice(0, 2)).toEqual([
+          'about',
+          UPDATE_CHECK_LABEL
+        ])
+      }
+      expect(allLabels(template).filter((label) => label === UPDATE_CHECK_LABEL)).toHaveLength(1)
+    }
+  )
+
+  it.each(['darwin', 'linux', 'win32'] as const)(
+    'routes the update check to the fork lane, never an in-app updater, on %s',
+    (platform) => {
+      vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
+      const options = buildMenuOptions()
+      registerAppMenu(options)
+
+      const owner = platform === 'darwin' ? 'Orca' : 'Help'
+      const updateItem = getSubmenu(getTemplate(), owner).find(
+        (item) => item.label === UPDATE_CHECK_LABEL
+      )
+
+      expect(updateItem).toBeDefined()
+      // Why no accelerator: the renderer decides what to show, and a menu-bar chord
+      // would fire in main before it can.
+      expect(updateItem?.accelerator).toBeUndefined()
+
+      clickMenuItem(updateItem)
+
+      expect(options.onCheckForUpdates).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it('carries no crash-report, feature-tour or setup-guide item anywhere', () => {
     registerAppMenu(buildMenuOptions())
 
-    const helpSubmenu = getSubmenu(getTemplate(), 'Help')
-    expect(helpSubmenu).toEqual([{ role: 'about' }])
-  })
+    const labels = allLabels(getTemplate())
 
-  it('carries no update-check, crash-report, feature-tour or setup-guide item anywhere', () => {
-    registerAppMenu(buildMenuOptions())
-
-    const labels = getTemplate().flatMap((menu) =>
-      ((menu.submenu ?? []) as Electron.MenuItemConstructorOptions[]).flatMap((item) => [
-        item.label,
-        ...((item.submenu ?? []) as Electron.MenuItemConstructorOptions[]).map(
-          (nested) => nested.label
-        )
-      ])
-    )
-
-    expect(labels).not.toContain('Check for Updates...')
     expect(labels).not.toContain('Report Crash...')
     expect(labels).not.toContain('Explore Orca')
     expect(labels).not.toContain('Getting Started with Orca')

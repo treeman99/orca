@@ -8431,7 +8431,16 @@
             "editorFontFamily": "エディターフォント",
             "editorFontFamilyDesc": "ファイルエディターと差分ビューで使用されるフォント。空の場合はターミナルフォントに従います。",
             "externalWorktrees": "外部ワークツリー",
-            "externalWorktreesDescription": "Orca 外で作成されたワークツリーをデフォルトで表示するかどうかを選択します。"
+            "externalWorktreesDescription": "Orca 外で作成されたワークツリーをデフォルトで表示するかどうかを選択します。",
+            "appUpdate": "アップデートの確認",
+            "appUpdateDescription": "社内リリースページに新しい Orca ビルドがあるかを確認し、どのホストとリポジトリを読むかを表示します。",
+            "update": "アップデート",
+            "checkForUpdates": "アップデートを確認",
+            "version": "バージョン",
+            "release": "リリース",
+            "upgrade": "アップグレード",
+            "newBuild": "新しいビルド",
+            "ghesUpdate": "ghes"
           }
         },
         "git": {
@@ -10372,6 +10381,18 @@
           "sourceDefault": "the gh default — no corporate host is configured",
           "label": "GitHub requests go to",
           "remoteNote": "A workspace whose git remote points at another host uses that host instead."
+        },
+        "AppUpdateSettingsSection": {
+          "title": "アップデート",
+          "currentVersion": "インストール済みバージョン",
+          "latestVersion": "リリースページの最新バージョン",
+          "host": "確認したホスト",
+          "repository": "確認したリポジトリ",
+          "lastChecked": "最終確認",
+          "checking": "アップデートを確認しています…",
+          "checkNow": "アップデートを確認",
+          "openReleasePage": "リリースページを開く",
+          "unknownValue": "未取得"
         }
       },
       "right": {
@@ -14647,6 +14668,31 @@
         "skip": "このバージョンをスキップ",
         "later": "後で",
         "openReleasePage": "リリースページを開く"
+      },
+      "appUpdate": {
+        "result": {
+          "acknowledge": "OK",
+          "disabled": "管理者がこのマシンのアップデート確認を無効にしています。Orca は新しいビルドを探しません。",
+          "unknown": "Orca は確認を実行できませんでした。アップデート確認の経路が応答しませんでした — Orca を再起動し、繰り返す場合は報告してください。",
+          "upToDate": "社内リリースページに掲載されている最新ビルド（{{value0}}）を使用しています。",
+          "available": "社内リリースページに新しいビルドがあります。"
+        },
+        "target": {
+          "host": "ホスト",
+          "repository": "リポジトリ",
+          "hostUnset": "未設定",
+          "repositoryUnset": "未設定"
+        },
+        "unavailable": {
+          "noEnterpriseHost": "社内 GitHub Enterprise ホストが設定されていないため、確認する対象がありません。ネットワークの問題ではなく設定の不足です — IT に社内ホストのポリシーを依頼するか、gh CLI で社内ホストにサインインしてください。",
+          "lookupFailed": "社内ホストが応答しなかったか、gh CLI が見つからないかサインアウトしています。下のホストに接続できるかを確認してから gh auth status を実行してください。",
+          "noRelease": "リポジトリは応答しましたが、公開されたリリースタグがまだありません。このマシンに問題はありません。"
+        },
+        "title": {
+          "upToDate": "Orca は最新です",
+          "disabled": "アップデート確認は無効になっています",
+          "noAnswer": "アップデート情報がありません"
+        }
       }
     },
     "i18n": {

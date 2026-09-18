@@ -14,14 +14,36 @@ export type AppUpdateUnavailableReason =
   /** The repository answered, but nothing in it parsed as a released version. */
   | 'no-release'
 
+/**
+ * Which coordinate the check reads. Resolved from policy and `gh`'s own host —
+ * never from the workspace's remote — and never a vendor host.
+ *
+ * Carried on every checked status and readable on its own, because "is the update
+ * check working here?" is answered by the target as much as by the outcome: an
+ * empty `host` is a misconfigured fleet, not a network failure.
+ */
+export type AppUpdateLookupTarget = {
+  /** Corporate GitHub Enterprise host, or null when none resolved. */
+  host: string | null
+  /** `OWNER/REPO` on that host. */
+  repository: string
+}
+
+/** Fields every status that came from an actual check carries. */
+type CheckedStatusFields = {
+  target: AppUpdateLookupTarget
+  /** When the check that produced this status finished (epoch ms). */
+  checkedAt: number
+}
+
 export type AppUpdateCheckStatus =
   /** The administrator's `disableAutoUpdate` is on. */
   | { state: 'disabled' }
   /** Nothing has been checked yet in this session. */
   | { state: 'unknown' }
-  | { state: 'unavailable'; reason: AppUpdateUnavailableReason }
-  | { state: 'up-to-date'; currentVersion: string; latestVersion: string }
-  | {
+  | ({ state: 'unavailable'; reason: AppUpdateUnavailableReason } & CheckedStatusFields)
+  | ({ state: 'up-to-date'; currentVersion: string; latestVersion: string } & CheckedStatusFields)
+  | ({
       state: 'available'
       currentVersion: string
       latestVersion: string
@@ -31,7 +53,16 @@ export type AppUpdateCheckStatus =
       releaseUrl: string
       /** True when the user already chose "don't tell me about this one again". */
       dismissed: boolean
-    }
+    } & CheckedStatusFields)
 
 /** The channel main pushes a fresh status on. */
 export const APP_UPDATE_STATUS_EVENT = 'appUpdate:status'
+
+/**
+ * Main tells the renderer the user picked "Check for Updates..." in the menu bar.
+ *
+ * The menu lives in main but the result is rendered in one place only, so main
+ * forwards the intent instead of running the check itself — the menu item and the
+ * settings button then cannot disagree about how an outcome is presented.
+ */
+export const APP_UPDATE_CHECK_REQUESTED_EVENT = 'ui:checkForUpdates'

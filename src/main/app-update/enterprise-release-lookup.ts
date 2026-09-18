@@ -7,6 +7,7 @@
 // handled — this module adds only "which host, which repository, and refuse the
 // vendor".
 
+import type { AppUpdateLookupTarget } from '../../shared/app-update-check'
 import { ghExecFileAsync } from '../github/gh-utils'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { readStoredGithubEnterpriseHost } from '../github/github-enterprise-host-store'
@@ -26,11 +27,15 @@ export const DEFAULT_RELEASE_REPOSITORY = 'daegun-kim/Orca_ds'
 const PAGE_SIZE = 30
 const LOOKUP_TIMEOUT_MS = 20_000
 
-export type ReleaseLookupResult =
-  | { outcome: 'found'; release: SelectedRelease; host: string; releaseUrl: string }
+// Why the target rides on every outcome, not just `found`: "is the check working
+// here?" is not answerable from the outcome alone — an empty host is an unconfigured
+// fleet, the same `lookup-failed` a severed network produces is not.
+export type ReleaseLookupResult = { target: AppUpdateLookupTarget } & (
+  | { outcome: 'found'; release: SelectedRelease; releaseUrl: string }
   | { outcome: 'no-enterprise-host' }
   | { outcome: 'lookup-failed' }
   | { outcome: 'no-release' }
+)
 
 /** Runs one `gh api` read; separated so tests can drive the lane without a subprocess. */
 export type GhApiReader = (path: string, host: string) => Promise<unknown>
@@ -96,7 +101,12 @@ export function releasePageUrl(release: SelectedRelease, host: string, repositor
 }
 
 function found(release: SelectedRelease, host: string, repository: string): ReleaseLookupResult {
-  return { outcome: 'found', release, host, releaseUrl: releasePageUrl(release, host, repository) }
+  return {
+    outcome: 'found',
+    release,
+    target: { host, repository },
+    releaseUrl: releasePageUrl(release, host, repository)
+  }
 }
 
 /**
@@ -114,10 +124,13 @@ export async function lookupLatestEnterpriseRelease(
   options: { host?: string | null; repository?: string; readApi?: GhApiReader } = {}
 ): Promise<ReleaseLookupResult> {
   const host = options.host !== undefined ? options.host : resolveEnterpriseReleaseHost()
-  if (!host) {
-    return { outcome: 'no-enterprise-host' }
-  }
+  // Resolved before the host check so an unconfigured fleet still reports which
+  // repository it would have read — the two halves fail independently.
   const repository = options.repository ?? resolveReleaseRepository()
+  const target: AppUpdateLookupTarget = { host, repository }
+  if (!host) {
+    return { outcome: 'no-enterprise-host', target }
+  }
   const readApi = options.readApi ?? readGhApi
 
   let sawAnswer = false
@@ -135,8 +148,8 @@ export async function lookupLatestEnterpriseRelease(
   try {
     const tags = await readApi(`repos/${repository}/tags?per_page=${PAGE_SIZE}`, host)
     const fromTags = selectLatestStableRelease(parseTagListing(tags))
-    return fromTags ? found(fromTags, host, repository) : { outcome: 'no-release' }
+    return fromTags ? found(fromTags, host, repository) : { outcome: 'no-release', target }
   } catch {
-    return sawAnswer ? { outcome: 'no-release' } : { outcome: 'lookup-failed' }
+    return sawAnswer ? { outcome: 'no-release', target } : { outcome: 'lookup-failed', target }
   }
 }

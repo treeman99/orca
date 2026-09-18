@@ -10,11 +10,17 @@
 // a release-page URL; `electron-updater` is not a dependency of this build.
 
 import { app, BrowserWindow } from 'electron'
-import { APP_UPDATE_STATUS_EVENT, type AppUpdateCheckStatus } from '../../shared/app-update-check'
+import {
+  APP_UPDATE_STATUS_EVENT,
+  type AppUpdateCheckStatus,
+  type AppUpdateLookupTarget
+} from '../../shared/app-update-check'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { isNewerRelease } from './release-tag-selection'
 import {
   lookupLatestEnterpriseRelease,
+  resolveEnterpriseReleaseHost,
+  resolveReleaseRepository,
   type ReleaseLookupResult
 } from './enterprise-release-lookup'
 import { readDismissedUpdateVersion, writeDismissedUpdateVersion } from './update-notice-dismissals'
@@ -28,6 +34,16 @@ type ServiceOptions = {
   lookup?: typeof lookupLatestEnterpriseRelease
   isDisabled?: () => boolean
   broadcast?: (status: AppUpdateCheckStatus) => void
+  resolveTarget?: () => AppUpdateLookupTarget
+}
+
+function resolveLookupTarget(): AppUpdateLookupTarget {
+  return { host: resolveEnterpriseReleaseHost(), repository: resolveReleaseRepository() }
+}
+
+/** `checkedAt` moves on every check, so comparing it would re-broadcast every 6 hours. */
+function answerFingerprint(status: AppUpdateCheckStatus): string {
+  return JSON.stringify(status, (key, value) => (key === 'checkedAt' ? undefined : value))
 }
 
 function broadcastToWindows(status: AppUpdateCheckStatus): void {
@@ -57,7 +73,8 @@ export class AppUpdateCheckService {
       currentVersion: options.currentVersion ?? currentAppVersion,
       lookup: options.lookup ?? lookupLatestEnterpriseRelease,
       isDisabled: options.isDisabled ?? (() => getEnterprisePolicy().disableAutoUpdate),
-      broadcast: options.broadcast ?? broadcastToWindows
+      broadcast: options.broadcast ?? broadcastToWindows,
+      resolveTarget: options.resolveTarget ?? resolveLookupTarget
     }
   }
 
@@ -89,6 +106,16 @@ export class AppUpdateCheckService {
     return this.options.isDisabled() ? { state: 'disabled' } : this.status
   }
 
+  /**
+   * Where a check would look, without performing one.
+   *
+   * Deliberately ungated: this is local policy plus `gh`'s own host, not a call to
+   * anything, and a fleet whose lane is off still needs to show why it reads nothing.
+   */
+  getLookupTarget(): AppUpdateLookupTarget {
+    return this.options.resolveTarget()
+  }
+
   /** The chokepoint. Every path that would reach the corporate host comes through here. */
   check(): Promise<AppUpdateCheckStatus> {
     if (this.options.isDisabled()) {
@@ -115,10 +142,10 @@ export class AppUpdateCheckService {
       result = await this.options.lookup({})
     } catch {
       // A lookup that throws instead of reporting is still just "no answer".
-      result = { outcome: 'lookup-failed' }
+      result = { outcome: 'lookup-failed', target: this.options.resolveTarget() }
     }
-    const next = this.toStatus(result)
-    const changed = JSON.stringify(next) !== JSON.stringify(this.status)
+    const next = this.toStatus(result, Date.now())
+    const changed = answerFingerprint(next) !== answerFingerprint(this.status)
     this.status = next
     if (changed) {
       this.options.broadcast(next)
@@ -126,14 +153,15 @@ export class AppUpdateCheckService {
     return next
   }
 
-  private toStatus(result: ReleaseLookupResult): AppUpdateCheckStatus {
+  private toStatus(result: ReleaseLookupResult, checkedAt: number): AppUpdateCheckStatus {
     const currentVersion = this.options.currentVersion()
+    const checked = { target: result.target, checkedAt }
     if (result.outcome !== 'found') {
-      return { state: 'unavailable', reason: result.outcome }
+      return { state: 'unavailable', reason: result.outcome, ...checked }
     }
     const { release } = result
     if (!isNewerRelease(currentVersion, release.version)) {
-      return { state: 'up-to-date', currentVersion, latestVersion: release.version }
+      return { state: 'up-to-date', currentVersion, latestVersion: release.version, ...checked }
     }
     return {
       state: 'available',
@@ -141,7 +169,8 @@ export class AppUpdateCheckService {
       latestVersion: release.version,
       releaseTag: release.tag,
       releaseUrl: result.releaseUrl,
-      dismissed: readDismissedUpdateVersion() === release.version
+      dismissed: readDismissedUpdateVersion() === release.version,
+      ...checked
     }
   }
 }

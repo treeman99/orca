@@ -5,9 +5,11 @@ import { searchKeywords, translateSearchKeyword } from './settings-search-keywor
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { getGeneralProjectRuntimeSearchEntries } from './general-project-runtime-search'
 import { getGeneralSupportSearchEntries } from './general-support-search'
+import { getGeneralAppUpdateSearchEntries } from './general-app-update-search'
 
 export { getGeneralEditorSearchEntries } from './general-editor-search'
 export { getGeneralSupportSearchEntries } from './general-support-search'
+export { getGeneralAppUpdateSearchEntries } from './general-app-update-search'
 
 export const getGeneralWorkspaceSearchEntries = createLocalizedCatalog(() => [
   {
@@ -206,6 +208,7 @@ export function getGeneralPaneSearchEntries(
     ...(options.includeProjectRuntime === false ? [] : getGeneralProjectRuntimeSearchEntries()),
     ...getGeneralEditorSearchEntries(),
     ...getGeneralCliSearchEntries(),
+    ...getGeneralAppUpdateSearchEntries(),
     ...getGeneralSupportSearchEntries()
   ]
 }

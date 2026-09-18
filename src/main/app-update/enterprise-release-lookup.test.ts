@@ -25,6 +25,8 @@ import {
 import { makeEnterprisePolicy } from '../../shared/enterprise-policy-fixture'
 
 const HOST = 'github.samsungds.net'
+const REPOSITORY = 'daegun-kim/Orca_ds'
+const TARGET = { host: HOST, repository: REPOSITORY }
 
 beforeEach(() => {
   ghExecFileAsyncMock.mockReset()
@@ -98,12 +100,24 @@ describe('releasePageUrl', () => {
 })
 
 describe('lookupLatestEnterpriseRelease', () => {
-  it('reports no host instead of calling gh', async () => {
+  // Why the repository still comes back: "no host" is an unconfigured fleet, and the
+  // diagnostic that says so must show which half resolved and which did not.
+  it('reports no host — with the repository it would have read — instead of calling gh', async () => {
     getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
     await expect(lookupLatestEnterpriseRelease()).resolves.toEqual({
-      outcome: 'no-enterprise-host'
+      outcome: 'no-enterprise-host',
+      target: { host: null, repository: REPOSITORY }
     })
     expect(ghExecFileAsyncMock).not.toHaveBeenCalled()
+  })
+
+  it('carries the administrator override in the target of a hostless lookup', async () => {
+    getEnterprisePolicyMock.mockReturnValue(
+      makeEnterprisePolicy({ updateReleaseRepository: 'Platform/Orca' })
+    )
+    await expect(lookupLatestEnterpriseRelease()).resolves.toMatchObject({
+      target: { host: null, repository: 'Platform/Orca' }
+    })
   })
 
   it('reads releases through gh api on the corporate host', async () => {
@@ -121,7 +135,7 @@ describe('lookupLatestEnterpriseRelease', () => {
     const result = await lookupLatestEnterpriseRelease()
     expect(result).toMatchObject({
       outcome: 'found',
-      host: HOST,
+      target: TARGET,
       releaseUrl: `https://${HOST}/daegun-kim/Orca_ds/releases/tag/v1.5.0`
     })
     expect(ghExecFileAsyncMock).toHaveBeenCalledWith(
@@ -159,7 +173,8 @@ describe('lookupLatestEnterpriseRelease', () => {
     ]) {
       const readApi = vi.fn().mockRejectedValue(new Error(message))
       await expect(lookupLatestEnterpriseRelease({ readApi })).resolves.toEqual({
-        outcome: 'lookup-failed'
+        outcome: 'lookup-failed',
+        target: TARGET
       })
     }
   })
@@ -167,7 +182,8 @@ describe('lookupLatestEnterpriseRelease', () => {
   it('reports no-release for an answering repository with no usable tag', async () => {
     const readApi = vi.fn().mockResolvedValue([{ name: 'nightly' }, { name: 'latest' }])
     await expect(lookupLatestEnterpriseRelease({ readApi })).resolves.toEqual({
-      outcome: 'no-release'
+      outcome: 'no-release',
+      target: TARGET
     })
   })
 
@@ -177,12 +193,16 @@ describe('lookupLatestEnterpriseRelease', () => {
       .mockResolvedValueOnce([])
       .mockRejectedValueOnce(new Error('HTTP 404: Not Found'))
     await expect(lookupLatestEnterpriseRelease({ readApi })).resolves.toEqual({
-      outcome: 'no-release'
+      outcome: 'no-release',
+      target: TARGET
     })
   })
 
   it('survives a non-JSON body from a captive portal', async () => {
     ghExecFileAsyncMock.mockResolvedValue({ stdout: '<html>login</html>', stderr: '' })
-    await expect(lookupLatestEnterpriseRelease()).resolves.toEqual({ outcome: 'lookup-failed' })
+    await expect(lookupLatestEnterpriseRelease()).resolves.toEqual({
+      outcome: 'lookup-failed',
+      target: TARGET
+    })
   })
 })

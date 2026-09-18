@@ -8464,7 +8464,16 @@
             "editorFontFamily": "编辑器字体",
             "editorFontFamilyDesc": "文件编辑器和差异视图使用的字体，留空则跟随终端字体。",
             "externalWorktrees": "外部工作树",
-            "externalWorktreesDescription": "选择是否默认显示在 Orca 外部创建的工作树。"
+            "externalWorktreesDescription": "选择是否默认显示在 Orca 外部创建的工作树。",
+            "appUpdate": "更新检查",
+            "appUpdateDescription": "在公司发布页面检查是否有更新的 Orca 版本，并查看它读取的是哪个主机和仓库。",
+            "update": "更新",
+            "checkForUpdates": "检查更新",
+            "version": "版本",
+            "release": "发布",
+            "upgrade": "升级",
+            "newBuild": "新版本",
+            "ghesUpdate": "ghes"
           }
         },
         "git": {
@@ -10450,6 +10459,18 @@
           "sourceDefault": "the gh default — no corporate host is configured",
           "label": "GitHub requests go to",
           "remoteNote": "A workspace whose git remote points at another host uses that host instead."
+        },
+        "AppUpdateSettingsSection": {
+          "title": "更新",
+          "currentVersion": "已安装版本",
+          "latestVersion": "发布页面上的最新版本",
+          "host": "检查的主机",
+          "repository": "检查的仓库",
+          "lastChecked": "上次检查",
+          "checking": "正在检查更新…",
+          "checkNow": "检查更新",
+          "openReleasePage": "打开发布页面",
+          "unknownValue": "尚未获知"
         }
       },
       "right": {
@@ -14725,6 +14746,31 @@
         "skip": "跳过此版本",
         "later": "稍后",
         "openReleasePage": "打开发布页面"
+      },
+      "appUpdate": {
+        "result": {
+          "acknowledge": "确定",
+          "disabled": "管理员已关闭这台机器的更新检查。Orca 不会去查找新版本。",
+          "unknown": "Orca 无法执行检查。更新检查通道没有响应 — 请重启 Orca；如果反复出现，请上报。",
+          "upToDate": "你使用的是公司发布页面上的最新版本（{{value0}}）。",
+          "available": "公司发布页面上有新版本。"
+        },
+        "target": {
+          "host": "主机",
+          "repository": "仓库",
+          "hostUnset": "未配置",
+          "repositoryUnset": "未配置"
+        },
+        "unavailable": {
+          "noEnterpriseHost": "没有配置公司的 GitHub Enterprise 主机，因此没有可检查的目标。这是配置缺失，不是网络问题 — 请向 IT 索取公司主机策略，或用 gh CLI 登录公司主机。",
+          "lookupFailed": "公司主机没有响应，或者 gh CLI 缺失、已退出登录。请确认能连上下面这台主机，然后运行 gh auth status。",
+          "noRelease": "仓库有响应，但还没有发布任何发布标签。这台机器没有问题。"
+        },
+        "title": {
+          "upToDate": "Orca 已是最新版本",
+          "disabled": "更新检查已关闭",
+          "noAnswer": "没有更新信息"
+        }
       }
     },
     "i18n": {

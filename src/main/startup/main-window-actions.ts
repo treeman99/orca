@@ -1,4 +1,5 @@
 import { app, clipboard, dialog, type BrowserWindow, type Tray } from 'electron'
+import { APP_UPDATE_CHECK_REQUESTED_EVENT } from '../../shared/app-update-check'
 import { recordCrashBreadcrumb } from '../crash-reporting/crash-breadcrumb-store'
 import { recordDurableCrashBreadcrumb } from '../crash-reporting/durable-crash-breadcrumb'
 import {
@@ -55,6 +56,15 @@ export function openSettingsFromSystemMenu(): void {
   recordCrashBreadcrumb('settings_opened')
   targetWindow.webContents.send('ui:openSettings')
   state.pendingOpenSettings.mark(targetWindow.webContents.id, Number.POSITIVE_INFINITY)
+}
+
+// Why intent only: the renderer owns how a check's outcome is presented, so the menu
+// item and the settings button must land on the same code path there. No replay marker
+// either — that belongs to Settings, whose panel the user expects to still be open.
+export function requestUpdateCheckFromSystemMenu(): void {
+  showMainWindowFromTray()
+  const targetWindow = state.mainWindow && !state.mainWindow.isDestroyed() ? state.mainWindow : null
+  targetWindow?.webContents.send(APP_UPDATE_CHECK_REQUESTED_EVENT)
 }
 
 export function quitFromSystemTray(): void {

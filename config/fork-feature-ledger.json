@@ -899,6 +899,47 @@
           "why": "upstream 메뉴 파일에 끼운 유일한 줄. upstream 이 메뉴를 쪼개면 이 줄만 사라지고 타입체크는 초록이다."
         }
       ]
+    },
+    {
+      "id": "enterprise-update-check-surface",
+      "summary": "사내 GHES 릴리스 태그 조회 레인의 사용자 표면 — 메뉴 바의 \"업데이트 확인...\" 항목, 그 의도를 렌더러로 넘기는 배선, 그리고 네트워크 없이 조회 대상만 알려 주는 진단 채널. upstream 의 인앱 업데이터(electron-updater)를 되살리는 것이 아니라 그 자리를 이 포크의 레인이 차지한다.",
+      "present": [
+        {
+          "file": "src/main/menu/register-app-menu.ts",
+          "contains": "'menu.checkForUpdates'",
+          "why": "메뉴 항목을 만드는 줄. 아무도 import 하지 않으므로 upstream 이 메뉴 빌더를 쪼개면 이것만 사라지고 타입체크는 초록이다."
+        },
+        {
+          "file": "src/main/menu/register-app-menu.ts",
+          "contains": "[{ role: 'about' }, checkForUpdatesItem]",
+          "why": "비 darwin 배치. helpMenu 는 upstream 소유라 리베이스가 자기 Help 목록으로 되돌리면 충돌 없이 우리 항목만 빠진다(darwin 배치는 macAppMenu 쪽이고 행동 테스트가 본다)."
+        },
+        {
+          "file": "src/main/startup/main-process-i18n-menu.ts",
+          "contains": "onCheckForUpdates: requestUpdateCheckFromSystemMenu",
+          "why": "메뉴 항목과 렌더러를 잇는 유일한 배선. 빠지면 registerAppMenu 가 필수 옵션을 잃어 tc 가 잡아 주지만, upstream 이 옵션을 선택적으로 만드는 순간 조용한 no-op 이 된다."
+        },
+        {
+          "file": "src/main/ipc/app-update.ts",
+          "contains": "'appUpdate:getLookupTarget'",
+          "why": "진단 채널 등록. 이것만 빠지면 preload 계약은 그대로라 tc 가 초록이고, 렌더러 호출만 런타임에 실패한다."
+        },
+        {
+          "file": "src/renderer/src/components/settings/GeneralPane.tsx",
+          "contains": "<AppUpdateSettingsSection key=\"app-update\" />",
+          "why": "설정 › 일반에 진단 섹션을 렌더하는 유일한 전달 줄. 이 한 줄만 지우면 tc 와 oxlint 가 미사용 import 로 잡아 주지만, upstream 이 GeneralPane 의 visibleSections 를 별 모듈로 쪼개면 import 와 함께 통째로 옮겨 가 그 안전망이 사라진다 — 그때 남는 것은 초록 CI 와 사라진 섹션이다."
+        },
+        {
+          "file": "src/renderer/src/components/settings/GeneralPane.tsx",
+          "contains": "useAppUpdateLaneAvailable()",
+          "why": "렌더 줄과 따로 등재하는 이유: 이 게이트만 빠지는 경우는 완전히 조용하다. 실측했다 — const 와 `appUpdateLaneAvailable &&` 를 지우면 oxlint 무출력, pnpm tc:web 통과, GeneralPane·AppUpdateSettingsSection 테스트 23건 전부 초록이다(섹션 테스트는 섹션을 직접 렌더해서 pane 을 안 지난다). 증상은 업데이트 레인이 없는 브라우저 클라이언트에서 섹션이 null 을 반환한 자리에 Separator 만 남는 것 — 고아 헤더 함정의 다른 얼굴이고, 화면을 봐야만 보인다."
+        },
+        {
+          "file": "src/renderer/src/components/settings/general-search.ts",
+          "contains": "...getGeneralAppUpdateSearchEntries()",
+          "why": "설정 검색과 cmd-J 인덱스에 항목을 합류시키는 한 줄. 스프레드 점 세 개까지 포함해 앵커를 잡은 이유는, 이 파일의 import 와 재export 에도 같은 이름이 있어 이름만으로는 배열에서 빠진 것을 못 잡기 때문이다. 빠져도 아무도 참조하지 않으니 tc 와 테스트가 모두 초록이고, 증상은 \"설정에서 업데이트를 검색해도 안 나온다\" 뿐이다."
+        }
+      ]
     }
   ],
   "absentPaths": [
@@ -1001,6 +1042,7 @@
     "disableSpellcheck": 7,
     "githubEnterpriseHost": 5,
     "disableUsagePolling": 3,
+    "disableAutoUpdate": 6,
     "disableManagedClaudeAccounts": 3,
     "disableRemoteOrcaServer": 3,
     "disableVendorProviderAccounts": 4,

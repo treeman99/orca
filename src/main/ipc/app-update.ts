@@ -1,17 +1,20 @@
-// IPC for the enterprise update-availability lane. Four channels plus one push:
+// IPC for the enterprise update-availability lane. Five channels plus one push:
 //
 //   appUpdate:getStatus      — the last known status (never triggers a lookup).
 //   appUpdate:check          — check now; resolves with the fresh status.
+//   appUpdate:getLookupTarget— which host/repository a check would read. No network.
 //   appUpdate:dismissVersion — "don't tell me about this release again".
 //   appUpdate:openReleasePage— hand the corporate release page to the OS browser.
 //   appUpdate:status (event) — pushed when a scheduled check changes the status.
 //
 // The policy gate lives in the service, not here, so the scheduler and this surface
-// cannot disagree about whether the lane is on.
+// cannot disagree about whether the lane is on. getLookupTarget carries no gate at
+// all: it resolves local policy, reaches nothing, and a `disabled` status is what
+// tells the renderer to stop showing the diagnostic.
 
 import { ipcMain } from 'electron'
 import { getAppUpdateCheckService } from '../app-update/app-update-check-service'
-import type { AppUpdateCheckStatus } from '../../shared/app-update-check'
+import type { AppUpdateCheckStatus, AppUpdateLookupTarget } from '../../shared/app-update-check'
 import { openExternalUrlUnderPolicy } from './shell-open-url'
 
 function readVersionArg(raw: unknown): string {
@@ -24,6 +27,9 @@ export function registerAppUpdateHandlers(): void {
 
   ipcMain.handle('appUpdate:getStatus', (): AppUpdateCheckStatus => service.getStatus())
   ipcMain.handle('appUpdate:check', (): Promise<AppUpdateCheckStatus> => service.check())
+  ipcMain.handle('appUpdate:getLookupTarget', (): AppUpdateLookupTarget =>
+    service.getLookupTarget()
+  )
   ipcMain.handle('appUpdate:dismissVersion', (_event, raw: unknown): AppUpdateCheckStatus =>
     service.dismissVersion(readVersionArg(raw))
   )

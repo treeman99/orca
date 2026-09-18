@@ -8,7 +8,7 @@ import {
 import { zoomDashboardPopoutIfFocused } from '../window/dashboard-popout-window'
 import { recordCrashBreadcrumb } from '../crash-reporting/crash-breadcrumb-store'
 import { mainProcessState as state } from './main-process-state'
-import { openSettingsFromSystemMenu } from './main-window-actions'
+import { openSettingsFromSystemMenu, requestUpdateCheckFromSystemMenu } from './main-window-actions'
 import { logStartupMilestone } from './startup-diagnostics'
 
 export async function initializeMainProcessI18nAndMenu(): Promise<void> {
@@ -28,6 +28,7 @@ export async function initializeMainProcessI18nAndMenu(): Promise<void> {
       recordCrashBreadcrumb('manual_reload_requested', { ignoreCache })
     },
     onOpenSettings: openSettingsFromSystemMenu,
+    onCheckForUpdates: requestUpdateCheckFromSystemMenu,
     // Why: menu zoom must act on the window the user is looking at — routing to
     // the main window while the dashboard pop-out is focused zooms behind it.
     onZoomIn: () => {

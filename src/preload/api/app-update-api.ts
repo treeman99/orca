@@ -1,4 +1,4 @@
-import type { AppUpdateCheckStatus } from '../../shared/app-update-check'
+import type { AppUpdateCheckStatus, AppUpdateLookupTarget } from '../../shared/app-update-check'
 
 // No download/install verbs: this build has no in-app updater. The only action the
 // renderer may take is opening the corporate release page, and the URL for it is
@@ -9,4 +9,8 @@ export type AppUpdateApi = {
   dismissVersion: (args: { version: string }) => Promise<AppUpdateCheckStatus>
   openReleasePage: () => Promise<void>
   onStatus: (callback: (status: AppUpdateCheckStatus) => void) => () => void
+  /** Where a check would look, without performing one. No network, no policy gate. */
+  getLookupTarget: () => Promise<AppUpdateLookupTarget>
+  /** The user picked "Check for Updates..." in the menu bar. */
+  onCheckRequested: (callback: () => void) => () => void
 }

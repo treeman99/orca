@@ -25,6 +25,7 @@ export function getNextDefaultOnAppearanceSettingValue(current: boolean | undefi
 
 type RegisterAppMenuOptions = {
   onOpenSettings: () => void
+  onCheckForUpdates: () => void
   onBeforeReload?: (options: { ignoreCache: boolean; webContentsId: number }) => void
   onZoomIn: () => void
   onZoomOut: () => void
@@ -42,6 +43,7 @@ type RegisterAppMenuOptions = {
 function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
   const {
     onOpenSettings,
+    onCheckForUpdates,
     onBeforeReload,
     onZoomIn,
     onZoomOut,
@@ -85,6 +87,14 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     click: () => onOpenSettings()
   }
 
+  // Fork: the corporate release-tag lane's only user-initiated entry point. No
+  // accelerator — the outcome is drawn in the renderer, which the settings button
+  // reaches by the same path, so main forwards the intent and nothing more.
+  const checkForUpdatesItem: Electron.MenuItemConstructorOptions = {
+    label: translateMain('menu.checkForUpdates', 'Check for Updates...'),
+    click: () => onCheckForUpdates()
+  }
+
   // Why: the macOS app-menu (named after the app) is mandatory on darwin and
   // owns hide/hideOthers/unhide/services/quit roles that only make sense in
   // the system menu bar. On Windows/Linux that menu would render as a
@@ -94,6 +104,7 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     label: options.appMenuLabel ?? app.name,
     submenu: [
       { role: 'about' },
+      checkForUpdatesItem,
       settingsItem,
       { type: 'separator' },
       { role: 'services' },
@@ -270,12 +281,13 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     submenu: [{ role: 'minimize' }, { role: 'zoom' }]
   }
 
-  // Fork: About is the only Help entry on every platform. Crash reporting, the
-  // feature tour, the setup guide and the update check all left with the vendor
-  // surfaces they belonged to — see docs/reference/external-integrations-audit.md.
+  // Fork: crash reporting, the feature tour and the setup guide left with the vendor
+  // surfaces they belonged to — see docs/reference/external-integrations-audit.md. The
+  // update check is this fork's own lane, placed where each platform expects it: the
+  // app menu on macOS, Help elsewhere.
   const helpMenu: Electron.MenuItemConstructorOptions = {
     label: translateMain('menu.help', 'Help'),
-    submenu: [{ role: 'about' }]
+    submenu: isMac ? [{ role: 'about' }] : [{ role: 'about' }, checkForUpdatesItem]
   }
 
   const template: Electron.MenuItemConstructorOptions[] = [

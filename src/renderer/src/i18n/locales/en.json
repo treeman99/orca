@@ -11171,7 +11171,16 @@
             "sidebar": "sidebar",
             "visibility": "visibility",
             "windowsHost": "windows host",
-            "wsl": "wsl"
+            "wsl": "wsl",
+            "appUpdate": "Update check",
+            "appUpdateDescription": "Check the company release page for a newer Orca build, and see which host and repository it reads.",
+            "update": "update",
+            "checkForUpdates": "check for updates",
+            "version": "version",
+            "release": "release",
+            "upgrade": "upgrade",
+            "newBuild": "new build",
+            "ghesUpdate": "ghes"
           }
         },
         "git": {
@@ -12353,6 +12362,18 @@
               "microphoneTitle": "Microphone"
             }
           }
+        },
+        "AppUpdateSettingsSection": {
+          "title": "Updates",
+          "currentVersion": "Installed version",
+          "latestVersion": "Latest on the release page",
+          "host": "Checked host",
+          "repository": "Checked repository",
+          "lastChecked": "Last checked",
+          "checking": "Checking for updates…",
+          "checkNow": "Check for updates",
+          "openReleasePage": "Open release page",
+          "unknownValue": "Not yet known"
         }
       },
       "setup": {
@@ -16065,6 +16086,31 @@
         "3d8e5f1b9c": "Share skills behind an unlisted link and install them on any machine you use.",
         "7e1a9c4d2f": "Signing in…",
         "c5b3e8a17d": "Sign in to Orca"
+      },
+      "appUpdate": {
+        "result": {
+          "acknowledge": "OK",
+          "disabled": "Your administrator turned update checks off for this machine. Orca will not look for a newer build.",
+          "unknown": "Orca could not run the check. The update lane did not answer — restart Orca, and report it if it keeps happening.",
+          "upToDate": "You are on the newest build the company release page lists ({{value0}}).",
+          "available": "A newer build is on the company release page."
+        },
+        "target": {
+          "host": "Host",
+          "repository": "Repository",
+          "hostUnset": "Not configured",
+          "repositoryUnset": "Not configured"
+        },
+        "unavailable": {
+          "noEnterpriseHost": "No corporate GitHub Enterprise host is configured, so there is nothing to check against. This is a configuration gap, not a network problem — ask IT for the enterprise host policy, or sign in to the corporate host with the gh CLI.",
+          "lookupFailed": "The corporate host did not answer, or the gh CLI is missing or signed out. Check your connection to the host below, then run gh auth status.",
+          "noRelease": "The repository answered, but it publishes no release tag yet. Nothing is wrong with this machine."
+        },
+        "title": {
+          "upToDate": "Orca is up to date",
+          "disabled": "Update checks are turned off",
+          "noAnswer": "No update information"
+        }
       }
     },
     "hooks": {

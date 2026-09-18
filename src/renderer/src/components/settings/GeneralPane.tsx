@@ -2,11 +2,13 @@ import type React from 'react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { useAppStore } from '../../store'
 import { Separator } from '../ui/separator'
+import { AppUpdateSettingsSection, useAppUpdateLaneAvailable } from './AppUpdateSettingsSection'
 import { CliSection } from './CliSection'
 import { GeneralEditorSettingsSection } from './GeneralEditorSettingsSection'
 import { GeneralSupportSection } from './GeneralSupportSection'
 import { GeneralWorkspaceSettingsSection } from './GeneralWorkspaceSettingsSection'
 import {
+  getGeneralAppUpdateSearchEntries,
   getGeneralCliSearchEntries,
   getGeneralEditorSearchEntries,
   getGeneralNavigationSearchEntries,
@@ -118,6 +120,7 @@ export function GeneralPane({
   const projectRuntimeSearchEntries = wslSupportedPlatform
     ? getGeneralProjectRuntimeSearchEntries()
     : []
+  const appUpdateLaneAvailable = useAppUpdateLaneAvailable()
 
   const visibleSections = [
     matchesSettingsSearch(searchQuery, generalNavigationSearchEntries) ? (
@@ -212,6 +215,10 @@ export function GeneralPane({
         wslAvailable={wslAvailable}
         wslCapabilitiesLoading={wslCapabilitiesLoading}
       />
+    ) : null,
+    appUpdateLaneAvailable &&
+    matchesSettingsSearch(searchQuery, getGeneralAppUpdateSearchEntries()) ? (
+      <AppUpdateSettingsSection key="app-update" />
     ) : null
     // Note: the Support section is rendered outside this array so it can own
     // its own loading placeholder and its own collapsing Separator. Without

@@ -8409,7 +8409,16 @@
             "editorFontFamily": "Fuente del editor",
             "editorFontFamilyDesc": "Fuente utilizada por los editores de archivos y vistas de diferencias. Dejar vacío para seguir la fuente de la terminal.",
             "externalWorktrees": "Worktrees externos",
-            "externalWorktreesDescription": "Elige si los worktrees creados fuera de Orca aparecen de forma predeterminada."
+            "externalWorktreesDescription": "Elige si los worktrees creados fuera de Orca aparecen de forma predeterminada.",
+            "appUpdate": "Comprobación de actualizaciones",
+            "appUpdateDescription": "Consulta la página de versiones de la empresa para ver si hay una compilación de Orca más reciente, y qué host y repositorio se leen.",
+            "update": "actualización",
+            "checkForUpdates": "buscar actualizaciones",
+            "version": "versión",
+            "release": "publicación",
+            "upgrade": "actualizar",
+            "newBuild": "compilación nueva",
+            "ghesUpdate": "ghes"
           }
         },
         "git": {
@@ -10372,6 +10381,18 @@
           "sourceDefault": "the gh default — no corporate host is configured",
           "label": "GitHub requests go to",
           "remoteNote": "A workspace whose git remote points at another host uses that host instead."
+        },
+        "AppUpdateSettingsSection": {
+          "title": "Actualizaciones",
+          "currentVersion": "Versión instalada",
+          "latestVersion": "Última en la página de versiones",
+          "host": "Host consultado",
+          "repository": "Repositorio consultado",
+          "lastChecked": "Última comprobación",
+          "checking": "Buscando actualizaciones…",
+          "checkNow": "Buscar actualizaciones",
+          "openReleasePage": "Abrir página de versiones",
+          "unknownValue": "Aún se desconoce"
         }
       },
       "right": {
@@ -14647,6 +14668,31 @@
         "skip": "Omitir esta versión",
         "later": "Más tarde",
         "openReleasePage": "Abrir página de versiones"
+      },
+      "appUpdate": {
+        "result": {
+          "acknowledge": "Aceptar",
+          "disabled": "Tu administrador desactivó la comprobación de actualizaciones en este equipo. Orca no buscará una compilación más reciente.",
+          "unknown": "Orca no pudo ejecutar la comprobación. El canal de actualizaciones no respondió: reinicia Orca y avisa si vuelve a ocurrir.",
+          "upToDate": "Estás en la compilación más reciente que muestra la página de versiones de la empresa ({{value0}}).",
+          "available": "Hay una compilación más reciente en la página de versiones de la empresa."
+        },
+        "target": {
+          "host": "Host",
+          "repository": "Repositorio",
+          "hostUnset": "No configurado",
+          "repositoryUnset": "No configurado"
+        },
+        "unavailable": {
+          "noEnterpriseHost": "No hay ningún host de GitHub Enterprise de la empresa configurado, así que no hay nada que consultar. Es una falta de configuración, no un problema de red: pide a IT la política del host corporativo, o inicia sesión en el host de la empresa con la CLI gh.",
+          "lookupFailed": "El host de la empresa no respondió, o la CLI gh falta o tiene la sesión cerrada. Comprueba tu conexión con el host de abajo y luego ejecuta gh auth status.",
+          "noRelease": "El repositorio respondió, pero todavía no publica ninguna etiqueta de versión. No le pasa nada a este equipo."
+        },
+        "title": {
+          "upToDate": "Orca está actualizado",
+          "disabled": "La comprobación de actualizaciones está desactivada",
+          "noAnswer": "Sin información de actualizaciones"
+        }
       }
     },
     "i18n": {

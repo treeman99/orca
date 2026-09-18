@@ -26,11 +26,14 @@ import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterpris
 import type { ReleaseLookupResult } from './enterprise-release-lookup'
 
 const HOST = 'github.samsungds.net'
+const TARGET = { host: HOST, repository: 'daegun-kim/Orca_ds' }
+const NO_HOST_TARGET = { host: null, repository: 'daegun-kim/Orca_ds' }
+const CHECKED = { target: TARGET, checkedAt: expect.any(Number) }
 
 function foundRelease(tag: string, version: string): ReleaseLookupResult {
   return {
     outcome: 'found',
-    host: HOST,
+    target: TARGET,
     release: { tag, version, releaseUrl: null },
     releaseUrl: `https://${HOST}/daegun-kim/Orca_ds/releases/tag/${tag}`
   }
@@ -42,6 +45,7 @@ function makeService(overrides: ServiceOverrides = {}) {
   return new AppUpdateCheckService({
     currentVersion: () => '1.4.186',
     broadcast: vi.fn(),
+    resolveTarget: () => TARGET,
     ...overrides
   })
 }
@@ -114,7 +118,8 @@ describe('status', () => {
       latestVersion: '1.5.0',
       releaseTag: 'v1.5.0',
       releaseUrl: `https://${HOST}/daegun-kim/Orca_ds/releases/tag/v1.5.0`,
-      dismissed: false
+      dismissed: false,
+      ...CHECKED
     })
     expect(broadcast).toHaveBeenCalledTimes(1)
   })
@@ -126,15 +131,25 @@ describe('status', () => {
     await expect(service.check()).resolves.toEqual({
       state: 'up-to-date',
       currentVersion: '1.4.186',
-      latestVersion: '1.4.186'
+      latestVersion: '1.4.186',
+      ...CHECKED
     })
   })
 
-  it('says nothing at all when the host cannot be reached', async () => {
+  it('says nothing at all when the host cannot be reached, but still names the target', async () => {
     const broadcast = vi.fn()
     for (const outcome of ['no-enterprise-host', 'lookup-failed', 'no-release'] as const) {
-      const service = makeService({ lookup: vi.fn().mockResolvedValue({ outcome }), broadcast })
-      await expect(service.check()).resolves.toEqual({ state: 'unavailable', reason: outcome })
+      const target = outcome === 'no-enterprise-host' ? NO_HOST_TARGET : TARGET
+      const service = makeService({
+        lookup: vi.fn().mockResolvedValue({ outcome, target }),
+        broadcast
+      })
+      await expect(service.check()).resolves.toEqual({
+        state: 'unavailable',
+        reason: outcome,
+        target,
+        checkedAt: expect.any(Number)
+      })
     }
   })
 
@@ -142,7 +157,8 @@ describe('status', () => {
     const service = makeService({ lookup: vi.fn().mockRejectedValue(new Error('boom')) })
     await expect(service.check()).resolves.toEqual({
       state: 'unavailable',
-      reason: 'lookup-failed'
+      reason: 'lookup-failed',
+      ...CHECKED
     })
   })
 
@@ -153,15 +169,55 @@ describe('status', () => {
     expect(lookup).toHaveBeenCalledTimes(1)
   })
 
-  it('broadcasts only when the status actually changed', async () => {
+  // Why the clock is advanced rather than left alone: `checkedAt` moves on every check,
+  // so a whole-status comparison would make the 6-hourly re-check broadcast an unchanged
+  // answer forever — and two checks in the same millisecond would hide exactly that.
+  it('broadcasts only when the answer changed, not because the clock moved', async () => {
+    vi.useFakeTimers()
+    try {
+      const broadcast = vi.fn()
+      const service = makeService({
+        lookup: vi.fn().mockResolvedValue(foundRelease('v1.5.0', '1.5.0')),
+        broadcast
+      })
+      const first = await service.check()
+      vi.advanceTimersByTime(6 * 60 * 60 * 1000)
+      const second = await service.check()
+
+      expect(broadcast).toHaveBeenCalledTimes(1)
+      expect(first).toMatchObject({ checkedAt: expect.any(Number) })
+      expect(second).not.toEqual(first)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does broadcast when the target itself changes under an unchanged outcome', async () => {
     const broadcast = vi.fn()
-    const service = makeService({
-      lookup: vi.fn().mockResolvedValue(foundRelease('v1.5.0', '1.5.0')),
-      broadcast
-    })
+    const lookup = vi
+      .fn()
+      .mockResolvedValueOnce({ outcome: 'lookup-failed', target: NO_HOST_TARGET })
+      .mockResolvedValueOnce({ outcome: 'lookup-failed', target: TARGET })
+    const service = makeService({ lookup, broadcast })
     await service.check()
     await service.check()
-    expect(broadcast).toHaveBeenCalledTimes(1)
+    expect(broadcast).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('lookup target', () => {
+  it('reports where a check would look without performing one', () => {
+    const lookup = vi.fn()
+    const service = makeService({ lookup, resolveTarget: () => NO_HOST_TARGET })
+    expect(service.getLookupTarget()).toEqual(NO_HOST_TARGET)
+    expect(lookup).not.toHaveBeenCalled()
+  })
+
+  // Why ungated: the target is local policy, not a call — a locked-down fleet still has
+  // to be able to see whether its host is configured at all.
+  it('answers even when the policy disables the lane', () => {
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy({ githubEnterpriseHost: HOST }))
+    expect(makeService().getLookupTarget()).toEqual(TARGET)
   })
 })
 
