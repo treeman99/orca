@@ -549,7 +549,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.205`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.206`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -770,12 +770,12 @@ v1.4.205가 lint 전용 플러그인 `oxlint-plugin-anti-slop` 을 **npm 레지�
 사내 빌드의 `pnpm install` 은 사내 npm 미러만 거치므로(`docs/reference/windows-corporate-build.md` §6)
 이 tarball 에서 설치가 실패할 수 있고, 앱에 실리지도 않는 lint 도구입니다. **포크에서 뺐습니다.**
 
-| 무엇                                                              | 어디                                        |
-| ----------------------------------------------------------------- | ------------------------------------------- |
-| `oxlint-plugin-anti-slop` devDependency                           | `package.json`                              |
-| `audit:anti-slop` · `sync:anti-slop-plugin` 스크립트, `lint` 체인 | `package.json`                              |
+| 무엇                                                              | 어디                                                                       |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `oxlint-plugin-anti-slop` devDependency                           | `package.json`                                                             |
+| `audit:anti-slop` · `sync:anti-slop-plugin` 스크립트, `lint` 체인 | `package.json`                                                             |
 | 플러그인 설정·동기화 스크립트                                     | `config/oxlint-anti-slop.json`, `config/scripts/sync-anti-slop-plugin.mjs` |
-| `Reject low-evidence patterns` 스텝                               | `.github/workflows/pr.yml`                  |
+| `Reject low-evidence patterns` 스텝                               | `.github/workflows/pr.yml`                                                 |
 
 **다음 동기화에서 할 일.** `package.json` 은 늘 포크판 + upstream 델타로 풀므로 의존성은 돌아오지 않지만,
 `pr.yml` 스텝과 두 설정 파일은 **충돌 없이 되살아납니다.** 원장이 잡습니다 — `absentSymbols` 에
@@ -790,6 +790,46 @@ v1.4.205가 lint 전용 플러그인 `oxlint-plugin-anti-slop` 을 **npm 레지�
 없는 변형을 가리켰습니다. `--frozen-lockfile` 은 통과하는데 `node_modules/@tiptap/core` 가 끊어진 링크라
 `tc:web` 이 수백 건 실패합니다. importer `version` 을 peer 포함 스냅샷(`3.31.3(@tiptap/pm@3.31.3)`)으로
 맞추면 재계산 후에도 유지됩니다. 판별식은 `ls node_modules/@tiptap/core/package.json` 입니다.
+
+#### i18n 카탈로그는 포크 판을 기준으로 두고 upstream 델타만 얹어라 (v1.4.206에서 실제로 겪음)
+
+`src/renderer/src/i18n/locales/en.json` 은 3만 줄이고 키 순서가 양쪽에서 재배치돼 머지가
+hunk 13개로 터집니다. **upstream 판(theirs)을 통째로 받으면 안 됩니다** — 포크가 지운 표면의 키가
+전부 돌아와 `pnpm sync:localization-catalog` 가 extra 1,331건으로 죽습니다. 반대로 포크 판만
+유지하면 upstream 이 바꾼 문구가 낡은 채로 남아 **렌더러 테스트가 문구 불일치로 빨개집니다**.
+
+순서는 이렇습니다.
+
+1. 충돌은 일단 아무 쪽으로든 풀고, `en.json` 과 `en-runtime-required.json` 을 **포크 tip 판으로
+   되돌린다**(`git checkout <포크tip> -- <두 파일>`).
+2. `pnpm sync:localization-catalog` 를 돌린다. 코드에 fallback 이 있는 신규 키는 여기서 채워진다.
+   "missing without fallback" 로 남는 키는 upstream 태그의 `en.json` 에서 값을 옮겨 넣는다.
+3. **upstream 이 지운 키를 지운다.** `v1.4.x en.json` − `v1.4.y en.json` 의 차집합 중 포크 소스에서
+   참조되지 않는 것(v1.4.206 에서 69건 — 제거된 대시보드 맵 뷰, `Starting chat…` 라벨 등).
+   남겨 두면 `structured-agent-startup-label-census` 같은 "제거된 문구가 없어야 한다" 가드가 잡는다.
+4. **upstream 이 값을 바꾼 키를 수용한다.** 두 태그에서 값이 달라진 키 중 **포크 en.json 의 값이 옛
+   upstream 값과 같은 것만** 갱신한다. 값이 다르면 포크가 손댄 것이니 건드리지 않는다(v1.4.206:
+   수용 5건, 포크 소유 0건). 이걸 빠뜨리면 `use-reveal-requests`·`browser-search` 가 빨개진다.
+5. **복수형 변형을 손으로 옮긴다.** `_one`/`_other` 같은 변형은 sync 가 코드 fallback 에서 만들어
+   내지 못한다. upstream 판에 있고 포크에 base 키가 있는 변형만 골라 넣는다(v1.4.206: 8건).
+   빠지면 i18next 가 엉뚱한 형태를 골라 `NativeChatResumeOnRestartModal` 이 같은 토스트를 두 번 낸다.
+6. 다른 로케일은 en 기준으로 extras 만 정리하고, 마지막에
+   `pnpm sync:localization-runtime-catalog` 로 부트 카탈로그를 재생성한다.
+
+#### 모바일 웹 번들이 패키징 계약이 됐다 (v1.4.206)
+
+upstream 이 `build:mobile-web` 을 `build:release`·`build:desktop` 체인에 넣고 electron-builder
+`beforePack` 에 `assertMobileWebBundleBuilt` 를 걸었습니다. **사내 빌드는 영향이 없습니다** — 번들은
+`src/mobile-web` 만으로 만들어져 `mobile/node_modules` 없이 통과합니다(v1.4.206 실측: exit 0,
+자산 4개 2,558바이트). 그래서 `enterprise-build.yml` 에 Expo/React Native 설치를 넣지 않았고,
+upstream 이 모든 패키징 잡에 그 설치를 강제하는 계약 테스트를 추가했기에 포크 예외 1건을
+`config/scripts/mobile-web-bundle-packaging-workflow-contract.test.mjs` 에 근거와 함께 등재했습니다.
+
+**다음 동기화에서 볼 것.** upstream 은 이 번들에 모바일 앱 본체를 싣는 방향(OTA Phase C)으로 가고
+있습니다. 번들이 `mobile/` 을 실제로 해석하기 시작하면 `pnpm build:mobile-web` 이 사내 빌드 잡에서
+**소리 내어** 깨집니다(조용한 실패가 아닙니다). 그때 두 갈래입니다 — 사내 미러로 mobile 의존성이
+설치되면 `install-mobile-dependencies` 를 넣고 포크 예외를 지우고, 안 되면 포크에서 번들 레인을
+빼야 합니다(체인 2곳 + `beforePack` 가드 + 관련 verify 스크립트).
 
 #### upstream 파일이 `max-lines` 상한에 닿을 때 — 별칭 임포트로 호출부를 되돌려라 (v1.4.204에서 실제로 겪음)
 
@@ -820,6 +860,23 @@ upstream 새 트리에서 grep하면 그 코드가 어느 모듈로 갔는지 �
 호출지점에서 타입체크가 먼저 깨집니다. 새 레이어를 끼울 때 `@ts-nocheck`는 **금지**입니다
 (`check:ts-nocheck-ratchet`이 막습니다) — 아래 계층이 정의한 멤버가 필요하면 그 멤버만 이름으로 적은
 forward-ref 타입 하나로 캐스팅하십시오(`orca-runtime-agent-prompt-rescue.ts`의 `AgentPromptRescueForwardRefs`).
+
+**max-lines 를 넘겼을 때 쓸 수 있는 수법은 별칭 임포트만이 아닙니다.** v1.4.206 에서는 upstream 이
+300 줄에 딱 맞춰 둔 파일 5개에 포크 줄이 얹혀 상한을 넘었고, 게이트를 빼지 않고 네 가지로 줄였습니다 —
+① **포크 필드를 교차 타입으로 분리**(`ForkGlobalSettings & { … }`: `global-settings-types.ts` 에서
+8 필드를 `fork-global-settings.ts` 로 옮겨 −30줄), ② **포크 타입을 한 이름으로 묶고 upstream 타입을
+그 모듈에서 재수출**해 임포트 두 줄을 한 줄로(`ForkTerminalFields` + `TerminalPaneLayoutNode`:
+100자 안에 들어가야 oxfmt 가 접지 않는다 — 이름이 길면 4줄로 불어나 역효과), ③ **별칭 임포트**
+(v1.4.204 수법, `ai-vault-reuse.ts` 가 upstream 이름으로 래퍼를 재수출해 호출부를 바이트 동일하게),
+④ **배럴 재수출로 인자를 흡수**(`ownerSurfacingWithPaneGroup as ownerSurfacing`: 포크 전개 한 줄을
+upstream 호출 한 줄에 접어 넣는다). 넷 다 **원장에 앵커를 새로 등재해야 합니다** — 호출부가
+upstream 과 같아진 만큼 사라져도 티가 안 나기 때문입니다.
+
+**`tests/e2e/.cross-version-checkouts/` 는 메인 워크트리에서만 테스트를 깨뜨립니다.** gitignore 된
+구버전 체크아웃이라 새 워크트리에는 없습니다. v1.4.206 의 신규 `e2e-worker-env-isolation.unit.test.ts`
+는 `tests/e2e` 를 재귀 순회하는데 이 디렉터리에서 스택이 넘칩니다(순정 워크트리에서는 통과).
+`wsl-exec-mode-separator` 와 같은 부류이니 **메인 워크트리 전용 실패가 보이면 먼저 이 디렉터리를
+의심하십시오.**
 
 **테스트 판정은 3자 대조로 하십시오.** 전체 스위트 1회 실행은 판정이 아닙니다(이 맥에서 상시 3천여 파일이
 환경 문제로 실패합니다). 워크트리 두 개를 띄우고 실패 **파일 집합**을 비교하면 진짜 회귀만 남습니다:
