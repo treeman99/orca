@@ -13,6 +13,7 @@ import {
 } from './settings-capability-section-renderers'
 import {
   renderArtifactsSettingsSection,
+  renderSessionHistorySettingsSection,
   renderAutomationsSettingsSection,
   renderGeneralSettingsSection,
   renderIntegrationsSettingsSection,
@@ -122,6 +123,7 @@ export function renderSettingsPage(context: SettingsRenderContext): React.JSX.El
                 {renderMobileSettingsSection(context)}
                 {renderAutomationsSettingsSection(context)}
                 {renderArtifactsSettingsSection(context)}
+                {renderSessionHistorySettingsSection(context)}
                 {renderGitSettingsSection(context)}
                 {renderTerminalSettingsSection(context)}
                 {renderQuickCommandsSettingsSection(context)}

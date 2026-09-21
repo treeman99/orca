@@ -15,3 +15,12 @@ export type TerminalCreateForkFields = {
   /** Advisory worker-column anchor; the renderer drops it when it cannot honor it. */
   paneGroupPlacement?: TerminalPaneGroupPlacement
 }
+
+// Bundled under one name, and upstream's TerminalPaneLayoutNode re-exported beside it, so
+// runtime-terminal-contracts.ts imports one module on one line: the fork's import replaces
+// upstream's instead of adding to it, keeping that file inside max-lines (README §6).
+export type ForkTerminalFields = {
+  send: TerminalSendForkFields
+  create: TerminalCreateForkFields
+}
+export type { TerminalPaneLayoutNode } from './terminal-tab-types'

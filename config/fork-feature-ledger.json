@@ -397,8 +397,18 @@
         },
         {
           "file": "src/shared/runtime-terminal-contracts.ts",
-          "contains": "RuntimeTerminalCreateBaseRequestPayload = TerminalCreateForkFields & {",
+          "contains": "RuntimeTerminalCreateBaseRequestPayload = ForkTerminalFields['create'] & {",
           "why": "워커 패널 앵커(paneGroupPlacement)가 terminal.create 계약에 실리는 자리. 빠져도 타입이 안 깨지는 호출지점이 있다."
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-create-terminal-dependencies.ts",
+          "contains": "ownerSurfacingWithPaneGroup as ownerSurfacing",
+          "note": "The create path's ownerSurfacing is the fork's, which also spreads paneGroupPlacement; losing this re-export silently drops the worker-column anchor."
+        },
+        {
+          "file": "src/shared/global-settings-types.ts",
+          "contains": "GlobalSettings = ForkGlobalSettings & {",
+          "note": "Carries all eight fork-owned settings fields (worker panes, diagnostic log, Confluence); dropping the intersection removes them all."
         }
       ]
     },
@@ -546,7 +556,7 @@
         },
         {
           "file": "src/shared/runtime-terminal-contracts.ts",
-          "contains": "RuntimeTerminalSend = TerminalSendForkFields & {",
+          "contains": "RuntimeTerminalSend = ForkTerminalFields['send'] & {",
           "why": "v1.4.201 에서 max-lines 때문에 포크 필드(submit)를 terminal-fork-fields.ts 로 뺐다. 교차 타입이 빠지면 terminal.send 영수증의 submit 이 조용히 사라진다."
         }
       ]
@@ -698,7 +708,7 @@
         },
         {
           "file": "src/renderer/src/components/terminal-pane/terminal-pane-hook-order-parity.test.ts",
-          "contains": "'603694338b74754d0607a11f5f27a6097c1cbbb09da0062365a7493bbacdf352'",
+          "contains": "'c2bcb8fc37df7ccdd86b8bd7e0e43b25774d11238c049dc681fa886d3bba4348'",
           "why": "훅 개수·useMemo 개수는 upstream 과 같고 식별자만 다르다(useOptionalLinkRoutingPreferenceDialog). 다이제스트는 그 차이를 보므로 포크 전용 값이며, 머지가 upstream 값으로 되돌리면 빨개진다."
         }
       ]
@@ -839,7 +849,7 @@
           "contains": "operation: 'searchMarkReused', paths"
         },
         {
-          "file": "src/main/ipc/ai-vault.ts",
+          "file": "src/main/ipc/ai-vault-reuse.ts",
           "contains": "registerAiVaultSessionReuseHandler()"
         },
         {
@@ -875,6 +885,11 @@
           "file": "config/vitest.config.ts",
           "contains": "resolve('config/vitest-session-search-retention-isolation.ts')",
           "why": "스위트에서 2주 상한을 풀어 upstream 보존 테스트 9건을 살린다. 상한 증명은 session-search-retention-cap.test.ts 와 session-search-reuse-retention.test.ts 가 unmock 해서 한다."
+        },
+        {
+          "file": "src/main/ipc/ai-vault.ts",
+          "contains": "from './ai-vault-reuse'",
+          "note": "Upstream's registration import is routed through the fork wrapper so the reuse handler registers without adding a line to a file at its max-lines budget."
         }
       ]
     },
@@ -974,7 +989,9 @@
     "src/main/runtime/push/push-host-proof-vector.test.ts",
     "src/shared/rpc-contract/updater-params.ts",
     "config/oxlint-anti-slop.json",
-    "config/scripts/sync-anti-slop-plugin.mjs"
+    "config/scripts/sync-anti-slop-plugin.mjs",
+    "src/main/orca-profiles/profile-cloud-service-connect-overlap.test.ts",
+    "src/main/orca-profiles/profile-cloud-service-sign-out-connect-race.test.ts"
   ],
   "absentSymbols": [
     {

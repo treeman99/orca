@@ -95,7 +95,7 @@ export function registerTerminalRequestIpcBridge(unsubs: (() => void)[]): void {
         const tab = store.createTab(
           worktreeId,
           data.targetGroupId ?? workerPaneGroupId,
-          undefined,
+          data.shellOverride,
           tabOptions
         )
         if (workerPaneGroupId && data.paneGroupPlacement) {

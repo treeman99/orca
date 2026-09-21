@@ -11,7 +11,7 @@ export async function prepareAiVaultSessionForResume(
 ): Promise<AiVaultSession> {
   // Fork: every resume path (terminal, new chat, copied command) passes here.
   markAiVaultSessionReused(session)
-  if (!session.structuredSession && !aiVaultSessionNeedsResumePreparation(session)) {
+  if (session.structuredSession || !aiVaultSessionNeedsResumePreparation(session)) {
     return session
   }
   const result = await window.api.aiVault.prepareSessionResume({

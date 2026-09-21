@@ -10,8 +10,7 @@ import type { RuntimeListingHostScope } from './runtime-listing-host-scope'
 import type { RuntimeMobileSessionTabsResult } from './runtime-session-contracts'
 import type { TabGroupLayoutNode } from './tab-types'
 import type { TerminalExitCause } from './terminal-exit-cause'
-import type { TerminalCreateForkFields, TerminalSendForkFields } from './terminal-fork-fields'
-import type { TerminalPaneLayoutNode } from './terminal-tab-types'
+import type { ForkTerminalFields, TerminalPaneLayoutNode } from './terminal-fork-fields'
 import type { TuiAgent } from './tui-agent'
 
 export type RuntimeTerminalSummary = {
@@ -206,7 +205,7 @@ export type RuntimeTerminalRename = {
   title: string | null
 }
 
-export type RuntimeTerminalSend = TerminalSendForkFields & {
+export type RuntimeTerminalSend = ForkTerminalFields['send'] & {
   handle: string
   accepted: boolean
   bytesWritten: number
@@ -245,7 +244,7 @@ export type RuntimeTerminalAgentStatus = {
 
 export type RuntimeTerminalPresentation = 'background' | 'focused'
 
-type RuntimeTerminalCreateBaseRequestPayload = TerminalCreateForkFields & {
+type RuntimeTerminalCreateBaseRequestPayload = ForkTerminalFields['create'] & {
   requestId: string
   worktreeId?: string
   afterTabId?: string
@@ -264,6 +263,8 @@ type RuntimeTerminalCreateBaseRequestPayload = TerminalCreateForkFields & {
   activate?: boolean
   presentation?: RuntimeTerminalPresentation
   surfaceOwner?: false
+  /** Windows shell the created tab spawns AS, instead of the host default. */
+  shellOverride?: string
 }
 
 export type RuntimeTerminalCreateRequestPayload =

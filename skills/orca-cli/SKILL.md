@@ -6,10 +6,9 @@ description: >-
   says "$orca-cli", "use orca cli", "Orca worktree", "child worktree", "cardStatus", "spawn
   codex/claude in a worktree", "read/wait/send Orca terminal", "terminal send", "handoff" /
   "handover" / "give this to another agent", "another worktree", "Orca browser", or "orca
-  artifacts". Prefer it over raw git worktree, ad hoc PTYs, Playwright, or Computer Use when
-  Orca state is involved. Use Computer Use only for external windows or desktop UI that needs
-  OS-level control, and Playwright or CDP for external pages. Use `orca-cli` for Orca's
-  embedded pages and a page-automation tool such as Playwright or CDP for external pages.
+  artifacts". Prefer it over raw git worktree, ad hoc PTYs, or Computer Use when Orca state
+  is involved. Use Computer Use only when a visible window needs GUI control that a CLI,
+  filesystem, or API cannot do.
 ---
 
 # Orca CLI

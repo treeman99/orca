@@ -26,8 +26,7 @@ import {
   type AiVaultSubagentListResult
 } from '../../shared/ai-vault-types'
 import { handleAiVaultGetFirstUserPrompt } from '../ai-vault/session-first-user-prompt-handler'
-import { registerAiVaultResumeHandler, type AiVaultResumeHandlerOptions } from './ai-vault-resume'
-import { registerAiVaultSessionReuseHandler } from './ai-vault-session-reuse'
+import { registerAiVaultResumeHandler, type AiVaultResumeHandlerOptions } from './ai-vault-reuse'
 import {
   LOCAL_EXECUTION_HOST_ID,
   parseExecutionHostId,
@@ -203,14 +202,16 @@ async function scanAiVaultSessionsByHostScope(
   })
 }
 
-function getActiveRuntimeAiVaultHostInfosResult(): AiVaultHostDiscoveryResult<RuntimeAiVaultHostInfo> {
+export function getActiveRuntimeAiVaultHostInfosResult(): AiVaultHostDiscoveryResult<RuntimeAiVaultHostInfo> {
   return discoverAiVaultHosts(() => handlerOptions.getActiveRuntimeAiVaultHostInfos?.() ?? [], {
     path: 'runtime environments',
     fallbackMessage: 'Runtime hosts are unavailable.'
   })
 }
 
-function getActiveSshAiVaultHostInfosResult(): AiVaultHostDiscoveryResult<{ targetId: string }> {
+export function getActiveSshAiVaultHostInfosResult(): AiVaultHostDiscoveryResult<{
+  targetId: string
+}> {
   return discoverAiVaultHosts(getActiveSshAiVaultHostInfos, {
     path: 'SSH hosts',
     fallbackMessage: 'SSH hosts are unavailable.'
@@ -304,8 +305,6 @@ export function registerAiVaultHandlers(options: AiVaultHandlerOptions = {}): vo
     }
   )
   registerAiVaultResumeHandler(options)
-  // Fork: reuse restarts session search retention.
-  registerAiVaultSessionReuseHandler()
   ipcMain.handle(
     'aiVault:listSubagentSessions',
     (_event, args?: AiVaultSubagentListArgs): Promise<AiVaultSubagentListResult> =>

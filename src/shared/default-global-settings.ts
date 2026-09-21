@@ -73,6 +73,9 @@ export function buildDefaultSettings(args: {
     terminalGpuAcceleration: 'auto',
     // Why 'auto': enable ligatures only for known ligature fonts, never forced. Resolver in shared/terminal-ligatures.ts.
     terminalLigatures: 'auto',
+    // Why on: the addon is lazy-loaded off the critical path and only creates
+    // canvas layers once a pane receives an image; parser/decoder setup still has overhead.
+    terminalInlineImages: true,
     terminalCursorStyle: 'block',
     terminalCursorStyleDefaultedToBlock: true,
     terminalCursorBlink: true,
@@ -90,6 +93,7 @@ export function buildDefaultSettings(args: {
     terminalRightClickToPaste: args.terminalRightClickToPaste,
     terminalRightClickToPasteDefaultedForPlatform: true,
     terminalWindowsShell: 'powershell.exe',
+    terminalDefaultShell: '',
     terminalWindowsWslDistro: null,
     localAccountRuntime: 'auto',
     localAccountRuntimeDefaultedToAutoForAllUsers: true,
@@ -127,6 +131,8 @@ export function buildDefaultSettings(args: {
     openLinksInAppPreferencePrompted: false,
     openLinksInAppModifierInverts: false,
     terminalLinkActionPopoverEnabled: true,
+    terminalLinkClickBehavior: 'actions',
+    terminalUrlMiddleClickBehavior: 'open',
     // A session opens as a terminal; the chat view is a per-tab toggle, not a launch mode.
     openAgentTabsInChatByDefault: false,
     autoSplitOrchestrationWorkerPanes: false,
@@ -138,6 +144,7 @@ export function buildDefaultSettings(args: {
     // hides the view behind a setting most users never find.
     experimentalNativeChat: true,
     experimentalStructuredNativeChat: false,
+    nativeChatResumeWorkOnRestart: false,
     nativeChatSessionOptions: {},
     openInApplications: [...DEFAULT_OPEN_IN_APPLICATIONS],
     rightSidebarOpenByDefault: true,
@@ -170,6 +177,7 @@ export function buildDefaultSettings(args: {
     diffDefaultView: 'inline',
     diffWordWrap: false,
     diffShowWhitespace: false,
+    diffCollapseUnchangedRegions: false,
     combinedDiffFileTreeVisibleByDefault: false,
     prBotAuthorOverrides: [],
     promptCacheTimerEnabled: false,

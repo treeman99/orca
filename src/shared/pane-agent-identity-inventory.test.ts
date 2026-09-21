@@ -68,8 +68,6 @@ const INVENTORY: readonly InventoryGroup[] = [
       ['src/renderer/src/components/settings/source-control-action-recipe-options.ts', 2],
       'src/renderer/src/components/automations/automation-draft-model.ts',
       ['src/renderer/src/components/automations/automation-list-search-rows.ts', 2],
-      ['src/renderer/src/components/dashboard-popout/AgentMapSnapshotWorkspaceMenu.tsx', 2],
-      ['src/renderer/src/components/dashboard-popout/AgentMapWorktreeRingNode.tsx', 2],
       ['src/renderer/src/components/settings/NativeChatSupportedAgents.tsx', 2],
       ['src/renderer/src/components/settings/QuickCommandsList.tsx', 2],
       ['src/renderer/src/components/tab-bar/TabBarQuickCommandItem.tsx', 2],
@@ -131,7 +129,7 @@ const INVENTORY: readonly InventoryGroup[] = [
       ['src/shared/agent-title-core.ts', 4],
       ['src/shared/agent-title-evidence.ts', 2],
       ['src/shared/agent-title-identity.ts', 11],
-      ['src/shared/terminal-title-agent-type.ts', 14]
+      ['src/shared/terminal-title-agent-type.ts', 15]
     ]
   },
   {

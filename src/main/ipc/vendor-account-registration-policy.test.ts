@@ -45,6 +45,8 @@ function makeAccountService(): Record<string, ReturnType<typeof vi.fn>> {
     listAccounts: vi.fn(() => []),
     addAccount: vi.fn(),
     cancelPendingLogin: vi.fn(),
+    getPendingLoginUrl: vi.fn(() => null),
+    onPendingLoginUrlChanged: vi.fn(),
     reauthenticateAccount: vi.fn(),
     removeAccount: vi.fn(),
     selectAccount: vi.fn(),

@@ -12,6 +12,7 @@ import type { SettingsNavSection } from '@/lib/settings-navigation-types'
 import {
   CalendarClock,
   Files,
+  History,
   GitBranch,
   Globe,
   PanelsTopLeft,
@@ -59,6 +60,25 @@ export function buildWorkflowSettingsSections(
           }
         ]
       : []),
+    {
+      id: 'session-history',
+      title: translate('sessionHistory.settings.title', 'Agent Session Search'),
+      description: translate(
+        'sessionHistory.settings.description',
+        'Search everything your agents have said and done, on this computer and on any paired Orca server.'
+      ),
+      icon: History,
+      searchEntries: [
+        {
+          title: translate('sessionHistory.settings.indexComputers', 'Search inside sessions'),
+          description: translate(
+            'sessionHistory.settings.searchDescription',
+            'Turn on session search for this computer and paired servers, or clear search data.'
+          )
+        }
+      ],
+      group: 'workflows'
+    },
     {
       id: 'git',
       title: translate(

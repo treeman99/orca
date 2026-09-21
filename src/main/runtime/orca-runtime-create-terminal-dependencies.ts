@@ -1,10 +1,8 @@
 export type { TerminalCreateOptions } from './runtime-terminal-contracts'
 export type { RuntimeTerminalCreate } from '../../shared/runtime-types'
-export {
-  createTerminalRevealWarning,
-  ownerSurfacing,
-  resolveTerminalPresentation
-} from './orca-runtime-core'
+export { createTerminalRevealWarning, resolveTerminalPresentation } from './orca-runtime-core'
+// Fork: the create path's ownerSurfacing also carries the worker-column anchor.
+export { ownerSurfacingWithPaneGroup as ownerSurfacing } from './terminal-create-owner-surfacing'
 export { isValidHostTerminalTabId } from '../../shared/terminal-tab-id'
 export { isTerminalLeafId, makePaneKey } from '../../shared/stable-pane-id'
 export { randomUUID } from 'node:crypto'

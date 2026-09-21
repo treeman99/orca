@@ -18,13 +18,18 @@ const TERMINAL_PANE_HOOK_SOURCE_PATTERN =
 // paused notice that read it (207 hooks, still 8 useMemo).
 // Then host-authoritative layout removal added two `useRef`s in reconciliation
 // (last host layout leaf set, retired leaf set) (209 hooks, still 8 useMemo).
+// Then search match count + Cmd+F focus parity (#9035) added a `useRef` and a `useCallback` in
+// foundation (search input ref, focus-search-input) (211 hooks, still 8 useMemo).
+// Then the pending split-close admission added one `useRef` in close-actions
+// (the confirmed-close continuation) (212 hooks, still 8 useMemo).
 //
-// Fork delta from upstream's pinned hash (upstream: f6de13ab…838b): this build calls
+// Fork delta from upstream's pinned hash (upstream: a3ec9b9f…99c6): this build calls
 // `useOptionalLinkRoutingPreferenceDialog` instead of `useLinkRoutingPreferenceDialog`
 // (the popped-out tab window mounts no provider). Same hook count, same position —
-// only the identifier differs, which is what the digest sees.
+// only the identifier differs, which is what the digest sees. Verified at v1.4.206 by
+// renaming it back: the digest then equals upstream's pin exactly.
 const PRE_REFACTOR_HOOK_ORDER_SHA256 =
-  '603694338b74754d0607a11f5f27a6097c1cbbb09da0062365a7493bbacdf352'
+  'c2bcb8fc37df7ccdd86b8bd7e0e43b25774d11238c049dc681fa886d3bba4348'
 
 const sourceFiles = readdirSync(__dirname)
   .filter((name) => TERMINAL_PANE_HOOK_SOURCE_PATTERN.test(name))
@@ -89,7 +94,7 @@ function readFlattenedHookOrder(): string[] {
 describe('TerminalPane refactor hook parity', () => {
   it('preserves the recursively flattened render hook order', () => {
     const hooks = readFlattenedHookOrder()
-    expect(hooks).toHaveLength(209)
+    expect(hooks).toHaveLength(212)
     expect(hooks.filter((hook) => hook === 'useMemo')).toHaveLength(8)
     expect(createHash('sha256').update(hooks.join('\n')).digest('hex')).toBe(
       PRE_REFACTOR_HOOK_ORDER_SHA256

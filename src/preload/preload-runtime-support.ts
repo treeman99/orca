@@ -44,6 +44,7 @@ export function getLinuxDisplayServer(): 'wayland' | 'x11' | null {
 type NativeFileDropCallback = (data: NativeFileDropPayload) => void
 const nativeFileDropCallbacks: NativeFileDropCallback[] = []
 let nativeFileDropListenerRegistered = false
+let nativeFileDropHandlersInstalled = false
 
 const onNativeFileDrop = (_event: Electron.IpcRendererEvent, data: NativeFileDropPayload): void => {
   for (const callback of Array.from(nativeFileDropCallbacks)) {
@@ -87,6 +88,11 @@ function resolveNativeFileDrop(event: DragEvent): NativeDropResolution | null {
 
 /** Installs the one preload-side listener that converts native File objects to paths. */
 export function installNativeFileDropHandlers(): void {
+  // Preload entry points can be evaluated more than once in tests and during development reloads;
+  // duplicate document listeners retain every closure and process each drop repeatedly.
+  if (nativeFileDropHandlersInstalled) {
+    return
+  }
   document.addEventListener(
     'dragover',
     (event) => {
@@ -153,6 +159,7 @@ export function installNativeFileDropHandlers(): void {
     },
     true
   )
+  nativeFileDropHandlersInstalled = true
 }
 
 export const browserFindSubscriptions = createBrowserFindSubscriptions()
@@ -160,12 +167,17 @@ export const browserClientPageRendererRequests = createBrowserClientPageRenderer
   ipc: ipcRenderer,
   isTopFrame: () => window.top === window
 })
+let browserFindListenerInstalled = false
 
 /** Registers browser find forwarding once for this preload context. */
 export function installBrowserFindListener(): void {
+  if (browserFindListenerInstalled) {
+    return
+  }
   ipcRenderer.on('ui:findInBrowserPage', (_event, source: unknown) => {
     browserFindSubscriptions.dispatch(source)
   })
+  browserFindListenerInstalled = true
 }
 
 registerRendererRestartIpcRelays(ipcRenderer, window)

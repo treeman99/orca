@@ -32,6 +32,7 @@ import {
   warnOnce
 } from './worktree-listing-diagnostics'
 import { readAllWorktreeMetaForRepo } from '../../../persistence/host-qualified-worktree-meta'
+import { classifyWorktreeScanFailure } from '../../../../shared/worktree-scan-failure'
 
 export async function listDetectedWorktreesForCapturedRepo(
   store: Store,
@@ -171,6 +172,7 @@ export async function listDetectedWorktreesForCapturedRepo(
     )
     // Why: retention alone leaves inert rows with no explanation; the cause rides with the listing.
     const unavailableReason = describeWorktreeScanFailure(err)
+    const failureKind = classifyWorktreeScanFailure(unavailableReason)
     if (repo.connectionId) {
       const worktrees = listDisconnectedSshWorktrees(store, repo, sshWorktreeMetaIndex())
       return {
@@ -178,7 +180,8 @@ export async function listDetectedWorktreesForCapturedRepo(
         authoritative: false,
         source: 'metadata-fallback',
         worktrees: buildDisconnectedDetectedWorktrees(store, repo, worktrees),
-        unavailableReason
+        unavailableReason,
+        failureKind
       }
     }
     return {
@@ -186,7 +189,8 @@ export async function listDetectedWorktreesForCapturedRepo(
       authoritative: false,
       source: 'metadata-fallback',
       worktrees: [],
-      unavailableReason
+      unavailableReason,
+      failureKind
     }
   }
 }

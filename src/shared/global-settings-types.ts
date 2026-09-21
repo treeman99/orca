@@ -1,3 +1,4 @@
+import type { ForkGlobalSettings } from './fork-global-settings'
 import type { ExecutionHostId } from './execution-host'
 import type { GitHubProjectSettings } from './github/project-types'
 import type { VoiceSettings } from './speech-types'
@@ -55,7 +56,7 @@ export type WorktreeVisibilityDefaults = {
   sourcePreferences?: WorktreeVisibilitySourcePreferences
 }
 
-export type GlobalSettings = {
+export type GlobalSettings = ForkGlobalSettings & {
   workspaceDir: string
   /** Host-owned defaults used when a repository has no explicit visibility override. */
   worktreeVisibilityDefaults?: WorktreeVisibilityDefaults
@@ -130,6 +131,11 @@ export type GlobalSettings = {
    *  - `'on'` / `'off'`: explicit override. Never changes when the user
    *    switches fonts, so "off" always stays off. */
   terminalLigatures: 'auto' | 'on' | 'off'
+  /** Whether inline terminal images are rendered via `@xterm/addon-image`
+   *  (SIXEL, iTerm2 IIP, and Kitty graphics). The addon is lazy-loaded and its
+   *  canvas layers are only created once a pane actually receives an image, so
+   *  idle panes retain parser/decoder setup but no decoded image storage. */
+  terminalInlineImages: boolean
   terminalCursorStyle: 'bar' | 'block' | 'underline'
   /** One-shot migration guard for moving inherited cursor defaults to block. */
   terminalCursorStyleDefaultedToBlock?: boolean
@@ -167,6 +173,8 @@ export type GlobalSettings = {
   terminalRightClickToPasteDefaultedForPlatform?: boolean
   /** Windows-only: COMSPEC always points to cmd.exe, so this explicit shell (default 'powershell.exe') overrides it. */
   terminalWindowsShell: string
+  /** Optional shell executable for new terminals on macOS and Linux. */
+  terminalDefaultShell?: string
   /** Pins the WSL distro for terminals/agent scans instead of WSL's current global default. */
   terminalWindowsWslDistro?: string | null
   /** Account/auth location; auto follows the global Windows runtime while host/wsl pin it. */
@@ -211,22 +219,19 @@ export type GlobalSettings = {
   openLinksInAppModifierInverts?: boolean
   /** Show link actions on plain click in the terminal and chat; off restores modifier-click-only terminal links. */
   terminalLinkActionPopoverEnabled?: boolean
+  /** Plain-click behavior for terminal links; optional for profiles saved before this setting existed. */
+  terminalLinkClickBehavior?: 'actions' | 'open' | 'none'
+  /** Middle mouse URL behavior; defaults to opening the primary routed destination. */
+  terminalUrlMiddleClickBehavior?: 'open' | 'actions' | 'none'
   /** Opt-in: open new coding-agent tabs in native chat instead of the raw terminal; optional for legacy settings. */
   openAgentTabsInChatByDefault?: boolean
-  /** Opt-in: orchestration workers started in the coordinator's own worktree open in a split column beside it instead of as tabs in the active group. */
-  autoSplitOrchestrationWorkerPanes?: boolean
-  /** How tall that worker column may grow before workers share panes as tabs; clamped on read, so an out-of-range value degrades instead of breaking the layout. */
-  orchestrationMaxWorkerPanes?: number
-  /** On by default: release a worker's terminal — closing its tab and pane — as soon as its own worker_done settles, instead of waiting for the coordinator's worker-release. */
-  autoCloseCompletedOrchestrationWorkerTabs?: boolean
-  /** Opt-in plain-text troubleshooting log. Off by default: it is a support aid, not telemetry — nothing leaves the machine. */
-  diagnosticLogEnabled?: boolean
-  /** Folder for that log. Empty falls back to the app's own logs directory. */
-  diagnosticLogDirectory?: string
   /** Experimental native chat surface for Claude/Codex sessions; off by default. */
   experimentalNativeChat?: boolean
   /** Opt-in updated structured runtime; off keeps the existing PTY-backed native chat path. */
   experimentalStructuredNativeChat?: boolean
+  /** Opt-in: resume working structured chats automatically on the next launch. Off still offers
+   *  the list, so the user sees exactly what would run before anything spends tokens. */
+  nativeChatResumeWorkOnRestart?: boolean
   /** Last explicit native-chat model + option selections; live panes need an applied/dispatched record before showing a value. */
   nativeChatSessionOptions?: PersistedNativeChatSessionOptions
   /** Extra launcher rows for the worktree "Open in" submenu. VS Code is always shown first. */
@@ -293,6 +298,8 @@ export type GlobalSettings = {
   diffDefaultView: 'inline' | 'side-by-side'
   diffWordWrap: boolean
   diffShowWhitespace: boolean
+  /** Opt-in: single-file diffs collapse unchanged regions, as the combined diff view already does; optional for legacy settings. */
+  diffCollapseUnchangedRegions?: boolean
   combinedDiffFileTreeVisibleByDefault: boolean
   /** Bot-marked comment-author logins (stored lowercased); escape hatch for review bots on regular accounts that defeat provider metadata/heuristics. */
   prBotAuthorOverrides: string[]
@@ -374,26 +381,6 @@ export type GlobalSettings = {
   defaultLinearTeamSelection: string[] | null
   /** Session cookie for OpenCode Go rate-limit fetching. Stored encrypted. */
   opencodeSessionCookie: string
-  /**
-   * Self-hosted Confluence (Server / Data Center) base URL, e.g.
-   * `https://confluence-mirror.samsungds.net`. Empty means not configured.
-   *
-   * Fork-only. Atlassian Cloud is deliberately not an option: this fleet's wiki is a
-   * self-hosted mirror, and Cloud would need a different API path and a different auth
-   * header — offering both would be two code paths for a host nobody here uses.
-   */
-  confluenceBaseUrl?: string
-  /** Confluence personal access token, sent as `Authorization: Bearer`. Encrypted at rest. */
-  confluenceApiToken?: string
-  /**
-   * Username for Basic auth. Empty means the token is a Personal Access Token sent as
-   * `Authorization: Bearer`.
-   *
-   * Why both schemes: PATs only exist on Confluence Server/DC 7.9+. An older mirror — and a
-   * deployment with PATs turned off — takes username + password over Basic, which is exactly
-   * what those servers advertise in the 401 challenge.
-   */
-  confluenceUsername?: string
   /** Optional OpenCode Go workspace ID override; when set, skips the workspaces lookup and fetches usage directly. */
   opencodeWorkspaceId: string
   /** Optional MiniMax group id. When empty, the usage fetcher extracts minimax_group_id_v2 from the cookie. */

@@ -1,6 +1,8 @@
+import { resolveAgentStatusWorktreeId } from '@/lib/agent-status-worktree-attribution'
 import type { AppState } from '@/store/types'
 import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
+import { isWebTerminalSurfaceTabId } from '../../../../shared/terminal-surface-id'
 
 export type LiveEntriesByWorktreeCache = {
   tabsByWorktree: AppState['tabsByWorktree']
@@ -46,6 +48,13 @@ export function liveEntryWorktreeIds(
     return NO_WORKTREES
   }
   const tabWorktreeId = tabIdToWorktreeId.get(parsed.tabId)
+  // Upstream: a remote row is retracted by its host, not by tab hydration, so it resolves to
+  // the one worktree the host attributes it to rather than joining the union below.
+  const remote = Boolean(entry.connectionId) || isWebTerminalSurfaceTabId(parsed.tabId)
+  if (remote) {
+    const resolved = resolveAgentStatusWorktreeId(entry, tabIdToWorktreeId)
+    return resolved ? [resolved] : NO_WORKTREES
+  }
   const attributedWorktreeId = entry.state === 'done' ? undefined : entry.worktreeId
   if (tabWorktreeId && attributedWorktreeId && tabWorktreeId !== attributedWorktreeId) {
     return [tabWorktreeId, attributedWorktreeId]
@@ -89,10 +98,11 @@ export function patchLiveEntriesByWorktree(
     }
     // Why: bail on added keys or bucket-determinant changes — the bucket rule
     // depends only on paneKey, the (reference-equal) tab index, worktree
-    // attribution, and done-ness, so equal determinants mean the same bucket.
+    // attribution, remote connection presence, and done-ness.
     if (
       previous === undefined ||
       previous.worktreeId !== entry.worktreeId ||
+      Boolean(previous.connectionId) !== Boolean(entry.connectionId) ||
       (previous.state === 'done') !== (entry.state === 'done')
     ) {
       return null
