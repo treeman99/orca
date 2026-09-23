@@ -1,4 +1,4 @@
-// The AI Vault's view menu: the agent filter, sort, grouping, and reset.
+// The AI Vault's view menu: the agent filter, grouping, and reset.
 //
 // Split out of AiVaultPanelControls so that file stays under the tsx line budget — this is
 // the one control in it that carries real logic (the corporate agent allowlist) rather than
@@ -6,14 +6,7 @@
 
 import type React from 'react'
 import { useMemo } from 'react'
-import {
-  ArchiveRestore,
-  Calendar,
-  Clock3,
-  FolderOpen,
-  ListFilter,
-  PanelsTopLeft
-} from 'lucide-react'
+import { ArchiveRestore, FolderOpen, ListFilter, PanelsTopLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -34,8 +27,7 @@ import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import {
   AI_VAULT_AGENTS,
   type AiVaultAgent,
-  type AiVaultGroup,
-  type AiVaultSort
+  type AiVaultGroup
 } from '../../../../shared/ai-vault-types'
 import { translate } from '@/i18n/i18n'
 import { AGENT_BULK_ACTION_CLASS, VAULT_HEADER_CONTROL_CLASS } from './ai-vault-control-classes'
@@ -45,14 +37,12 @@ import type { AiVaultSessionLimit } from './ai-vault-session-limit'
 export function VaultViewMenu({
   searching = false,
   agents,
-  sort,
   group,
   hideEmptySessions,
   sessionLimit,
   adjustmentCount,
   onAgentEnabledChange,
   onAllAgentsEnabledChange,
-  onSortChange,
   onGroupChange,
   onHideEmptySessionsChange,
   onSessionLimitChange,
@@ -60,14 +50,12 @@ export function VaultViewMenu({
 }: {
   searching?: boolean
   agents: readonly AiVaultAgent[]
-  sort: AiVaultSort
   group: AiVaultGroup
   hideEmptySessions: boolean
   sessionLimit: AiVaultSessionLimit
   adjustmentCount: number
   onAgentEnabledChange: (agent: AiVaultAgent, enabled: boolean) => void
   onAllAgentsEnabledChange: (enabled: boolean) => void
-  onSortChange: (sort: AiVaultSort) => void
   onGroupChange: (group: AiVaultGroup) => void
   onHideEmptySessionsChange: (hideEmptySessions: boolean) => void
   onSessionLimitChange: (limit: AiVaultSessionLimit) => void
@@ -167,26 +155,6 @@ export function VaultViewMenu({
         ))}
         {!searching && (
           <>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>
-              {translate('auto.components.right.sidebar.AiVaultPanelControls.sort', 'Sort')}
-            </DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={sort}
-              onValueChange={(value) => onSortChange(value as AiVaultSort)}
-            >
-              <DropdownMenuRadioItem value="updated">
-                <Clock3 className="size-3.5" />
-                {translate(
-                  'auto.components.right.sidebar.AiVaultPanelControls.lastUpdated',
-                  'Last updated'
-                )}
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="created">
-                <Calendar className="size-3.5" />
-                {translate('auto.components.right.sidebar.AiVaultPanelControls.created', 'Created')}
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>
               {translate('auto.components.right.sidebar.AiVaultPanelControls.group', 'Group')}

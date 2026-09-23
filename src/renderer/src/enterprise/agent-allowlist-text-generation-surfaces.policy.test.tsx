@@ -84,14 +84,12 @@ function renderVaultAgentFilter(): void {
     <TooltipProvider>
       <VaultViewMenu
         agents={AI_VAULT_AGENTS}
-        sort="updated"
         group="project"
         hideEmptySessions={false}
         sessionLimit="unlimited"
         adjustmentCount={0}
         onAgentEnabledChange={vi.fn()}
         onAllAgentsEnabledChange={vi.fn()}
-        onSortChange={vi.fn()}
         onGroupChange={vi.fn()}
         onHideEmptySessionsChange={vi.fn()}
         onSessionLimitChange={vi.fn()}

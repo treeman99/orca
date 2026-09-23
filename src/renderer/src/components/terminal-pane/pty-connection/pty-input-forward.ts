@@ -19,6 +19,8 @@ import {
 import { TERMINAL_FOCUS_IN_SEQUENCE, TERMINAL_FOCUS_OUT_SEQUENCE } from './foreground-output-scan'
 import { isRemoteRuntimePtyId } from './paired-parked-terminal-restore'
 import { isCodexPaneStale } from './codex-pane-stale'
+import { installTerminalSelectionFitGuard } from '../terminal-selection-fit-guard'
+import { initializePaneGeometry, readPaneSize } from './read-pane-size'
 
 import type { ConnectPanePtySession } from './connect-pane-pty-session'
 import { installForegroundGridDriftCheck } from './foreground-grid-drift-check'
@@ -196,6 +198,9 @@ export function installPtyInputForward(session: ConnectPanePtySession): void {
     capturedTransport: session.transport,
     getCurrentTransport: () => session.deps.paneTransportsRef.current.get(session.pane.id)
   })
+  session.terminalSelectionFitGuard = installTerminalSelectionFitGuard(session.pane.terminal, () =>
+    session.scheduleForegroundGridDriftCheck(true)
+  )
 
   session.shouldSuppressDesktopPtyResize = (): boolean => {
     const currentPtyId = session.transport.getPtyId()
@@ -308,12 +313,9 @@ export function installPtyInputForward(session: ConnectPanePtySession): void {
         if (reattachCols > 0 && reattachRows > 0) {
           session.transport.resize(reattachCols, reattachRows)
         }
-        // Why: POSIX only sends SIGWINCH on an actual dimension change; signal explicitly so restored TUIs repaint at the correct cursor after replay.
         if (!isRemoteRuntimePtyId(reattachPtyId)) {
           window.api.pty.signal(reattachPtyId, 'SIGWINCH')
         }
-        // Why here: a deferred reveal resolves the fit handle as incomplete, so an awaited
-        // reassertion at the call site would never run for that path.
         if (session.deps.isVisibleRef.current) {
           session.ptySizeReassertion.request({ fit: false })
         }
@@ -322,19 +324,6 @@ export function installPtyInputForward(session: ConnectPanePtySession): void {
   }
   installForegroundGridDriftCheck(session)
 
-  // Why: observe the outer pane as the layout signal for both desktop drift
-  // healing and mobile take-back. Normal desktop panes compare xterm against
-  // the PTY's applied size; mobile-fit panes only report desktop geometry so
-  // the parked phone-sized PTY is not resized. See docs/mobile-fit-hold.md.
-  session.pendingGeometryReportRaf = null
-  session.lastObservedDesktopGrid = null
-  session.readPaneSize = (): { width: number; height: number } | null => {
-    if (typeof session.pane.container.getBoundingClientRect !== 'function') {
-      return null
-    }
-    const rect = session.pane.container.getBoundingClientRect()
-    return { width: rect.width, height: rect.height }
-  }
-  session.lastObservedPaneSize = session.readPaneSize()
-  session.pendingPaneGeometryChanged = false
+  session.readPaneSize = () => readPaneSize(session)
+  initializePaneGeometry(session)
 }

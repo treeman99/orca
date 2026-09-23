@@ -39,19 +39,23 @@ export function installForegroundGridDriftCheck(session: ConnectPanePtySession):
     }
     return proposed
   }
-  session.scheduleForegroundGridDriftCheck = (): void => {
+  session.scheduleForegroundGridDriftCheck = (force = false): void => {
     // Why: mobile-owned PTYs intentionally keep a non-desktop grid; drift
     // healing would refit xterm even if resize forwarding is later suppressed.
     if (
       session.disposed ||
       !session.deps.isVisibleRef.current ||
       session.shouldSuppressDesktopPtyResize() ||
-      session.pendingForegroundGridDriftCheckRaf !== null
+      session.pendingForegroundGridDriftCheckRaf !== null ||
+      (!force && session.terminalSelectionFitGuard?.isActive())
     ) {
       return
     }
     const now = performance.now()
-    if (now - session.lastForegroundGridDriftCheckAt < FOREGROUND_GRID_DRIFT_CHECK_MIN_MS) {
+    if (
+      !force &&
+      now - session.lastForegroundGridDriftCheckAt < FOREGROUND_GRID_DRIFT_CHECK_MIN_MS
+    ) {
       return
     }
     session.lastForegroundGridDriftCheckAt = now
@@ -60,7 +64,8 @@ export function installForegroundGridDriftCheck(session: ConnectPanePtySession):
       if (
         session.disposed ||
         !session.deps.isVisibleRef.current ||
-        session.shouldSuppressDesktopPtyResize()
+        session.shouldSuppressDesktopPtyResize() ||
+        session.terminalSelectionFitGuard?.isActive()
       ) {
         return
       }
@@ -77,7 +82,10 @@ export function installForegroundGridDriftCheck(session: ConnectPanePtySession):
         !shouldActOnForegroundGridDrift({
           state: foregroundGridDriftGate,
           proposed: drifted,
-          msSinceLastInput: performance.now() - session.lastTerminalInputAt
+          msSinceLastInput: performance.now() - session.lastTerminalInputAt,
+          // Why: a forced check follows a drag selection that held healing back, so the
+          // drift already persisted; waiting for a second observation would leave it.
+          requiredObservations: force ? 1 : undefined
         })
       ) {
         return

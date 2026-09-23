@@ -32,6 +32,21 @@ type CatalogEnrichmentEntry = {
 const MAX_DISCOVERY_ATTEMPTS = 3
 
 const enrichmentByAgentHost = new Map<string, CatalogEnrichmentEntry>()
+export const NATIVE_CHAT_MODEL_ENRICHMENT_MAX_ENTRIES = 256
+
+function retainEnrichmentEntry(key: string, entry: CatalogEnrichmentEntry): void {
+  enrichmentByAgentHost.delete(key)
+  enrichmentByAgentHost.set(key, entry)
+  while (enrichmentByAgentHost.size > NATIVE_CHAT_MODEL_ENRICHMENT_MAX_ENTRIES) {
+    const evictable = [...enrichmentByAgentHost].find(
+      ([, candidate]) => candidate.listeners.size === 0 && candidate.state !== 'pending'
+    )
+    if (!evictable) {
+      return
+    }
+    enrichmentByAgentHost.delete(evictable[0])
+  }
+}
 
 function enrichmentKey(agent: AgentType, hostKey: string): string {
   return JSON.stringify([agent, hostKey])
@@ -59,7 +74,7 @@ export function subscribeNativeChatEnrichedModels(
     listeners: new Set<(models: CatalogModel[]) => void>()
   }
   entry.listeners.add(listener)
-  enrichmentByAgentHost.set(key, entry)
+  retainEnrichmentEntry(key, entry)
   return () => entry.listeners.delete(listener)
 }
 
@@ -105,7 +120,7 @@ export function ensureNativeChatModelEnrichment(args: {
     listeners: new Set()
   }
   entry.state = 'pending'
-  enrichmentByAgentHost.set(key, entry)
+  retainEnrichmentEntry(key, entry)
 
   // Why: model discovery must never delay rendering or launching; the seed is
   // immediately usable while this once-per-host probe runs in the background.
@@ -115,9 +130,11 @@ export function ensureNativeChatModelEnrichment(args: {
       if (!discovered || discovered.length === 0) {
         entry.failures += 1
         entry.state = entry.failures >= MAX_DISCOVERY_ATTEMPTS ? 'settled' : 'idle'
+        retainEnrichmentEntry(key, entry)
         return
       }
       entry.state = 'settled'
+      retainEnrichmentEntry(key, entry)
       entry.models =
         args.agent === 'claude'
           ? [...discovered]
@@ -131,9 +148,15 @@ export function ensureNativeChatModelEnrichment(args: {
     .catch(() => {
       entry.failures += 1
       entry.state = entry.failures >= MAX_DISCOVERY_ATTEMPTS ? 'settled' : 'idle'
+      retainEnrichmentEntry(key, entry)
     })
 }
 
 export function clearNativeChatModelEnrichmentForTests(): void {
   enrichmentByAgentHost.clear()
+}
+
+/** @internal - exposed for leak-regression tests only. */
+export function getNativeChatModelEnrichmentEntryCountForTests(): number {
+  return enrichmentByAgentHost.size
 }

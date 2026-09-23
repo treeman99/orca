@@ -2,12 +2,7 @@ import { useEffect, useRef } from 'react'
 import { LoaderCircle, RefreshCw, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import type {
-  AiVaultAgent,
-  AiVaultGroup,
-  AiVaultScope,
-  AiVaultSort
-} from '../../../../shared/ai-vault-types'
+import type { AiVaultAgent, AiVaultGroup, AiVaultScope } from '../../../../shared/ai-vault-types'
 import type { ExecutionHostScope } from '../../../../shared/execution-host'
 import { VaultHostScopeMenu, VaultScopeSwitch } from './AiVaultPanelControls'
 import { VaultViewMenu } from './AiVaultViewMenu'
@@ -18,8 +13,6 @@ type AiVaultPanelHeaderProps = {
   searching?: boolean
   query: string
   loading: boolean
-  shownCount: number
-  sessionCount: number
   hasScanResult: boolean
   activeWorktreePath: string | null
   activeProjectKey: string | null
@@ -27,7 +20,6 @@ type AiVaultPanelHeaderProps = {
   executionHostScope: ExecutionHostScope
   hostScopeOptions: readonly AiVaultHostScopeOption[]
   agents: readonly AiVaultAgent[]
-  sort: AiVaultSort
   group: AiVaultGroup
   hideEmptySessions: boolean
   sessionLimit: AiVaultSessionLimit
@@ -39,7 +31,6 @@ type AiVaultPanelHeaderProps = {
   onExecutionHostScopeChange: (scope: ExecutionHostScope) => void
   onAgentEnabledChange: (agent: AiVaultAgent, enabled: boolean) => void
   onAllAgentsEnabledChange: (enabled: boolean) => void
-  onSortChange: (sort: AiVaultSort) => void
   onGroupChange: (group: AiVaultGroup) => void
   onHideEmptySessionsChange: (hideEmptySessions: boolean) => void
   onSessionLimitChange: (limit: AiVaultSessionLimit) => void
@@ -51,8 +42,6 @@ export function AiVaultPanelHeader({
   query,
   searching = false,
   loading,
-  shownCount,
-  sessionCount,
   hasScanResult,
   activeWorktreePath,
   activeProjectKey,
@@ -60,7 +49,6 @@ export function AiVaultPanelHeader({
   executionHostScope,
   hostScopeOptions,
   agents,
-  sort,
   group,
   hideEmptySessions,
   sessionLimit,
@@ -71,7 +59,6 @@ export function AiVaultPanelHeader({
   onExecutionHostScopeChange,
   onAgentEnabledChange,
   onAllAgentsEnabledChange,
-  onSortChange,
   onGroupChange,
   onHideEmptySessionsChange,
   onSessionLimitChange,
@@ -102,31 +89,12 @@ export function AiVaultPanelHeader({
             </span>
           </div>
           <div className="truncate text-[11px] text-muted-foreground">
-            {searching ? (
-              translate('sessionSearch.panel.indexedHistory', 'Indexed history · best matches')
-            ) : hasScanResult ? (
-              <>
-                <span className="@max-[300px]/ai-vault:hidden">
-                  {translate(
-                    'auto.components.right.sidebar.AiVaultPanel.shownRecent',
-                    '{{value0}} shown · {{value1}} recent',
-                    { value0: shownCount, value1: sessionCount }
-                  )}
-                </span>
-                <span className="hidden @max-[300px]/ai-vault:inline">
-                  {translate(
-                    'auto.components.right.sidebar.AiVaultPanel.sessionsShownCompact',
-                    '{{value0}} shown',
-                    { value0: shownCount }
-                  )}
-                </span>
-              </>
-            ) : (
-              translate(
-                'auto.components.right.sidebar.AiVaultPanel.resumePastSessions',
-                'Resume past sessions'
-              )
-            )}
+            {searching || hasScanResult
+              ? translate('sessionSearch.panel.indexedHistory', 'Indexed history')
+              : translate(
+                  'auto.components.right.sidebar.AiVaultPanel.resumePastSessions',
+                  'Resume past sessions'
+                )}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1 @max-[300px]/ai-vault:gap-0.5">
@@ -138,14 +106,12 @@ export function AiVaultPanelHeader({
           <VaultViewMenu
             searching={searching}
             agents={agents}
-            sort={sort}
             group={group}
             hideEmptySessions={hideEmptySessions}
             sessionLimit={sessionLimit}
             adjustmentCount={adjustmentCount}
             onAgentEnabledChange={onAgentEnabledChange}
             onAllAgentsEnabledChange={onAllAgentsEnabledChange}
-            onSortChange={onSortChange}
             onGroupChange={onGroupChange}
             onHideEmptySessionsChange={onHideEmptySessionsChange}
             onSessionLimitChange={onSessionLimitChange}

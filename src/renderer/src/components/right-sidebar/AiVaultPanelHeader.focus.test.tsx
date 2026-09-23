@@ -23,8 +23,6 @@ function header(focusSearchRequestId: number) {
     <AiVaultPanelHeader
       query=""
       loading={false}
-      shownCount={0}
-      sessionCount={0}
       hasScanResult={false}
       activeWorktreePath={null}
       activeProjectKey={null}
@@ -32,7 +30,6 @@ function header(focusSearchRequestId: number) {
       executionHostScope="local"
       hostScopeOptions={[]}
       agents={[]}
-      sort="updated"
       group="project"
       hideEmptySessions={false}
       sessionLimit={250}
@@ -43,7 +40,6 @@ function header(focusSearchRequestId: number) {
       onExecutionHostScopeChange={vi.fn()}
       onAgentEnabledChange={vi.fn()}
       onAllAgentsEnabledChange={vi.fn()}
-      onSortChange={vi.fn()}
       onGroupChange={vi.fn()}
       onHideEmptySessionsChange={vi.fn()}
       onSessionLimitChange={vi.fn()}
