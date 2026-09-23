@@ -38,7 +38,9 @@ describe('agent prompt line-settle scheduling', () => {
       'antigravity'
     )
     const submission = runtime.sendTerminalAgentPrompt(handle, prompt)
-    const stalled = expect(submission).rejects.toThrow('agent_prompt_stalled')
+    // Why resolves: upstream throws agent_prompt_stalled; this fork accepts an unobservable pane
+    // with an `unverified` receipt (assertAgentPromptRescuedIfStalled).
+    const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })
 
     await vi.advanceTimersByTimeAsync(submitDelayMs - 1)
     expect(writes.filter((data) => data === '\r')).toHaveLength(0)
@@ -46,6 +48,7 @@ describe('agent prompt line-settle scheduling', () => {
     expect(writes.filter((data) => data === '\r')).toHaveLength(1)
 
     await vi.runAllTimersAsync()
-    await stalled
+    await settled
+    expect(writes.filter((data) => data === '\r')).toHaveLength(1)
   })
 })

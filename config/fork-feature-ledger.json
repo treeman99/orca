@@ -99,6 +99,16 @@
           "file": "src/renderer/src/lib/agent-launch-routing.ts",
           "contains": "isAgentAllowedByPolicy(input.agent, getEnterprisePolicyView().allowedAgents)",
           "why": "v1.4.197 이 structured-native-chat-availability.ts 를 지우면서 이 게이트가 통째로 사라졌다. 이 레인은 agentSession.createSupport 를 묻지 않고 바로 create 하므로, 없으면 허용되지 않은 에이전트 탭을 연 뒤 에러 토스트로 거절이 온다."
+        },
+        {
+          "file": "src/main/preflight/agent-detection.ts",
+          "contains": "return filterAgentsByEnterprisePolicy(uniqueAgentIds(result.agents))",
+          "why": "감지 결과가 모든 피커·자동 선택·웹/모바일/CLI 응답의 원천이다. v1.4.209 에서 upstream import 와 같은 줄에 충돌했는데 등재돼 있지 않았다."
+        },
+        {
+          "file": "src/renderer/src/components/right-sidebar/AiVaultPanelHeader.tsx",
+          "contains": "import { VaultViewMenu } from './AiVaultViewMenu'",
+          "why": "허용목록 필터를 가진 포크판 뷰 메뉴. upstream 판(AiVaultPanelControls)으로 import 가 돌아가면 필터 없이 전 에이전트가 보인다."
         }
       ]
     },
@@ -558,6 +568,11 @@
           "file": "src/shared/runtime-terminal-contracts.ts",
           "contains": "RuntimeTerminalSend = ForkTerminalFields['send'] & {",
           "why": "v1.4.201 에서 max-lines 때문에 포크 필드(submit)를 terminal-fork-fields.ts 로 뺐다. 교차 타입이 빠지면 terminal.send 영수증의 submit 이 조용히 사라진다."
+        },
+        {
+          "file": "src/shared/tui-agent-config.ts",
+          "contains": "promptDeliveryMode: 'plain-text'",
+          "why": "opencode 평문 배달의 스위치. v1.4.209 에서 이 파일이 타입 이관으로 충돌했다."
         }
       ]
     },
@@ -710,6 +725,16 @@
           "file": "src/renderer/src/components/terminal-pane/terminal-pane-hook-order-parity.test.ts",
           "contains": "'c2bcb8fc37df7ccdd86b8bd7e0e43b25774d11238c049dc681fa886d3bba4348'",
           "why": "훅 개수·useMemo 개수는 upstream 과 같고 식별자만 다르다(useOptionalLinkRoutingPreferenceDialog). 다이제스트는 그 차이를 보므로 포크 전용 값이며, 머지가 upstream 값으로 되돌리면 빨개진다."
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/pty-input-forward.ts",
+          "contains": "installForegroundGridDriftCheck(session)",
+          "why": "입력 정숙 게이트가 있는 포크판 drift 치유. upstream 인라인판이 돌아오면 타이핑 중 SIGWINCH 로 프롬프트가 재배치된다."
+        },
+        {
+          "file": "src/renderer/src/components/native-chat/native-chat-session-option-enrichment.ts",
+          "contains": "entry.failures >= MAX_DISCOVERY_ATTEMPTS",
+          "why": "모델 탐색 1회 실패로 정적 시드가 세션 내내 고정되던 것을 3회까지 재시도. v1.4.209 에서 upstream LRU 보존과 충돌했다."
         }
       ]
     },

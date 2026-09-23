@@ -55,7 +55,7 @@ describe('electron-builder config: corporate rebuild opt-outs', () => {
       provider: 'github',
       owner: 'stablyai',
       repo: 'orca',
-      releaseType: 'release'
+      releaseType: 'draft'
     })
     withEnv({ ORCA_DISABLE_PUBLISH_TARGET: '1' }, (config) => {
       expect(config.publish).toBeNull()
