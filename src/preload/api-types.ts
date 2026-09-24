@@ -196,6 +196,8 @@ export type {
 } from './api/preflight-api'
 export type {
   PtyManagementApi,
+  PtyManagementDaemonCwdClass,
+  PtyManagementFolderAccessMismatch,
   PtyManagementMacTccAttributionHealth,
   PtyManagementSession
 } from './api/pty-management-api'

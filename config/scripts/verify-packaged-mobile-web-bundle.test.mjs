@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildMobileWebBundle } from './build-mobile-web-bundle.mjs'
+import { writeMobileWebBundleFixtureTree } from './mobile-web-bundle-fixture-tree.mjs'
 
 const require = createRequire(import.meta.url)
 const {
@@ -17,7 +17,7 @@ async function withBundle(run) {
   const scratch = await mkdtemp(join(tmpdir(), 'orca-mobile-web-guard-'))
   const bundleDir = join(scratch, 'mobile-web')
   try {
-    const { manifest } = await buildMobileWebBundle({ outDir: bundleDir })
+    const { manifest } = await writeMobileWebBundleFixtureTree({ outDir: bundleDir })
     await run({ bundleDir, manifest })
   } finally {
     await rm(scratch, { recursive: true, force: true })
@@ -174,11 +174,10 @@ describe('assertMobileWebBundleBuilt', () => {
 })
 
 describe('electron-builder packaging wiring', () => {
-  it('excludes the mobile-web source tree from app.asar', () => {
-    expect(electronBuilderConfig.files).toContain('!src/mobile-web{,/**/*}')
-    // The source tree lives under src/, which is excluded wholesale; the explicit entry above
-    // only survives as a marker, so assert the broad rule is still what does the work.
+  it('excludes every repo source tree from app.asar', () => {
+    // The page is built from mobile/, which this excludes wholesale; out/mobile-web is what ships.
     expect(electronBuilderConfig.files).toContain('!src{,/**/*}')
+    expect(electronBuilderConfig.files).toContain('!mobile{,/**/*}')
   })
 
   it('does not exclude the built bundle, so out/mobile-web ships like out/web', () => {
@@ -188,8 +187,10 @@ describe('electron-builder packaging wiring', () => {
     expect(excludesBuiltBundle).toBe(false)
   })
 
-  it('runs the bundle guard in beforePack', () => {
-    expect(String(electronBuilderConfig.beforePack)).toContain('assertMobileWebBundleBuilt')
+  it('does not run the bundle guard in beforePack (fork)', () => {
+    // Fork: the corporate build drops the bundle lane (v1.4.210 made it the Expo app, which the
+    // internal mirror cannot install), so beforePack must not demand out/mobile-web.
+    expect(String(electronBuilderConfig.beforePack)).not.toContain('assertMobileWebBundleBuilt')
   })
 
   it('defaults the bundle root to out/mobile-web when electron-builder calls it', () => {
@@ -198,9 +199,7 @@ describe('electron-builder packaging wiring', () => {
     expect(electronBuilderConfig.beforePack.length).toBe(1)
   })
 
-  it('verifies the bundle root it is given, not the repo one', async () => {
-    // The seam exists so unit tests need no built out/; it would be worthless if the root were
-    // accepted and then ignored.
+  it('packs without a bundle manifest (fork)', async () => {
     await withBundle(async ({ bundleDir }) => {
       await rm(join(bundleDir, 'manifest.json'))
       expect(() =>
@@ -208,7 +207,7 @@ describe('electron-builder packaging wiring', () => {
           { electronPlatformName: process.platform, arch: process.arch === 'arm64' ? 3 : 1 },
           bundleDir
         )
-      ).toThrow(/no bundle manifest/)
+      ).not.toThrow()
     })
   })
 })

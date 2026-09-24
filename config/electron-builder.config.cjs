@@ -14,10 +14,6 @@ const {
 } = require('./packaged-runtime-node-modules.cjs')
 const { verifyLinuxGlibcFloor } = require('./scripts/verify-linux-glibc-floor.cjs')
 const { writeMacBuildCompatibility } = require('./scripts/mac-build-compatibility.cjs')
-const {
-  MOBILE_WEB_BUNDLE_DIR,
-  assertMobileWebBundleBuilt
-} = require('./scripts/verify-packaged-mobile-web-bundle.cjs')
 const { verifyPackagedPluginResources } = require('./scripts/verify-packaged-plugin-resources.cjs')
 const {
   verifyPackagedEnterprisePolicy
@@ -203,9 +199,6 @@ module.exports = {
     // Why: these repo-only inputs are either bundled into out/ or copied via
     // extraResources. Shipping them in app.asar bloats the desktop bundle.
     '!src{,/**/*}',
-    // Redundant under !src above, kept explicit: the built bundle ships from out/mobile-web via the
-    // out rules exactly as out/web does, and the source tree must never be mistaken for it.
-    '!src/mobile-web{,/**/*}',
     '!config{,/**/*}',
     '!docs{,/**/*}',
     '!mobile{,/**/*}',
@@ -322,11 +315,11 @@ module.exports = {
       verifyStaticAppImagePackage(file, arch)
     }
   },
-  // electron-builder calls this with the context alone. The second parameter is the bundle root,
-  // so a test can point the guard at a scratch bundle instead of needing the repo's out/ built.
-  beforePack: (context, mobileWebBundleDir = MOBILE_WEB_BUNDLE_DIR) => {
+  // Fork: no mobile web bundle guard — the corporate build drops the bundle lane (mobile pairing is
+  // policy-locked and the Expo/RN deps are not on the internal mirror); the runtime treats a missing
+  // bundle as "none". See README §6.
+  beforePack: (context) => {
     assertPackagedNativeVariantsInstalled(context.electronPlatformName, context.arch)
-    assertMobileWebBundleBuilt(mobileWebBundleDir)
   },
   afterPack: async (context) => {
     const resourcesDir =

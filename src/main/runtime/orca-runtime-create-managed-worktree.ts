@@ -71,7 +71,11 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
             repo,
             args.startupAgent,
             args.startupPrompt,
-            args.startupLaunchPreferences
+            args.startupLaunchPreferences,
+            {
+              ...(args.startupAgentArgs !== undefined ? { agentArgs: args.startupAgentArgs } : {}),
+              ...(args.startupLaunchSource ? { launchSource: args.startupLaunchSource } : {})
+            }
           )
         : null
     const draftStartup =

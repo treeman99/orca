@@ -98,15 +98,13 @@ const EXPECTED_PACKAGING_JOBS = [
   'win-crash-survival-e2e.yml crash-survival',
   'win-update-survival-e2e.yml survival',
   'windows-signing-rehearsal.yml rehearse',
-  // Fork: the corporate installer build. It must still produce out/mobile-web (beforePack).
+  // Fork: the corporate installer build. It no longer produces out/mobile-web (bundle lane dropped).
   'enterprise-build.yml build'
 ]
 
-// Fork: jobs that pack without installing mobile/. The bundle is built from src/mobile-web alone
-// today (verified at v1.4.206: `pnpm build:mobile-web` passes with no mobile/node_modules), and the
-// corporate build installs only through the internal npm mirror, where pulling the Expo/React
-// Native tree buys nothing. If the bundle starts resolving mobile/, build:mobile-web fails loudly
-// in that job — revisit this then rather than pre-installing a tree it does not read.
+// Fork: jobs that pack without installing mobile/. Since v1.4.210 the bundle is the Expo/React
+// Native app itself, which the internal npm mirror cannot install, so the fork dropped the bundle
+// lane from every build chain instead (see 'the build scripts the census trusts' below).
 const PACKAGING_JOBS_WITHOUT_MOBILE_INSTALL = new Set(['enterprise-build.yml build'])
 
 /**
@@ -164,12 +162,16 @@ describe('mobile web bundle packaging coverage', () => {
 })
 
 describe('the build scripts the census trusts', () => {
-  // The census only checks that a packaging job invokes one of these. If a chain stopped calling
-  // build:mobile-web, every job would still look covered while packaging failed at beforePack.
-  it.each(BUNDLE_PRODUCING_SCRIPTS)('%s runs build:mobile-web', (name) => {
-    expect(packageScripts[name]).toBeTypeOf('string')
-    expect(reachesBundleBuild(name)).toBe(true)
-  })
+  // Fork: the inverse of upstream's pin. No build chain may reach build:mobile-web — it needs
+  // mobile/node_modules (Expo/React Native), which the corporate mirror cannot install, and
+  // beforePack no longer demands the bundle. A merge that restores the chain breaks the installer.
+  it.each(BUNDLE_PRODUCING_SCRIPTS.filter((name) => name !== 'build:mobile-web'))(
+    '%s does not run build:mobile-web (fork)',
+    (name) => {
+      expect(packageScripts[name]).toBeTypeOf('string')
+      expect(reachesBundleBuild(name)).toBe(false)
+    }
+  )
 
   it('pr.yml package builds the bundle by hand, because it never calls build:release', () => {
     const source = readFileSync(join(workflowsDir, 'pr.yml'), 'utf8')

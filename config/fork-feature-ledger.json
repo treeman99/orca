@@ -748,7 +748,7 @@
         },
         {
           "file": "src/shared/child-process/child-process-import-boundary.test.ts",
-          "contains": "const DIRECT_IMPORTER_PIN = 153",
+          "contains": "const DIRECT_IMPORTER_PIN = 152",
           "why": "v1.4.197 이 upstream 자기 수(158)로 숫자 백스톱을 추가했다. 이 빌드는 포크 소유 직접 import 8건을 runProcess/spawnProcess/runProcessSync 로 이관했고, upstream 이 가진 2건(skills CLI 핸들러·local-builds)은 지웠으므로 158 보다 2 낮은 156 이다. 머지가 158 로 되돌리면 래칫이 확보한 땅을 다시 열어 준다."
         },
         {
@@ -980,6 +980,36 @@
           "why": "설정 검색과 cmd-J 인덱스에 항목을 합류시키는 한 줄. 스프레드 점 세 개까지 포함해 앵커를 잡은 이유는, 이 파일의 import 와 재export 에도 같은 이름이 있어 이름만으로는 배열에서 빠진 것을 못 잡기 때문이다. 빠져도 아무도 참조하지 않으니 tc 와 테스트가 모두 초록이고, 증상은 \"설정에서 업데이트를 검색해도 안 나온다\" 뿐이다."
         }
       ]
+    },
+    {
+      "id": "daemon-relocated-host-launch-log",
+      "summary": "데몬 기동 시도가 어느 이미지(재배치 호스트/원본)에서 fork 했는지 진단 로그에 남긴다. 재배치 호스트 실행 실패 후 원본으로 폴백하는 경로를 사용자 PC 로그로 확인하기 위한 것.",
+      "present": [
+        {
+          "file": "src/main/daemon/daemon-launched-child-spawn.ts",
+          "contains": "hostKind?: DaemonLaunchHost['kind']",
+          "why": "v1.4.210 이 옵션 타입을 daemon-launched-child.ts 에서 이 모듈의 DaemonChildSpawnOptions 로 옮겼다. 필드가 빠지면 호출부의 hostKind 가 조용히 버려진다."
+        },
+        {
+          "file": "src/main/daemon/daemon-launched-child.ts",
+          "contains": "logDaemonLaunch('launch-ready', { host: hostKind })"
+        },
+        {
+          "file": "src/main/daemon/daemon-out-of-process-launcher.ts",
+          "contains": "hostKind: host.kind"
+        }
+      ]
+    },
+    {
+      "id": "tab-popout-window",
+      "summary": "탭 팝아웃 창(포크 기능)이 upstream 공용 목록에 끼워 넣은 줄.",
+      "present": [
+        {
+          "file": "src/main/ipc/crash-reporting-renderer-error-report.ts",
+          "contains": "'tab-popout'",
+          "why": "팝아웃 창의 오류 경계 surface. 빠지면 팝아웃 렌더러 오류가 surface 검증에서 버려진다. v1.4.210 이 같은 목록에 'code-editor' 를 넣으며 충돌했다."
+        }
+      ]
     }
   ],
   "absentPaths": [
@@ -987,6 +1017,9 @@
     ".github/workflows/docs.yml",
     "src/main/updater",
     "src/main/updater.ts",
+    "src/main/updater-release-builds.ts",
+    "src/main/updater-release-api-token.ts",
+    "src/main/updater-release-build-cache.ts",
     "src/main/bitbucket",
     "src/main/gitea",
     "src/main/azure-devops",
@@ -1073,6 +1106,21 @@
       "file": ".github/workflows/pr.yml",
       "symbol": "audit:anti-slop",
       "why": "포크에서 뺀 anti-slop 레인. pr.yml 은 자동 병합으로 이 단계를 되살린다."
+    },
+    {
+      "file": "src/renderer/src/components/status-bar/StatusBarSurface.tsx",
+      "symbol": "<UpdateStatusSegment",
+      "why": "인앱 업데이트 상태 세그먼트는 제거했다. v1.4.210 이 옆에 NativeChatResumeStatusSegment 를 넣으며 충돌해 theirs 로 풀면 되살아난다."
+    },
+    {
+      "file": "package.json",
+      "symbol": "&& pnpm run build:mobile-web",
+      "why": "v1.4.210 부터 모바일 웹 번들이 Expo/React Native 앱 본체라 mobile/node_modules 가 필요한데 사내 미러로는 설치할 수 없다. 빌드 체인(build:desktop·build:release·build:release:parallel)에서 뺐다 — 머지가 되살리면 사내 설치본 빌드가 420개 에러로 멈춘다."
+    },
+    {
+      "file": "config/electron-builder.config.cjs",
+      "symbol": "assertMobileWebBundleBuilt",
+      "why": "번들 레인을 뺐으므로 beforePack 가드도 뺐다. 되살아나면 번들 없는 사내 빌드가 패키징 단계에서 실패한다."
     }
   ],
   "policySwitchMinConsumers": {

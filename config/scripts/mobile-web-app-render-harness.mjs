@@ -79,13 +79,16 @@ export async function readShellDocumentHeaders() {
  * bumped `v` would otherwise reach a test as a 30s timeout naming nothing.
  */
 export async function readBridgeProtocolVersion() {
+  // The module that declares it, which is the one both halves of the envelope import: the envelope
+  // re-exports the name, so a reader keyed on the re-export would answer for whichever file the
+  // last split left it in.
   const source = await readFile(
-    join(projectDir, 'mobile/src/mobile-web-shell/bridge/bridge-envelope.ts'),
+    join(projectDir, 'mobile/src/mobile-web-shell/bridge/bridge-frame-fields.ts'),
     'utf8'
   )
   const match = /BRIDGE_PROTOCOL_VERSION = (\d+)/.exec(source)
   if (!match) {
-    throw new Error('could not read BRIDGE_PROTOCOL_VERSION')
+    throw new Error('could not read BRIDGE_PROTOCOL_VERSION from bridge-frame-fields.ts')
   }
   return Number(match[1])
 }
@@ -160,15 +163,51 @@ export async function readBrowserFrameQuality() {
   return Number(match[1]) / 100
 }
 
+/**
+ * The page's client-identity placeholder and the `init.accepts` name that unlocks it, read from
+ * the module that declares both. A rig carrying its own copy would go on passing after the real
+ * pair moved, which is the whole reason every other constant here is read rather than retyped.
+ */
+export async function readBridgePageClientIdentity() {
+  const source = await readFile(
+    join(projectDir, 'mobile/src/mobile-web-shell/bridge/bridge-page-client-identity.ts'),
+    'utf8'
+  )
+  const read = (name) => {
+    const match = new RegExp(`${name} = '([^']+)'`).exec(source)
+    if (!match) {
+      throw new Error(`could not read ${name} from bridge-page-client-identity.ts`)
+    }
+    return match[1]
+  }
+  return {
+    placeholder: read('BRIDGE_PAGE_CLIENT_ID'),
+    accept: read('BRIDGE_PAGE_CLIENT_IDENTITY_ACCEPT')
+  }
+}
+
 /** The grant the shell offers every page, read from the same source for the same reason. */
 export async function readBridgeFaultGrant() {
   const source = await readFile(
-    join(projectDir, 'mobile/src/mobile-web-shell/bridge/bridge-envelope.ts'),
+    join(projectDir, 'mobile/src/mobile-web-shell/bridge/bridge-frame-fields.ts'),
     'utf8'
   )
   const match = /BRIDGE_FAULT_GRANT = '([a-zA-Z]+)'/.exec(source)
   if (!match) {
-    throw new Error('could not read BRIDGE_FAULT_GRANT')
+    throw new Error('could not read BRIDGE_FAULT_GRANT from bridge-frame-fields.ts')
+  }
+  return match[1]
+}
+
+/** The name the page posts its first frame under, read where the page and the shell both read it. */
+export async function readBridgePagePainted() {
+  const source = await readFile(
+    join(projectDir, 'mobile/src/mobile-web-shell/bridge/bridge-page-painted.ts'),
+    'utf8'
+  )
+  const match = /BRIDGE_PAGE_PAINTED = '([a-zA-Z]+)'/.exec(source)
+  if (!match) {
+    throw new Error('could not read BRIDGE_PAGE_PAINTED from bridge-page-painted.ts')
   }
   return match[1]
 }
@@ -202,6 +241,7 @@ export function installShellDouble({
   grants,
   pageRoutes = null,
   pageRouteGrants = null,
+  accepts = null,
   replies,
   streams = [],
   windowCaps = null
@@ -259,6 +299,9 @@ export function installShellDouble({
           // Omitted when the caller names none, which is the older-shell case the page falls back
           // on: an absent field is not an empty one, and the page reads the difference.
           ...(pageRouteGrants === null ? {} : { pageRouteGrants }),
+          // Omitted when a check names none, which is the shell that performs no swap and the
+          // state every other rig in this directory runs in.
+          ...(accepts === null ? {} : { accepts }),
           // Omitted for a shell too old to name one, which is the case the page has a panel for.
           ...(route === null ? {} : { route }),
           ...(host === null ? {} : { host }),
@@ -372,7 +415,73 @@ export function installShellDouble({
     channel.onmessage?.({ data: json })
     return 'posted'
   }
+  /**
+   * One JSON stream event from the shell, on the same ledger the binary emitter uses.
+   *
+   * The host serves `session.tabs.subscribe` and `terminal.subscribe` as JSON events — the native
+   * client decodes the terminal's binary frames into `scrollback`/`data` payloads before the bridge
+   * ever sees them — so a check that drives a screen off a live stream needs this and not the
+   * binary arm. No window rule: these payloads are a check's own fixtures and are nowhere near the
+   * cap, and a drop here would read as the page ignoring an event it was never sent.
+   *
+   * It still owes the ledger its bytes. The `ack` arm subtracts what it finds on `unacked`, so a
+   * frame that took a slot without paying for it drove `unackedBytes` negative on the first ack and
+   * left the binary emitter's window admitting frames past the cap for the life of the stream.
+   */
+  globalThis.__orcaRenderCheckEmitEvent = (id, payload) => {
+    const stream = openStreams.get(id)
+    if (!stream) {
+      return 'no-stream'
+    }
+    const seq = stream.seq + 1
+    const json = JSON.stringify({ v: version, type: 'event', id, seq, payload })
+    const bytes = new TextEncoder().encode(json).length
+    stream.seq = seq
+    stream.unacked.push({ seq, bytes })
+    stream.unackedBytes += bytes
+    channel.onmessage?.({ data: json })
+    return 'posted'
+  }
+  /** The window as the double holds it, so a check can read the ledger both emitters share. */
+  globalThis.__orcaRenderCheckWindow = (id) => {
+    const stream = openStreams.get(id)
+    return stream === undefined
+      ? null
+      : { frames: stream.unacked.length, unackedBytes: stream.unackedBytes }
+  }
   globalThis.orcaBridge = channel
+}
+
+/** How long a check waits for a mount's reads before it reports what the page did send. */
+const RECORDED_REQUEST_MS = 30_000
+
+/**
+ * The double's request log, once every method named is in it.
+ *
+ * A route issues its first reads from effects that run after the commit painting its chrome, so a
+ * snapshot taken where the awaited text lands is a race a loaded machine loses. The bound names
+ * what never arrived and what did.
+ */
+export async function waitForRecordedRequests(
+  page,
+  methods,
+  { boundMs = RECORDED_REQUEST_MS } = {}
+) {
+  const started = Date.now()
+  for (;;) {
+    const requests = await page.evaluate(() => globalThis.__orcaRenderCheckRequests ?? [])
+    const missing = methods.filter((method) => !requests.some((one) => one.method === method))
+    if (missing.length === 0) {
+      return requests
+    }
+    if (Date.now() - started > boundMs) {
+      throw new Error(
+        `[render-harness] the page never asked for ${missing.join(', ')} in ${String(boundMs)}ms; ` +
+          `it asked for ${JSON.stringify(requests.map((one) => one.method))}`
+      )
+    }
+    await page.waitForTimeout(25)
+  }
 }
 
 /**
@@ -389,8 +498,13 @@ export async function createBundleServer({
   transformChunk,
   handleRequest
 }) {
+  const requestedPaths = []
   const server = createServer((request, response) => {
     const path = new URL(request.url, 'http://localhost').pathname
+    // Every path this origin was asked for, the browser's own fetches included. A favicon request
+    // is made by the browser process rather than the page, and Playwright's `page.on('request')`
+    // never reports one, so the server is the only place a check can see it.
+    requestedPaths.push(path)
     // An endpoint of the check's own, answered before anything is looked for on disk: a policy's
     // `report-uri` has to name a real server, and naming this one keeps it on the page's origin.
     if (handleRequest?.(request, response, path)) {
@@ -398,7 +512,10 @@ export async function createBundleServer({
     }
     // A browser asks for this on its own and the shell's WebView never does. The bundle carries
     // no icon, so a 404 would put a console error in every check that runs against a full Chrome
-    // -- which is what CI resolves -- and none against the bundled headless shell.
+    // -- which is what CI resolves -- and none against the bundled headless shell. Kept for the
+    // probe documents the checks compose themselves, which declare no icon; the page's own
+    // document does declare one, and answering 204 hides nothing from a check that reads the
+    // request rather than the response (`mobile-web-app-session-render.test.mjs`).
     if (path === '/favicon.ico') {
       response.writeHead(204)
       response.end()
@@ -438,7 +555,7 @@ export async function createBundleServer({
     )
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-  return { server, origin: `http://127.0.0.1:${String(server.address().port)}` }
+  return { server, origin: `http://127.0.0.1:${String(server.address().port)}`, requestedPaths }
 }
 
 /**
