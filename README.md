@@ -816,20 +816,28 @@ hunk 13개로 터집니다. **upstream 판(theirs)을 통째로 받으면 안 �
 6. 다른 로케일은 en 기준으로 extras 만 정리하고, 마지막에
    `pnpm sync:localization-runtime-catalog` 로 부트 카탈로그를 재생성한다.
 
-#### 모바일 웹 번들이 패키징 계약이 됐다 (v1.4.206)
+#### 모바일 웹 번들 레인은 사내 빌드에서 뺐다 (v1.4.206 계약 → v1.4.210 제거)
 
-upstream 이 `build:mobile-web` 을 `build:release`·`build:desktop` 체인에 넣고 electron-builder
-`beforePack` 에 `assertMobileWebBundleBuilt` 를 걸었습니다. **사내 빌드는 영향이 없습니다** — 번들은
-`src/mobile-web` 만으로 만들어져 `mobile/node_modules` 없이 통과합니다(v1.4.206 실측: exit 0,
-자산 4개 2,558바이트). 그래서 `enterprise-build.yml` 에 Expo/React Native 설치를 넣지 않았고,
-upstream 이 모든 패키징 잡에 그 설치를 강제하는 계약 테스트를 추가했기에 포크 예외 1건을
-`config/scripts/mobile-web-bundle-packaging-workflow-contract.test.mjs` 에 근거와 함께 등재했습니다.
+v1.4.206 에서 upstream 이 `build:mobile-web` 을 `build:release`·`build:desktop` 체인에 넣고
+electron-builder `beforePack` 에 `assertMobileWebBundleBuilt` 를 걸었습니다. 그때는 번들이
+`src/mobile-web` 만으로 만들어져 영향이 없었습니다. **v1.4.210 에서 예고했던 전환(OTA Phase C)이
+왔습니다** — `build:mobile-web` 이 `mobile/` 의 Expo/React Native 앱 본체를 번들해서,
+`mobile/node_modules` 가 없으면 420개 에러로 실패합니다. 사내 npm 미러로는 그 트리를 설치할 수 없고
+모바일 페어링은 정책으로 막혀 있으므로 **레인을 뺐습니다**:
 
-**다음 동기화에서 볼 것.** upstream 은 이 번들에 모바일 앱 본체를 싣는 방향(OTA Phase C)으로 가고
-있습니다. 번들이 `mobile/` 을 실제로 해석하기 시작하면 `pnpm build:mobile-web` 이 사내 빌드 잡에서
-**소리 내어** 깨집니다(조용한 실패가 아닙니다). 그때 두 갈래입니다 — 사내 미러로 mobile 의존성이
-설치되면 `install-mobile-dependencies` 를 넣고 포크 예외를 지우고, 안 되면 포크에서 번들 레인을
-빼야 합니다(체인 2곳 + `beforePack` 가드 + 관련 verify 스크립트).
+- `package.json` — `build:desktop`·`build:release`·`build:release:parallel` 끝의 `&& pnpm run build:mobile-web`
+  제거(스크립트 정의 자체는 남김 — 꺼진 upstream 워크플로와 테스트가 부른다).
+- `config/electron-builder.config.cjs` — `beforePack` 의 번들 가드와 그 import 제거.
+- upstream 핀 테스트 2개를 포크 계약으로 뒤집음 — `mobile-web-bundle-packaging-workflow-contract.test.mjs`
+  ("어떤 체인도 build:mobile-web 에 닿지 않는다"), `verify-packaged-mobile-web-bundle.test.mjs`
+  ("beforePack 은 번들 없이 통과한다").
+- 원장 `absentSymbols` 2건(`package.json` 의 `&& pnpm run build:mobile-web`, 빌드 설정의
+  `assertMobileWebBundleBuilt`)이 **다음 머지에서 체인이 조용히 돌아오는 것**을 잡습니다.
+
+런타임은 번들이 없으면 "번들 없음"으로 처리합니다(`src/main/runtime/bundled-mobile-web-bundle.ts`).
+**다음 동기화에서 볼 것**: upstream 이 새 패키징 잡이나 새 빌드 체인 스크립트에 번들을 붙이면 뒤집은
+테스트가 빨개집니다 — 그 체인에서도 빼면 됩니다. 모바일 컴패니언을 사내에서 쓰기로 하면 이 절을
+통째로 되돌리고 `enterprise-build.yml` 에 `install-mobile-dependencies` 를 넣어야 합니다.
 
 #### upstream 파일이 `max-lines` 상한에 닿을 때 — 별칭 임포트로 호출부를 되돌려라 (v1.4.204에서 실제로 겪음)
 

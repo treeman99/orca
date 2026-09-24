@@ -234,6 +234,16 @@
 >
 > ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다.
 
+> **v1.4.210 갱신 (2026-09-24).** 이 판에서 재검증한 것은 **v1.4.209 → v1.4.210 구간의 포크 유입 델타**(포크 tip `5b0e14af89` → 머지 `28bf76d97c`)입니다 — **1,489 파일, +43,911/−10,793**(신규 223·삭제 14·수정 1,250·이름변경 2, 그중 1,059가 `mobile/`이고 대부분 `mobile/rpc-foundation/goldens` 의 해시 갱신). 옛 태그 고유 커밋은 release 범프·CI 동기화뿐이라 되돌림 유입은 없습니다.
+>
+> ✅ **신규 외부 호스트 0건 · 신규 의존성 0건.** upstream 의 유일한 신규 네트워크 코드는 업데이터 릴리스 선택기가 `api.github.com` 에 붙이는 `gh auth token` 토큰과 그 목록 캐시(`src/main/updater-release-api-token.ts`, `updater-release-build-cache.ts`)입니다. 포크가 지운 업데이터 표면의 부속이라 충돌 없이 스테이지된 것을 머지에서 지웠고 원장 `absentPaths` 에 등재했습니다. 목적지는 그대로이고 빈도만 바뀐 것이 1건 — Fable 주간 창이 있는 Claude 계정은 라이브 statusline 이 새로워도 `api.anthropic.com/api/oauth/usage` 폴링을 건너뛰지 않습니다(`src/main/rate-limits/service/service-fetch-policy.ts` 의 `shouldSkipAutomatedClaudeFetch`). 반대로 Retry-After 는 이제 상태와 무관하게 적용되어 429 뒤 재시도는 줄었습니다. 둘 다 `disableUsagePolling` 이 덮습니다. 새 IPC 1건(`pty:management:resetFolderAccess`, macOS `tccutil reset` 로컬 실행)과 새 RPC 1건(`agentSession.subscribeTurnCompletions`, 앱 내부 스트림)은 네트워크와 무관합니다. `cloud/`·`cloud-*` 워크플로 3개 수정은 삭제를 유지했고 새 워크플로 파일은 0개입니다. 신규 Docker 픽스처 3종(`config/docker/*`)은 Docker Hub·Debian 미러·npm 에 닿지만 개발자·CI 전용이며 빌드 체인과 앱 번들 밖입니다.
+>
+> 🔒 **모바일 웹 번들 레인을 사내 빌드에서 뺐습니다.** v1.4.206 에서 "`src/mobile-web` 만으로 빌드되어 영향 없음"이라 적었던 전제가 이번에 깨졌습니다 — v1.4.210 의 `build:mobile-web` 은 `mobile/` 의 Expo/React Native 앱 본체를 번들하므로 `mobile/node_modules` 없이는 420개 에러로 실패합니다. 그 트리는 사내 npm 미러로 설치할 수 없고 모바일 페어링은 정책으로 막혀 있으므로, `build:desktop`·`build:release`·`build:release:parallel` 체인과 `beforePack` 의 번들 가드를 뺐습니다(원장 `absentSymbols` 가 지킵니다). 설치본에는 `out/mobile-web` 이 없고, 런타임은 번들 부재를 "번들 없음"으로 처리합니다(`src/main/runtime/bundled-mobile-web-bundle.ts`). 그래서 이번 판에 들어온 모바일 웹 표면(외부 링크 grant 등)은 데스크톱에서 도달하지 않습니다.
+>
+> 🔒 **포크 게이트 유실 0건 · 제거 표면 부활 0건.** 정책 게이트 호출 라인 599개가 머지 전후 문자열 집합으로 동일하고, 원장 통과(이번에 등재 누락 앵커를 더했습니다: 데몬 기동 로그의 `hostKind`, 탭 팝아웃 오류 surface, 상태바 업데이트 세그먼트 부재). `electron-updater`·`codeload.github.com` 0회.
+>
+> ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다.
+
 > **v1.4.209 갱신 (2026-09-23).** 이 판에서 재검증한 것은 **v1.4.207 → v1.4.209 구간의 포크 유입 델타**(포크 tip `b243c93c2a` → 머지 `998f107eee`)입니다 — **1,005 파일, +59,634/−10,480**(신규 344·삭제 38·수정 618·이름변경 5, 그중 약 300이 `mobile/`). v1.4.208 은 건너뛰었고, 옛 태그 고유 커밋은 release 범프 2건뿐이라 되돌림 유입은 없습니다.
 >
 > ✅ **신규 외부 호스트 0건.** 바뀐 목적지는 **경로 1건**입니다 — OpenCode 사용량이 HTML 페이지 스크레이핑을 버리고 `opencode.ai/console/api/go/status` JSON 을 부르며, 보내는 쿠키 허용목록에 `__Host-console_session` 이 더해졌습니다(`src/main/rate-limits/opencode-go-usage-fetcher.ts` 의 `OPENCODE_GO_STATUS_URL`·`AUTH_COOKIE_NAMES`). Codex 리셋 크레딧 사용 직후 사용량 재조회가 최대 3회로 늘었지만 목적지는 그대로입니다. 둘 다 `runFetchAllCycle` 안에서만 호출되어 `disableUsagePolling` 이 덮습니다(§ 사용량 표 갱신). 새 artifact "브라우저로 열기" 행은 포크가 뺀 Artifacts 뷰 안이라 도달하지 않고, 모바일 컴패니언의 링크 열기는 데스크톱 번들 밖이며 페어링이 막혀 있습니다. IPC 745→745 · RPC 625→625 · preload·CLI·의존성 변화 0, `GlobalSettings` +1(`terminalDefaultShellArgs`, 로컬 셸 인자). upstream 이 `cloud/` 와 `cloud-*` 워크플로 5개를 고쳤으나 포크에서는 삭제를 유지했고 신규 `cloud/` 파일 9개도 들이지 않았습니다. 새 워크플로 파일은 0개입니다.

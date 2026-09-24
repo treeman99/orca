@@ -91,7 +91,7 @@ function createReadyChild(pid: number): StubChild {
     signalCode: null,
     on(event, cb) {
       if (event === 'message') {
-        queueMicrotask(() => cb({ type: 'ready', startedAtMs: 1_000_000 }))
+        queueMicrotask(() => cb({ type: 'ready', pid, startedAtMs: 1_000_000 }))
       }
       return child
     },
