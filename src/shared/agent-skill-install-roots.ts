@@ -50,7 +50,9 @@ export const AGENT_SKILL_INSTALL_ROOTS: readonly AgentSkillInstallRoot[] = [
   // v1.4.190 added Hermes to discovery. Known gap: discovery also honours HERMES_HOME and,
   // on Windows, prefers %LOCALAPPDATA%\\hermes\\skills when that directory exists. This list is
   // home-relative segments by design, so an offline install targets the dotfolder either way.
-  { rootId: 'home-hermes', segments: ['.hermes', 'skills'], agentKey: 'hermes-agent' }
+  { rootId: 'home-hermes', segments: ['.hermes', 'skills'], agentKey: 'hermes-agent' },
+  // The skills CLI has no Muse key, and discovery reads ~/.config/muse without XDG_CONFIG_HOME.
+  { rootId: 'home-muse', segments: ['.config', 'muse', 'skills'], agentKey: null }
 ]
 
 export function agentSkillInstallRootPath(homeDir: string, root: AgentSkillInstallRoot): string {

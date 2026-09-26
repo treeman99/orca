@@ -180,6 +180,30 @@
         {
           "file": "src/main/rate-limits/service/service-configuration.ts",
           "contains": "settleUsagePollingDisabledProviders"
+        },
+        {
+          "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
+          "contains": "this.isUsageProviderAllowed('codex')"
+        },
+        {
+          "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
+          "contains": "this.isUsageProviderAllowed('gemini')"
+        },
+        {
+          "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
+          "contains": "this.isUsageProviderAllowed('opencode-go')"
+        },
+        {
+          "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
+          "contains": "this.isUsageProviderAllowed('kimi')"
+        },
+        {
+          "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
+          "contains": "this.isUsageProviderAllowed('minimax')"
+        },
+        {
+          "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
+          "contains": "this.isUsageProviderAllowed('grok')"
         }
       ]
     },

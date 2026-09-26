@@ -9,7 +9,7 @@ import { fetchGeminiRateLimits } from './gemini-usage-fetcher'
 import { fetchKimiRateLimits } from './kimi-fetcher'
 import { fetchMiniMaxRateLimits } from './minimax/minimax-fetcher'
 import { fetchGrokRateLimits } from './grok-fetcher'
-import { fetchOpenCodeGoRateLimits } from './opencode-go-usage-fetcher'
+import { fetchOpenCodeGoUsage } from './opencode-go-usage-source-selection'
 import {
   asRateLimitWindow,
   FakeRateLimitWindow,
@@ -33,7 +33,7 @@ vi.mock('./codex-fetcher', () => ({
 }))
 vi.mock('./gemini-usage-fetcher', () => ({ fetchGeminiRateLimits: vi.fn() }))
 vi.mock('./kimi-fetcher', () => ({ fetchKimiRateLimits: vi.fn() }))
-vi.mock('./opencode-go-usage-fetcher', () => ({ fetchOpenCodeGoRateLimits: vi.fn() }))
+vi.mock('./opencode-go-usage-source-selection', () => ({ fetchOpenCodeGoUsage: vi.fn() }))
 vi.mock('./minimax/minimax-fetcher', () => ({ fetchMiniMaxRateLimits: vi.fn() }))
 vi.mock('./grok-fetcher', () => ({ fetchGrokRateLimits: vi.fn() }))
 vi.mock('./grok-auth', () => ({ readGrokAuthSession: vi.fn(() => ({ status: 'missing' })) }))
@@ -46,7 +46,7 @@ function expectNoVendorUsageFetches(): void {
   expect(fetchManagedAccountUsage).not.toHaveBeenCalled()
   expect(fetchCodexRateLimits).not.toHaveBeenCalled()
   expect(fetchGeminiRateLimits).not.toHaveBeenCalled()
-  expect(fetchOpenCodeGoRateLimits).not.toHaveBeenCalled()
+  expect(fetchOpenCodeGoUsage).not.toHaveBeenCalled()
   expect(fetchKimiRateLimits).not.toHaveBeenCalled()
   expect(fetchMiniMaxRateLimits).not.toHaveBeenCalled()
   expect(fetchGrokRateLimits).not.toHaveBeenCalled()
@@ -70,7 +70,7 @@ describe('RateLimitService under an agent allowlist', () => {
     // Every other vendor is off the allowlist, so none may phone home.
     expect(fetchCodexRateLimits).not.toHaveBeenCalled()
     expect(fetchGeminiRateLimits).not.toHaveBeenCalled()
-    expect(fetchOpenCodeGoRateLimits).not.toHaveBeenCalled()
+    expect(fetchOpenCodeGoUsage).not.toHaveBeenCalled()
     expect(fetchKimiRateLimits).not.toHaveBeenCalled()
     expect(fetchMiniMaxRateLimits).not.toHaveBeenCalled()
     expect(fetchGrokRateLimits).not.toHaveBeenCalled()
