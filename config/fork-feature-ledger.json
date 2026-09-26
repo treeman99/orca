@@ -1010,6 +1010,24 @@
           "why": "팝아웃 창의 오류 경계 surface. 빠지면 팝아웃 렌더러 오류가 surface 검증에서 버려진다. v1.4.210 이 같은 목록에 'code-editor' 를 넣으며 충돌했다."
         }
       ]
+    },
+    {
+      "id": "worktree-scan-root-authorization",
+      "summary": "캐시 적중·팔로워 스캔도 인가 루트 캐시를 다시 채운다(e7f64d6134). upstream v1.4.212 의 superseded 와 별개 필드로 공존.",
+      "present": [
+        {
+          "file": "src/main/ipc/worktrees/listing/detected-worktree-scan-cache.ts",
+          "contains": "safeToAuthorize: !inFlight.invalidated"
+        },
+        {
+          "file": "src/main/ipc/worktrees/listing/detected-provider-listing.ts",
+          "contains": "if (safeToAuthorize && !freshScan) {"
+        },
+        {
+          "file": "src/main/ipc/worktrees/listing/register-worktree-catalog-handlers.ts",
+          "contains": "safeToAuthorize = scan.safeToAuthorize ?? true"
+        }
+      ]
     }
   ],
   "absentPaths": [

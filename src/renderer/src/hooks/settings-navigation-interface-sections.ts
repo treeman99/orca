@@ -91,7 +91,7 @@ export function buildInterfaceSettingsSections({
             ),
             description: translate(
               'auto.hooks.useSettingsNavigationMetadata.b351014180',
-              'Orca stats plus Claude, Codex, OpenCode token analytics and Grok subscription usage.'
+              'Orca stats plus Claude, Codex, OpenCode, Muse token analytics and Grok subscription usage.'
             ),
             icon: BarChart3,
             searchEntries: getStatsPaneSearchEntries(),

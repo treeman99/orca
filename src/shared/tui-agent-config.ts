@@ -87,7 +87,13 @@ const TUI_AGENT_CONFIG_SOURCE: Record<TuiAgent, TuiAgentConfigSource> = {
     // plain input arrives. Measured on the corporate Windows build; macOS was never affected.
     promptDeliveryMode: 'plain-text',
     // Why: opencode enables bracketed paste before its composer mounts; wait for the post-\x1b[?2004h show-cursor so paste lands.
-    draftPasteReadySignal: 'render-cursor-after-bracketed-paste'
+    draftPasteReadySignal: 'render-cursor-after-bracketed-paste',
+    // Why 20s: measured on two Windows hosts (ConPTY dll backend, as pinned by
+    // local-pty-utils), opencode does not enable bracketed paste until ~4.8s and its
+    // composer is not ready until ~10s — so the 8s default expired first and the draft
+    // was pasted blind, mid-startup (#22479). The signal itself fired every time in
+    // those runs, so the budget was the problem, not a dropped escape.
+    draftPasteReadyTimeoutMs: 20_000
   },
   // Why: opencode2 installs as a separate binary and uses the same prompt flags.
   // Its @opentui composer keeps the same cursor-gated paste signal.
@@ -97,7 +103,8 @@ const TUI_AGENT_CONFIG_SOURCE: Record<TuiAgent, TuiAgentConfigSource> = {
     launchCmd: 'opencode2 --standalone',
     expectedProcess: 'opencode2',
     promptInjectionMode: 'flag-prompt',
-    draftPasteReadySignal: 'render-cursor-after-bracketed-paste'
+    draftPasteReadySignal: 'render-cursor-after-bracketed-paste',
+    draftPasteReadyTimeoutMs: 20_000
   },
   'mimo-code': {
     detectCmd: 'mimo',
@@ -262,6 +269,12 @@ const TUI_AGENT_CONFIG_SOURCE: Record<TuiAgent, TuiAgentConfigSource> = {
     // timeout; its composer glyph lands ~0.6s in.
     draftPasteReadySignal: 'grok-composer-prompt',
     ctrlEnterEncoding: 'csi-u'
+  },
+  muse: {
+    detectCmd: 'muse',
+    launchCmd: 'muse --trust-workspace',
+    // Muse 1.3 treats subcommand-shaped prompts as commands even after `--`.
+    promptInjectionMode: 'stdin-after-start'
   },
   devin: {
     detectCmd: 'devin',

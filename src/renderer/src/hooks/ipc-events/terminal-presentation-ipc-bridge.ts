@@ -171,7 +171,7 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
             })
           }
           if (shouldActivate) {
-            store.setActiveTabType('terminal')
+            store.setActiveTabType('terminal', worktreeId)
             store.setActiveTab(tab.id)
           }
           if (shouldSurfaceOwner) {

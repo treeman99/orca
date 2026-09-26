@@ -6863,6 +6863,15 @@
           "f38b9cc4bd": "Replace",
           "f54b4fbd71": "Account Location",
           "f5d8d2a6a1": "Open platform.minimax.io/console/usage in your browser and sign in.",
+          "opencodeGo": {
+            "apiKey": {
+              "title": "OpenCode Go API Key",
+              "description": "Optional override. Orca otherwise uses the key OpenCode saved when you ran /connect, then OPENCODE_API_KEY.",
+              "label": "OpenCode Go API key",
+              "placeholder": "Leave blank to use the key saved by /connect or OPENCODE_API_KEY",
+              "help": "Used for OpenCode Go usage in the status bar. The session cookie below is only needed for legacy console (OpenCode Black) accounts."
+            }
+          },
           "f8a4b9d210": "MiniMax endpoint",
           "f921d32606": "Claude account updated.",
           "fcc4093fc1": "Use your current {{value0}} Codex login.",
@@ -7728,6 +7737,8 @@
           "collapseUnchangedDescription": "Show only changed lines and a little surrounding context in a file diff, hiding the rest behind expandable bands. The View All Changes diff always collapses this way."
         },
         "GeneralPane": {
+          "editor_preview_tabs": "Reuse a preview tab when browsing files",
+          "editor_preview_tabs_description": "Single-clicking a file in the Explorer, or following a link in Markdown source, reuses one italic preview tab per group instead of opening a new one. Editing, double-clicking, or pinning keeps that tab open. Turn this off to give every file its own tab.",
           "36b2a5dc6d": "Show a confirmation dialog before a pinned tab is closed.",
           "5cb5475664": "Confirm before closing pinned tabs",
           "d58fccfd84": "Navigation",
@@ -9336,7 +9347,7 @@
           "7210ac09c4": "Native desktop notifications for agent activity and terminal events.",
           "7686cb5c36": "Connect this browser to a saved Orca server.",
           "7807c11c4d": "General",
-          "8acf3f22e0": "Orca stats plus Claude, Codex, OpenCode token analytics and Grok subscription usage.",
+          "8acf3f22e0": "Orca stats plus Claude, Codex, OpenCode, Muse token analytics and Grok subscription usage.",
           "8afa676615": "Agents",
           "8b017f2506": "Experimental",
           "8bd117d669": "Interface",
@@ -11191,6 +11202,13 @@
             "e49e739a59": "download",
             "e4fb4516d0": "star",
             "e53d585ed6": "Recent or tab strip.",
+            "editor_preview_tabs_short": "Browsing files reuses one preview tab instead of opening a new one.",
+            "preview": "preview",
+            "reuse": "reuse",
+            "replace": "replace",
+            "explorer": "explorer",
+            "italic": "italic",
+            "browsing": "browsing",
             "e55d62dfa4": "launchpad",
             "e61157e926": "Editor Word Wrap",
             "e6b01c8e30": "feedback",
@@ -13431,6 +13449,7 @@
           "0918b35e4f": "Close all active panels in this workspace to free up memory and CPU.",
           "250de158fd": "Remove Workspace",
           "3350101edb": "Copy Path",
+          "copyWorktreeName": "Copy Worktree Name",
           "3baa7d6507": "Pin",
           "439fa94d53": "Update",
           "503ec0f8e6": "New group from project",
@@ -14672,6 +14691,17 @@
           "h9i0j1k2l3": " • {{value0}}",
           "i0j1k2l3m4": "Refresh Grok usage"
         },
+        "MuseUsagePane": {
+          "title": "Muse Usage Tracking",
+          "enableLabel": "Enable Muse usage analytics",
+          "disabledDescription": "Reads local Muse session logs to show token, model, and session stats.",
+          "scopeAll": "All local Muse usage",
+          "optionsLabel": "Muse usage options",
+          "refreshAriaLabel": "Refresh Muse usage",
+          "emptyMessage": "No local Muse usage found yet for this scope.",
+          "noCostNote": "Muse session logs record tokens but not cost, so no cost estimate is shown.",
+          "recentSessionsDescription": "Most recent local Muse sessions in this scope."
+        },
         "OpenCodeUsagePane": {
           "01583b30aa": "Filters",
           "040c044d39": "By model",
@@ -14769,7 +14799,8 @@
           "444585cb41": "with data",
           "49405ccc8d": "Start tracking tokens",
           "55c910f4f1": "- some model prices are unavailable",
-          "60002bb22f": "No local Claude, Codex, or OpenCode usage found yet. The overview will populate after the next agent session writes token logs.",
+          "enableMuse": "Enable Muse",
+          "noLocalUsageYet": "No local Claude, Codex, OpenCode, or Muse usage found yet. The overview will populate after the next agent session writes token logs.",
           "6c00c46815": "Enable a provider to scan local agent logs and build the combined token ledger.",
           "70f36452d4": "Cache share",
           "c760c481c5": "Usage Overview",
@@ -14808,12 +14839,13 @@
           "search": {
             "0bba8ca244": "statistics",
             "0e2a0b6431": "usage",
-            "26bb901fcd": "Orca stats plus Claude, Codex, OpenCode token analytics and Grok subscription usage.",
+            "26bb901fcd": "Orca stats plus Claude, Codex, OpenCode, Muse token analytics and Grok subscription usage.",
             "372debfac0": "stats",
             "5acbe1fdf2": "time",
             "6953af58e6": "opencode",
             "8efeae0b22": "tracking",
             "9f2a3b4c5d": "xai",
+            "museKeyword": "muse",
             "a3b6c7d8e9": "grok usage",
             "b77826fca3": "codex",
             "cb2430ae6a": "Stats & Usage",
@@ -14854,10 +14886,10 @@
               "c8f3a2d1e0b4": "turns",
               "d9a4b3e2f1c5": "events",
               "e65084cb4b": "reasoning",
-              "f28ff1f852": "Recent combined Claude, Codex, and OpenCode token activity.",
               "f6df0d7d6d": "More",
               "statusEnabled": "Enabled",
               "statusOff": "Off",
+              "recentCombinedActivity": "Recent combined Claude, Codex, OpenCode, and Muse token activity.",
               "statusScanning": "Scanning"
             }
           }
@@ -15313,6 +15345,11 @@
                 "label": "Sign-in expired",
                 "apiKey": "MiniMax API key expired. Replace it in Settings.",
                 "cookie": "MiniMax session cookie expired. Replace it in Settings."
+              }
+            },
+            "usage": {
+              "noSubscription": {
+                "label": "No subscription"
               }
             }
           },
@@ -16415,7 +16452,7 @@
         "automationsTitle": "Automations",
         "b11a5a48a2": "Theme, zoom, app and terminal appearance, sidebars, and status bar.",
         "b1c2f8b0ac": "Optional account switching and usage setup for Claude, Codex, Gemini, OpenCode Go, MiniMax, and Grok.",
-        "b351014180": "Orca stats plus Claude, Codex, OpenCode token analytics and Grok subscription usage.",
+        "b351014180": "Orca stats plus Claude, Codex, OpenCode, Muse token analytics and Grok subscription usage.",
         "b35e92364b": "Computer Use",
         "b49abbd2f7": "Agents",
         "c33bfd664c": "Shells, renderer, sessions, and terminal behavior.",
@@ -16471,6 +16508,7 @@
       "agent": {
         "catalog": {
           "060d152fb5": "Trae",
+          "muse_label": "Muse",
           "0708ed89f1": "Claude",
           "09973b4d84": "OMP",
           "0baad2d5d2": "Grok",
@@ -17290,6 +17328,8 @@
       "context": "Context",
       "continueInNewSession": "Continue in New Session…",
       "deliveryFailed": "The new {{agent}} session started, but its context could not be sent.",
+      "deliveryUnconfirmed": "Orca could not confirm {{agent}} received the session context. Check the new session, and paste it yourself if its input is empty.",
+      "copyPrompt": "Copy prompt",
       "detectingAgents": "Detecting Agents on this workspace host…",
       "detectionFailed": "Could not detect Agents on this workspace host.",
       "dialogDescription": "Start a fresh Agent session from this stopping point. The original session stays unchanged.",
@@ -17453,6 +17493,26 @@
         "runToolMany": "Used {{value0}} tools",
         "runPair": "{{value0}} and {{value1}}",
         "runList": "{{value0}}, and {{value1}}",
+        "runLiveReadOne": "Reading 1 file",
+        "runLiveReadMany": "Reading {{value0}} files",
+        "runLiveSearchOne": "Searching 1 time",
+        "runLiveSearchMany": "Searching {{value0}} times",
+        "runLiveListFilesOne": "Listing 1 directory",
+        "runLiveListFilesMany": "Listing {{value0}} directories",
+        "runLiveCommandOne": "Running 1 command",
+        "runLiveCommandMany": "Running {{value0}} commands",
+        "runLiveFileChangeOne": "Editing 1 file",
+        "runLiveFileChangeMany": "Editing {{value0}} files",
+        "runLiveWebSearchOne": "Searching the web 1 time",
+        "runLiveWebSearchMany": "Searching the web {{value0}} times",
+        "runLiveIntegrationOne": "Using 1 integration",
+        "runLiveIntegrationMany": "Using {{value0}} integrations",
+        "runLiveAgentOne": "Running 1 agent",
+        "runLiveAgentMany": "Running {{value0}} agents",
+        "runLivePlanOne": "Updating the plan",
+        "runLivePlanMany": "Updating the plan {{value0}} times",
+        "runLiveToolOne": "Using 1 tool",
+        "runLiveToolMany": "Using {{value0}} tools",
         "editedFile": "Edited file",
         "exitCode": "exit {{value0}}",
         "milliseconds": "{{value0}}ms",
@@ -17647,6 +17707,22 @@
         "subtitle": "Files are added to your message as paths the agent can read."
       },
       "copyCode": "Copy code",
+      "goal": {
+        "placeholder": "Describe your goal, define measurable outcomes for best results",
+        "clear": "Clear goal",
+        "chip": "Goal",
+        "exitMode": "Exit goal mode",
+        "sentAsGoal": "Sent as goal",
+        "collapse": "Hide full goal",
+        "expand": "Show full goal",
+        "pause": "Pause goal",
+        "resume": "Resume goal",
+        "pursuing": "Pursuing goal",
+        "paused": "Paused goal",
+        "blocked": "Goal blocked",
+        "limited": "Goal limited",
+        "attachmentsUnsupported": "Remove attachments before setting a goal."
+      },
       "ask": {
         "awaiting": "Awaiting user input:",
         "asked": "Asked:",

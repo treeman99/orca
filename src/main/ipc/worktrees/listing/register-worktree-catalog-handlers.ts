@@ -125,7 +125,7 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
           const scan = await listDetectedGitWorktrees(store, repo)
           gitWorktrees = scan.gitWorktrees
           freshScan = scan.fresh
-          safeToAuthorize = scan.safeToAuthorize
+          safeToAuthorize = scan.safeToAuthorize ?? true
           sideEffectToken = scan.sideEffectToken
           metadataPrune = scan.metadataPrune
           hygieneDue = scan.hygieneDue
@@ -225,7 +225,7 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
         const scan = await listDetectedGitWorktrees(store, repo)
         gitWorktrees = scan.gitWorktrees
         freshScan = scan.fresh
-        safeToAuthorize = scan.safeToAuthorize
+        safeToAuthorize = scan.safeToAuthorize ?? true
         sideEffectToken = scan.sideEffectToken
         metadataPrune = scan.metadataPrune
         hygieneDue = scan.hygieneDue
