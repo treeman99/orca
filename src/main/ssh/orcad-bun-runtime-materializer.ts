@@ -7,6 +7,7 @@ import { waitForPromiseWithSignal } from '../../shared/abort-signal-reason'
 import { getZipExtractorCommand } from '../../shared/zip-extractor-command'
 import { getMainHttpClient, type MainHttpClient } from '../network/http-client'
 import { findOrcadCachePath } from './orcad-cache-path'
+import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { orcadBunRuntimeFilename } from '../../shared/orcad-artifacts'
 import {
   ORCAD_BUN_RELEASE_ASSETS,
@@ -42,6 +43,11 @@ export async function materializeCachedOrcadBunRuntime(
       await chmod(runtimePath, 0o755)
     }
     return runtimePath
+  }
+  // Why here: every caller (SSH relay, WSL session scan) funnels into this one download, and a
+  // verified cache hit above is local and stays allowed.
+  if (getEnterprisePolicy().disableRuntimeDownloads) {
+    throw new Error('Bun runtime download is disabled by enterprise policy')
   }
   const temporaryDir = join(runtimeDir, `.download-${process.pid}-${randomUUID()}`)
   await mkdir(temporaryDir, { recursive: true })

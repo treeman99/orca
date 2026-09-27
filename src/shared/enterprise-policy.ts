@@ -142,6 +142,13 @@ export type EnterprisePolicy = {
    * whatever is on screen lands in the model request.
    */
   requireComputerUseApproval: boolean
+  /**
+   * Refuse to download executables Orca fetches on its own at runtime. Today that is the Bun
+   * runtime (GitHub Releases) an SSH relay or a WSL distro gets when its node lacks
+   * `node:sqlite` — pulled with no user action. Refusing costs only reading past OpenCode
+   * sessions on that host; the download is skipped, not the connection.
+   */
+  disableRuntimeDownloads: boolean
   /** Opt-in hard allowlist over renderer + main-process HTTP. Never inherited. */
   enforceNetworkAllowlist: boolean
   /** Hosts the allowlist permits, normalized. Always includes the GHES host. */
@@ -207,7 +214,8 @@ export const LOCKDOWN_INHERITING_KEYS = [
   'disableVoice',
   'disablePlugins',
   'disableVendorLinks',
-  'requireComputerUseApproval'
+  'requireComputerUseApproval',
+  'disableRuntimeDownloads'
 ] as const
 
 type LockdownInheritingKey = (typeof LOCKDOWN_INHERITING_KEYS)[number]

@@ -26,6 +26,7 @@ const UNLOCKED: EnterprisePolicy = {
   disablePlugins: false,
   disableVendorLinks: false,
   requireComputerUseApproval: false,
+  disableRuntimeDownloads: false,
   enforceNetworkAllowlist: false,
   allowedNetworkHosts: [],
   githubEnterpriseHost: null,
@@ -64,6 +65,7 @@ export function makeLockdownPolicy(overrides: Partial<EnterprisePolicy> = {}): E
     disablePlugins: true,
     disableVendorLinks: true,
     requireComputerUseApproval: true,
+    disableRuntimeDownloads: true,
     sourcePath: '/etc/orca/enterprise-policy.json',
     ...overrides
   }

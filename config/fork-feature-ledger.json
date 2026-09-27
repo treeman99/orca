@@ -188,6 +188,11 @@
           "file": "src/renderer/src/components/feature-tips/feature-tip-startup-gate.ts",
           "contains": "voiceUnavailable: getEnterprisePolicyView().disableVoice",
           "why": "음성 받아쓰기 팁 숨김. v1.4.215 가 feature-tip-modal-state 와 startup-gate 의 계산을 getPendingFeatureTips 하나로 모아 게이트를 그 함수로 옮겼다."
+        },
+        {
+          "file": "src/main/ssh/orcad-bun-runtime-materializer.ts",
+          "contains": "if (getEnterprisePolicy().disableRuntimeDownloads) {",
+          "why": "v1.4.215 신설 스위치의 유일한 게이트. SSH 릴레이 배포·WSL 세션 스캔이 사용자 조작 없이 github.com 에서 bun 실행 파일을 받는 레인이다."
         }
       ]
     },
@@ -1262,6 +1267,7 @@
     "allowedNetworkHosts": 3,
     "disableCloudRelay": 2,
     "disableStarNag": 2,
-    "disableTelemetry": 2
+    "disableTelemetry": 2,
+    "disableRuntimeDownloads": 1
   }
 }

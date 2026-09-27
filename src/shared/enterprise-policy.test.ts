@@ -53,7 +53,8 @@ describe('resolveEnterprisePolicy', () => {
       'disableVoice',
       'disablePlugins',
       'disableVendorLinks',
-      'requireComputerUseApproval'
+      'requireComputerUseApproval',
+      'disableRuntimeDownloads'
     ])
   })
 
