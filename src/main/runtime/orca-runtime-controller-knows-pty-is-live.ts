@@ -9,7 +9,10 @@ import {
   assertTerminalInputWithinLimitWithYield,
   buildTerminalSendPayload
 } from './terminal-send-payload'
-import { buildAgentPromptPasteBytes } from '../../shared/agent-prompt-injection'
+import {
+  agentPromptTakesLeadLine,
+  buildAgentPromptPasteBytes
+} from '../../shared/agent-prompt-injection'
 
 export class OrcaRuntimeWithControllerKnowsPtyIsLive extends OrcaRuntimeWithResolveTerminalPane {
   private lastProvenAbsentLeafPtyVerdictPruneAt: number | undefined
@@ -163,12 +166,21 @@ export class OrcaRuntimeWithControllerKnowsPtyIsLive extends OrcaRuntimeWithReso
     if (this.usesPlainTextPromptDelivery(handle)) {
       return this.sendPlainTextAgentPrompt(handle, prompt, options)
     }
-    const payload = buildAgentPromptPasteBytes(prompt)
+    // Why the consuming agent: the foreground process reads the bytes; launchAgent covers startup.
+    const payloadFor = (ptyId: string): string => {
+      const pty = this.ptysById.get(ptyId)
+      const agent = pty?.foregroundAgent ?? pty?.launchAgent
+      return buildAgentPromptPasteBytes(
+        prompt,
+        agentPromptTakesLeadLine(agent) ? options.leadLine : undefined
+      )
+    }
     const pty = this.getLivePtyForHandle(handle)
     if (pty) {
       if (!pty.pty.connected) {
         throw new Error('terminal_not_writable')
       }
+      const payload = payloadFor(pty.pty.ptyId)
       await assertTerminalInputWithinLimitWithYield(payload)
       const generation = this.getPtyLifecycleGeneration(pty.pty.ptyId)
       const activityBaseline = this.getAgentPromptActivity(handle, pty.pty.ptyId)
@@ -206,6 +218,7 @@ export class OrcaRuntimeWithControllerKnowsPtyIsLive extends OrcaRuntimeWithReso
     if (!leaf.writable || !leaf.ptyId) {
       throw new Error('terminal_not_writable')
     }
+    const payload = payloadFor(leaf.ptyId)
     await assertTerminalInputWithinLimitWithYield(payload)
     // Why: same absence gate as sendTerminal — a stale graph mirror must not
     // accept a prompt into a void; unknown liveness still proceeds.

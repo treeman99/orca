@@ -1,4 +1,5 @@
 import { tokenizeCustomCommandTemplate, type CommandTokenSpan } from './commit-message-prompt'
+import { quotePowerShellLiteral } from './powershell-native-argument'
 
 /**
  * `'posix'` covers every Unix shell Orca can type into, fish included — not
@@ -34,10 +35,8 @@ export type StartupCommandTokens =
  * error citing a line deep inside the prompt text (`Missing argument in parameter list` on the
  * first comma that follows), which reads as an agent bug rather than a quoting one.
  * The double-quote family needs no counterpart here: this branch never emits `"`.
+ * A plain string, not a `/g` regex: `.test` on one carries `lastIndex` between calls.
  */
-const POWERSHELL_SINGLE_QUOTES = /['\u2018\u2019\u201A\u201B]/g
-
-/** The same set as a plain string: `.test` on a `/g` regex carries `lastIndex` between calls. */
 const POWERSHELL_SINGLE_QUOTE_CHARS = "'\u2018\u2019\u201A\u201B"
 
 /**
@@ -265,8 +264,7 @@ function quotePortableUnixArg(value: string): string {
 
 export function quoteStartupArg(value: string, shell: AgentStartupShell): string {
   if (shell === 'powershell') {
-    // Doubling is the escape for all four: the scanner pairs any two adjacent members.
-    return `'${value.replace(POWERSHELL_SINGLE_QUOTES, '$&$&')}'`
+    return quotePowerShellLiteral(value)
   }
   if (shell === 'cmd') {
     return `"${value.replace(/([\^&|<>()%!"])/g, '^$1')}"`

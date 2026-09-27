@@ -15,7 +15,8 @@ const {
   isCommandOnLocalPathMock,
   mergePersistedWindowsPathAsyncMock,
   mergePersistedWindowsPathMock,
-  getEnterprisePolicyMock
+  getEnterprisePolicyMock,
+  readZCodeCapabilityMock
 } = vi.hoisted(() => ({
   handleMock: vi.fn(),
   execFileMock: vi.fn(),
@@ -27,7 +28,8 @@ const {
   isCommandOnLocalPathMock: vi.fn(),
   mergePersistedWindowsPathAsyncMock: vi.fn(),
   mergePersistedWindowsPathMock: vi.fn(),
-  getEnterprisePolicyMock: vi.fn()
+  getEnterprisePolicyMock: vi.fn(),
+  readZCodeCapabilityMock: vi.fn()
 }))
 
 vi.mock('electron', () => ({ ipcMain: { handle: handleMock } }))
@@ -50,11 +52,14 @@ vi.mock('../pty/windows-environment-path', () => ({
   mergePersistedWindowsPath: mergePersistedWindowsPathMock
 }))
 vi.mock('./ssh', () => ({ getActiveMultiplexer: getActiveMultiplexerMock }))
+vi.mock('../zcode/interactive-capability', () => ({
+  readZCodeInteractiveCapability: readZCodeCapabilityMock
+}))
 vi.mock('../enterprise/enterprise-policy-file', () => ({
   getEnterprisePolicy: () => getEnterprisePolicyMock()
 }))
 
-import { detectInstalledAgents } from './preflight'
+import { detectInstalledAgents, registerPreflightHandlers } from './preflight'
 import { resetPreflightMocks, type HandlerMap } from './preflight-test-harness'
 import { makeEnterprisePolicy } from '../../shared/enterprise-policy-fixture'
 
@@ -90,6 +95,7 @@ describe('agent detection under an enterprise allowlist', () => {
       handlers
     )
     getEnterprisePolicyMock.mockReset()
+    readZCodeCapabilityMock.mockReset()
     getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy())
   })
 
@@ -122,5 +128,22 @@ describe('agent detection under an enterprise allowlist', () => {
 
     // allowedAgents deliberately does not inherit lockdown — an admin must name the agents.
     await expect(detectInstalledAgents()).resolves.toEqual(['claude', 'codex'])
+  })
+
+  // The zcode capability probe runs the `zcode` binary itself, so it sits behind the same axis.
+  it('never runs the zcode probe when the policy does not allow zcode', async () => {
+    getEnterprisePolicyMock.mockReturnValue(makeEnterprisePolicy({ allowedAgents: ['claude'] }))
+    registerPreflightHandlers()
+
+    await expect(handlers['preflight:zcodeInteractiveCapability']()).resolves.toBe('unknown')
+    expect(readZCodeCapabilityMock).not.toHaveBeenCalled()
+  })
+
+  it('runs the zcode probe when the policy sets no allowlist', async () => {
+    readZCodeCapabilityMock.mockResolvedValue('interactive')
+    registerPreflightHandlers()
+
+    await expect(handlers['preflight:zcodeInteractiveCapability']()).resolves.toBe('interactive')
+    expect(readZCodeCapabilityMock).toHaveBeenCalledTimes(1)
   })
 })

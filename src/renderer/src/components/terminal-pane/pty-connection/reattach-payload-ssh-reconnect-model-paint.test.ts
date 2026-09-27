@@ -74,6 +74,7 @@ function createContext(overrides: Partial<ReattachPayloadContext>): ReattachPayl
     shouldApplyStructuralPayload: true,
     coldRestoreStartup: undefined,
     reattachPayloadApplied: false,
+    skippedAltFrameCaptureCols: null,
     ...overrides
   }
 }

@@ -9,6 +9,7 @@ export type UsageProviderSlots = {
   antigravity: ProviderRateLimits | null
   minimax: ProviderRateLimits | null
   grok: ProviderRateLimits | null
+  cursor: ProviderRateLimits | null
 }
 
 const PROVIDER_BY_SLOT: Record<keyof UsageProviderSlots, ProviderRateLimits['provider']> = {
@@ -19,7 +20,8 @@ const PROVIDER_BY_SLOT: Record<keyof UsageProviderSlots, ProviderRateLimits['pro
   kimi: 'kimi',
   antigravity: 'antigravity',
   minimax: 'minimax',
-  grok: 'grok'
+  grok: 'grok',
+  cursor: 'cursor'
 }
 
 export function unavailableSnapshot(provider: ProviderRateLimits['provider']): ProviderRateLimits {

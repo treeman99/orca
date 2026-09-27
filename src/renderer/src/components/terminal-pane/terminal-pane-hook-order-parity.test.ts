@@ -22,14 +22,18 @@ const TERMINAL_PANE_HOOK_SOURCE_PATTERN =
 // foundation (search input ref, focus-search-input) (211 hooks, still 8 useMemo).
 // Then the pending split-close admission added one `useRef` in close-actions
 // (the confirmed-close continuation) (212 hooks, still 8 useMemo).
+// Then the dead adopted-structured-session portal went with its local target `useMemo`
+// in projection (211 hooks, 7 useMemo).
+// Then chat ownership through toggles and restore (#23049) added a `useRef`, a `useLayoutEffect`
+// and a `useEffect` across chat-state, layout-persistence and title-effects (214 hooks, still 7 useMemo).
 //
-// Fork delta from upstream's pinned hash (upstream: a3ec9b9f…99c6): this build calls
+// Fork delta from upstream's pinned hash (upstream: 3736b71c…3be9): this build calls
 // `useOptionalLinkRoutingPreferenceDialog` instead of `useLinkRoutingPreferenceDialog`
 // (the popped-out tab window mounts no provider). Same hook count, same position —
-// only the identifier differs, which is what the digest sees. Verified at v1.4.206 by
+// only the identifier differs, which is what the digest sees. Verified at v1.4.215 by
 // renaming it back: the digest then equals upstream's pin exactly.
 const PRE_REFACTOR_HOOK_ORDER_SHA256 =
-  'c2bcb8fc37df7ccdd86b8bd7e0e43b25774d11238c049dc681fa886d3bba4348'
+  'd1ae3ffd09593ea8cede1a644a4bada70a39979e96bde79c33ef05dd6d2f4e9c'
 
 const sourceFiles = readdirSync(__dirname)
   .filter((name) => TERMINAL_PANE_HOOK_SOURCE_PATTERN.test(name))
@@ -94,8 +98,8 @@ function readFlattenedHookOrder(): string[] {
 describe('TerminalPane refactor hook parity', () => {
   it('preserves the recursively flattened render hook order', () => {
     const hooks = readFlattenedHookOrder()
-    expect(hooks).toHaveLength(212)
-    expect(hooks.filter((hook) => hook === 'useMemo')).toHaveLength(8)
+    expect(hooks).toHaveLength(214)
+    expect(hooks.filter((hook) => hook === 'useMemo')).toHaveLength(7)
     expect(createHash('sha256').update(hooks.join('\n')).digest('hex')).toBe(
       PRE_REFACTOR_HOOK_ORDER_SHA256
     )

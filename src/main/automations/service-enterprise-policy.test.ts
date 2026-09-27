@@ -3,6 +3,7 @@
 // policy object is right; this one fails if an upstream merge drops the gate.
 //
 // Kept in its own file so an upstream split of service.test.ts cannot carry the gate away.
+import { closeTestStores, createSqliteTestStore } from '../persistence-test-harness'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -35,7 +36,7 @@ async function createStore() {
   installFakeAppEnvironment({ getPath: () => testState.dir })
   const { Store, initDataPath } = await import('../persistence')
   initDataPath()
-  return new Store()
+  return createSqliteTestStore(Store, { dataFile: join(testState.dir, 'orca-data.json') })
 }
 
 const makeRepo = (overrides: Partial<Repo> = {}): Repo => ({
@@ -71,7 +72,8 @@ describe('AutomationService enterprise policy gate', () => {
     vi.useFakeTimers()
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    await closeTestStores()
     vi.useRealTimers()
     rmSync(testState.dir, { recursive: true, force: true })
   })
@@ -88,7 +90,10 @@ describe('AutomationService enterprise policy gate', () => {
 
     service.start()
     service.setRendererReady()
-    await vi.waitFor(() => expect(store.listAutomationRuns(automation.id).length).toBe(1))
+    // Why status, not count: the run row lands first and its refusal is a later durable write.
+    await vi.waitFor(() =>
+      expect(store.listAutomationRuns(automation.id)[0]?.status).toBe('skipped_policy')
+    )
     service.stop()
 
     expect(send).not.toHaveBeenCalled()
@@ -111,7 +116,10 @@ describe('AutomationService enterprise policy gate', () => {
     const service = new AutomationService(store, { tickMs: 60_000, headlessDispatcher })
 
     service.start()
-    await vi.waitFor(() => expect(store.listAutomationRuns(automation.id).length).toBe(1))
+    // Why status, not count: the run row lands first and its refusal is a later durable write.
+    await vi.waitFor(() =>
+      expect(store.listAutomationRuns(automation.id)[0]?.status).toBe('skipped_policy')
+    )
     service.stop()
 
     expect(headlessDispatcher).not.toHaveBeenCalled()

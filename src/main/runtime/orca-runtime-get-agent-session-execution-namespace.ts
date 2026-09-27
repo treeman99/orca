@@ -18,9 +18,6 @@ import {
   resolveTuiAgentLaunchEnv
 } from '../../shared/tui-agent-launch-defaults'
 import { assertAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
-import type { AgentSessionLaunchArgs } from '../../shared/agent-session-record'
-import { resolveStartupShell } from '../../shared/tui-agent-startup-shell'
-import { resolveAgentSessionResumeArgs } from './agent-session-resume-args'
 
 export class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntimeWithResolveWorktreeRemovalTarget {
   protected getAgentSessionExecutionNamespace(
@@ -91,13 +88,7 @@ export class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntim
 
   async ensureAgentSession(
     request: RuntimeEnsureAgentSessionRequest,
-    _caller: RuntimeAgentSessionRpcCaller = {},
-    handoffAuthority?: {
-      spawnToken: string
-      providerRoot: string
-      sessionId: string
-      launchArgs?: AgentSessionLaunchArgs
-    }
+    _caller: RuntimeAgentSessionRpcCaller = {}
   ): Promise<RuntimeEnsureAgentSessionResult> {
     if (request.kind === 'automatic') {
       // Legacy renderer sleep records are migration evidence, not host authority.
@@ -110,11 +101,7 @@ export class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntim
     // so a CLI/mobile resume of a now-forbidden session leaves nothing behind.
     assertAgentAllowedByEnterprisePolicy(request.agent)
     const workspace = await this.resolveTerminalWorkspaceLaunchScope(request.worktree)
-    const resolvedNamespace = this.getAgentSessionExecutionNamespace(workspace, request.agent)
-    const namespace =
-      resolvedNamespace && handoffAuthority
-        ? { ...resolvedNamespace, providerRoot: handoffAuthority.providerRoot }
-        : resolvedNamespace
+    const namespace = this.getAgentSessionExecutionNamespace(workspace, request.agent)
     if (
       !namespace ||
       !(await this.executionOwnerSupportsAgentSessionOperation(workspace, 'resume', _caller.signal))
@@ -146,20 +133,11 @@ export class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntim
       agent: request.agent,
       providerSession: identity.providerSession,
       cmdOverrides: settings.agentCmdOverrides ?? {},
-      agentArgs: resolveAgentSessionResumeArgs({
-        requestArgs: request.agentArgs,
-        persistedArgs: handoffAuthority?.launchArgs,
-        defaultArgs: resolveTuiAgentLaunchArgs(request.agent, settings.agentDefaultArgs),
-        shell: resolveStartupShell(platform, shell)
-      }),
-      agentEnv: {
-        ...resolveTuiAgentLaunchEnv(request.agent, settings.agentDefaultEnv),
-        ...(handoffAuthority && request.agent === 'codex'
-          ? { CODEX_HOME: handoffAuthority.providerRoot }
-          : handoffAuthority && request.agent === 'claude'
-            ? { CLAUDE_CONFIG_DIR: handoffAuthority.providerRoot }
-            : {})
-      },
+      agentArgs:
+        request.agentArgs !== undefined
+          ? request.agentArgs
+          : resolveTuiAgentLaunchArgs(request.agent, settings.agentDefaultArgs),
+      agentEnv: resolveTuiAgentLaunchEnv(request.agent, settings.agentDefaultEnv),
       ompResumeFilePath: request.ompResumeFilePath,
       sessionOptions: this.toAgentSessionOptions(request.launchPreferences),
       sessionOptionsOverrideAgentArgs: Boolean(request.launchPreferences),
@@ -185,12 +163,6 @@ export class OrcaRuntimeWithGetAgentSessionExecutionNamespace extends OrcaRuntim
       tabId: request.placement?.tabId,
       leafId: request.placement?.leafId,
       agentSessionClaim: claim,
-      ...(handoffAuthority
-        ? {
-            launchToken: handoffAuthority.spawnToken,
-            structuredAgentSessionId: handoffAuthority.sessionId
-          }
-        : {}),
       signal: _caller.signal
     })
     return {

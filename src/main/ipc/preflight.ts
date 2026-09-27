@@ -16,6 +16,8 @@ import type {
 // ../preflight/agent-detection so the runtime can call it without ipcMain.
 // Re-exported here so existing importers of `ipc/preflight` keep working.
 export * from '../preflight/agent-detection'
+import { readZCodeInteractiveCapability } from '../zcode/interactive-capability'
+import { isAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 
 export function registerPreflightHandlers(): void {
   ipcMain.handle(
@@ -30,6 +32,13 @@ export function registerPreflightHandlers(): void {
 
   ipcMain.handle('preflight:detectAgents', async (_event, args?: PreflightRuntimeContext) =>
     detectInstalledAgentsWithShellPathHydration(args)
+  )
+
+  // Why here: this is the one place that already answers "what can the installed agent CLIs
+  // do", and the probe is cached, so a repeat launch costs nothing.
+  // Why gated: the probe runs the `zcode` binary; a policy that disallows the agent must not.
+  ipcMain.handle('preflight:zcodeInteractiveCapability', async () =>
+    isAgentAllowedByEnterprisePolicy('zcode') ? readZCodeInteractiveCapability() : 'unknown'
   )
 
   ipcMain.handle('preflight:refreshAgents', async (_event, args?: PreflightRuntimeContext) => {

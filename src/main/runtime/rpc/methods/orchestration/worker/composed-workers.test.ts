@@ -4,6 +4,7 @@ import { createOrchestrationRpcHarness } from '../rpc-test-harness'
 import type { OrchestrationDb } from '../../../../orchestration/db'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../../../shared/constants'
+import { dispatchPreambleSendOptions } from '../../../../orchestration/preamble'
 
 describe('orchestration RPC methods', () => {
   const h = createOrchestrationRpcHarness()
@@ -170,11 +171,7 @@ describe('orchestration RPC methods', () => {
       expect(runtime.sendTerminalAgentPrompt).toHaveBeenCalledWith(
         'term_worker',
         expect.stringContaining('--dispatch-capability dcap_'),
-        expect.objectContaining({
-          acceptQueued: true,
-          observationTimeoutMs: 0,
-          requestId: expect.any(String)
-        })
+        expect.objectContaining(dispatchPreambleSendOptions(expect.any(String)))
       )
     })
 

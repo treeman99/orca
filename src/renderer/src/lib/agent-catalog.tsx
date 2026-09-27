@@ -130,6 +130,13 @@ export const getFullAgentCatalog = createLocalizedCatalog((): AgentCatalogEntry[
     homepageUrl: 'https://dev.meta.ai/docs/muse-code'
   },
   {
+    id: 'zcode',
+    label: translate('auto.lib.agent.catalog.zcode_label', 'ZCode'),
+    cmd: 'zcode',
+    faviconDomain: 'zcode.z.ai',
+    homepageUrl: 'https://zcode.z.ai/en/docs'
+  },
+  {
     id: 'pi',
     label: translate('auto.lib.agent.catalog.302934c5d9', 'Pi'),
     cmd: 'pi',

@@ -9,6 +9,8 @@ import { fetchGeminiRateLimits } from './gemini-usage-fetcher'
 import { fetchKimiRateLimits } from './kimi-fetcher'
 import { fetchMiniMaxRateLimits } from './minimax/minimax-fetcher'
 import { fetchGrokRateLimits } from './grok-fetcher'
+import { fetchCursorRateLimits } from './cursor-fetcher'
+import { readCursorAuthSession } from './cursor-auth'
 import { fetchOpenCodeGoUsage } from './opencode-go-usage-source-selection'
 import {
   asRateLimitWindow,
@@ -37,6 +39,10 @@ vi.mock('./opencode-go-usage-source-selection', () => ({ fetchOpenCodeGoUsage: v
 vi.mock('./minimax/minimax-fetcher', () => ({ fetchMiniMaxRateLimits: vi.fn() }))
 vi.mock('./grok-fetcher', () => ({ fetchGrokRateLimits: vi.fn() }))
 vi.mock('./grok-auth', () => ({ readGrokAuthSession: vi.fn(() => ({ status: 'missing' })) }))
+vi.mock('./cursor-fetcher', () => ({ fetchCursorRateLimits: vi.fn() }))
+vi.mock('./cursor-auth', () => ({
+  readCursorAuthSession: vi.fn(async () => ({ status: 'missing' }))
+}))
 vi.mock('../minimax/minimax-cookie-store', () => ({
   hasMiniMaxSessionCookie: vi.fn(() => false)
 }))
@@ -50,6 +56,7 @@ function expectNoVendorUsageFetches(): void {
   expect(fetchKimiRateLimits).not.toHaveBeenCalled()
   expect(fetchMiniMaxRateLimits).not.toHaveBeenCalled()
   expect(fetchGrokRateLimits).not.toHaveBeenCalled()
+  expect(fetchCursorRateLimits).not.toHaveBeenCalled()
 }
 
 describe('RateLimitService under an agent allowlist', () => {
@@ -74,9 +81,13 @@ describe('RateLimitService under an agent allowlist', () => {
     expect(fetchKimiRateLimits).not.toHaveBeenCalled()
     expect(fetchMiniMaxRateLimits).not.toHaveBeenCalled()
     expect(fetchGrokRateLimits).not.toHaveBeenCalled()
+    // Cursor's lane also reads the macOS Keychain before it fetches; neither may run.
+    expect(readCursorAuthSession).not.toHaveBeenCalled()
+    expect(fetchCursorRateLimits).not.toHaveBeenCalled()
     expect(service.getState().claude?.status).toBe('ok')
     expect(service.getState().codex?.status).toBe('unavailable')
     expect(service.getState().grok?.status).toBe('unavailable')
+    expect(service.getState().cursor?.status).toBe('unavailable')
   })
 })
 
@@ -162,7 +173,8 @@ describe('RateLimitService under enterprise policy lockdown', () => {
       state.kimi,
       state.antigravity,
       state.minimax,
-      state.grok
+      state.grok,
+      state.cursor
     ]) {
       expect(provider?.status).toBe('unavailable')
       expect(provider?.error).toBeNull()
@@ -232,6 +244,7 @@ describe('RateLimitService under enterprise policy lockdown', () => {
       expect(intervalSpy).toHaveBeenCalledWith(expect.any(Function), 15 * 60 * 1000)
       expect(fetchClaudeRateLimits).toHaveBeenCalledTimes(1)
       expect(fetchGrokRateLimits).toHaveBeenCalledTimes(1)
+      expect(fetchCursorRateLimits).toHaveBeenCalledTimes(1)
       expect(service.getState().claude?.status).toBe('ok')
 
       service.stop()

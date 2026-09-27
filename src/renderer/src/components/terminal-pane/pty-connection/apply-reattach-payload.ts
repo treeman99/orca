@@ -14,11 +14,12 @@ import {
 import { isRemoteRuntimePtyId } from './paired-parked-terminal-restore'
 import { restoredSnapshotPaintsPrintableContent } from '../restored-snapshot-coverage'
 import { resolveSshReconnectModelPaint } from './resolve-ssh-reconnect-model-paint'
+import { fitReattachedPaneToGrid, noteReattachAltFrameSkip } from './reattach-grid-fit'
 
 import type { ReattachPayloadContext } from './reattach-payload-context'
 import type { ReattachPayloadSession } from './reattach-payload-session'
 import { clearRestoredViewportOnPayloadlessReattach } from './restored-viewport-reattach-clear'
-import { fitAfterReattachRestore } from './reattach-fit-restore'
+import * as restoreLog from './reattach-restore-diagnostics'
 
 export function createReattachPayloadHandlers(
   session: ReattachPayloadSession,
@@ -61,11 +62,7 @@ export function createReattachPayloadHandlers(
           session.suppressStructuralReplayPtyResize = false
         }
       }
-      session.logRestoreDiagnostic?.('reattach-snapshot', {
-        dims: `${ctx.connectResult.snapshotCols ?? '?'}x${ctx.connectResult.snapshotRows ?? '?'}`,
-        cold: Boolean(ctx.connectResult.coldRestore),
-        owner: ctx.connectResult.snapshotTerminalOwner ?? 'app'
-      })
+      restoreLog.logReattachSnapshotDiagnostic(session, ctx.connectResult)
       session.writeReplayData(`${RESET_GRAPHIC_RENDITION}\x1b[2J\x1b[3J\x1b[H`)
       // Why: re-arm the kitty keyboard mirror from the snapshot preamble so Option chords keep their encoding after a window reload.
       session.applySnapshotKittyKeyboardModes(daemonSnapshotReplay, {
@@ -78,9 +75,13 @@ export function createReattachPayloadHandlers(
       const daemonAltFrameSkippable =
         hasSplitDaemonAltFrame &&
         typeof snapshotFrameRestoreAnsi === 'string' &&
-        shouldSkipAltFrameForWidthMismatch(
-          ctx.connectResult.snapshotCols,
-          readProposedTerminalCols(session.pane)
+        noteReattachAltFrameSkip(
+          ctx,
+          shouldSkipAltFrameForWidthMismatch(
+            ctx.connectResult.snapshotCols,
+            readProposedTerminalCols(session.pane)
+          ),
+          ctx.connectResult.snapshotCols
         )
       const groundDaemonSnapshot =
         Boolean(ctx.connectResult.coldRestore) ||
@@ -186,9 +187,16 @@ export function createReattachPayloadHandlers(
         // the ?1049h marker when splitting scrollbackAnsi) — inlined here
         // because nesting structuralReplayCoordinator would deadlock.
         for (const replayChunk of buildMainModelSnapshotReplayWrites(modelSnapshot, {
-          skipAltFrame: paintsReconnectFromModel
-            ? reconnectPaint.altFrameWouldBeSkipped
-            : shouldSkipAltFrameForWidthMismatch(modelCols, readProposedTerminalCols(session.pane)),
+          skipAltFrame: noteReattachAltFrameSkip(
+            ctx,
+            paintsReconnectFromModel
+              ? reconnectPaint.altFrameWouldBeSkipped
+              : shouldSkipAltFrameForWidthMismatch(
+                  modelCols,
+                  readProposedTerminalCols(session.pane)
+                ),
+            modelCols
+          ),
           paneOnAlternateScreen: session.isPaneOnAlternateScreen()
         })) {
           session.writeReplayData(replayChunk)
@@ -220,10 +228,7 @@ export function createReattachPayloadHandlers(
         session.rememberReattachPayloadAgentSignal(ctx.connectResult.replay, {
           fullScreenReplay: true
         })
-        session.logRestoreDiagnostic?.('reattach-replay', {
-          chars: ctx.connectResult.replay.length,
-          cold: Boolean(ctx.connectResult.coldRestore)
-        })
+        restoreLog.logReattachReplayDiagnostic(session, ctx.connectResult, ctx.connectResult.replay)
         // Relay replay may overlap xterm's pre-disconnect content; clear first to avoid duplication.
         session.writeReplayData(`${RESET_GRAPHIC_RENDITION}\x1b[2J\x1b[3J\x1b[H`)
         // Why: raw relay replay may contain the app's own kitty pushes; re-arm with set semantics so redelivery can't grow the stack.
@@ -313,11 +318,11 @@ export function createReattachPayloadHandlers(
         ownerProcessEnded: true,
         rows: Math.max(destinationRows, session.pane.terminal.rows)
       })
-      session.logRestoreDiagnostic?.('cold-restore-repaint', {
-        dims: `${ctx.connectResult.coldRestore.cols ?? '?'}x${ctx.connectResult.coldRestore.rows ?? '?'}`,
-        blankRows: Math.max(destinationRows, session.pane.terminal.rows),
-        chars: ctx.connectResult.coldRestore.scrollback.length
-      })
+      restoreLog.logColdRestoreRepaintDiagnostic(
+        session,
+        ctx.connectResult.coldRestore,
+        Math.max(destinationRows, session.pane.terminal.rows)
+      )
       if (!isRemoteRuntimePtyId(ctx.ptyId)) {
         window.api.pty.ackColdRestore(ctx.ptyId)
       }
@@ -338,8 +343,7 @@ export function createReattachPayloadHandlers(
     )
   }
 
-  return {
-    applyReattachPayload,
-    fitAfterReattachRestore: () => fitAfterReattachRestore(session, ctx)
-  }
+  const fitAfterReattachRestore = (): Promise<void> => fitReattachedPaneToGrid(session, ctx)
+
+  return { applyReattachPayload, fitAfterReattachRestore }
 }

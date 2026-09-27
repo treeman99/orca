@@ -19,6 +19,12 @@ const {
   verifyPackagedEnterprisePolicy
 } = require('./scripts/verify-packaged-enterprise-policy.cjs')
 const {
+  assertBundledRipgrepInstalled,
+  bundledRipgrepExtraResources,
+  bundledRipgrepMacSignIgnore,
+  finalizePackagedRipgrep
+} = require('./bundled-ripgrep-resources.cjs')
+const {
   verifyPackagedWindowsNodePty
 } = require('./scripts/verify-packaged-node-pty-job-ownership.cjs')
 const { verifySkillsCliRuntime } = require('./scripts/verify-skills-cli-runtime.cjs')
@@ -121,6 +127,7 @@ const bundledEnterprisePolicyResource = {
 }
 const commonExtraResources = [
   relayExtraResource,
+  ...bundledRipgrepExtraResources,
   bundledPluginResources,
   skillFreshnessResources,
   bundledSkillPackageResources,
@@ -199,6 +206,9 @@ module.exports = {
     // Why: these repo-only inputs are either bundled into out/ or copied via
     // extraResources. Shipping them in app.asar bloats the desktop bundle.
     '!src{,/**/*}',
+    '!out/orcad{,/**/*}',
+    '!out/orcad-template{,/**/*}',
+    '!out/.orcad-*{,/**/*}',
     '!config{,/**/*}',
     '!docs{,/**/*}',
     '!mobile{,/**/*}',
@@ -296,6 +306,9 @@ module.exports = {
     'out/main/gemini/**',
     'out/main/grok/**',
     'out/main/hermes/**',
+    'out/main/orca-profiles/profile-index-store.js',
+    'out/main/persistence/profile-state/**',
+    'out/main/startup/http1-compatibility-marker.js',
     'out/main/daemon-entry.js',
     'out/main/session-scanner-service-entry.js',
     'out/main/wsl-transcript-fs-process-entry.js',
@@ -320,6 +333,7 @@ module.exports = {
   // bundle as "none". See README §6.
   beforePack: (context) => {
     assertPackagedNativeVariantsInstalled(context.electronPlatformName, context.arch)
+    assertBundledRipgrepInstalled()
   },
   afterPack: async (context) => {
     const resourcesDir =
@@ -408,6 +422,7 @@ module.exports = {
     verifyPackagedPluginResources(resourcesDir)
     verifyPackagedEnterprisePolicy(resourcesDir)
     verifyPackagedSkillPackages(resourcesDir)
+    finalizePackagedRipgrep(resourcesDir)
     chmodUnixCliLaunchers(resourcesDir, context.electronPlatformName)
     chmodMacServeSimHelpers(resourcesDir, context.electronPlatformName)
     for (const filename of readdirSync(resourcesDir)) {
@@ -511,6 +526,7 @@ module.exports = {
     icon: 'resources/build/icon.icns',
     entitlements: 'resources/build/entitlements.mac.plist',
     entitlementsInherit: 'resources/build/entitlements.mac.plist',
+    signIgnore: bundledRipgrepMacSignIgnore,
     extendInfo: {
       NSAppleEventsUsageDescription:
         'Orca allows terminal-launched developer tools to automate local apps when you request it.',

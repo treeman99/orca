@@ -18,6 +18,7 @@ import {
   getAccountsClaudeSearchEntries,
   getAccountsCodexSearchEntries,
   getAccountsGeminiSearchEntries,
+  getAccountsCursorSearchEntries,
   getAccountsGrokSearchEntries,
   getAccountsLocationSearchEntries,
   getAccountsMiniMaxSearchEntries,
@@ -40,6 +41,7 @@ import { GatewaySection } from './GatewaySection'
 import { getGatewaySearchEntries } from './gateway-search'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { isAgentAllowedByPolicy } from '../../../../shared/corporate-agent-access'
+import { CursorAccountsSection } from './CursorAccountsSection'
 import type {
   AccountsPaneProps,
   AccountsPaneSectionModel,
@@ -76,7 +78,8 @@ const ACCOUNT_SECTION_AGENT_BY_KEY: Record<string, string> = {
   gemini: 'gemini',
   'opencode-go': 'opencode',
   minimax: 'minimax',
-  grok: 'grok'
+  grok: 'grok',
+  cursor: 'cursor'
 }
 
 export function AccountsPane({
@@ -397,6 +400,9 @@ export function AccountsPane({
       : null,
     matchesSettingsSearch(searchQuery, getAccountsGrokSearchEntries()) ? (
       <GrokAccountsSection key="grok" />
+    ) : null,
+    matchesSettingsSearch(searchQuery, getAccountsCursorSearchEntries()) ? (
+      <CursorAccountsSection key="cursor" />
     ) : null,
     matchesSettingsSearch(searchQuery, getGatewaySearchEntries()) ? (
       <GatewaySection key="gateway" />

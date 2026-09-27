@@ -83,15 +83,7 @@ export abstract class RateLimitServiceResultPolicy extends RateLimitServiceFetch
 
   protected withFetchingStatus(
     current: ProviderRateLimits | null,
-    provider:
-      | 'claude'
-      | 'codex'
-      | 'gemini'
-      | 'opencode-go'
-      | 'kimi'
-      | 'minimax'
-      | 'grok'
-      | 'antigravity'
+    provider: ActiveRateLimitProvider
   ): ProviderRateLimits {
     if (!current) {
       // Why: with polling disabled no cycle will ever clear a "fetching" chip; report the provider as

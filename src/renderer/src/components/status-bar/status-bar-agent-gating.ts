@@ -28,7 +28,8 @@ const USAGE_PROVIDER_ITEMS: ReadonlySet<StatusBarItem> = new Set([
   'antigravity',
   'grok',
   'opencode-go',
-  'minimax'
+  'minimax',
+  'cursor'
 ])
 
 export function isStatusBarItemAvailable(

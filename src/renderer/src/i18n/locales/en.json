@@ -855,7 +855,6 @@
         "1dbd3f59ff": "Move",
         "250e5b2dfb": "Enter",
         "2ca749c15d": "Install",
-        "344f8a48dd": "on the host running the Quick Open scan to enable fast, gitignore-aware listing:",
         "4725b0e931": "Quick Open scan too large (",
         "5d80dc39bb": "ripgrep",
         "61b1c871a6": "Open",
@@ -2603,6 +2602,9 @@
             "2b3ce6d394": "Cancel",
             "c845170b3b": "Lines {{value0}}-{{value1}}",
             "commentTooLarge": "Comment is too large to submit safely.",
+            "f6c449191e": "Add note for the AI",
+            "5fa4bfebaa": "Add note",
+            "5e9b3d0c2e": "Adding...",
             "e05063cfc1": "Line {{value0}}"
           },
           "useDiffCommentDecorator": {
@@ -2754,6 +2756,7 @@
           "8b87612461": "All unsent notes",
           "f1aa04b5cf": "This file"
         },
+        "diffCommentSaveFailed": "Failed to save comment",
         "DiffSectionBody": {
           "35d6afb5be": "Binary file changed",
           "593f2193f6": "This draft crossed the safe display limit, but it can still be saved.",
@@ -2902,20 +2905,57 @@
           "15ec40a735": "Save notebook",
           "1833dbbc43": "Markdown",
           "27e064e2db": "Move cell down",
-          "329764e9fc": "BETA",
           "3e4cbf15ea": "Raw",
           "53b839b8a0": "Insert code cell above",
-          "59b6cd874b": "code",
           "66a3f7d330": "Notebook HTML output",
           "7005960d73": "Code",
+          "8dbe39a152": "More cell actions",
+          "fa8fd99cf1": "Cell type",
+          "kernelStarting": "Starting…",
+          "kernelInstalling": "Installing ipykernel…",
+          "kernelDead": "Kernel died",
+          "selectKernel": "Select Kernel",
+          "notPython": "That file is not a Python interpreter.",
+          "interrupt": "Interrupt",
+          "restart": "Restart kernel",
+          "runAll": "Run all",
+          "clearAll": "Clear all outputs",
+          "notResponding": "Not responding. Restart kernel",
+          "findingPython": "Finding Python environments…",
+          "recommended": "Recommended",
+          "pythonOnPath": "Python on PATH",
+          "browsePython": "Browse for Python…",
+          "missingIpykernelTitle": "Install ipykernel?",
+          "missingIpykernel": "Running cells with '{{env}}' requires the ipykernel package.",
+          "copyCommand": "Copy command",
+          "commandCopied": "Command copied",
+          "install": "Install",
+          "useAnotherPython": "Use another Python…",
+          "venvDescription": "Orca will create a .venv in {{folder}} from '{{env}}', install ipykernel into it, and run this notebook there.",
+          "installingTitle": "Installing ipykernel…",
+          "installingDescription": "Installing ipykernel into '{{env}}' with pip. This can take a minute.",
+          "creatingVenvTitle": "Creating virtual environment…",
+          "creatingVenvDescription": "Creating .venv in {{folder}} and installing ipykernel into it. This can take a minute.",
+          "createVenvTitle": "Create a virtual environment?",
+          "setupFailed": "That did not work. Output from Python:",
+          "installingButton": "Installing…",
+          "creatingButton": "Creating…",
+          "createVenv": "Create .venv",
+          "tryAgain": "Try again",
+          "kernelCreatingVenv": "Creating .venv…",
+          "createVenvItem": "Create virtual environment…",
+          "trustFirst": "Run a cell to trust this notebook first",
+          "kernelStartFailed": "The kernel failed to start.",
+          "noPython": "Python was not found on this computer. Install it from [python.org](https://www.python.org/downloads/), then run the cell again.",
+          "kernelDied": "The kernel died.",
+          "localOnly": "Notebook cells can only run for files on this computer.",
+          "pythonOnly": "Only Python notebooks can run in Orca.",
           "781abd6926": "Delete cell",
           "7f0d7077c6": "Cancel",
           "859bf9fc21": "Run cell",
-          "8c3b21369a": "nbformat",
           "9e06ae5d36": "Run Notebook Code?",
           "b4208cad7e": "Insert code cell below",
           "b42f6a9547": "Insert markdown cell below",
-          "ba149053d5": "markdown",
           "c1601b23b2": "Unable to render notebook",
           "d6f37a640b": "Empty notebook",
           "fd8ac707bc": "Move cell up",
@@ -4725,6 +4765,9 @@
             "failed": "Chat could not be started.",
             "unknown": "Chat connection could not be confirmed.",
             "retry": "Retry"
+          },
+          "NativeChatStructuredSessionStatus": {
+            "starting": "{{value0}} is still starting. Messages wait until it is ready; close this chat to give up on it."
           }
         }
       },
@@ -7656,8 +7699,17 @@
             "title": "Chat UI",
             "toggleLabel": "Toggle Chat UI",
             "resumeTitle": "Resume working chats automatically after a restart",
-            "resumeCopy": "When Orca quits or installs an update, chats that were mid-turn are automatically resumed when Orca is reopened.",
-            "resumeToggleLabel": "Toggle automatic resume after a restart"
+            "resumeCopy": "When Orca quits or installs an update, chats that were working are automatically resumed when Orca is reopened.",
+            "resumeToggleLabel": "Toggle automatic resume after a restart",
+            "shellEnvNamesLabel": "Variables to pass from your shell",
+            "shellEnvNamePlaceholder": "Variable name",
+            "shellEnvNameAdd": "Add",
+            "shellEnvNameRemove": "Remove {{value0}}",
+            "shellEnvNamesEmpty": "No variables added yet.",
+            "shellEnvNamesAlwaysPassed": "PATH, locale, and SSH_AUTH_SOCK are always passed. Applies the next time a chat starts or resumes.",
+            "shellEnvTitle": "Use your shell environment",
+            "shellEnvCopy": "Codex and Claude chats start with every variable your login shell exports, the same as a terminal. Turn off to choose which ones they get.",
+            "shellEnvToggleLabel": "Toggle using your shell environment"
           },
           "newWorktreeCardStyle": {
             "copy": "Preview updated worktree-card layout, metadata placement, card-display menu options, and status presentation.",
@@ -8256,6 +8308,12 @@
           "step2RelayDisclosure": "Also use a faster local path",
           "step2Title": "This computer’s address",
           "title": "Pair a phone"
+        },
+        "MachineNameField": {
+          "label": "Machine name",
+          "description": "Other devices and hosts see “{{name}}”. Leave this blank to use the computer’s own name.",
+          "pending": "Other devices and hosts see this name. Leave it blank to use the detected computer name.",
+          "placeholder": "Detected automatically"
         },
         "MobilePane": {
           "1592afcc7a": "No devices paired yet. Scan the QR code with the Orca mobile app.",
@@ -10158,6 +10216,17 @@
             "75682e1b62": "Claude Accounts",
             "77e32a2ad3": "reauthenticate",
             "7e2a4b8c1d": "overseas",
+            "cursor": {
+              "title": "Cursor Usage",
+              "description": "Monthly plan usage read from the Cursor sign-in already on this computer (cursor-agent login).",
+              "kw": {
+                "cursor": "cursor",
+                "usage": "usage",
+                "spend": "spend",
+                "rateLimit": "rate limit",
+                "statusBar": "status bar"
+              }
+            },
             "7e67d7d1b6": "wrk",
             "8630464352": "cli",
             "86edc96bc9": "status bar",
@@ -10451,6 +10520,13 @@
               "notification": "notification area",
               "system": "system tray",
               "tray": "tray"
+            },
+            "cursor": {
+              "title": "Cursor Usage",
+              "description": "Show monthly Cursor plan usage from the Cursor sign-in on this computer.",
+              "kw": {
+                "cursor": "cursor"
+              }
             },
             "usagePercentageDisplayDescription": "Choose whether provider limits show the percentage used or remaining.",
             "usagePercentageDisplayTitle": "Usage percentages",
@@ -11415,6 +11491,20 @@
               "fb854902d9": "connecting",
               "statusConnected": "Connected",
               "statusNotConnected": "Not connected"
+            }
+          }
+        },
+        "machine": {
+          "name": {
+            "search": {
+              "title": "Machine name",
+              "description": "Choose the name other devices and hosts list this computer under.",
+              "machineName": "machine name",
+              "machine": "machine",
+              "hostname": "hostname",
+              "computer": "computer",
+              "rename": "rename",
+              "name": "name"
             }
           }
         },
@@ -12478,6 +12568,31 @@
         "TerminalRenderingSection": {
           "6d4c55bacc": "Inline Images",
           "fffab5890b": "Display images directly in the terminal using SIXEL, iTerm2 (IIP), and Kitty graphics protocols."
+        },
+        "CursorAccountsSection": {
+          "source": {
+            "keychain": "macOS Keychain (cursor-agent)",
+            "cli": "Cursor CLI auth file",
+            "desktop": "Cursor IDE"
+          },
+          "title": "Cursor",
+          "subtitle": "Shows your monthly Cursor plan usage from the sign-in already on this computer. Orca only reads it — it never changes your Cursor login.",
+          "dashboardLink": "Cursor dashboard",
+          "loading": "Loading…",
+          "signedIn": "Signed in",
+          "signedInFrom": "Signed in. Orca reads the session stored in {{source}}.",
+          "signedInGeneric": "Signed in. Orca reads the Cursor session stored on this computer.",
+          "expired": "Sign-in expired — run cursor-agent login on the computer running Orca, then click Refresh usage.",
+          "signedOut": "No Cursor sign-in found on this computer",
+          "signedOutHelp": "Sign in with Cursor IDE, or run cursor-agent login in a terminal, then click Refresh usage here.",
+          "refreshUsage": "Refresh usage",
+          "usageTitle": "Monthly plan usage",
+          "usageDescription": "Cursor bills two pools that reset with your billing cycle, plus on-demand spend once they run out.",
+          "planTotal": "Plan",
+          "resets": "Resets {{when}}",
+          "usageLabel": "Usage",
+          "noAllowance": "Cursor reported no usage allowance for this account.",
+          "staleUsage": "Last known usage — the latest refresh failed: {{reason}}"
         }
       },
       "setup": {
@@ -13020,14 +13135,25 @@
           "removeDescriptionVmRecipe": "This removes {{name}} from Orca. Its VM recipe determines whether the environment and its files are permanently deleted."
         },
         "RepoScanUnavailableIndicator": {
-          "retained": "Existing worktrees are kept until a scan succeeds. Click to retry.",
+          "retained": "Existing worktrees are kept until a scan succeeds. Click the warning icon to retry.",
           "retry": "Retry scan",
           "title": "Worktree scan failed for {{value0}}",
           "xcodeLicense": "Apple developer tools require license acceptance before Git can run.",
           "developerTools": "Apple command-line developer tools are missing or unavailable.",
           "architectureMismatch": "A Git-related executable could not run because its CPU architecture is incompatible with this execution host. Install Git and related tools for the host architecture.",
-          "copyCommand": "Copy command",
           "copyDiagnostics": "Copy diagnostics"
+        },
+        "LocalGitToolchainScanBanner": {
+          "xcodeLicenseTitle": "Accept the Xcode license to use Git",
+          "xcodeLicenseBody": "macOS blocks Git until you accept it. Run this in Terminal, then switch back to Orca. It will check again automatically.",
+          "developerToolsTitle": "Install Apple's command line tools",
+          "developerToolsBody": "Git needs Apple's developer tools. Run this in Terminal, then switch back to Orca. It will check again automatically.",
+          "affectedOne": "Worktree scan paused for {{value0}}",
+          "affectedMany": "Worktree scan paused for {{value0}} projects",
+          "copyCommand": "Copy command",
+          "copied": "Command copied",
+          "retry": "Retry now",
+          "restored": "Git is working again. Worktrees refreshed."
         },
         "ScrollToCurrentWorkspaceToolbarButton": {
           "23989bb663": "Reveal active workspace"
@@ -15016,7 +15142,17 @@
             "label": "{{value0}} chats to resume",
             "ariaLabelOne": "1 chat available to resume",
             "ariaLabel": "{{value0}} chats available to resume",
-            "tooltip": "Open interrupted chats available to resume"
+            "tooltip": "Open interrupted chats available to resume",
+            "failedLabelOne": "1 chat failed to resume",
+            "failedLabel": "{{value0}} chats failed to resume",
+            "failedAriaOne": "1 chat failed to resume. Click for details.",
+            "failedAria": "{{value0}} chats failed to resume. Click for details.",
+            "failedTooltip": "Chats Orca could not resume after the restart. Click for details.",
+            "checkLabelOne": "1 chat to check",
+            "checkLabel": "{{value0}} chats to check",
+            "checkAriaOne": "1 chat to check after resuming. Click for details.",
+            "checkAria": "{{value0}} chats to check after resuming. Click for details.",
+            "checkTooltip": "Chats Orca couldn’t resume, or couldn’t confirm it resumed, after the restart. Click for details."
           },
           "SkillUpdateStatusSegment": {
             "errorAria": "Skill update failed. Click to open details.",
@@ -15116,6 +15252,7 @@
             "c98ea88392": "No other accounts",
             "cd9d7b40ff": "Restart {{value0}} Sessions",
             "codexSignInError": "Codex sign-in failed. Please try again.",
+            "cursorUsageMenu": "Cursor Usage",
             "codexSignInSuccess": "Signed in to Codex",
             "d1e1a7a6bf": "Resource Manager",
             "d2375976eb": "Open Gemini usage details",
@@ -15351,6 +15488,13 @@
               "noSubscription": {
                 "label": "No subscription"
               }
+            },
+            "cursor": {
+              "expired": {
+                "label": "Sign-in expired",
+                "message": "Run cursor-agent login in a terminal on the computer running Orca, then retry usage."
+              },
+              "plan": "Plan"
             }
           },
           "usagePercentageLabel": {
@@ -15877,6 +16021,14 @@
             "ae20d0ffc2": "Dismiss",
             "e2fcf07c0d": "Orca could not save this terminal session because local storage is full or not writable. Open the disk space analyzer to find workspace storage you can clean up."
           },
+          "zcode": {
+            "missing": {
+              "tui": {
+                "title": "This ZCode build has no terminal UI",
+                "description": "Orca's hooks installed correctly — the zcode on your PATH just cannot open a session. The ZCode desktop app bundles the agent runtime without its terminal UI. Install a zcode that ships the TUI, then run zcode outside Orca to confirm."
+              }
+            }
+          },
           "TerminalSshReconnectOverlay": {
             "authFailed": "Authentication failed for {{value0}}. Connect again to continue this terminal session.",
             "connectButton": "Connect",
@@ -16250,6 +16402,33 @@
         "3d8e5f1b9c": "Share skills behind an unlisted link and install them on any machine you use.",
         "c5b3e8a17d": "Sign in to Orca"
       },
+      "NativeChatResumeOutcomeRow": {
+        "openChat": "Open chat",
+        "retry": "Retry",
+        "dismiss": "Dismiss",
+        "unconfirmed": "Couldn’t confirm the chat was resumed",
+        "failed": "Couldn’t resume",
+        "statusFor": "{{value0}}: {{value1}}",
+        "dismissChat": "Dismiss \"{{value0}}\" in {{value1}}",
+        "toResume": "To resume:"
+      },
+      "NativeChatResumeFailureGuidance": {
+        "unconfirmed": "Orca couldn’t confirm the “continue” message was delivered. Open the chat and check before sending another.",
+        "superseded": "Open the chat and reply. New work arrived in it right after the restart, so Orca didn’t send its “continue” message.",
+        "conflict": "Another Orca window or terminal still owns this session. Close it, then retry.",
+        "ownershipUnknown": "Orca is still working out which process owns this session. Wait a moment, then retry.",
+        "notAttached": "The chat didn’t reconnect. Retry, or open it to start a fresh turn.",
+        "dispatchRejected": "The agent refused the “continue” message. Open the chat and send one yourself.",
+        "unsupported": "This chat can’t be resumed by Orca. Open it to see where it stopped.",
+        "fallback": "Orca couldn’t resume this chat. Open it to continue manually."
+      },
+      "web": {
+        "preloadApi": {
+          "cursorAccounts": {
+            "hostOnly": "Cursor sign-in details are only readable on the computer running Orca."
+          }
+        }
+      },
       "appUpdate": {
         "result": {
           "acknowledge": "OK",
@@ -16279,8 +16458,8 @@
         "untitled": "Untitled chat",
         "selectAgent": "Resume {{value0}} chat \"{{value1}}\" in {{value2}}",
         "title": "Resume interrupted chats?",
-        "updateBody": "These chats were mid-turn when Orca installed an update. Resuming restores each one where it stopped, with its full context, and asks the agent to check its last action before carrying on. Your own prompt is not re-sent.",
-        "body": "These chats were mid-turn when Orca closed. Resuming restores each one where it stopped, with its full context, and asks the agent to check its last action before carrying on. Your own prompt is not re-sent.",
+        "updateBody": "These chats were working when Orca installed an update. Resuming restores each one where it stopped, with its full context, and asks the agent to check what it was doing before carrying on. Your own prompt is not re-sent.",
+        "body": "These chats were working when Orca closed. Resuming restores each one where it stopped, with its full context, and asks the agent to check what it was doing before carrying on. Your own prompt is not re-sent.",
         "listLabel": "Chats that would be resumed",
         "dontAskAgain": "Don't ask again (resume automatically)",
         "dontAskAgainHint": "You can turn this off in Settings → Experimental → Chat UI.",
@@ -16290,13 +16469,26 @@
         "continuedOne": "Resumed 1 chat and asked it to continue",
         "continuedMany": "Resumed {{value0}} chats and asked them to continue",
         "continueUnconfirmed": "Continuation delivery is unconfirmed for {{value0}} chats. Open them to check before sending another message.",
-        "continueRefused": "{{value0}} chats could not be continued. Open them to continue manually.",
         "continueUnconfirmed_one": "Continuation delivery is unconfirmed for {{value0}} chat. Open it to check before sending another message.",
         "continueUnconfirmed_other": "Continuation delivery is unconfirmed for {{value0}} chats. Open them to check before sending another message.",
-        "continueRefused_one": "{{value0}} chat could not be continued. Open it to continue manually.",
-        "continueRefused_other": "{{value0}} chats could not be continued. Open them to continue manually.",
         "dismissAll": "Dismiss all",
-        "dismissUnconfirmed": "Dismissing the resume offer was not confirmed — it may still be in the status bar."
+        "dismissUnconfirmed": "Dismissing the resume offer was not confirmed — it may still be in the status bar.",
+        "notContinuedOne": "1 chat couldn’t be resumed",
+        "notContinuedMany": "{{value0}} chats couldn’t be resumed",
+        "notConfirmedOne": "Couldn’t confirm 1 chat was resumed",
+        "notConfirmedMany": "Couldn’t confirm {{value0}} chats were resumed",
+        "notConfirmedOtherOne": "Couldn’t confirm 1 other chat was resumed",
+        "notConfirmedOtherMany": "Couldn’t confirm {{value0}} other chats were resumed",
+        "show": "Show",
+        "dismiss": "Dismiss",
+        "activityUnnamed": "unnamed",
+        "activityApproval": "Waiting for your approval: {{value0}}",
+        "activityQuestion": "Waiting for your answer: {{value0}}",
+        "activityMidReply": "Was mid-reply",
+        "activitySubagentOne": "Subagent running: {{value0}}",
+        "activitySubagentMany": "{{value0}} subagents running",
+        "activityMonitorOne": "Monitoring: {{value0}}",
+        "activityMonitorMany": "Monitoring {{value0}} background tasks"
       }
     },
     "hooks": {
@@ -16509,6 +16701,7 @@
         "catalog": {
           "060d152fb5": "Trae",
           "muse_label": "Muse",
+          "zcode_label": "ZCode",
           "0708ed89f1": "Claude",
           "09973b4d84": "OMP",
           "0baad2d5d2": "Grok",
@@ -17616,6 +17809,7 @@
       "scrollMessageToTop": "Scroll this message to top",
       "loadingEarlier": "Loading…",
       "loadEarlier": "Load earlier messages",
+      "loadingEarlierMessages": "Loading earlier messages…",
       "railLabel": "Your messages",
       "railImageMessage": "Image attachment",
       "railEmptyMessage": "Message",
@@ -17642,41 +17836,7 @@
         }
       },
       "launchPromptNotDelivered": "Not delivered — check the terminal",
-      "structuredSessionCloseFailed": "Could not close this chat session",
       "structuredSessionLaunchFailed": "Could not open {{value0}} chat",
-      "structuredSessionCloseFailedDescription": "The terminal stayed open so the provider remains recoverable.",
-      "handoff": {
-        "agentOpen": "Agent is open in terminal.",
-        "agentOpenOnHost": "Agent is open in terminal on {{value0}}.",
-        "cancel": "Cancel",
-        "details": "Details",
-        "exitTerminal": "Exit the agent terminal to continue in chat.",
-        "mode": {
-          "chat": "Chat",
-          "switching": "Switching",
-          "terminal": "Terminal"
-        },
-        "openAgentTui": "Open agent TUI",
-        "retry": "Retry",
-        "retryProof": "Retry proof",
-        "returnAfterTurn": "Return after this turn",
-        "returnToChat": "Return to chat",
-        "returningAfterTurn": "Returning after this turn",
-        "stage": {
-          "finishingChat": "Finishing chat session…",
-          "finishingTerminal": "Finishing agent terminal…",
-          "manualRecovery": "Agent session needs recovery",
-          "openingTerminal": "Opening agent terminal…",
-          "recovering": "Recovering agent session…",
-          "resumingChat": "Resuming chat session…",
-          "verifyingChat": "Verifying chat session…",
-          "verifyingTerminal": "Verifying agent terminal…"
-        },
-        "stopTurnAndSwitch": "Stop turn and switch",
-        "switchAfterTurn": "Switch after this turn",
-        "switchingAfterTurn": "Switching after this turn",
-        "switchingOwner": "Switching session owner…"
-      },
       "structuredSessionLaunchFailedDescription": "Orca could not open a structured {{value0}} chat. See the logs for details.",
       "subagents": {
         "state": {
@@ -17722,6 +17882,16 @@
         "blocked": "Goal blocked",
         "limited": "Goal limited",
         "attachmentsUnsupported": "Remove attachments before setting a goal."
+      },
+      "fileLinks": {
+        "notFound": "File not found: {{value0}}",
+        "unverifiable": "Couldn't check {{value0}}: {{value1}}",
+        "unresolved": "Couldn't resolve {{value0}} in this workspace"
+      },
+      "contextUsage": {
+        "label": "Context {{used}} of {{window}} tokens, {{percent}}% used",
+        "title": "Context",
+        "estimated": "Estimated from the last response."
       },
       "ask": {
         "awaiting": "Awaiting user input:",
@@ -18175,6 +18345,52 @@
       "startInstruction": "to start voice dictation. Press",
       "stopInstruction": "again to stop.",
       "unassignedInstruction": "Assign a dictation shortcut before starting voice dictation in a focused pane."
+    },
+    "sessionSearch": {
+      "enableFailed": "Could not turn on session search. Try again.",
+      "progressStarting": "Finding your sessions…",
+      "settingsLink": "Settings → Agent Session Search",
+      "agentsInstruction": "Your agents can search it too. Ask one to “find the session where we fixed the login timeout.”",
+      "consentInstruction": "Change or turn it off anytime in",
+      "readyDescription": "Every agent session on this computer can now be found by what was said in it.",
+      "indexingDescription": "Orca is reading your past agent transcripts so you can search them. This can take a few minutes.",
+      "indexingTitle": "Indexing your agent sessions",
+      "readyTitle": "Session search is ready",
+      "continueInBackground": "Continue in background",
+      "startSearching": "Start searching",
+      "demoRoleAssistant": "Assistant",
+      "demoRoleUser": "User",
+      "recent1Title": "Tidy the settings sidebar",
+      "recent1Text": "Moved the search entries under Workflows and updated the tests.",
+      "ageMinutes": "12m",
+      "recent2Title": "Bump the lockfile",
+      "recent2Text": "Update the dependencies and make sure the build still passes.",
+      "ageHours": "2h",
+      "recent3Title": "Release notes draft",
+      "recent3Text": "Here is a first pass at the notes, grouped by area.",
+      "ageYesterday": "1d",
+      "demoQuery": "login timeout",
+      "demoHit1Title": "Fix flaky auth redirect",
+      "demoHit1Snippet": "Raised the [[login timeout]] to 30s and added a retry on the token refresh.",
+      "demoHit1Age": "3d",
+      "demoHit2Title": "Session refresh after sleep",
+      "demoHit2Snippet": "Why does the [[login]] page hang after a [[timeout]] on wake?",
+      "demoHit2Age": "1w",
+      "demoHit3Title": "Auth e2e hardening",
+      "demoHit3Snippet": "Added a test that covers the [[login timeout]] path end to end.",
+      "demoHit3Age": "2w",
+      "demoQuery2": "migration rollback",
+      "demoHit4Title": "Orders table migration",
+      "demoHit4Snippet": "The [[rollback]] drops the new index first, then restores the old column.",
+      "demoHit4Age": "5d",
+      "demoHit5Title": "Staging deploy failed",
+      "demoHit5Snippet": "Can you write a [[migration]] [[rollback]] plan before we retry?",
+      "demoHit5Age": "3w",
+      "demoHit6Title": "Schema review notes",
+      "demoHit6Snippet": "Every [[migration]] here is reversible except the enum rename.",
+      "demoHit6Age": "1mo",
+      "readyToast": "Session search is ready",
+      "readyToastOpen": "Open"
     }
   },
   "github": {
@@ -18281,6 +18497,7 @@
         "codexToggleDescription": "Show Codex token and cost usage for the active workspace.",
         "geminiToggleDescription": "Show Gemini token and cost usage for the active workspace.",
         "grokToggleDescription": "Show Grok subscription credit usage when signed in via Grok CLI.",
+        "cursorToggleDescription": "Show Cursor plan usage when signed in through cursor-agent or Cursor IDE.",
         "kimiToggleDescription": "Show Kimi subscription usage for the active workspace.",
         "minimaxToggleDescription": "Show MiniMax subscription usage for the active workspace.",
         "opencodeGoToggleDescription": "Show OpenCode Go token and cost usage for the active workspace.",

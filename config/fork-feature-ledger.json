@@ -109,6 +109,26 @@
           "file": "src/renderer/src/components/right-sidebar/AiVaultPanelHeader.tsx",
           "contains": "import { VaultViewMenu } from './AiVaultViewMenu'",
           "why": "허용목록 필터를 가진 포크판 뷰 메뉴. upstream 판(AiVaultPanelControls)으로 import 가 돌아가면 필터 없이 전 에이전트가 보인다."
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-get-structured-agent-session-create-support.ts",
+          "contains": "if (!isAgentAllowedByEnterprisePolicy(agent)) {",
+          "why": "structured 챗 생성 가능 여부 프로브의 허용목록 게이트. v1.4.215 가 orca-runtime-resolve-recovered-structured-tui-transcript.ts 를 이 파일로 rename 하며 충돌했다. 빠지면 막힌 에이전트의 structured host 가 질의만으로 생긴다."
+        },
+        {
+          "file": "src/main/codex/codex-structured-launch-resolution.ts",
+          "contains": "  assertAgentAllowedByEnterprisePolicy('codex')",
+          "why": "v1.4.215 가 invocation 해석을 resolveCodexStructuredInvocation 으로 뽑고 세션 없는 모델 카탈로그 프로브(agentSession.modelCatalog)가 이것을 직접 부른다. 레코드 게이트는 launcher 안이라 프로브가 지나지 않는다 — 빠지면 허용 안 된 codex 가 모델 목록 조회로 실행된다."
+        },
+        {
+          "file": "src/main/claude/claude-structured-launch-resolution.ts",
+          "contains": "  assertAgentAllowedByEnterprisePolicy('claude')",
+          "why": "codex 와 같은 이유(resolveClaudeStructuredInvocation, v1.4.215 모델 카탈로그 프로브)."
+        },
+        {
+          "file": "src/main/ipc/preflight.ts",
+          "contains": "isAgentAllowedByEnterprisePolicy('zcode') ? readZCodeInteractiveCapability() : 'unknown'",
+          "why": "v1.4.215 신규 zcode 프리플라이트가 zcode 바이너리를 인자 없이 실행한다. 빠지면 허용 안 된 에이전트가 기능 탐지만으로 실행된다."
         }
       ]
     },
@@ -158,6 +178,16 @@
           "file": "src/main/orca-profiles/orca-cloud-host-absence.test.ts",
           "contains": "'push.onorca.dev'",
           "why": "벤더 호스트 리터럴이 소스·테스트 픽스처로 되돌아오는 것을 잡는 감사 목록."
+        },
+        {
+          "file": "src/renderer/src/components/settings/AccountsPane.tsx",
+          "contains": "  cursor: 'cursor'",
+          "why": "Accounts 패널의 Cursor 섹션(v1.4.215 신규)을 허용목록·disableVendorProviderAccounts 로 숨기는 매핑."
+        },
+        {
+          "file": "src/renderer/src/components/feature-tips/feature-tip-startup-gate.ts",
+          "contains": "voiceUnavailable: getEnterprisePolicyView().disableVoice",
+          "why": "음성 받아쓰기 팁 숨김. v1.4.215 가 feature-tip-modal-state 와 startup-gate 의 계산을 getPendingFeatureTips 하나로 모아 게이트를 그 함수로 옮겼다."
         }
       ]
     },
@@ -204,6 +234,31 @@
         {
           "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
           "contains": "this.isUsageProviderAllowed('grok')"
+        },
+        {
+          "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
+          "contains": "this.isUsageProviderAllowed('cursor')",
+          "why": "v1.4.215 신규 Cursor 사용량 레인(cursor-fetcher → Cursor API)의 허용목록 게이트. 빠지면 cursor 가 허용되지 않은 fleet 에서도 키체인을 읽고 벤더 API 로 폴링한다."
+        },
+        {
+          "file": "src/renderer/src/components/status-bar/status-bar-agent-gating.ts",
+          "contains": "  'cursor'\n])",
+          "why": "Cursor 사용량 칩·토글을 허용목록으로 숨기는 대상 목록(v1.4.215 신규)."
+        },
+        {
+          "file": "src/renderer/src/components/status-bar/use-status-bar-controller.ts",
+          "contains": "isStatusBarItemAvailable('cursor', detectedAgentIds, allowedAgents)",
+          "why": "Cursor 사용량 칩 표시 게이트(v1.4.215 신규, upstream 은 탐지 게이트 없이 statusBarItems 만 본다)."
+        },
+        {
+          "file": "src/renderer/src/components/status-bar/StatusBarVisibilityMenu.tsx",
+          "contains": "{isStatusBarItemAvailable('cursor', detectedAgentIds, allowedAgents) && (",
+          "why": "상태바 표시 메뉴의 Cursor 토글 게이트(v1.4.215 신규)."
+        },
+        {
+          "file": "src/main/rate-limits/usage-polling-disabled-providers.ts",
+          "contains": "  cursor: 'cursor'",
+          "why": "disableUsagePolling 아래 빈 cursor 슬롯을 unavailable 로 정착시키는 목록(v1.4.215 신규)."
         }
       ]
     },
@@ -507,15 +562,18 @@
         },
         {
           "file": "src/renderer/src/components/terminal-pane/pty-connection/apply-reattach-payload.ts",
-          "contains": "session.logRestoreDiagnostic?.('reattach-snapshot', {"
+          "contains": "restoreLog.logReattachSnapshotDiagnostic(session, ctx.connectResult)",
+          "why": "v1.4.215 에서 upstream 증가분과 합쳐 max-lines 를 넘어 진단 본문을 reattach-restore-diagnostics.ts(포크 전용)로 옮겼다. 이 호출 한 줄이 앵커다."
         },
         {
           "file": "src/renderer/src/components/terminal-pane/pty-connection/apply-reattach-payload.ts",
-          "contains": "session.logRestoreDiagnostic?.('reattach-replay', {"
+          "contains": "restoreLog.logReattachReplayDiagnostic(",
+          "why": "v1.4.215 에서 upstream 증가분과 합쳐 max-lines 를 넘어 진단 본문을 reattach-restore-diagnostics.ts(포크 전용)로 옮겼다. 이 호출 한 줄이 앵커다."
         },
         {
           "file": "src/renderer/src/components/terminal-pane/pty-connection/apply-reattach-payload.ts",
-          "contains": "session.logRestoreDiagnostic?.('cold-restore-repaint', {"
+          "contains": "restoreLog.logColdRestoreRepaintDiagnostic(",
+          "why": "v1.4.215 에서 upstream 증가분과 합쳐 max-lines 를 넘어 진단 본문을 reattach-restore-diagnostics.ts(포크 전용)로 옮겼다. 이 호출 한 줄이 앵커다."
         },
         {
           "file": "src/renderer/src/components/terminal-pane/pty-connection/hidden-output-restore-snapshot.ts",
@@ -747,7 +805,7 @@
         },
         {
           "file": "src/renderer/src/components/terminal-pane/terminal-pane-hook-order-parity.test.ts",
-          "contains": "'c2bcb8fc37df7ccdd86b8bd7e0e43b25774d11238c049dc681fa886d3bba4348'",
+          "contains": "'d1ae3ffd09593ea8cede1a644a4bada70a39979e96bde79c33ef05dd6d2f4e9c'",
           "why": "훅 개수·useMemo 개수는 upstream 과 같고 식별자만 다르다(useOptionalLinkRoutingPreferenceDialog). 다이제스트는 그 차이를 보므로 포크 전용 값이며, 머지가 upstream 값으로 되돌리면 빨개진다."
         },
         {
@@ -772,12 +830,12 @@
         },
         {
           "file": "src/shared/child-process/child-process-import-boundary.test.ts",
-          "contains": "const DIRECT_IMPORTER_PIN = 152",
+          "contains": "const DIRECT_IMPORTER_PIN = 149",
           "why": "v1.4.197 이 upstream 자기 수(158)로 숫자 백스톱을 추가했다. 이 빌드는 포크 소유 직접 import 8건을 runProcess/spawnProcess/runProcessSync 로 이관했고, upstream 이 가진 2건(skills CLI 핸들러·local-builds)은 지웠으므로 158 보다 2 낮은 156 이다. 머지가 158 로 되돌리면 래칫이 확보한 땅을 다시 열어 준다."
         },
         {
           "file": "src/shared/child-process/windows-console-visibility.test.ts",
-          "contains": "const UNHIDDEN_SPAWNER_PIN = 62",
+          "contains": "const UNHIDDEN_SPAWNER_PIN = 59",
           "why": "upstream 은 66. 이 빌드는 updater·벤더 forge 레인을 지워 스폰 파일이 2개 적고, 래칫은 핀이 실제 수와 같기를 요구한다(낮추는 방향만 허용)."
         }
       ]
@@ -1052,6 +1110,17 @@
           "contains": "safeToAuthorize = scan.safeToAuthorize ?? true"
         }
       ]
+    },
+    {
+      "id": "confluence-token-at-rest",
+      "summary": "Confluence 연동(포크 기능)의 API 토큰을 upstream 설정 직렬화 경로에서 암호화하는 줄.",
+      "present": [
+        {
+          "file": "src/main/persistence/loading-store/state-serialization-secret-handling.ts",
+          "contains": "PROTECTED_SECRET_SLOT.confluenceApiToken,",
+          "why": "v1.4.215 가 설정 저장을 buildSettingsToSave 하나로 모으고 도메인 단위 저장 경로를 새로 열었다. 빠지면 토큰이 평문으로 디스크에 쓰인다."
+        }
+      ]
     }
   ],
   "absentPaths": [
@@ -1091,7 +1160,14 @@
     "config/oxlint-anti-slop.json",
     "config/scripts/sync-anti-slop-plugin.mjs",
     "src/main/orca-profiles/profile-cloud-service-connect-overlap.test.ts",
-    "src/main/orca-profiles/profile-cloud-service-sign-out-connect-race.test.ts"
+    "src/main/orca-profiles/profile-cloud-service-sign-out-connect-race.test.ts",
+    "src/main/ipc/feedback-request.ts",
+    "src/shared/feedback-submit-contract.ts",
+    "src/shared/feedback-image-limits.ts",
+    "src/renderer/src/store/slices/feedback-draft.ts",
+    "src/main/updater.*.test.ts",
+    "config/scripts/cloud-security-history-workflow.test.mjs",
+    "src/main/startup/main-window-core-services.test.ts"
   ],
   "absentSymbols": [
     {
@@ -1163,6 +1239,11 @@
       "file": "config/electron-builder.config.cjs",
       "symbol": "assertMobileWebBundleBuilt",
       "why": "번들 레인을 뺐으므로 beforePack 가드도 뺐다. 되살아나면 번들 없는 사내 빌드가 패키징 단계에서 실패한다."
+    },
+    {
+      "file": "config/reliability-gates.jsonc",
+      "symbol": "cloud/apps/",
+      "why": "포크는 cloud/ 를 지웠다. v1.4.215 가 cloud/apps/relay 테스트만 가리키는 relay.control-activation-ownership 게이트를 충돌 없이 넣어 check:reliability-gates 가 없는 파일로 빨개졌다. 그런 항목은 통째로 지운다."
     }
   ],
   "policySwitchMinConsumers": {

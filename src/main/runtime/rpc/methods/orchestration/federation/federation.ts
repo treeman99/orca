@@ -1,6 +1,9 @@
 import type { TuiAgent } from '../../../../../../shared/tui-agent'
 import { describeTerminalWaitBlockedReason } from '../../../../../../shared/terminal-wait-blocked-reason-legacy-alias'
-import { buildDispatchPreamble } from '../../../../orchestration/preamble'
+import {
+  buildDispatchPreamble,
+  dispatchPreambleSendOptions
+} from '../../../../orchestration/preamble'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { defineMethod } from '../../../core'
 import { buildDispatchInputEffect } from '../../orchestration-dispatch-input-effect'
@@ -262,11 +265,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
             canDispatchSubWorkers: (params.depth ?? 1) < runtime.getNestedWorkerMaxDepth(),
             cliCommand: runtime.getTerminalOrchestrationCliCommand(terminalHandle)
           }),
-          {
-            acceptQueued: true,
-            observationTimeoutMs: 0,
-            requestId: orchestrationMutation.requestId
-          }
+          dispatchPreambleSendOptions(orchestrationMutation.requestId)
         )
         effects.push(buildDispatchInputEffect(terminalHandle, prompt.submit))
         const attachment = db.markRemoteAttachmentReady(params.dispatchId, effects)

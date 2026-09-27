@@ -87,6 +87,8 @@ export type RuntimeStatus = {
   appVersion?: string
   remoteControl?: RemoteRuntimeSharedConnectionDiagnostics | null
   hostPlatform?: NodeJS.Platform
+  /** Optional display name reported by the answering runtime. */
+  machineName?: string
   terminalWindowsShell?: string | null
   deviceScope?: DeviceScope
   floatingWorkspaceEnabled?: boolean

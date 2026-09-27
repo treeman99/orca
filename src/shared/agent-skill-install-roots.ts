@@ -52,7 +52,8 @@ export const AGENT_SKILL_INSTALL_ROOTS: readonly AgentSkillInstallRoot[] = [
   // home-relative segments by design, so an offline install targets the dotfolder either way.
   { rootId: 'home-hermes', segments: ['.hermes', 'skills'], agentKey: 'hermes-agent' },
   // The skills CLI has no Muse key, and discovery reads ~/.config/muse without XDG_CONFIG_HOME.
-  { rootId: 'home-muse', segments: ['.config', 'muse', 'skills'], agentKey: null }
+  { rootId: 'home-muse', segments: ['.config', 'muse', 'skills'], agentKey: null },
+  { rootId: 'home-zcode', segments: ['.zcode', 'skills'], agentKey: 'zcode' }
 ]
 
 export function agentSkillInstallRootPath(homeDir: string, root: AgentSkillInstallRoot): string {

@@ -219,6 +219,38 @@ export const getAccountsGrokSearchEntries = createLocalizedCatalog(() => [
   }
 ])
 
+export const getAccountsCursorSearchEntries = createLocalizedCatalog(() => [
+  {
+    title: translate('auto.components.settings.accounts.search.cursor.title', 'Cursor Usage'),
+    description: translate(
+      'auto.components.settings.accounts.search.cursor.description',
+      'Monthly plan usage read from the Cursor sign-in already on this computer (cursor-agent login).'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.accounts.search.cursor.kw.cursor',
+        'cursor'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.accounts.search.cursor.kw.usage',
+        'usage'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.accounts.search.cursor.kw.spend',
+        'spend'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.accounts.search.cursor.kw.rateLimit',
+        'rate limit'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.accounts.search.cursor.kw.statusBar',
+        'status bar'
+      )
+    ]
+  }
+])
+
 // Cmd+J must not surface a vendor row the pane no longer renders. AWS SSO and the
 // corporate endpoints stay — they are the fleet's supported path, not vendor accounts.
 const getVendorAccountSearchEntries = createLocalizedCatalog((): SettingsSearchEntry[] => [
@@ -227,7 +259,8 @@ const getVendorAccountSearchEntries = createLocalizedCatalog((): SettingsSearchE
   ...getAccountsGeminiSearchEntries(),
   ...getAccountsOpencodeSearchEntries(),
   ...getAccountsMiniMaxSearchEntries(),
-  ...getAccountsGrokSearchEntries()
+  ...getAccountsGrokSearchEntries(),
+  ...getAccountsCursorSearchEntries()
 ])
 
 export const getAccountsPaneSearchEntries = (): SettingsSearchEntry[] => [

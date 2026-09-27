@@ -549,7 +549,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.209`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.215`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -607,7 +607,7 @@ upstream v1.4.197이 "`node:child_process`를 직접 import 하는 파일 수"�
 **다음 동기화에서 할 일.**
 
 핀 숫자 2개는 포크와 upstream 이 다를 수밖에 없습니다(파일 집합이 다르므로). 현재 이 포크는
-**156 / 64** 이고 upstream 은 **158 / 66** 입니다 — 둘 다 upstream 보다 **낮으며**, 래칫이 원하는
+**149 / 59** 이고 upstream 은 **151 / 61** 입니다(v1.4.215 기준) — 둘 다 upstream 보다 **낮으며**, 래칫이 원하는
 방향입니다. 머지가 upstream 값으로 되돌리면 테스트가 "핀을 내려라"라고 정확히 알려 주므로
 그때 다시 낮추면 됩니다. 원장에도 두 줄 다 앵커로 등재돼 있습니다.
 
@@ -626,13 +626,14 @@ PR 트리거이며, 사내 보안 리뷰어가 우리 저장소에서 벤더 배
 
 **같이 지운 것 — 이걸 빠뜨리면 CI가 깨집니다.**
 
-| 무엇                                                                                                                                | 어디                                            | 왜                                                                         |
-| ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------- |
-| `/cloud/`·`cloud-*.yml`·`cloud-sql-rollout-lease/` 3행                                                                              | `.github/CODEOWNERS`                            | 존재하지 않는 경로를 가리키게 됩니다                                       |
-| `passes the staging confirmation through the step environment` 케이스                                                               | `config/scripts/release-blocker-fixes.test.mjs` | `cloud-prove-relay-asia-staging.yml`을 직접 읽으므로 ENOENT로 죽습니다     |
-| `tests/e2e/relay-region-{compatibility,correction}.unit.test.ts`, `src/main/runtime/push/push-host-proof-vector.test.ts` (v1.4.201) | 테스트                                          | `../../cloud/…` 를 import 하므로 수집 단계에서 죽습니다                    |
-| `desktop-relay.region-correction-idle-cutover` 게이트 항목 (v1.4.201)                                                               | `config/reliability-gates.jsonc`                | 위 테스트만 가리키므로 `check:reliability-gates` 가 없는 파일로 빨개집니다 |
-| `Install relay integration dependencies` 스텝 (v1.4.201)                                                                            | `.github/workflows/unit-tests.yml`              | `working-directory: cloud` 에서 `@orca-cloud/relay` 를 설치합니다          |
+| 무엇                                                                                                                                | 어디                                            | 왜                                                                                                        |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `/cloud/`·`cloud-*.yml`·`cloud-sql-rollout-lease/` 3행                                                                              | `.github/CODEOWNERS`                            | 존재하지 않는 경로를 가리키게 됩니다                                                                      |
+| `passes the staging confirmation through the step environment` 케이스                                                               | `config/scripts/release-blocker-fixes.test.mjs` | `cloud-prove-relay-asia-staging.yml`을 직접 읽으므로 ENOENT로 죽습니다                                    |
+| `tests/e2e/relay-region-{compatibility,correction}.unit.test.ts`, `src/main/runtime/push/push-host-proof-vector.test.ts` (v1.4.201) | 테스트                                          | `../../cloud/…` 를 import 하므로 수집 단계에서 죽습니다                                                   |
+| `desktop-relay.region-correction-idle-cutover` 게이트 항목 (v1.4.201)                                                               | `config/reliability-gates.jsonc`                | 위 테스트만 가리키므로 `check:reliability-gates` 가 없는 파일로 빨개집니다                                |
+| `Install relay integration dependencies` 스텝 (v1.4.201)                                                                            | `.github/workflows/unit-tests.yml`              | `working-directory: cloud` 에서 `@orca-cloud/relay` 를 설치합니다                                         |
+| `relay.control-activation-ownership` 게이트 항목 (v1.4.215)                                                                         | `config/reliability-gates.jsonc`                | `cloud/apps/relay` 테스트 4개만 가리킵니다. 원장 `absentSymbols` 의 `cloud/apps/` 가 다음 항목을 잡습니다 |
 
 **다음 동기화에서 할 일 — 매번 반복됩니다.**
 
