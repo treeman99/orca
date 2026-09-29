@@ -234,6 +234,16 @@
 >
 > ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다.
 
+> **v1.4.216 갱신 (2026-09-29).** 이 판에서 재검증한 것은 **v1.4.215 → v1.4.216 구간의 포크 유입 델타**(포크 tip `9e01ca3440` → 머지 `a9a7ecd6f2`)입니다 — **34 파일, +1,421/−395**(신규 8·삭제 1·수정 25). v1.4.216 은 핫픽스 판으로, 제품 코드는 upstream 수정 1건(#23587: 좁은 창에서 상태바를 한 줄로 유지 — 사용량 칩을 접고 `+N` 칩으로 대신 표시)뿐이고 나머지는 `.github/workflows` 를 upstream main 에서 동기화한 것과 `version` 한 줄입니다. 새 태그는 옛 태그의 자손이라 되돌림 유입이 없습니다.
+>
+> ✅ **신규 외부 목적지 0건(앱 런타임).** 바뀐 소스는 전부 `src/renderer/src/components/status-bar/` 의 레이아웃 계산(`status-bar-density.ts`·`status-bar-usage-collapse.ts` 신설)과 로케일 키 1개입니다. 추가 라인에 네트워크·스폰·IPC·`openExternal` 이 없고, 두 태그의 프로덕션 네트워크 호출지점(테스트 제외 `src/{main,shared,relay,cli,preload}`)은 라인 문자열 집합이 동일합니다. 접히는 칩은 이미 렌더된 칩(= `disableUsagePolling`·`allowedAgents` 게이트를 통과한 제공자)만 대상으로 하므로 숨긴 제공자가 새로 드러나지 않습니다. 의존성·락파일 변화 0. 잔여 위험 레지스터에 더할 항목이 없습니다.
+>
+> 🔒 **빌드·CI.** 신규 워크플로 4개(`ci-closed-pr-caches.yml`·`ci-pnpm-verification-pilot.yml`·`ci-runner-demand.yml`(일일 cron)·`ci-xterm-cache.yml`(push·일일 cron))는 GitHub 1st-party 액션과 GitHub API 만 쓰며 신규 외부 호스트가 없습니다. `pr.yml` 에 들어온 Gitleaks·TruffleHog Docker Hub 이미지는 포크가 지운 `cloud-verify.yml` 의 것이라 포크에는 없습니다. **upstream 의 이 워크플로들은 태그 트리에 없는 스크립트(`config/scripts/ci-unit-plan.mjs` 등 10여 개)를 참조합니다** — 순정 태그도 같으며, 포크는 enterprise build 외 워크플로를 꺼 두므로 영향이 없습니다. 신규 워크플로는 저장소 운영자가 비활성화할 대상입니다.
+>
+> 🔒 **포크 게이트 유실 0건 · 제거 표면 부활 0건.** 정책 게이트 호출 242줄/118파일 머지 전후 동일, 원장 통과. 상태바 리팩터 충돌에서 업데이트 상태 세그먼트 2종 제거와 사용량 상세 진입 차단(`disableUsagePolling`)을 새 구조에 다시 얹었고, `pr.yml` 의 anti-slop 단계와 `unit-tests.yml` 의 `cloud/` 릴레이 잡은 제거 상태를 유지했습니다.
+>
+> ⚠️ **이 구간의 판정도 정적 분석입니다.** 코드 경로로 판정했고 패킷 캡처는 하지 않았습니다.
+
 > **v1.4.215 갱신 (2026-09-27).** 이 판에서 재검증한 것은 **v1.4.212 → v1.4.215 구간의 포크 유입 델타**(포크 tip `4de9f9f86a` → 이번 머지)입니다 — **3,911 파일, +204,002/−57,753**(신규 964·삭제 132·수정 2,810·이름변경 5, 그중 996이 `mobile/`). v1.4.213·214 는 건너뛰었고, 옛 태그 고유 커밋은 release 범프·CI 동기화와 이미 새 태그에 든 #18790 되돌림뿐이라 되돌림 유입이 없습니다. 판정은 두 태그의 프로덕션 네트워크 호출지점 **라인 문자열 집합 대조**(주입형 fetch 포함, 261 → 264)와 신규 호스트·URL 리터럴 차집합, 신규 IPC(+10)·RPC(+2)·CLI(+3)·에이전트(+1)가 도달하는 스폰 프리미티브 대조입니다.
 >
 > 🔴 **신규 외부 호스트 2건(앱 런타임) — 둘 다 이 머지에서 막았습니다.** ① **Cursor 사용량 폴링**(`cursor.com/api/usage-summary`·`/api/usage`, §4 표 신설 행): upstream 은 사용량 사이클에 넣으면서 제공자별 허용목록 검사를 두지 않았습니다. `disableUsagePolling` 은 사이클 입구에서 덮지만 `allowedAgents` 는 아니었으므로 **이 머지에서 `isUsageProviderAllowed('cursor')` 를 넣었고**(키체인 읽기 이전), 상태바 칩·표시 메뉴 토글·Accounts 섹션도 같은 축으로 숨깁니다. ② **bun 런타임 자동 다운로드**(`github.com/oven-sh/bun/releases`, §0.2 #33 신설): SSH 릴레이 배포와 Windows 의 WSL 세션 스캔이 원격/WSL node 에 `node:sqlite` 가 없을 때 **사용자 조작 없이** 실행 파일을 받습니다. sha256 고정이고 사내 프록시를 탑니다. **이 머지에서 정책 스위치 `disableRuntimeDownloads`(lockdown 상속)를 신설해 막았습니다** — 막히면 그 호스트의 OpenCode 과거 세션 읽기만 degrade 됩니다.
