@@ -15253,6 +15253,7 @@
             "cd9d7b40ff": "Restart {{value0}} Sessions",
             "codexSignInError": "Codex sign-in failed. Please try again.",
             "cursorUsageMenu": "Cursor Usage",
+            "hiddenUsageProviders": "Also: {{value0}}",
             "codexSignInSuccess": "Signed in to Codex",
             "d1e1a7a6bf": "Resource Manager",
             "d2375976eb": "Open Gemini usage details",
