@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   writeFileSync
@@ -365,7 +366,8 @@ function extractElectronArchive(zipPath, extractDir) {
   mkdirSync(extractDir, { recursive: true })
   // Why: extract-zip/Electron install.js can leave Node 24 with an unsettled
   // promise and no active handles on CI. Host unzip tools fail synchronously.
-  const command = getExtractorCommand(zipPath, extractDir)
+  // Fork: Windows tar.exe refuses to extract through pnpm's node_modules/electron link.
+  const command = getExtractorCommand(zipPath, realpathSync(extractDir))
   const result = spawnSync(command.file, command.args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe']

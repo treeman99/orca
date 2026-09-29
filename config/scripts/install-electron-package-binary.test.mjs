@@ -5,8 +5,10 @@ import {
   readdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync
 } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
@@ -56,6 +58,32 @@ describe('install-electron-package-binary', () => {
       expect(basename(extractDir)).toMatch(/^\.orca-extract-\d+$/)
       expect(extractDir).not.toContain('orca-electron-')
       expect(listExtractStagingLeftovers(projectDir)).toEqual([])
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true })
+    }
+  })
+
+  // Fork guard: Windows tar.exe (bsdtar) fails "Cannot extract through symlink" when the
+  // destination path crosses pnpm's node_modules/electron link into the store.
+  it('hands the extractor a destination with no symlink in its path', () => {
+    const projectDir = mkTempProject()
+
+    try {
+      writeFakeElectronPackage(projectDir)
+      const linkedDir = join(projectDir, 'node_modules', 'electron')
+      const storeDir = join(projectDir, 'node_modules', '.pnpm', 'electron@41.5.0', 'electron')
+      mkdirSync(dirname(storeDir), { recursive: true })
+      renameSync(linkedDir, storeDir)
+      symlinkSync(storeDir, linkedDir, 'junction')
+      writeFakeElectronGet(projectDir)
+      writeFakeExtractor(projectDir, { createExecutable: true })
+
+      const result = runInstallScript(projectDir)
+
+      expect(result.status, result.stderr).toBe(0)
+      const extractDir = readFileSync(join(projectDir, 'fake-extractor.log'), 'utf8').trim()
+      expect(dirname(extractDir)).toBe(realpathSync(storeDir))
+      expect(existsSync(join(linkedDir, 'dist', 'electron'))).toBe(true)
     } finally {
       rmSync(projectDir, { recursive: true, force: true })
     }
