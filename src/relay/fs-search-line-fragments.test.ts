@@ -8,8 +8,8 @@ const { spawnMock, spawnProcessMock, runProcessMock } = vi.hoisted(() => ({
   runProcessMock: vi.fn()
 }))
 vi.mock('node:child_process', () => ({ spawn: spawnMock }))
-// Fork: the git-grep fallback spawns through the child-process window, not
-// node:child_process, and it runs a second submodule pass after the parent one.
+// Fork: both backends spawn through the child-process window (mocked whole here),
+// and the git-grep fallback runs a second submodule pass after the parent one.
 vi.mock('../shared/child-process/run-process', () => ({
   spawnProcess: spawnProcessMock,
   runProcess: runProcessMock
@@ -37,7 +37,7 @@ const searchCases = [
   {
     name: 'ripgrep',
     search: searchWithRg,
-    arm: (child: ChildProcess) => spawnMock.mockReturnValueOnce(child),
+    arm: (child: ChildProcess) => spawnProcessMock.mockReturnValueOnce(child),
     encode: (text: string, line: number) =>
       JSON.stringify({
         type: 'match',

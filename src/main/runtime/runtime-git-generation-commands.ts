@@ -189,6 +189,7 @@ export class RuntimeGitGenerationCommands {
               admissionTier: 'interactive'
             }
     })
+    void linkedIssueDetailsPromise.catch(() => undefined)
     let context: Awaited<ReturnType<typeof getPullRequestDraftContext>>
     try {
       const currentBody = await resolveHostedReviewBodyForGeneration({

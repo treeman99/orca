@@ -42,6 +42,11 @@
         {
           "file": "src/main/ipc/register-core-handlers/register-core-handlers.ts",
           "contains": "getEnterprisePolicy().disableVoice"
+        },
+        {
+          "file": "src/renderer/src/store/plugin-language-packs.ts",
+          "contains": "getEnterprisePolicyView().disablePlugins ? undefined : window.api?.plugins",
+          "why": "잠금 정책에서는 plugins 채널이 없어 렌더러 로드마다 콘솔 에러가 난다. v1.4.217 충돌 때 미등재로 드러났다."
         }
       ]
     },
@@ -316,6 +321,11 @@
         {
           "file": "src/main/browser/browser-manager-guest-popup-policy.ts",
           "contains": "getEnterprisePolicy().disableSpellcheck"
+        },
+        {
+          "file": "src/main/lib/html-to-pdf.ts",
+          "contains": "spellcheck: !getEnterprisePolicy().disableSpellcheck",
+          "why": "PDF 내보내기 창도 WebContents 라 맞춤법 사전 CDN 다운로드를 다시 켠다. v1.4.217 에서 upstream 이 이 함수를 try 블록으로 감싸며 충돌했는데 원장에 없었다."
         }
       ]
     },
@@ -544,7 +554,7 @@
         },
         {
           "file": "src/main/agent-hooks/installer-utils.ts",
-          "contains": "'--noproxy \"127.0.0.1\"',",
+          "contains": "'--noproxy \"127.0.0.1\" --connect-timeout 0.5 --max-time 1.5',",
           "why": "buildWindowsAgentHookCurlPostCommand 의 한 줄 — claude 런처가 이 형태로 POST 한다."
         }
       ]
@@ -733,6 +743,11 @@
           "file": "src/renderer/src/components/right-sidebar/source-control/commit/use-discard-confirmation.ts",
           "contains": "refreshSubmodule: refreshSubmodule ?? noSubmoduleRefresh",
           "why": "행 폐기가 서브모듈 안 파일과 gitlink 행을 서브모듈 저장소로 보낸다. v1.4.205 에서 upstream 이 같은 함수를 공용 실패 토스트로 고쳐 충돌했고, 인자를 선택으로 바꿔 upstream 훅 테스트를 건드리지 않았다 — 그래서 패널이 넘기는지는 타입체크가 못 잡는다."
+        },
+        {
+          "file": "src/relay/fs-handler-git-search.ts",
+          "contains": "await runGitGrepSubmodulePasses({",
+          "why": "SSH 원격의 git grep 폴백이 서브모듈 안을 검색한다. v1.4.217 에서 upstream 이 searchWithGitGrep 을 fs-handler-git-fallback.ts 에서 이 파일로 추출해 포크 구현을 옮겼다."
         }
       ]
     },
@@ -822,6 +837,11 @@
           "file": "src/renderer/src/components/native-chat/native-chat-session-option-enrichment.ts",
           "contains": "entry.failures >= MAX_DISCOVERY_ATTEMPTS",
           "why": "모델 탐색 1회 실패로 정적 시드가 세션 내내 고정되던 것을 3회까지 재시도. v1.4.209 에서 upstream LRU 보존과 충돌했다."
+        },
+        {
+          "file": "src/renderer/src/components/browser-pane/assemble-chrome/browser-page-toolbar.tsx",
+          "contains": "!ARTIFACT_SHARING_REMOVED && shareableArtifactFile",
+          "why": "artifact 공유 버튼이 브라우저 툴바에 되살아나지 않게 한다. v1.4.217 에서 upstream 이 render-prop 으로 바꾸며 충돌했는데 원장에 없었다."
         }
       ]
     },
@@ -835,7 +855,7 @@
         },
         {
           "file": "src/shared/child-process/child-process-import-boundary.test.ts",
-          "contains": "const DIRECT_IMPORTER_PIN = 149",
+          "contains": "const DIRECT_IMPORTER_PIN = 147",
           "why": "v1.4.197 이 upstream 자기 수(158)로 숫자 백스톱을 추가했다. 이 빌드는 포크 소유 직접 import 8건을 runProcess/spawnProcess/runProcessSync 로 이관했고, upstream 이 가진 2건(skills CLI 핸들러·local-builds)은 지웠으므로 158 보다 2 낮은 156 이다. 머지가 158 로 되돌리면 래칫이 확보한 땅을 다시 열어 준다."
         },
         {
@@ -1095,6 +1115,11 @@
           "file": "src/main/ipc/crash-reporting-renderer-error-report.ts",
           "contains": "'tab-popout'",
           "why": "팝아웃 창의 오류 경계 surface. 빠지면 팝아웃 렌더러 오류가 surface 검증에서 버려진다. v1.4.210 이 같은 목록에 'code-editor' 를 넣으며 충돌했다."
+        },
+        {
+          "file": "src/renderer/src/components/dashboard-popout/AgentTerminalPreview.tsx",
+          "contains": "scrollbackRows: scrollbackRowsRef.current",
+          "why": "분리된 탭 창은 대시보드 미리보기보다 긴 스크롤백을 요청한다. v1.4.217 충돌 때 미등재로 드러났다."
         }
       ]
     },

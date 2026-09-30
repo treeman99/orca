@@ -11,11 +11,14 @@ import { AGENT_HOOK_TARGETS, type AgentHookTarget } from '../../shared/agent-hoo
 import { resolveOrcaManagedCodexHomePath } from '../codex/codex-home-paths'
 import { isAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
-import { getSharedManagedScriptDir, getSharedManagedScriptPath } from './installer-utils'
+import { getSharedManagedScriptPath } from './installer-utils'
 import {
   MANAGED_AGENT_HOOK_REMOVERS,
   MANAGED_AGENT_HOOK_STATUS_READERS
 } from './managed-agent-hook-registry'
+
+// Why: join(dir, '') is dir, so the sweep reuses the installer's one path definition.
+const getSharedManagedScriptDir = (): string => getSharedManagedScriptPath('')
 
 const MANAGED_LAUNCHER_EXTENSIONS = ['.sh', '.cmd', '.ps1'] as const
 

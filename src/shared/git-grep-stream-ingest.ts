@@ -10,6 +10,10 @@
  */
 import type { ChildProcessHandle } from './child-process/process-spec'
 import { SearchSubprocessLineAccumulator } from './search-subprocess-lines'
+import {
+  absorbPendingRipgrepSpawnError,
+  killSpawnedRipgrepProcess
+} from './ripgrep-process-availability'
 import { ingestGitGrepLine, type SearchAccumulator } from './text-search'
 
 export type GitGrepIngestOptions = {
@@ -22,6 +26,8 @@ export type GitGrepIngestOptions = {
   timeoutMs: number
   /** Parent-relative root of the submodule this child is grepping, when it is one. */
   relPathPrefix?: string
+  /** Abandoned request: kill the child and release every listener without waiting for its exit. */
+  signal?: AbortSignal
 }
 
 /**
@@ -30,11 +36,12 @@ export type GitGrepIngestOptions = {
  */
 export function ingestGitGrepChild(
   child: ChildProcessHandle,
-  { rootPath, matchRegex, acc, maxResults, timeoutMs, relPathPrefix }: GitGrepIngestOptions
+  { rootPath, matchRegex, acc, maxResults, timeoutMs, relPathPrefix, signal }: GitGrepIngestOptions
 ): Promise<void> {
   return new Promise((resolve) => {
     const lines = new SearchSubprocessLineAccumulator(Number.MAX_SAFE_INTEGER)
     let done = false
+    let processErrorObserved = false
     let killTimeout: ReturnType<typeof setTimeout>
 
     function resolveOnce(): void {
@@ -42,6 +49,7 @@ export function ingestGitGrepChild(
         return
       }
       done = true
+      signal?.removeEventListener('abort', onAbort)
       lines.clear()
       clearTimeout(killTimeout)
       // Why: child.kill() is advisory. If git ignores it, detach our closures so
@@ -50,7 +58,23 @@ export function ingestGitGrepChild(
       child.stderr?.off('data', handleStderrData)
       child.off('error', handleError)
       child.off('close', handleClose)
+      absorbPendingRipgrepSpawnError(child, {
+        errorObserved: processErrorObserved,
+        unavailableExitObserved: false
+      })
       resolve()
+    }
+
+    function onAbort(): void {
+      if (done) {
+        return
+      }
+      try {
+        killSpawnedRipgrepProcess(child)
+      } catch {
+        // A refused kill must still release the canceled request.
+      }
+      resolveOnce()
     }
 
     function processLine(line: string): void {
@@ -69,6 +93,7 @@ export function ingestGitGrepChild(
     }
 
     function handleError(): void {
+      processErrorObserved = true
       resolveOnce()
     }
 
@@ -94,5 +119,9 @@ export function ingestGitGrepChild(
       },
       Math.max(0, timeoutMs)
     )
+    signal?.addEventListener('abort', onAbort, { once: true })
+    if (signal?.aborted) {
+      onAbort()
+    }
   })
 }

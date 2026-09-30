@@ -102,11 +102,9 @@ function decodePowerShellEncodedCommand(command: string): string | null {
   }
 }
 
-export const getSharedManagedScriptDir = (): string => join(homedir(), '.orca', 'agent-hooks')
-
 // Why: prod/dev/parallel Orca instances must write the same managed entry, not race between per-userData script paths.
 export function getSharedManagedScriptPath(scriptFileName: string): string {
-  return join(getSharedManagedScriptDir(), scriptFileName)
+  return join(homedir(), '.orca', 'agent-hooks', scriptFileName)
 }
 
 export { wrapPosixHookCommand } from './posix-hook-command'
@@ -188,8 +186,7 @@ export function buildWindowsAgentHookCurlPostCommand(source: AgentHookSource): s
     '"%SystemRoot%\\System32\\curl.exe" -sS -X POST',
     `"http://127.0.0.1:%ORCA_AGENT_HOOK_PORT%/hook/${source}"`,
     // Why: same loopback bypass as the .cmd form; the claude launcher posts through this one.
-    '--noproxy "127.0.0.1"',
-    '--connect-timeout 0.5 --max-time 1.5',
+    '--noproxy "127.0.0.1" --connect-timeout 0.5 --max-time 1.5',
     '-H "Content-Type: application/x-www-form-urlencoded"',
     '-H "X-Orca-Agent-Hook-Token: %ORCA_AGENT_HOOK_TOKEN%"',
     '--data-urlencode "paneKey=%ORCA_PANE_KEY%"',
@@ -326,7 +323,7 @@ export function writeHooksJson(
   config: Record<string, unknown>,
   // Why: `serialized` lets a JSONC config (Devin) supply text edited in place, so the
   // atomic write + rolling backup below stay shared instead of being reimplemented.
-  options?: { preserveMode?: boolean; serialized?: string }
+  options?: { preserveMode?: boolean; defaultMode?: number; serialized?: string }
 ): void {
   const writePath = resolveHooksJsonWritePath(configPath)
   const dir = dirname(writePath)
@@ -337,7 +334,9 @@ export function writeHooksJson(
   const tmpPath = join(dir, `.${Date.now()}-${randomUUID()}.tmp`)
   const serialized = options?.serialized ?? `${JSON.stringify(config, null, 2)}\n`
   const existingMode =
-    options?.preserveMode === true && existsSync(writePath) ? statSync(writePath).mode : undefined
+    options?.preserveMode === true && existsSync(writePath)
+      ? statSync(writePath).mode & 0o777
+      : options?.defaultMode
 
   // Why: skip the write (and therefore the .bak rotation) when the on-disk
   // content is already identical. Without this, every install() rewrites the
@@ -354,7 +353,11 @@ export function writeHooksJson(
   }
 
   try {
-    writeFileSync(tmpPath, serialized, { encoding: 'utf-8', mode: existingMode })
+    writeFileSync(tmpPath, serialized, { encoding: 'utf-8', mode: existingMode, flag: 'wx' })
+    if (existingMode !== undefined && process.platform !== 'win32') {
+      // Preserve requested permissions even with a stricter process umask.
+      chmodSync(tmpPath, existingMode)
+    }
     // Why: single rolling backup — one file, no accumulation in ~/.claude.
     // Protects against a merge-logic bug producing bad JSON; the original is
     // always recoverable from <configPath>.bak until the next write.

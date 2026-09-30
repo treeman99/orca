@@ -37,12 +37,12 @@ export function buildRgArgs(query: string, target: string, opts: SearchOptionsLi
     args.push('--fixed-strings')
   }
   if (opts.includePattern) {
-    for (const pat of splitSearchGlobPatterns(opts.includePattern)) {
+    for (const pat of splitSearchGlobPatterns(opts.includePattern, 'rg')) {
       args.push('--glob', pat)
     }
   }
   if (opts.excludePattern) {
-    for (const pat of splitSearchGlobPatterns(opts.excludePattern)) {
+    for (const pat of splitSearchGlobPatterns(opts.excludePattern, 'rg')) {
       args.push('--glob', `!${pat}`)
     }
   }

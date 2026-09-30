@@ -8,7 +8,6 @@
  */
 import { spawn } from 'node:child_process'
 import { fileListingCancellationError } from '../shared/file-listing-cancellation'
-import type { SearchOptions, SearchResult } from './fs-handler-utils'
 import {
   buildGitLsFilesArgsForQuickOpen,
   shouldExcludeQuickOpenRelPath,
@@ -18,17 +17,7 @@ import {
   expandQuickOpenGitFileListing,
   parseQuickOpenGitLsFilesEntry
 } from '../shared/quick-open-readdir-walk'
-import { ingestGitGrepChild } from '../shared/git-grep-stream-ingest'
-import {
-  buildGitGrepArgs,
-  buildSubmatchRegex,
-  createAccumulator,
-  finalize,
-  SEARCH_TIMEOUT_MS
-} from '../shared/text-search'
-import { runGitGrepSubmodulePasses } from '../shared/text-search-submodule-pass'
 import { buildRelayGitEnv } from './relay-command-env'
-import { relaySubmoduleSearchHost } from './fs-handler-git-search-submodules'
 
 /**
  * List files using `git ls-files`. Fallback when rg is not installed.
@@ -267,45 +256,4 @@ export function listFilesWithGit(
     })
 }
 
-/**
- * Text search using `git grep`. Fallback when rg is not installed.
- *
- * Two passes: the parent worktree with `--untracked --no-recurse-submodules` (git
- * refuses to combine those two), then one pass per initialized submodule. Without
- * the second pass a remote repo whose code lives in submodules looks empty.
- */
-export async function searchWithGitGrep(
-  rootPath: string,
-  query: string,
-  opts: SearchOptions
-): Promise<SearchResult> {
-  const deadlineAt = Date.now() + SEARCH_TIMEOUT_MS
-  const acc = createAccumulator()
-  const matchRegex = buildSubmatchRegex(query, opts)
-  const host = relaySubmoduleSearchHost
-
-  try {
-    const child = await host.spawnGitGrep(rootPath, buildGitGrepArgs(query, opts))
-    await ingestGitGrepChild(child, {
-      rootPath,
-      matchRegex,
-      acc,
-      maxResults: opts.maxResults,
-      timeoutMs: deadlineAt - Date.now()
-    })
-  } catch {
-    // A failed parent pass must not cost the submodule results.
-  }
-
-  await runGitGrepSubmodulePasses({
-    rootPath,
-    query,
-    opts,
-    matchRegex,
-    acc,
-    maxResults: opts.maxResults,
-    deadlineAt,
-    host
-  })
-  return finalize(acc, 'git-grep')
-}
+export { searchWithGitGrep } from './fs-handler-git-search'

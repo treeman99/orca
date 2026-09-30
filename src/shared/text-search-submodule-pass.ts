@@ -70,6 +70,8 @@ export type SubmoduleSearchPassParams = {
   deadlineAt: number
   host: SubmoduleSearchHost
   now?: () => number
+  /** Abandoned request: start no further submodule pass and kill the running ones. */
+  signal?: AbortSignal
 }
 
 async function searchOneSubmodule(
@@ -78,7 +80,7 @@ async function searchOneSubmodule(
 ): Promise<void> {
   const { rootPath, query, opts, matchRegex, acc, maxResults, deadlineAt, host } = params
   const now = params.now ?? Date.now
-  if (acc.totalMatches >= maxResults) {
+  if (acc.totalMatches >= maxResults || params.signal?.aborted) {
     return
   }
   const patterns = translateSearchPatternsIntoSubmodule(opts, submodulePath)
@@ -94,7 +96,7 @@ async function searchOneSubmodule(
     // Escapes the worktree, or is not a repository root (deinitialized / moved).
     null
   )
-  if (submoduleRoot === null) {
+  if (submoduleRoot === null || params.signal?.aborted) {
     return
   }
   const remainingMs = deadlineAt - now()
@@ -119,7 +121,8 @@ async function searchOneSubmodule(
     acc,
     maxResults,
     timeoutMs: remainingMs,
-    relPathPrefix: submodulePath
+    relPathPrefix: submodulePath,
+    signal: params.signal
   })
 }
 
@@ -131,7 +134,7 @@ async function searchOneSubmodule(
 export async function runGitGrepSubmodulePasses(params: SubmoduleSearchPassParams): Promise<void> {
   const { acc, deadlineAt, maxResults, rootPath, host } = params
   const now = params.now ?? Date.now
-  if (acc.totalMatches >= maxResults) {
+  if (acc.totalMatches >= maxResults || params.signal?.aborted) {
     return
   }
   // The parent pass already spent the whole budget; enumerating would only add latency.
@@ -153,7 +156,7 @@ export async function runGitGrepSubmodulePasses(params: SubmoduleSearchPassParam
     async () => {
       while (next < submodulePaths.length) {
         const submodulePath = submodulePaths[next++]
-        if (acc.totalMatches >= maxResults) {
+        if (acc.totalMatches >= maxResults || params.signal?.aborted) {
           return
         }
         await searchOneSubmodule(params, submodulePath)

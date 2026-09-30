@@ -75,7 +75,7 @@ function translateAll(
 ): { globs: string[]; unrelated: number; untranslatable: boolean } {
   const globs: string[] = []
   let unrelated = 0
-  for (const glob of splitSearchGlobPatterns(patterns)) {
+  for (const glob of splitSearchGlobPatterns(patterns, 'git')) {
     const translated = translateGlob(glob, submodulePath)
     if (translated.kind === 'untranslatable') {
       return { globs: [], unrelated: 0, untranslatable: true }

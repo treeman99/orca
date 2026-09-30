@@ -44,6 +44,17 @@ const gitExec: GitExec = async (args, cwd) => {
   )
 }
 
+/** Synchronous so the parent pass attaches its listeners in the spawn tick. */
+export function spawnRelayGitGrep(cwd: string, gitArgs: string[]): ChildProcessHandle {
+  return spawnProcess({
+    program: 'git',
+    args: gitArgs,
+    cwd,
+    env: buildRelayGitEnv(),
+    stdio: ['ignore', 'pipe', 'pipe']
+  })
+}
+
 export const relaySubmoduleSearchHost: SubmoduleSearchHost = {
   async listInitializedSubmodulePaths(rootPath: string): Promise<string[]> {
     // Configured, not yet proven initialized — resolveSubmoduleRoot's root
@@ -58,14 +69,6 @@ export const relaySubmoduleSearchHost: SubmoduleSearchHost = {
     return submoduleRoot
   },
   spawnGitGrep(cwd: string, gitArgs: string[]): Promise<ChildProcessHandle> {
-    return Promise.resolve(
-      spawnProcess({
-        program: 'git',
-        args: gitArgs,
-        cwd,
-        env: buildRelayGitEnv(),
-        stdio: ['ignore', 'pipe', 'pipe']
-      })
-    )
+    return Promise.resolve(spawnRelayGitGrep(cwd, gitArgs))
   }
 }
