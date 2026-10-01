@@ -264,7 +264,8 @@ export function AgentsPane({
         wslCapabilitiesLoading={wslCapabilitiesLoading}
       />
       <AgentStatusHooksSetting settings={settings} updateSettings={updateSettings} />
-      {!isPairedWebClientWindow() ? (
+      {/* Fork: a Codex-only setting has no place on a fleet whose policy blocks Codex. */}
+      {!isPairedWebClientWindow() && catalog.some((agent) => agent.id === 'codex') ? (
         <CodexTerminalServerIsolationSetting settings={settings} updateSettings={updateSettings} />
       ) : null}
       <AgentGeneratedTabTitlesSetting settings={settings} updateSettings={updateSettings} />

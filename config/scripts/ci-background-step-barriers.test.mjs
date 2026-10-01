@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest'
 
 const pr = parse(readFileSync('.github/workflows/pr.yml', 'utf8'))
 const mobile = parse(readFileSync('.github/workflows/mobile.yml', 'utf8'))
-const cloud = parse(readFileSync('.github/workflows/cloud-verify.yml', 'utf8'))
+// Fork: cloud/ and its cloud-*.yml workflows are removed (README §6), so cloud-verify.yml's
+// security job and its scanner case are not checked here.
 
 function assertJoinedBefore(steps, id, consumer) {
   const start = steps.findIndex((step) => step.id === id)
@@ -23,8 +24,7 @@ describe('CI background step barriers', () => {
       pr.jobs.mobile_web_app,
       pr.jobs.package,
       pr.jobs.shell_contracts,
-      mobile.jobs.verify,
-      cloud.jobs.security
+      mobile.jobs.verify
     ]) {
       const pending = new Set()
       for (const step of job.steps) {
@@ -123,26 +123,5 @@ describe('CI background step barriers', () => {
         steps.findIndex((step) => step.name === 'Test Linux Electron lifecycle boundary')
       )
     }
-  })
-
-  it('joins digest-pinned scanner downloads and the history scan without hiding failures', () => {
-    const steps = cloud.jobs.security.steps
-    const history = steps.findIndex((step) => step.name === 'Fetch complete scan history')
-    for (const [id, imageName] of [
-      ['gitleaks-image', 'gitleaks'],
-      ['trufflehog-image', 'trufflehog']
-    ]) {
-      const download = steps.find((step) => step.id === id)
-      const scan = steps.find(
-        (step) => step.run?.includes('docker run') && step.run.includes(imageName)
-      )
-      const digestImage = scan.run.match(/\S+@sha256:[a-f0-9]{64}/)[0]
-      expect(download.run).toBe(`docker pull ${digestImage}`)
-      expect(steps.indexOf(download)).toBeLessThan(history)
-      assertJoinedBefore(steps, id, (step) => step === scan)
-      expect(steps.indexOf(scan)).toBeGreaterThan(history)
-      expect(scan.run).toContain('/repo:ro')
-    }
-    expect(steps.at(-1).wait).toBe('history-scan')
   })
 })

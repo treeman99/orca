@@ -142,7 +142,9 @@ describe('htmlToPdf resource ownership', () => {
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
-        javascript: true
+        javascript: true,
+        // Fork: disableSpellcheck owns this key; the default policy leaves it on.
+        spellcheck: true
       }
     })
     expect(fake.load).toHaveBeenCalledExactlyOnceWith(TEMP_PATH)

@@ -144,6 +144,11 @@
           "file": "src/main/native-chat/agent-session-wire/structured-agent-session-attach-orchestration.ts",
           "contains": "the delivery loop's resume reaches this export directly",
           "why": "v1.4.218 이 attachStructuredAgentSessionUnderSerialize 를 export 했고 큐 메시지 재개(structured-agent-session-agent-start.ts)가 그것을 직접 부른다(실패 모드 V). 퍼널 게이트만으로는 정책에서 빠진 에이전트의 child 가 재기동된다."
+        },
+        {
+          "file": "src/renderer/src/components/settings/AgentsPane.tsx",
+          "contains": "!isPairedWebClientWindow() && catalog.some((agent) => agent.id === 'codex')",
+          "why": "v1.4.218 이 Codex 전용 설정(터미널 공유 서버 격리)을 Agents 패널에 넣었다. codex 가 정책으로 막힌 fleet 에서는 숨긴다(agent-allowlist-surfaces.policy 가 지킨다)."
         }
       ]
     },
@@ -1239,7 +1244,8 @@
     "src/renderer/src/store/slices/feedback-draft.ts",
     "src/main/updater.*.test.ts",
     "config/scripts/cloud-security-history-workflow.test.mjs",
-    "src/main/startup/main-window-core-services.test.ts"
+    "src/main/startup/main-window-core-services.test.ts",
+    "src/renderer/src/components/settings/GeneralPane.section-lifetime.test.tsx"
   ],
   "absentSymbols": [
     {
@@ -1316,6 +1322,11 @@
       "file": "config/reliability-gates.jsonc",
       "symbol": "cloud/apps/",
       "why": "포크는 cloud/ 를 지웠다. v1.4.215 가 cloud/apps/relay 테스트만 가리키는 relay.control-activation-ownership 게이트를 충돌 없이 넣어 check:reliability-gates 가 없는 파일로 빨개졌다. 그런 항목은 통째로 지운다."
+    },
+    {
+      "file": "config/reliability-gates.jsonc",
+      "symbol": "GeneralPane.section-lifetime",
+      "why": "v1.4.218 이 포크가 지운 업데이트 설정 섹션(GeneralUpdateSettingsSection·원격 서버 업데이트)을 검증하는 테스트와 그 게이트 항목 settings.general-section-lifetime 을 충돌 없이 들였다. 테스트는 absentPaths, 게이트 항목은 여기서 지킨다."
     }
   ],
   "policySwitchMinConsumers": {

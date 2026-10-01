@@ -55,9 +55,15 @@ vi.mock('node-pty', () => ({
   })
 }))
 
-vi.mock('../opencode/hook-service', () => ({
-  openCodeHookService: { buildPtyEnv: () => ({}), clearPty: vi.fn() }
-}))
+vi.mock('../opencode/hook-service', () => {
+  // Why refreshLegacySharedPlugin: v1.4.218's spawn env assembly refreshes both services' retired plugin.
+  const service = () => ({
+    buildPtyEnv: () => ({}),
+    clearPty: vi.fn(),
+    refreshLegacySharedPlugin: vi.fn()
+  })
+  return { openCodeHookService: service(), openCode2HookService: service() }
+})
 
 vi.mock('../pi/titlebar-extension-service', () => ({
   piTitlebarExtensionService: { buildPtyEnv: () => ({}), clearPty: vi.fn() }
