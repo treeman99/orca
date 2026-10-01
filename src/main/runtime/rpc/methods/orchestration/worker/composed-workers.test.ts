@@ -162,6 +162,7 @@ describe('orchestration RPC methods', () => {
       // the tab without scrolling the sidebar to the worker's workspace.
       expect(runtime.createTerminal).toHaveBeenCalledWith('id:repo::worktree', {
         startupAgent: 'codex',
+        launchSource: 'orchestration',
         title: `worker-${task.id}`,
         surfaceOwner: false,
         // Why: same-worktree dispatch, so the renderer may open the worker beside

@@ -37,7 +37,7 @@ describe('agent prompt line-settle scheduling', () => {
       () => undefined,
       'antigravity'
     )
-    const submission = runtime.sendTerminalAgentPrompt(handle, prompt)
+    const submission = runtime.sendTerminalAgentPrompt(handle, prompt, { inputKind: 'driving' })
     // Why resolves: upstream throws agent_prompt_stalled; this fork accepts an unobservable pane
     // with an `unverified` receipt (assertAgentPromptRescuedIfStalled).
     const settled = expect(submission).resolves.toMatchObject({ submit: 'unverified' })

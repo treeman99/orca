@@ -135,6 +135,18 @@ export function StatusBarVisibilityMenu({
             {translate('auto.components.status.bar.StatusBar.grokUsageMenu', 'Grok Usage')}
           </DropdownMenuCheckboxItem>
         )}
+        {isStatusBarItemAvailable('zcode', detectedAgentIds, allowedAgents) && (
+          <DropdownMenuCheckboxItem
+            checked={statusBarItems.includes('zcode')}
+            onCheckedChange={() => {
+              recordFeatureInteraction('usage-tracking')
+              toggleStatusBarItem('zcode')
+            }}
+          >
+            <AgentIcon agent="zcode" size={14} />
+            {translate('auto.components.status.bar.StatusBar.zcodeUsageMenu', 'ZCode Usage')}
+          </DropdownMenuCheckboxItem>
+        )}
         {isStatusBarItemAvailable('cursor', detectedAgentIds, allowedAgents) && (
           <DropdownMenuCheckboxItem
             checked={statusBarItems.includes('cursor')}

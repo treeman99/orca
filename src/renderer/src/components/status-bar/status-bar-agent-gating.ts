@@ -16,7 +16,8 @@ const CLI_GATED_ITEMS: ReadonlySet<StatusBarItem> = new Set([
   'gemini',
   'kimi',
   'antigravity',
-  'grok'
+  'grok',
+  'zcode'
 ])
 
 // Usage-meter items that map to a vendor agent, so the corporate allowlist can hide them.
@@ -29,7 +30,8 @@ const USAGE_PROVIDER_ITEMS: ReadonlySet<StatusBarItem> = new Set([
   'grok',
   'opencode-go',
   'minimax',
-  'cursor'
+  'cursor',
+  'zcode'
 ])
 
 export function isStatusBarItemAvailable(

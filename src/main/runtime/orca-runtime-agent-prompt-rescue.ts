@@ -12,6 +12,7 @@ import {
 } from '../../shared/agent-prompt-injection'
 import { writeDiagnosticLine } from '../observability/diagnostic-log'
 import type { AgentPromptActivity } from './agent-prompt-submission-verification'
+import type { RuntimeAgentPromptWriteOptions } from './runtime-terminal-contracts'
 import {
   classifyAgentPromptSubmitEvidence,
   type AgentPromptSubmitVerdict
@@ -159,7 +160,9 @@ export class OrcaRuntimeWithAgentPromptRescue extends OrcaRuntimeWithAgentPrompt
   protected async resubmitAgentPromptIfStillUnsubmitted(
     handle: string,
     ptyId: string,
-    activityBaseline?: AgentPromptActivity
+    activityBaseline?: AgentPromptActivity,
+    // Why: the resent Enter is the same keystroke upstream sends, so it carries the prompt's kind.
+    inputKind: RuntimeAgentPromptWriteOptions['inputKind'] = 'driving'
   ): Promise<{ outcome: AgentPromptSubmitOutcome; statusObserved: boolean }> {
     // Why: the classifier reads a *snapshot* and infers "idle means never submitted", which is
     // wrong for an agent that answered and went idle before the settle wait polled. The lifecycle
@@ -224,7 +227,7 @@ export class OrcaRuntimeWithAgentPromptRescue extends OrcaRuntimeWithAgentPrompt
       })
       return { outcome: 'unverified', statusObserved }
     }
-    const resent = this.ptyController?.write(ptyId, AGENT_PROMPT_SUBMIT) ?? false
+    const resent = this.ptyController?.write(ptyId, AGENT_PROMPT_SUBMIT, inputKind) ?? false
     console.warn(
       `[agent-prompt] ${handle}: prompt still unsubmitted after Enter; resent once (accepted=${resent})`
     )

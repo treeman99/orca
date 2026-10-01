@@ -3,7 +3,7 @@ import { OrcaRuntimeWithGetWorktreeTerminalProvisioningHost } from './orca-runti
 import type { RuntimeManagedWorktreeCreateArgs } from './runtime-managed-worktree-create-types'
 import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
 import { isTuiAgentEnabled } from '../../shared/tui-agent-selection'
-import { assertAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
+import { assertManagedWorktreeAgentsAllowed } from './runtime-managed-worktree-agent-policy'
 import { isFolderRepo } from '../../shared/repo-kind'
 import { resolveWorktreeCreateRoute } from '../worktree-create-execution-host-route'
 import { ExecutionHostNotDispatchableError } from '../providers/execution-host-provider-dispatch'
@@ -37,20 +37,11 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
       throw new Error('runtime_unavailable')
     }
 
-    const gatedAgent = args.startupAgent ?? args.createdWithAgent
-    // Why before the repo is even resolved: `args.startup` carries a pre-built launch
-    // command, so this is the last look at the agent id on the `orca worktree create
-    // --agent` path — and refusing here creates no worktree to clean up.
-    if ((args.startup || args.startupAgent) && gatedAgent) {
-      assertAgentAllowedByEnterprisePolicy(gatedAgent)
-    }
-    if (args.startup && args.startupDraftPaste) {
-      assertAgentAllowedByEnterprisePolicy(args.startupDraftPaste.agent)
-    }
+    assertManagedWorktreeAgentsAllowed(args)
 
     const repo = await this.resolveRepoSelector(args.repoSelector)
     const createSettings = this.store.getSettings()
-    const requestedAgent = gatedAgent
+    const requestedAgent = args.startupAgent ?? args.createdWithAgent
     const requestedAgentEnabled =
       requestedAgent !== undefined
         ? isTuiAgentEnabled(requestedAgent, createSettings.disabledTuiAgents)
@@ -80,7 +71,12 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
         : null
     const draftStartup =
       !args.startup && !agentStartup && args.startupDraft
-        ? await this.buildStartupForDraft(repo, args.startupDraft, requestedAgent)
+        ? await this.buildStartupForDraft(
+            repo,
+            args.startupDraft,
+            requestedAgent,
+            args.startupLaunchSource
+          )
         : null
     const effectiveStartup = args.startup ?? agentStartup?.startup ?? draftStartup?.startup
     const effectiveStartupFollowup = agentStartup?.followup

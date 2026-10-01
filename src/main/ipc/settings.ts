@@ -15,6 +15,7 @@ import { sanitizeFloatingWorkspaceDirectorySetting } from './floating-workspace-
 // Aliased to upstream's name so the call site below stays byte-identical to upstream — the
 // enterprise gate lives in the wrapper, not here.
 import { applyAgentStatusHooksEnabledUnderEnterprisePolicy as applyAgentStatusHooksEnabled } from '../agent-hooks/enterprise-agent-hook-policy'
+import { isAgentStatusHooksEnabledForAgent } from '../../shared/agent-status-hooks-setting'
 import { recordManagedHookInstallFailure } from '../agent-hooks/install-telemetry'
 import { applyElectronProxySettings } from '../network/proxy-settings'
 import { applyBrowserSessionProxies } from '../browser/browser-session-proxy'
@@ -245,13 +246,7 @@ export function registerSettingsHandlers(
           userInitiated: true,
           shouldHydrateShellPath: app.isPackaged,
           onInstallError: recordManagedHookInstallFailure,
-          shouldContinue: (agent) => {
-            const settings = store.getSettings()
-            return (
-              settings.agentStatusHooksEnabled !== false &&
-              !settings.disabledTuiAgents.includes(agent)
-            )
-          }
+          shouldContinue: (agent) => isAgentStatusHooksEnabledForAgent(store.getSettings(), agent)
         })
       } catch (error) {
         console.warn('[settings] failed to reconcile managed agent hooks:', error)

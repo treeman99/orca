@@ -4,6 +4,7 @@ import { OrcaRuntimeWithResolveTerminalPane } from './orca-runtime-resolve-termi
 import { PROVEN_ABSENT_LEAF_PTY_TTL_MS } from './orca-runtime-core'
 import { pruneExpiredProvenAbsentLeafPtyVerdicts } from './proven-absent-leaf-pty-verdicts'
 import type { RuntimeTerminalSend } from '../../shared/runtime-types'
+import type { TerminalInputKind } from '../../shared/terminal-input-kind'
 import type { RuntimeAgentPromptWriteOptions } from './runtime-terminal-contracts'
 import {
   assertTerminalInputWithinLimitWithYield,
@@ -104,7 +105,8 @@ export class OrcaRuntimeWithControllerKnowsPtyIsLive extends OrcaRuntimeWithReso
       reserveWrite?: (ptyId: string) => void
       afterWrite?: (ptyId: string) => void | Promise<void>
       suffixFailureError?: string
-    } = {}
+      inputKind: TerminalInputKind
+    }
   ): Promise<RuntimeTerminalSend> {
     const pty = this.getLivePtyForHandle(handle)
     if (pty) {
@@ -153,7 +155,7 @@ export class OrcaRuntimeWithControllerKnowsPtyIsLive extends OrcaRuntimeWithReso
   async sendTerminalAgentPrompt(
     handle: string,
     prompt: string,
-    options: RuntimeAgentPromptWriteOptions = {}
+    options: RuntimeAgentPromptWriteOptions
   ): Promise<RuntimeTerminalSend> {
     // Why gated: upstream's queued lane answers a swallowed Enter by returning an
     // input_accepted receipt the caller settles later, and it must never be resent into
@@ -198,7 +200,12 @@ export class OrcaRuntimeWithControllerKnowsPtyIsLive extends OrcaRuntimeWithReso
       )
       const bytesWritten = Buffer.byteLength(payload, 'utf8') + delivery.submits
       const { outcome: submit, statusObserved } = rescueSwallowedEnter
-        ? await this.resubmitAgentPromptIfStillUnsubmitted(handle, pty.pty.ptyId, activityBaseline)
+        ? await this.resubmitAgentPromptIfStillUnsubmitted(
+            handle,
+            pty.pty.ptyId,
+            activityBaseline,
+            options.inputKind
+          )
         : { outcome: undefined, statusObserved: false }
       assertAgentPromptRescuedIfStalled(
         delivery.stalled === true,
@@ -237,7 +244,12 @@ export class OrcaRuntimeWithControllerKnowsPtyIsLive extends OrcaRuntimeWithReso
     })
     const bytesWritten = Buffer.byteLength(payload, 'utf8') + delivery.submits
     const { outcome: submit, statusObserved } = rescueSwallowedEnter
-      ? await this.resubmitAgentPromptIfStillUnsubmitted(handle, leaf.ptyId, activityBaseline)
+      ? await this.resubmitAgentPromptIfStillUnsubmitted(
+          handle,
+          leaf.ptyId,
+          activityBaseline,
+          options.inputKind
+        )
       : { outcome: undefined, statusObserved: false }
     assertAgentPromptRescuedIfStalled(
       delivery.stalled === true,

@@ -29,7 +29,10 @@ vi.mock('../enterprise/enterprise-policy-file', async (importOriginal) => ({
 
 import { createClaudeStructuredLaunchResolver } from '../claude/claude-structured-launch-resolution'
 import { createCodexStructuredLaunchResolver } from '../codex/codex-structured-launch-resolution'
-import { attachStructuredAgentSession } from '../native-chat/agent-session-wire/structured-agent-session-attach-orchestration'
+import {
+  attachStructuredAgentSession,
+  attachStructuredAgentSessionUnderSerialize
+} from '../native-chat/agent-session-wire/structured-agent-session-attach-orchestration'
 import { OrcaRuntimeService } from './orca-runtime'
 
 const BLOCKED = /agent_blocked_by_enterprise_policy/
@@ -168,6 +171,46 @@ describe('structured agent-session enterprise policy gate', () => {
 
       await expect(
         attachStructuredAgentSession(attachContext(), 'caller-1', attachParams('codex'))
+      ).resolves.toBe(ATTACH_REACHED)
+    })
+  })
+
+  // v1.4.218 exported the serialized attach and a queued-message resume calls it directly, so it
+  // must refuse on its own — the funnel above never sees that path.
+  describe('serialized attach (delivery-loop resume)', () => {
+    function underSerializeContext(): {
+      context: Parameters<typeof attachStructuredAgentSessionUnderSerialize>[0]
+      trackAttach: ReturnType<typeof vi.fn>
+    } {
+      const trackAttach = vi.fn((attaching: Promise<unknown>) => {
+        // The real attach needs a store; reaching trackAttach already proves the gate let it past.
+        attaching.catch(() => {})
+        return Promise.resolve(ATTACH_REACHED)
+      })
+      return {
+        context: { tasks: { trackAttach } } as unknown as Parameters<
+          typeof attachStructuredAgentSessionUnderSerialize
+        >[0],
+        trackAttach
+      }
+    }
+
+    it('refuses a resume for an agent the policy no longer lists', async () => {
+      codexNotAllowed()
+      const { context, trackAttach } = underSerializeContext()
+
+      await expect(
+        attachStructuredAgentSessionUnderSerialize(context, 'caller-1', attachParams('codex'))
+      ).rejects.toThrow(BLOCKED)
+      expect(trackAttach).not.toHaveBeenCalled()
+    })
+
+    it('admits a resume on an upstream build with no policy file', async () => {
+      upstreamBuild()
+      const { context } = underSerializeContext()
+
+      await expect(
+        attachStructuredAgentSessionUnderSerialize(context, 'caller-1', attachParams('codex'))
       ).resolves.toBe(ATTACH_REACHED)
     })
   })

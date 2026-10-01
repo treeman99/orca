@@ -11,6 +11,7 @@ import { fetchMiniMaxRateLimits } from './minimax/minimax-fetcher'
 import { fetchGrokRateLimits } from './grok-fetcher'
 import { fetchCursorRateLimits } from './cursor-fetcher'
 import { readCursorAuthSession } from './cursor-auth'
+import { fetchZcodeRateLimits } from './zcode-usage-fetcher'
 import { fetchOpenCodeGoUsage } from './opencode-go-usage-source-selection'
 import {
   asRateLimitWindow,
@@ -43,6 +44,7 @@ vi.mock('./cursor-fetcher', () => ({ fetchCursorRateLimits: vi.fn() }))
 vi.mock('./cursor-auth', () => ({
   readCursorAuthSession: vi.fn(async () => ({ status: 'missing' }))
 }))
+vi.mock('./zcode-usage-fetcher', () => ({ fetchZcodeRateLimits: vi.fn() }))
 vi.mock('../minimax/minimax-cookie-store', () => ({
   hasMiniMaxSessionCookie: vi.fn(() => false)
 }))
@@ -57,6 +59,7 @@ function expectNoVendorUsageFetches(): void {
   expect(fetchMiniMaxRateLimits).not.toHaveBeenCalled()
   expect(fetchGrokRateLimits).not.toHaveBeenCalled()
   expect(fetchCursorRateLimits).not.toHaveBeenCalled()
+  expect(fetchZcodeRateLimits).not.toHaveBeenCalled()
 }
 
 describe('RateLimitService under an agent allowlist', () => {
@@ -84,10 +87,14 @@ describe('RateLimitService under an agent allowlist', () => {
     // Cursor's lane also reads the macOS Keychain before it fetches; neither may run.
     expect(readCursorAuthSession).not.toHaveBeenCalled()
     expect(fetchCursorRateLimits).not.toHaveBeenCalled()
+    // ZCode reads the user's API key from ~/.zcode and sends it with Node's fetch, outside the
+    // Electron session allowlist — the allowlist gate is the only thing between them.
+    expect(fetchZcodeRateLimits).not.toHaveBeenCalled()
     expect(service.getState().claude?.status).toBe('ok')
     expect(service.getState().codex?.status).toBe('unavailable')
     expect(service.getState().grok?.status).toBe('unavailable')
     expect(service.getState().cursor?.status).toBe('unavailable')
+    expect(service.getState().zcode?.status).toBe('unavailable')
   })
 })
 
@@ -174,7 +181,8 @@ describe('RateLimitService under enterprise policy lockdown', () => {
       state.antigravity,
       state.minimax,
       state.grok,
-      state.cursor
+      state.cursor,
+      state.zcode
     ]) {
       expect(provider?.status).toBe('unavailable')
       expect(provider?.error).toBeNull()
@@ -245,6 +253,7 @@ describe('RateLimitService under enterprise policy lockdown', () => {
       expect(fetchClaudeRateLimits).toHaveBeenCalledTimes(1)
       expect(fetchGrokRateLimits).toHaveBeenCalledTimes(1)
       expect(fetchCursorRateLimits).toHaveBeenCalledTimes(1)
+      expect(fetchZcodeRateLimits).toHaveBeenCalledTimes(1)
       expect(service.getState().claude?.status).toBe('ok')
 
       service.stop()

@@ -86,6 +86,8 @@ export function createWebWorkspaceSessionApi(): Partial<PreloadApi> {
       // session is its own localStorage copy, so the `patch` above is already the
       // deletion. Answering instead of throwing keeps tab close identical on both.
       retireClosedTerminalTabs: async () => {},
+      // Why a no-op: web closes reach the host through its session-tab and terminal close RPCs.
+      closeTerminalSurface: async () => {},
       // localStorage writes synchronously, so there is no deferred web flush.
       flush: async () => {},
       readTerminalScrollback: () => null,

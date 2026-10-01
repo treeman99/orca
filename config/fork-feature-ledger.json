@@ -64,7 +64,7 @@
         },
         {
           "file": "src/main/runtime/orca-runtime-create-managed-worktree.ts",
-          "contains": "assertAgentAllowedByEnterprisePolicy"
+          "contains": "assertManagedWorktreeAgentsAllowed(args)"
         },
         {
           "file": "src/main/runtime/orca-runtime-activate-managed-worktree.ts",
@@ -134,6 +134,16 @@
           "file": "src/main/ipc/preflight.ts",
           "contains": "isAgentAllowedByEnterprisePolicy('zcode') ? readZCodeInteractiveCapability() : 'unknown'",
           "why": "v1.4.215 신규 zcode 프리플라이트가 zcode 바이너리를 인자 없이 실행한다. 빠지면 허용 안 된 에이전트가 기능 탐지만으로 실행된다."
+        },
+        {
+          "file": "src/main/native-chat/agent-session-wire/structured-agent-session-attach-orchestration.ts",
+          "contains": "// Why here and not in the three RPC handlers: create-by-intent, create-by-attach-params,",
+          "why": "structured 레인의 attach 퍼널 게이트(185d2d39d8). 이 줄 바로 아래 agentBlockedByPolicyError 가 세션 예약 전에 거부한다. 지금까지 원장 미등재였다."
+        },
+        {
+          "file": "src/main/native-chat/agent-session-wire/structured-agent-session-attach-orchestration.ts",
+          "contains": "the delivery loop's resume reaches this export directly",
+          "why": "v1.4.218 이 attachStructuredAgentSessionUnderSerialize 를 export 했고 큐 메시지 재개(structured-agent-session-agent-start.ts)가 그것을 직접 부른다(실패 모드 V). 퍼널 게이트만으로는 정책에서 빠진 에이전트의 child 가 재기동된다."
         }
       ]
     },
@@ -252,7 +262,7 @@
         },
         {
           "file": "src/renderer/src/components/status-bar/status-bar-agent-gating.ts",
-          "contains": "  'cursor'\n])",
+          "contains": "  'cursor',\n  'zcode'\n])",
           "why": "Cursor 사용량 칩·토글을 허용목록으로 숨기는 대상 목록(v1.4.215 신규)."
         },
         {
@@ -269,6 +279,23 @@
           "file": "src/main/rate-limits/usage-polling-disabled-providers.ts",
           "contains": "  cursor: 'cursor'",
           "why": "disableUsagePolling 아래 빈 cursor 슬롯을 unavailable 로 정착시키는 목록(v1.4.215 신규)."
+        },
+        {
+          "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
+          "contains": "this.isUsageProviderAllowed('zcode')",
+          "why": "v1.4.218 이 ZCode 사용량 레인(~/.zcode 자격증명 → 벤더 쿼터 API)을 정책 게이트 없이 들였다. Cursor(v1.4.215)와 같은 세트로 막는다."
+        },
+        {
+          "file": "src/renderer/src/components/status-bar/use-status-bar-controller.ts",
+          "contains": "isStatusBarItemAvailable('zcode', detectedAgentIds, allowedAgents)"
+        },
+        {
+          "file": "src/renderer/src/components/status-bar/StatusBarVisibilityMenu.tsx",
+          "contains": "{isStatusBarItemAvailable('zcode', detectedAgentIds, allowedAgents) && ("
+        },
+        {
+          "file": "src/main/rate-limits/usage-polling-disabled-providers.ts",
+          "contains": "  zcode: 'zcode'"
         }
       ]
     },
@@ -688,6 +715,15 @@
         {
           "file": "src/main/runtime/orca-runtime.ts",
           "contains": "OrcaRuntimeForkSurface"
+        },
+        {
+          "file": "src/renderer/src/store/terminals/terminal-tab-close.ts",
+          "contains": "retireClosedTerminalTabOnHost(get(), {",
+          "why": "v1.4.218 upstream 이 같은 문제를 closeTerminalSurface 트랜잭션(#22929·#22955)으로 고쳤다. 그 커밋은 렌더러가 이미 kill 했다고 가정하므로 attach 안 된 페인 PTY·워커 디스패치·sleeping 기록은 이 포크 채널이 먼저 끝낸다 — 둘을 직렬로 잇는다(포크 호출이 upstream commitTerminalSurfaceClose 보다 앞서야 한다)."
+        },
+        {
+          "file": "src/main/ipc/session.ts",
+          "contains": "'session:retireClosedTerminalTabs'"
         }
       ]
     },
@@ -824,11 +860,6 @@
           "why": "첫 훅이 도착하기 전까지 탭에 에이전트 정체성이 없으면 native-chat 라우트가 \"에이전트 페인이 아님\"으로 읽어 챗으로 연 봇 페인을 몇 초 뒤 터미널로 되돌린다."
         },
         {
-          "file": "src/renderer/src/components/terminal-pane/terminal-pane-hook-order-parity.test.ts",
-          "contains": "'d1ae3ffd09593ea8cede1a644a4bada70a39979e96bde79c33ef05dd6d2f4e9c'",
-          "why": "훅 개수·useMemo 개수는 upstream 과 같고 식별자만 다르다(useOptionalLinkRoutingPreferenceDialog). 다이제스트는 그 차이를 보므로 포크 전용 값이며, 머지가 upstream 값으로 되돌리면 빨개진다."
-        },
-        {
           "file": "src/renderer/src/components/terminal-pane/pty-connection/pty-input-forward.ts",
           "contains": "installForegroundGridDriftCheck(session)",
           "why": "입력 정숙 게이트가 있는 포크판 drift 치유. upstream 인라인판이 돌아오면 타이핑 중 SIGWINCH 로 프롬프트가 재배치된다."
@@ -852,11 +883,6 @@
         {
           "file": "pnpm-workspace.yaml",
           "contains": "verifyDepsBeforeRun"
-        },
-        {
-          "file": "src/shared/child-process/child-process-import-boundary.test.ts",
-          "contains": "const DIRECT_IMPORTER_PIN = 147",
-          "why": "v1.4.197 이 upstream 자기 수(158)로 숫자 백스톱을 추가했다. 이 빌드는 포크 소유 직접 import 8건을 runProcess/spawnProcess/runProcessSync 로 이관했고, upstream 이 가진 2건(skills CLI 핸들러·local-builds)은 지웠으므로 158 보다 2 낮은 156 이다. 머지가 158 로 되돌리면 래칫이 확보한 땅을 다시 열어 준다."
         },
         {
           "file": "src/shared/child-process/windows-console-visibility.test.ts",

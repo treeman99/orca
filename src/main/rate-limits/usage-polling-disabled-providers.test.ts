@@ -14,7 +14,8 @@ const EMPTY_SLOTS: UsageProviderSlots = {
   antigravity: null,
   minimax: null,
   grok: null,
-  cursor: null
+  cursor: null,
+  zcode: null
 }
 
 function okClaude(): ProviderRateLimits {
@@ -37,7 +38,7 @@ describe('settleUsagePollingDisabledProviders', () => {
     const settled = settleUsagePollingDisabledProviders(EMPTY_SLOTS, true)
 
     expect(Object.values(settled).map((provider) => provider?.status)).toEqual(
-      Array.from({ length: 9 }, () => 'unavailable')
+      Array.from({ length: 10 }, () => 'unavailable')
     )
     expect(settled.claude).toEqual({
       provider: 'claude',

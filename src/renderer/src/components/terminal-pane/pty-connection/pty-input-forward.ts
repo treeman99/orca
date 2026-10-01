@@ -98,6 +98,8 @@ export function installPtyInputForward(session: ConnectPanePtySession): void {
       session.clearPendingTerminalInputIntent()
       return
     }
+    // Why xterm's provenance: its own focus reports reach onData too, and no person typed them.
+    const inputKind = wasUserInput ? 'driving' : 'query-reply'
     const intent = session.pendingTerminalInputIntent
     // Why: real xterm can deliver the terminal byte even when our DOM keydown
     // listener missed the press. Exact Ctrl+C/Escape bytes are still safe to
@@ -123,7 +125,7 @@ export function installPtyInputForward(session: ConnectPanePtySession): void {
       session.clearPendingTerminalInputIntent()
       session.markTerminalInputAttempted(inputGeneration)
       const writePromise = session.transport
-        .sendInputAccepted(data)
+        .sendInputAccepted(data, inputKind)
         .then((accepted): boolean | Promise<boolean> | null => {
           if (accepted) {
             // Why: rejected writes use transport recovery and must not arm a parser probe.
@@ -154,7 +156,7 @@ export function installPtyInputForward(session: ConnectPanePtySession): void {
       const intentGeneration = session.terminalInputGeneration
       session.claimViewportForUserActivity()
       session.markTerminalInputAttempted(intentGeneration)
-      if (session.transport.sendInput(data)) {
+      if (session.transport.sendInput(data, inputKind)) {
         session.markAcceptedTerminalInputSent(intentGeneration)
         session.observeAcceptedShellCommandInput(data)
         session.observeAcceptedTerminalInput(data, intent)
@@ -167,7 +169,7 @@ export function installPtyInputForward(session: ConnectPanePtySession): void {
     const plainGeneration = session.terminalInputGeneration
     session.claimViewportForUserActivity()
     session.markTerminalInputAttempted(plainGeneration)
-    if (session.transport.sendInput(data)) {
+    if (session.transport.sendInput(data, inputKind)) {
       session.markAcceptedTerminalInputSent(plainGeneration)
       session.observeAcceptedShellCommandInput(data)
       session.observeAcceptedTerminalInput(data)

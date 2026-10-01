@@ -6,6 +6,7 @@ import {
   dispatchPreambleSendOptions
 } from '../../../../orchestration/preamble'
 import { sendStructuredWorkerPreamble } from '../../orchestration-structured-worker-session'
+import type { WorkerTurnStartObservation } from './worker-start-turn-observation'
 import type { createStructuredWorkerSessionForWorktree } from './worker-topology'
 
 type StructuredSession = Awaited<ReturnType<typeof createStructuredWorkerSessionForWorktree>> | null
@@ -15,7 +16,8 @@ type StructuredSession = Awaited<ReturnType<typeof createStructuredWorkerSession
  *
  * The preamble itself is identical for both: a worker is taught the same verbs whichever mode it
  * runs in, and only the delivery differs — a PTY write returns a queued/accepted receipt, while a
- * structured turn either is acknowledged or throws.
+ * structured turn is acknowledged, still held for an agent that has not started, or throws. Held is
+ * a turn start nobody observed yet: the start is left unknown, not torn down.
  */
 export async function deliverWorkerDispatchPreamble(args: {
   runtime: OrcaRuntimeService
@@ -32,9 +34,10 @@ export async function deliverWorkerDispatchPreamble(args: {
   // Why the send outcome and not just the delivery receipt: only `submit` says whether the
   // agent was observed taking the prompt, and the dispatch effect has to carry that warning.
 }): Promise<{
-  prompt: RuntimeTerminalSend['prompt']
+  prompt?: RuntimeTerminalSend['prompt']
   submit?: AgentPromptSubmitOutcome
   bytesWritten: number
+  structuredTurnStart?: WorkerTurnStartObservation
 }> {
   const { runtime, structuredSession, terminalHandle } = args
   const preamble = buildDispatchPreamble({
@@ -52,13 +55,25 @@ export async function deliverWorkerDispatchPreamble(args: {
     cliCommand: runtime.getTerminalOrchestrationCliCommand(terminalHandle)
   })
   if (structuredSession) {
-    await sendStructuredWorkerPreamble({
+    const delivery = await sendStructuredWorkerPreamble({
       host: structuredSession.host,
       sessionId: structuredSession.identity.sessionId,
       dispatchId: args.dispatchId,
       preamble
     })
-    return { prompt: undefined, bytesWritten: preamble.length }
+    return {
+      bytesWritten: preamble.length,
+      structuredTurnStart:
+        delivery === 'accepted'
+          ? { verdict: 'observed' }
+          : {
+              verdict: 'unobserved',
+              reason:
+                'The dispatch preamble was accepted, but the agent had not started to take it. It ' +
+                'is delivered when the agent starts; if the worker then reports, this Dispatch ' +
+                'settles normally.'
+            }
+    }
   }
   const send = await runtime.sendTerminalAgentPrompt(
     terminalHandle,

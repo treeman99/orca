@@ -1,5 +1,7 @@
 import { ipcMain } from 'electron'
 import type { Store } from '../persistence'
+import type { OrcaRuntimeService } from '../runtime/orca-runtime'
+import { parseTerminalSurfaceCloseTarget } from '../../shared/terminal-surface-close-target'
 import type {
   WorkspaceSessionPatch,
   WorkspaceSessionState
@@ -31,9 +33,13 @@ function parseTabClosures(value: unknown): { worktreeId: string; tabId: string }
   })
 }
 
+// Why optional: the fork's tab-close tests register without a runtime.
+type SessionHandlerRuntime = ClosedTerminalTabSessionTerminator &
+  Partial<Pick<OrcaRuntimeService, 'closeTerminalSurfaceFromRenderer'>>
+
 export function registerSessionHandlers(
   store: Store,
-  runtime?: ClosedTerminalTabSessionTerminator | null
+  runtime?: SessionHandlerRuntime | null
 ): void {
   // Why: hostId is an optional second arg so an older renderer that invokes
   // these channels without it keeps reading/writing the 'local' partition
@@ -61,6 +67,8 @@ export function registerSessionHandlers(
   // the host's copy — so a close click has to reach the host or it is silently undone
   // and the tab returns on the next launch. Flushed here rather than left to the 1s
   // debounce so a quit right after the click cannot lose the deletion either.
+  // Why kept beside close-terminal-surface: that commit trusts the renderer already killed,
+  // which never covers a never-attached pane or the worker dispatch bound to the tab.
   ipcMain.handle(
     'session:retireClosedTerminalTabs',
     (_event, args: { closures?: unknown } | undefined, hostId?: string | null) => {
@@ -85,6 +93,23 @@ export function registerSessionHandlers(
       }
       store.setWorkspaceSession(retired, hostId)
       store.flushOrThrow()
+    }
+  )
+
+  // Why: a renderer save cannot shrink membership main owns, so each close commits it explicitly.
+  ipcMain.handle(
+    'session:close-terminal-surface',
+    (_event, args: { worktreeId?: unknown; target?: unknown; reason?: unknown } | undefined) => {
+      const target = parseTerminalSurfaceCloseTarget(args?.target)
+      if (typeof args?.worktreeId !== 'string' || !target) {
+        throw new Error('invalid_terminal_surface')
+      }
+      // Why only these two: main alone closes a tab for its process exit.
+      return runtime?.closeTerminalSurfaceFromRenderer?.({
+        worktreeId: args.worktreeId,
+        target,
+        reason: args.reason === 'cleanup' ? 'cleanup' : 'user'
+      })
     }
   )
 

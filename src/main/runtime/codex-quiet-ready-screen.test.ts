@@ -9,11 +9,17 @@ import {
   type TranscriptReplayFrame
 } from './agent-transcript-replay-test-harness'
 import { isCodexComposerReadyScreen } from './codex-terminal-readiness'
-import { isKnownReadyPromptBody, isQuietReadyScreenBody } from './terminal-wait-detection'
 import {
+  detectTerminalWaitBlockedReason,
+  isKnownReadyPromptBody,
+  isKnownReadyPromptPreview,
+  isQuietReadyScreenBody
+} from './terminal-wait-detection'
+import {
+  evaluateTuiIdle,
   hasQuietReadyScreen,
-  isTuiIdleSatisfied,
-  type TuiIdleSatisfactionInput
+  isTuiIdleReadyVerdict,
+  type TuiIdleEvaluationInput
 } from './tui-idle-evidence'
 
 vi.mock('electron', () => ({
@@ -183,16 +189,18 @@ describe('Codex composer ready screen, frame by frame', () => {
       '  ? for shortcuts'
     ]
     const waitText = screenLines.join('\n')
-    const satisfied = isTuiIdleSatisfied({
+    const verdict = evaluateTuiIdle({
       record: { lastAgentStatus: null, lastOutputAt: 0, lastOscTitle: null },
-      readPositiveBodyEvidence: () => isKnownReadyPromptBody(waitText, 'codex', () => screenLines),
+      readTailBlockedReason: () => detectTerminalWaitBlockedReason(waitText),
+      readPositiveBodyEvidence: () =>
+        isKnownReadyPromptBody(waitText, 'codex', () => screenLines, true),
       readQuietReadyBodyEvidence: () =>
         isQuietReadyScreenBody(waitText, 'codex', () => screenLines),
       agent: 'codex',
       firstPartyStatus: null,
       quiescenceMs: QUIESCENCE_MS
     })
-    expect(satisfied).toBe(true)
+    expect(verdict.kind).toBe('ready-strong')
   })
 })
 
@@ -263,7 +271,93 @@ describe('the quiet lane over recorded chunk timing (default animations)', () =>
   )
 })
 
-describe('never less ready than origin/main', () => {
+describe('a busy 0.150-0.157 pane whose header stays in the tail', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it.each(['codex-0-155-1-timed-turn', 'codex-0-157-1-timed-sleep-turn'])(
+    '%s: never settles tui-idle mid-turn, and settles once the finished turn is quiet',
+    async (name) => {
+      const { chunks, times, promptAt } = readTimedFixture(name)
+      const frames = await collectFrames(chunks)
+      vi.useFakeTimers()
+      const verdictAt = (index: number, now: number) => {
+        vi.setSystemTime(now)
+        const { waitText, screenLines } = frames[index]!
+        return evaluateTuiIdle({
+          record: { lastAgentStatus: null, lastOutputAt: times[index]!, lastOscTitle: null },
+          readTailBlockedReason: () => detectTerminalWaitBlockedReason(waitText),
+          readPositiveBodyEvidence: () =>
+            isKnownReadyPromptBody(waitText, 'codex', () => screenLines, true),
+          readQuietReadyBodyEvidence: () =>
+            isQuietReadyScreenBody(waitText, 'codex', () => screenLines),
+          agent: 'codex',
+          firstPartyStatus: null,
+          quiescenceMs: QUIESCENCE_MS
+        })
+      }
+      const lastBusy = frames.findLastIndex((frame) => BUSY_STATUS_RE.test(screenOf(frame)))
+      const firstTurnChunk = times.findIndex((at) => at >= promptAt)
+      let headerMidTurn = 0
+      for (let index = firstTurnChunk; index <= lastBusy; index += 1) {
+        if (isKnownReadyPromptPreview(frames[index]!.waitText)) {
+          headerMidTurn += 1
+        }
+        const settles = isTuiIdleReadyVerdict(verdictAt(index, times[index + 1]! - 1))
+        expect({ index, settles }).toEqual({ index, settles: false })
+      }
+      // Presence precondition: the ready header is in the tail mid-turn, so the fix is load-bearing.
+      expect(headerMidTurn).toBeGreaterThan(0)
+      const last = frames.length - 1
+      expect(verdictAt(last, times[last]!).kind).toBe('pending')
+      expect(verdictAt(last, times[last]! + QUIESCENCE_MS + 1).kind).toBe('ready-strong')
+    },
+    120_000
+  )
+
+  const header = [
+    '│ >_ OpenAI Codex (v0.157.1)                               │',
+    '│ model:       GPT-6-Sol high   /model to change           │',
+    '│ directory:   ~/repo/app                                  │'
+  ]
+
+  it('reads the header as tier-1 evidence only for a pane with no output clock', () => {
+    const waitText = header.join('\n')
+    expect(isKnownReadyPromptBody(waitText, 'codex', () => header, true)).toBe(false)
+    expect(isKnownReadyPromptBody(waitText, 'codex', () => header, false)).toBe(true)
+    expect(isKnownReadyPromptBody(waitText, null, () => header, true)).toBe(true)
+  })
+
+  // Why: a restored or reattached pane has no lastOutputAt, so the quiet lane can never fire.
+  const NOW = 60_000
+  it.each([
+    [null, 'ready-strong'],
+    [0, 'ready-strong'],
+    [NOW - 1_000, 'pending']
+  ] as const)(
+    'a codex pane whose lastOutputAt is %s reads its header as %s',
+    (lastOutputAt, kind) => {
+      vi.useFakeTimers()
+      vi.setSystemTime(NOW)
+      const waitText = header.join('\n')
+      const record = { lastAgentStatus: null, lastOutputAt, lastOscTitle: null }
+      const verdict = evaluateTuiIdle({
+        record,
+        readTailBlockedReason: () => detectTerminalWaitBlockedReason(waitText),
+        readPositiveBodyEvidence: () =>
+          isKnownReadyPromptBody(waitText, 'codex', () => header, record.lastOutputAt !== null),
+        readQuietReadyBodyEvidence: () => isQuietReadyScreenBody(waitText, 'codex', () => header),
+        agent: 'codex',
+        firstPartyStatus: null,
+        quiescenceMs: QUIESCENCE_MS
+      })
+      expect(verdict.kind).toBe(kind)
+    }
+  )
+})
+
+describe('reading the live screen never removes quiet-lane readiness', () => {
   const records = [
     { lastAgentStatus: null, lastOutputAt: 0, lastOscTitle: null },
     { lastAgentStatus: 'idle' as const, lastOutputAt: 0, lastOscTitle: 'codex' },
@@ -279,28 +373,29 @@ describe('never less ready than origin/main', () => {
         for (const frame of await collectFrames(readRuntimeFixture(name), cols, rows)) {
           for (const agent of ['codex', null] as const) {
             const base = {
+              readTailBlockedReason: () => detectTerminalWaitBlockedReason(frame.waitText),
               readPositiveBodyEvidence: () =>
-                isKnownReadyPromptBody(frame.waitText, agent, () => frame.screenLines),
+                isKnownReadyPromptBody(frame.waitText, agent, () => frame.screenLines, true),
               agent,
               firstPartyStatus: null,
               quiescenceMs: QUIESCENCE_MS
-            } satisfies Omit<TuiIdleSatisfactionInput, 'record' | 'readQuietReadyBodyEvidence'>
+            } satisfies Omit<TuiIdleEvaluationInput, 'record' | 'readQuietReadyBodyEvidence'>
             for (const record of records) {
-              const before = isTuiIdleSatisfied({
+              const before = evaluateTuiIdle({
                 ...base,
                 record,
-                // Why a withheld screen: that leaves exactly main's Muse lane, the only widening.
+                // Why a withheld screen: isolates what the live screen adds to the quiet lane.
                 readQuietReadyBodyEvidence: () =>
                   isQuietReadyScreenBody(frame.waitText, agent, () => null)
               })
-              const after = isTuiIdleSatisfied({
+              const after = evaluateTuiIdle({
                 ...base,
                 record,
                 readQuietReadyBodyEvidence: () =>
                   isQuietReadyScreenBody(frame.waitText, agent, () => frame.screenLines)
               })
-              if (before) {
-                expect(after).toBe(true)
+              if (isTuiIdleReadyVerdict(before)) {
+                expect(isTuiIdleReadyVerdict(after)).toBe(true)
               }
             }
           }

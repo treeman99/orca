@@ -49,7 +49,9 @@ async function writePrompt(
     getForegroundProcess: async () => null
   })
   const { handle } = await runtime.createTerminal(`path:${WORKTREE_PATH}`, { launchAgent })
-  const send = runtime.sendTerminalAgentPrompt(handle, prompt).catch(() => undefined)
+  const send = runtime
+    .sendTerminalAgentPrompt(handle, prompt, { inputKind: 'driving' })
+    .catch(() => undefined)
   await vi.runAllTimersAsync()
   await send
   return { writes, joined: writes.join('') }
