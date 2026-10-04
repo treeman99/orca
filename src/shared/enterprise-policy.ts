@@ -143,8 +143,8 @@ export type EnterprisePolicy = {
    */
   requireComputerUseApproval: boolean
   /**
-   * Refuse to download executables Orca fetches on its own at runtime. Today that is the Bun
-   * runtime (GitHub Releases) an SSH relay or a WSL distro gets when its node lacks
+   * Refuse to download executables Orca fetches on its own at runtime. Today that is the pinned
+   * Node runtime (nodejs.org) an SSH relay or a WSL distro gets when its node lacks
    * `node:sqlite` — pulled with no user action. Refusing costs only reading past OpenCode
    * sessions on that host; the download is skipped, not the connection.
    */

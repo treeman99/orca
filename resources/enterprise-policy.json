@@ -30,7 +30,7 @@
   "disableVoice": true, // 받아쓰기 전체
   "disablePlugins": true, // 플러그인 시스템 전체 (사용자 설정을 덮어쓰는 유일한 스위치)
   "requireComputerUseApproval": true, // Computer Use 변경 동작 전 사용자 확인
-  "disableRuntimeDownloads": true, // 앱이 런타임에 실행 파일(bun)을 GitHub Releases에서 받는 것
+  "disableRuntimeDownloads": true, // 앱이 런타임에 실행 파일(고정 Node)을 nodejs.org 에서 받는 것
   "disableMobileEmulator": true, // 로컬 시뮬레이터/AVD 스트리밍 (페어링과 다른 스위치)
   "disableExternalAutomations": true, // hermes/openclaw 크론 레인
   // Orca 자신의 스케줄러 — 예약된 자동화/봇 루틴이 사람 없이 에이전트를 띄우는 레인입니다.
