@@ -14,6 +14,11 @@ import {
   getAgentStatusHooksSearchKeywords,
   getAgentStatusHooksTitle
 } from './agent-status-hooks-copy'
+import {
+  getAgentWorkspaceTrustDescription,
+  getAgentWorkspaceTrustSearchKeywords,
+  getAgentWorkspaceTrustTitle
+} from './agent-workspace-trust-copy'
 import { getAgentCacheTimerSearchEntries } from './agent-cache-timer-search'
 import {
   getCodexTerminalServerIsolationDescription,
@@ -70,10 +75,12 @@ function expandAgentSearchText(value: string): string[] {
 type AgentsPaneSearchOptions = {
   includeAgentAwake?: boolean
   includeAgentRuntime?: boolean
+  includeAgentWorkspaceTrust?: boolean
   includeCodexTerminalServerIsolation?: boolean
 }
 
 const AGENT_AWAKE_SEARCH_ENTRY_ID = 'agent-awake'
+const AGENT_WORKSPACE_TRUST_SEARCH_ENTRY_ID = 'agent-workspace-trust'
 const AGENT_RUNTIME_SEARCH_ENTRY_ID = 'agent-runtime'
 const CODEX_TERMINAL_SERVER_ISOLATION_SEARCH_ENTRY_ID = 'codex-terminal-server-isolation'
 
@@ -119,6 +126,12 @@ const getAllAgentsPaneSearchEntries = createLocalizedCatalog(() => [
     keywords: getAgentStatusHooksSearchKeywords()
   },
   {
+    title: getAgentWorkspaceTrustTitle(),
+    id: AGENT_WORKSPACE_TRUST_SEARCH_ENTRY_ID,
+    description: getAgentWorkspaceTrustDescription(),
+    keywords: getAgentWorkspaceTrustSearchKeywords()
+  },
+  {
     title: getCodexTerminalServerIsolationTitle(),
     id: CODEX_TERMINAL_SERVER_ISOLATION_SEARCH_ENTRY_ID,
     description: getCodexTerminalServerIsolationDescription(),
@@ -162,6 +175,7 @@ const getAllAgentsPaneSearchEntries = createLocalizedCatalog(() => [
 export function getAgentsPaneSearchEntries({
   includeAgentAwake = true,
   includeAgentRuntime = true,
+  includeAgentWorkspaceTrust = true,
   includeCodexTerminalServerIsolation = true
 }: AgentsPaneSearchOptions = {}) {
   const hiddenIds = new Set<string>()
@@ -170,6 +184,9 @@ export function getAgentsPaneSearchEntries({
   }
   if (!includeAgentRuntime) {
     hiddenIds.add(AGENT_RUNTIME_SEARCH_ENTRY_ID)
+  }
+  if (!includeAgentWorkspaceTrust) {
+    hiddenIds.add(AGENT_WORKSPACE_TRUST_SEARCH_ENTRY_ID)
   }
   if (!includeCodexTerminalServerIsolation) {
     hiddenIds.add(CODEX_TERMINAL_SERVER_ISOLATION_SEARCH_ENTRY_ID)

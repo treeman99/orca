@@ -12,6 +12,7 @@ import { fetchGrokRateLimits } from './grok-fetcher'
 import { fetchCursorRateLimits } from './cursor-fetcher'
 import { readCursorAuthSession } from './cursor-auth'
 import { fetchZcodeRateLimits } from './zcode-usage-fetcher'
+import { fetchAntigravityRateLimits } from './antigravity-usage-fetcher'
 import { fetchOpenCodeGoUsage } from './opencode-go-usage-source-selection'
 import {
   asRateLimitWindow,
@@ -45,6 +46,7 @@ vi.mock('./cursor-auth', () => ({
   readCursorAuthSession: vi.fn(async () => ({ status: 'missing' }))
 }))
 vi.mock('./zcode-usage-fetcher', () => ({ fetchZcodeRateLimits: vi.fn() }))
+vi.mock('./antigravity-usage-fetcher', () => ({ fetchAntigravityRateLimits: vi.fn() }))
 vi.mock('../minimax/minimax-cookie-store', () => ({
   hasMiniMaxSessionCookie: vi.fn(() => false)
 }))
@@ -60,6 +62,7 @@ function expectNoVendorUsageFetches(): void {
   expect(fetchGrokRateLimits).not.toHaveBeenCalled()
   expect(fetchCursorRateLimits).not.toHaveBeenCalled()
   expect(fetchZcodeRateLimits).not.toHaveBeenCalled()
+  expect(fetchAntigravityRateLimits).not.toHaveBeenCalled()
 }
 
 describe('RateLimitService under an agent allowlist', () => {
@@ -90,11 +93,14 @@ describe('RateLimitService under an agent allowlist', () => {
     // ZCode reads the user's API key from ~/.zcode and sends it with Node's fetch, outside the
     // Electron session allowlist — the allowlist gate is the only thing between them.
     expect(fetchZcodeRateLimits).not.toHaveBeenCalled()
+    // Antigravity's lane (v1.4.220) spawns `agy /usage`, which calls the vendor API and spends quota.
+    expect(fetchAntigravityRateLimits).not.toHaveBeenCalled()
     expect(service.getState().claude?.status).toBe('ok')
     expect(service.getState().codex?.status).toBe('unavailable')
     expect(service.getState().grok?.status).toBe('unavailable')
     expect(service.getState().cursor?.status).toBe('unavailable')
     expect(service.getState().zcode?.status).toBe('unavailable')
+    expect(service.getState().antigravity?.status).toBe('unavailable')
   })
 })
 

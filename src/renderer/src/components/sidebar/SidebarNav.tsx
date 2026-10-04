@@ -21,8 +21,6 @@ import { translate } from '@/i18n/i18n'
 import { lazyWithRetry } from '@/lib/lazy-with-retry'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 
-export { getSetupGuideSidebarEntryReady, shouldShowSetupGuideEntry } from './SetupGuideSidebarEntry'
-
 // `showMobileButton` is a per-user setting that defaults to on, so on a fleet without
 // the policy file two identical installs legitimately disagree. When the policy IS in
 // force it has to win outright — mirroring how disablePlugins overrides

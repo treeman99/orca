@@ -45,7 +45,6 @@ import { codexAccountsApi } from './api/codex-accounts-bridge'
 import { claudeAccountsApi } from './api/claude-accounts-bridge'
 import { cliApi } from './api/cli-bridge'
 import { codexConfigSyncApi } from './api/codex-config-sync-bridge'
-import { agentTrustApi } from './api/agent-trust-bridge'
 import { preflightApi } from './api/preflight-bridge'
 import { notificationsApi } from './api/notifications-bridge'
 import { onboardingApi } from './api/onboarding-bridge'
@@ -149,7 +148,6 @@ const api = {
   claudeAccounts: claudeAccountsApi,
   cli: cliApi,
   codexConfigSync: codexConfigSyncApi,
-  agentTrust: agentTrustApi,
   preflight: preflightApi,
   notifications: notificationsApi,
   onboarding: onboardingApi,

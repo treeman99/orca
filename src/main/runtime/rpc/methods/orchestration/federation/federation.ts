@@ -240,7 +240,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
         if (!paneKey || !processIncarnation) {
           throw new Error('stable_pane_required')
         }
-        const capability = db.prepareRemoteAttachmentAuthority({
+        db.prepareRemoteAttachmentAuthority({
           dispatchId: params.dispatchId,
           paneKey,
           processIncarnation,
@@ -260,7 +260,6 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
             taskSpec: params.taskSpec,
             coordinatorHandle: 'Run home (relayed by Orca)',
             workerHandle: terminalHandle,
-            dispatchCapability: capability,
             devMode: params.devMode,
             // Why the worker host's own setting: enforcement runs here, with this
             // host's code, against this host's cap.

@@ -1,7 +1,8 @@
 import { waitForTerminalReplayWritesParsed } from '../replay-guard'
 import {
   POST_REPLAY_MODE_RESET,
-  RESET_GRAPHIC_RENDITION
+  RESET_GRAPHIC_RENDITION,
+  RELEASE_SYNCHRONIZED_OUTPUT
 } from '../../../../../shared/terminal-mode-reset-profiles'
 import {
   buildMainModelSnapshotReplayWrites,
@@ -18,8 +19,7 @@ import { fitReattachedPaneToGrid, noteReattachAltFrameSkip } from './reattach-gr
 
 import type { ReattachPayloadContext } from './reattach-payload-context'
 import type { ReattachPayloadSession } from './reattach-payload-session'
-import { clearRestoredViewportOnPayloadlessReattach } from './restored-viewport-reattach-clear'
-import * as restoreLog from './reattach-restore-diagnostics'
+import * as forkRestore from './reattach-fork-restore'
 
 export function createReattachPayloadHandlers(
   session: ReattachPayloadSession,
@@ -62,8 +62,10 @@ export function createReattachPayloadHandlers(
           session.suppressStructuralReplayPtyResize = false
         }
       }
-      restoreLog.logReattachSnapshotDiagnostic(session, ctx.connectResult)
-      session.writeReplayData(`${RESET_GRAPHIC_RENDITION}\x1b[2J\x1b[3J\x1b[H`)
+      forkRestore.logReattachSnapshotDiagnostic(session, ctx.connectResult)
+      session.writeReplayData(
+        `${RELEASE_SYNCHRONIZED_OUTPUT}${RESET_GRAPHIC_RENDITION}\x1b[2J\x1b[3J\x1b[H`
+      )
       // Why: re-arm the kitty keyboard mirror from the snapshot preamble so Option chords keep their encoding after a window reload.
       session.applySnapshotKittyKeyboardModes(daemonSnapshotReplay, {
         kittyKeyboardFlags: ctx.connectResult.snapshotKittyKeyboardFlags,
@@ -228,9 +230,11 @@ export function createReattachPayloadHandlers(
         session.rememberReattachPayloadAgentSignal(ctx.connectResult.replay, {
           fullScreenReplay: true
         })
-        restoreLog.logReattachReplayDiagnostic(session, ctx.connectResult, ctx.connectResult.replay)
+        forkRestore.logReplayDiagnostic(session, ctx)
         // Relay replay may overlap xterm's pre-disconnect content; clear first to avoid duplication.
-        session.writeReplayData(`${RESET_GRAPHIC_RENDITION}\x1b[2J\x1b[3J\x1b[H`)
+        session.writeReplayData(
+          `${RELEASE_SYNCHRONIZED_OUTPUT}${RESET_GRAPHIC_RENDITION}\x1b[2J\x1b[3J\x1b[H`
+        )
         // Why: raw relay replay may contain the app's own kitty pushes; re-arm with set semantics so redelivery can't grow the stack.
         // A constructor-fresh mirror (window reload) first demotes to unproven:
         // the replay window proves nothing about negotiations that predate it.
@@ -270,7 +274,9 @@ export function createReattachPayloadHandlers(
         // The current xterm grid remains a safe lower bound for blanking.
       }
       // Why: shrinking first would promote clipped stale viewport rows into scrollback, beyond the reach of a later viewport-only clear.
-      session.writeReplayData(`${RESET_GRAPHIC_RENDITION}\x1b[2J\x1b[H`)
+      session.writeReplayData(
+        `${RELEASE_SYNCHRONIZED_OUTPUT}${RESET_GRAPHIC_RENDITION}\x1b[2J\x1b[H`
+      )
       await waitForTerminalReplayWritesParsed(session.pane.terminal)
       if (!ctx.isCurrentReattachPayload()) {
         return
@@ -312,13 +318,9 @@ export function createReattachPayloadHandlers(
       session.writeInputModeGround(POST_REPLAY_MODE_RESET)
       session.consumeRestoredViewportBlankingMarker()
       // Why: a taller destination fit must not pull recovered rows back into the fresh shell's viewport after source-grid replay.
-      session.writeRestoredViewportReset({
-        ownerProcessEnded: true,
-        rows: Math.max(destinationRows, session.pane.terminal.rows)
-      })
-      restoreLog.logColdRestoreRepaintDiagnostic(
+      forkRestore.resetColdRestoredViewport(
         session,
-        ctx.connectResult.coldRestore,
+        ctx,
         Math.max(destinationRows, session.pane.terminal.rows)
       )
       if (!isRemoteRuntimePtyId(ctx.ptyId)) {
@@ -335,10 +337,7 @@ export function createReattachPayloadHandlers(
       }
       ctx.reattachPayloadApplied = true
     }
-    clearRestoredViewportOnPayloadlessReattach(
-      session,
-      Boolean(ctx.shouldApplyStructuralPayload || ctx.prefetchedParkModelSnapshot)
-    )
+    forkRestore.clearOnPayloadlessReattach(session, ctx)
   }
 
   const fitAfterReattachRestore = (): Promise<void> => fitReattachedPaneToGrid(session, ctx)

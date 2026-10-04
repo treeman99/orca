@@ -43,7 +43,6 @@ export abstract class RateLimitServiceProviderCycles extends RateLimitServiceFul
           ? Promise.resolve(missingWslCodexHome)
           : fetchCodexRateLimits({
               codexHomePath,
-              allowPtyFallback: this.shouldAllowCodexPtyFallback(),
               signal
             })
     ).catch((err): ProviderRateLimits => ({

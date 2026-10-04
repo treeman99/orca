@@ -147,8 +147,8 @@
         },
         {
           "file": "src/renderer/src/components/settings/AgentsPane.tsx",
-          "contains": "!isPairedWebClientWindow() && catalog.some((agent) => agent.id === 'codex')",
-          "why": "v1.4.218 이 Codex 전용 설정(터미널 공유 서버 격리)을 Agents 패널에 넣었다. codex 가 정책으로 막힌 fleet 에서는 숨긴다(agent-allowlist-surfaces.policy 가 지킨다)."
+          "contains": "{catalog.some((agent) => agent.id === 'codex') ? (",
+          "why": "v1.4.218 이 Codex 전용 설정(터미널 공유 서버 격리)을 Agents 패널에 넣었다. codex 가 정책으로 막힌 fleet 에서는 숨긴다(agent-allowlist-surfaces.policy 가 지킨다). v1.4.220 이 그 자리를 작업 공간 신뢰 설정과 묶은 fragment 로 바꿔 조건을 안쪽으로 옮겼다."
         }
       ]
     },
@@ -210,9 +210,14 @@
           "why": "음성 받아쓰기 팁 숨김. v1.4.215 가 feature-tip-modal-state 와 startup-gate 의 계산을 getPendingFeatureTips 하나로 모아 게이트를 그 함수로 옮겼다."
         },
         {
-          "file": "src/main/ssh/orcad-bun-runtime-materializer.ts",
+          "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
+          "contains": "!this.isUsageProviderAllowed('antigravity')",
+          "why": "v1.4.220 신규 Antigravity 사용량 레인. `agy /usage` 를 스폰해 벤더 API 를 부르고 쿼터를 쓴다 — 허용목록 밖이면 스폰하지 않는다."
+        },
+        {
+          "file": "src/main/ssh/runtime-archive-download.ts",
           "contains": "if (getEnterprisePolicy().disableRuntimeDownloads) {",
-          "why": "v1.4.215 신설 스위치의 유일한 게이트. SSH 릴레이 배포·WSL 세션 스캔이 사용자 조작 없이 github.com 에서 bun 실행 파일을 받는 레인이다."
+          "why": "v1.4.215 신설 스위치의 유일한 게이트. v1.4.220 이 bun 을 고정 Node 런타임으로 바꾸고 다운로드를 downloadVerifiedArchive 한 곳으로 모았다 — SSH 릴레이 배포·WSL·OpenCode 준비가 사용자 조작 없이 런타임 아카이브를 받는 레인이다."
         }
       ]
     },
@@ -609,18 +614,23 @@
         },
         {
           "file": "src/renderer/src/components/terminal-pane/pty-connection/apply-reattach-payload.ts",
-          "contains": "restoreLog.logReattachSnapshotDiagnostic(session, ctx.connectResult)",
+          "contains": "forkRestore.logReattachSnapshotDiagnostic(session, ctx.connectResult)",
           "why": "v1.4.215 에서 upstream 증가분과 합쳐 max-lines 를 넘어 진단 본문을 reattach-restore-diagnostics.ts(포크 전용)로 옮겼다. 이 호출 한 줄이 앵커다."
         },
         {
           "file": "src/renderer/src/components/terminal-pane/pty-connection/apply-reattach-payload.ts",
-          "contains": "restoreLog.logReattachReplayDiagnostic(",
+          "contains": "forkRestore.logReplayDiagnostic(session, ctx)",
           "why": "v1.4.215 에서 upstream 증가분과 합쳐 max-lines 를 넘어 진단 본문을 reattach-restore-diagnostics.ts(포크 전용)로 옮겼다. 이 호출 한 줄이 앵커다."
         },
         {
           "file": "src/renderer/src/components/terminal-pane/pty-connection/apply-reattach-payload.ts",
-          "contains": "restoreLog.logColdRestoreRepaintDiagnostic(",
-          "why": "v1.4.215 에서 upstream 증가분과 합쳐 max-lines 를 넘어 진단 본문을 reattach-restore-diagnostics.ts(포크 전용)로 옮겼다. 이 호출 한 줄이 앵커다."
+          "contains": "forkRestore.resetColdRestoredViewport(",
+          "why": "v1.4.215 에서 진단 본문을 reattach-restore-diagnostics.ts 로 옮겼고, v1.4.220 에서 다시 max-lines 를 넘어 포크 호출 전부를 reattach-fork-restore.ts 네임스페이스로 모았다. 콜드 복원 뷰포트 리셋+진단이 이 한 호출이다."
+        },
+        {
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/apply-reattach-payload.ts",
+          "contains": "forkRestore.clearOnPayloadlessReattach(session, ctx)",
+          "why": "페이로드 없는 재부착에서 복원된 뷰포트를 비우는 포크 수정의 유일한 호출지점(본문은 restored-viewport-reattach-clear.ts)."
         },
         {
           "file": "src/renderer/src/components/terminal-pane/pty-connection/hidden-output-restore-snapshot.ts",
@@ -827,6 +837,11 @@
           "file": "src/preload/api/app-bridge.ts",
           "contains": "getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion')",
           "why": "upstream 은 앱 버전을 updater 브리지로 준다. 그 레인을 지운 이 빌드에서는 app 브리지가 유일한 공급자다(client-environment-info, typing-latency 진단이 쓴다)."
+        },
+        {
+          "file": "src/main/ipc/register-core-handlers/register-core-handlers.ts",
+          "contains": "registerAppVersionHandler()",
+          "why": "위 브리지의 main 쪽 핸들러. v1.4.220 에서 ipc/app.ts 가 max-lines 에 닿아 포크 모듈(ipc/app-version.ts)로 옮겼다 — 이 호출이 빠지면 app 브리지가 핸들러 없는 채널을 부른다."
         }
       ]
     },
@@ -891,7 +906,7 @@
         },
         {
           "file": "src/shared/child-process/windows-console-visibility.test.ts",
-          "contains": "const UNHIDDEN_SPAWNER_PIN = 59",
+          "contains": "const UNHIDDEN_SPAWNER_PIN = 58",
           "why": "upstream 은 66. 이 빌드는 updater·벤더 forge 레인을 지워 스폰 파일이 2개 적고, 래칫은 핀이 실제 수와 같기를 요구한다(낮추는 방향만 허용)."
         }
       ]
@@ -1248,6 +1263,21 @@
     "src/renderer/src/components/settings/GeneralPane.section-lifetime.test.tsx"
   ],
   "absentSymbols": [
+    {
+      "file": "src/renderer/src/app-shell/AppRootSurfaces.tsx",
+      "symbol": "CrashReportDialog",
+      "why": "크래시 리포트 제출 표면을 지웠다. v1.4.220 이 이를 지키던 포크 가드 테스트(app-startup-routing.test.ts)를 파일째 폐기해 원장으로 옮겼다."
+    },
+    {
+      "file": "src/renderer/src/app-shell/AppRootSurfaces.tsx",
+      "symbol": "UpdateCard",
+      "why": "인앱 업데이트 카드를 지웠다. 위와 같은 이유로 원장으로 옮긴 가드."
+    },
+    {
+      "file": "src/renderer/src/app-shell/AppRootSurfaces.tsx",
+      "symbol": "RemoteServerUpdateDialog",
+      "why": "원격 서버 업데이트 대화상자를 지웠다. 위와 같은 이유로 원장으로 옮긴 가드."
+    },
     {
       "file": "package.json",
       "symbol": "electron-updater",

@@ -1395,6 +1395,7 @@
             "done": "Done",
             "idle": "Idle",
             "unverifiable": "No recent update",
+            "unconfirmed": "Couldn’t confirm",
             "permission": "Needs attention"
           },
           "threadListOptionsFiltered": "Thread list options, filters active",
@@ -2189,6 +2190,7 @@
             "a8f37f70c3": "Inspect Page",
             "ac39b9366b": "Send",
             "acbe79fd01": "Grab page element ({{value0}})",
+            "cc4a071d3a": "Annotate page element ({{value0}})",
             "b2856516e2": "Can't load this page",
             "b313a7275b": "Opening remote browser",
             "b472c5fe03": "Add browser annotation",
@@ -3347,19 +3349,14 @@
             "3756cbeca7": "Not now",
             "3f003507f4": "Open full setup in Settings",
             "6d950431d2": "Hide",
-            "72736b051f": "Set up Orca CLI + skill when you want agents to drive this simulator.",
             "d10ae98046": "Done",
-            "ebceac65a4": "Set up"
+            "ebceac65a4": "Set up",
+            "installSkillPrompt": "Install the Orca CLI skill when you want agents to drive this simulator."
           },
           "MobileEmulatorAgentSetupGuideSteps": {
             "21f5687c07": "Orca CLI skill",
-            "3941719a56": "Checking Orca CLI before opening skill setup.",
-            "3be27641c9": "so emulator commands can run from agent shells.",
-            "3d34423e88": "Registering the Orca CLI",
-            "3d8dc52c93": "Registers the orca command for emulator control in agent shells.",
             "5c59ea96ca": "Mobile emulator Orca CLI skill setup",
             "64fb057667": "Teaches agents the orca emulator commands for this worktree.",
-            "9b49d892e3": "Enable Orca CLI",
             "bff5341ac3": "Mobile emulator Orca CLI skill install terminal"
           },
           "MobileEmulatorTabIntroCallout": {
@@ -3427,17 +3424,9 @@
                 "agent": {
                   "setup": {
                     "state": {
-                      "15986a1080": "Orca CLI is ready. Install the skill to finish setup.",
-                      "2b519eed94": "Registered the Orca CLI in PATH.",
                       "35dea1ae12": "Agent control is ready.",
-                      "4c26913def": "Still not set up. Complete both steps to enable agent control.",
-                      "51074ccb05": "Failed to load CLI status.",
-                      "69fb2c2289": "Enabled",
-                      "7c1b6bdb1e": "Enable",
-                      "9dff3a6338": "Skill is installed. Enable the Orca CLI to finish setup.",
-                      "c6705092ba": "Fix PATH",
-                      "c94ff11e91": "Could not re-check setup status.",
-                      "fdcca1ec75": "Registering..."
+                      "skillNotInstalled": "The Orca CLI skill is not installed yet.",
+                      "c94ff11e91": "Could not re-check setup status."
                     }
                   }
                 },
@@ -3513,6 +3502,8 @@
         "wall": {
           "AgentCapabilitiesSetupAction": {
             "1aa657d8f4": "Some capability setup needs attention",
+            "allInstalled": "All skills installed",
+            "installSkills": "Install skills",
             "1b51644c2d": "Let agents control the desktop, moving the cursor, clicking, and typing in any app.",
             "362a07517d": "Computer Use",
             "3a59452a67": "Skill command copied and inserted below for review.",
@@ -3521,7 +3512,6 @@
             "b8dc9dd8a2": "Installed",
             "c605f51f2b": "Capability setup ready",
             "c61c91e642": "Let agents coordinate through Orca to keep large, multi-step tasks moving to completion.",
-            "c89534cbe9": "Install CLI & Skills",
             "e638da007a": "Agent Browser Use",
             "e9eb197e12": "Opened Computer Use permissions"
           },
@@ -3620,7 +3610,6 @@
             "5f97caf76b": "Installing…",
             "78e65f19d9": "Browser setup failed",
             "b7345c18db": "An unexpected error occurred.",
-            "c2df599513": "Install CLI & Skill",
             "c9728107c5": "Try it out",
             "c9eb68b474": "No workspace group is available for this worktree yet.",
             "d6d15077df": "Skill command copied and inserted below for review.",
@@ -3638,7 +3627,6 @@
             "7593d15f94": "Workflows"
           },
           "FeatureWallSetupChecklist": {
-            "0235b268b2": "Not done yet",
             "13294d3405": "Done",
             "1a6a7d6c80": "Setup",
             "713cc529a5": "Milestones",
@@ -3766,14 +3754,14 @@
             "capability": {
               "setup": {
                 "status": {
-                  "21d4f79c93": "click Install CLI & Skills to open macOS access settings",
-                  "4c8e1f92a7": "open Orca Desktop on this Mac",
                   "5c9293e51a": "checking app access",
                   "6d2b0a84e1": "Unavailable in this build",
+                  "notInstalled": "Not installed",
+                  "needsMacAccess": "Needs macOS access",
+                  "requiresOrcaDesktop": "Requires Orca Desktop",
                   "8eccfcb314": "Installed",
                   "9b33e7fb13": "Checking install",
-                  "aa8e143a2f": "Could not check install",
-                  "aae94eeb52": "Click Install CLI & Skills"
+                  "aa8e143a2f": "Could not check install"
                 }
               }
             }
@@ -3853,22 +3841,22 @@
                 "checklist": {
                   "localized": {
                     "copy": {
+                      "workOnTwoTasks": "Work on two tasks at once",
                       "06fe30fdb0": "Start an agent from a task in one click and keep PR status in view.",
                       "29aa2c2077": "Turn on notifications",
                       "2cf795433b": "Start work in multiple repos",
                       "42525ba8a4": "Bring your key repos into Orca so you can start agent work without hunting for folders.",
+                      "agentSkillsName": "Give agents Orca skills",
+                      "agentSkillsDescription": "Install the skills agents use to drive Orca's browser, control your computer, and coordinate multi-step work.",
                       "43781563c3": "Browse your web app without leaving Orca. Grab any element and send its exact source and styles to an agent with one click.",
                       "46db810da8": "Choose your default agent",
                       "56049b74c2": "Run install and setup commands automatically so every new worktree is ready for agents.",
                       "62bac8f43c": "Work in 2 different worktrees at once. Each one is isolated (even in the same project). Perfect for working on 2 features at once.",
                       "71bd9a8c95": "Know the moment an agent finishes, needs attention, or gets blocked.",
-                      "7bcb4097fa": "Register the Orca shell command and install agent skills for browser, computer, and orchestration workflows.",
                       "908898c3ee": "Use Orca's browser",
                       "ad342dd4c6": "Connect integrations",
                       "b8e5bae17f": "Start new work faster with your preferred agent already selected.",
-                      "ec0a363633": "Multi-task",
-                      "eddc532e58": "Automate workspace setup",
-                      "fee5557b02": "Enable Orca CLI"
+                      "eddc532e58": "Automate workspace setup"
                     }
                   }
                 }
@@ -4887,10 +4875,9 @@
           "d7b3ef168b": "Detected on your system",
           "e6a369bd04": "Popular agents",
           "hideAgents": "Hide agents",
-          "showMoreAgents": "Show {{value0}} more agents→",
-          "yoloPermissionsInfo": "Agent permission info",
-          "yoloPermissionsLabel": "Yolo / Dangerously skip permissions",
-          "yoloPermissionsTooltip": "Skip permission checks for agents for less interruptions"
+          "showMoreAgents": "Show {{value0}} more agents →",
+          "yoloModeLabel": "Yolo mode",
+          "yoloPermissionsDescription": "Agents run commands and edit files without asking, and some also bypass their sandbox. Use only in projects you trust."
         },
         "FeatureSetupInlineTerminal": {
           "47fc6cc6dc": "Skill setup command",
@@ -4926,20 +4913,19 @@
           "0af746e41f": "Choose a sound",
           "0fe570690c": "Pick the alert Orca plays after a desktop notification is delivered.",
           "2c47f5465f": "Turn on Allow notifications for Orca in System Settings. This step updates automatically once enabled.",
-          "3bede04483": "Send Test Notification",
+          "3bede04483": "Send test notification",
           "3cd5374e22": "Notification settings are still loading",
           "4f6a1da718": "Open System Settings",
           "4f7bce5644": "macOS will alert you when agents finish or terminals need attention.",
-          "53aaffe49a": "Notification Sound",
           "56b836215c": "Checking notification permission…",
           "8124d085a6": "Open Mac Settings",
           "90b5d2e363": "macOS is not delivering Orca notifications",
           "94562ba367": "macOS is asking for permission. Click Allow in the dialog and this step updates automatically.",
           "95d99b52fa": "Allow notifications for Orca",
           "aa36281b00": "Open System Settings and make sure Orca is allowed to send notifications.",
-          "ac80d97e02": "Change Custom File",
+          "ac80d97e02": "Change custom file",
           "b6a994e36e": "Notification sound could not be played",
-          "c0692baa52": "Choose Custom File",
+          "c0692baa52": "Choose custom file",
           "d2dba86837": "Allow Orca in macOS",
           "dc897423e1": "Choose notification sound",
           "e52aacf380": "Loading notification settings…",
@@ -7303,33 +7289,24 @@
           "c5325e91f6": "Paste any of these into Claude Code, Codex, or another agent in a project where the skill is installed."
         },
         "BrowserUsePane": {
-          "0289434ed6": "Enabled",
           "0462565413": "Re-import",
           "112f70adc4": "Last imported from {{value0}}",
-          "180a9abf3a": "Failed to load CLI status.",
           "2ccfc9cff8": "Import",
           "2d6ead9ab2": "Install Browser Use Skill",
           "2ea4617e3a": "Imported {{value0}} cookies from {{value1}}{{value2}}.",
           "2eb906706c": "Import Browser Cookies",
           "5301857d88": "From {{value0}}",
+          "finishSteps": "Let coding agents drive this browser with your logins. Finish the steps below.",
           "67d9a53f47": "Manage profiles for separate logins",
           "68ea76eb71": "Install the Browser Use skill so agents can operate Orca's browser.",
-          "702488a5f7": "Let coding agents drive this browser with your logins. Finish the three steps below.",
-          "721aee31b4": "Registered the Orca CLI in PATH.",
           "72d4815523": "Bring your existing logins into Orca so agents can reach authenticated pages. Imports into the default profile.",
-          "8b3054dac7": "Registering...",
           "8f2675c2f3": "Imported {{value0}} cookies from file.",
           "96b91c6349": "Let coding agents drive this browser with your logins.",
-          "9fca1f7f5d": "Registers the Orca CLI command so agents can orchestrate the browser from their shell.",
-          "ad8cb0ee22": "Fix PATH",
           "af8c83ed61": "Import cookies from Chrome, Edge, or other browsers so agents can reuse your logins.",
           "b8a1f2d84d": "Agent Browser Use",
           "be6df68384": "From File…",
-          "c6065d205d": "Enable Orca CLI",
-          "c79eff0213": "Register the Orca CLI so agents can drive the browser.",
           "de9b2f32f3": "Enable",
-          "e44c5d681e": "From",
-          "e9f3f3b488": "Installed at"
+          "e44c5d681e": "From"
         },
         "BrowserUseSkillStep": {
           "0871b6998d": "Enables agents to navigate and verify pages in Orca's browser.",
@@ -7342,12 +7319,12 @@
           "15eaad0d31": "Command path:",
           "36a6f919ba": "Give agents Orca-aware workspace, terminal, and progress workflows.",
           "38edbb5721": "Shell command",
+          "outsideOrcaDescription": "Orca terminals already have `orca`. Turn this on to use `orca` from other terminals outside Orca.",
           "4c7e3e4c5f": "install",
           "52e640f3a0": "Refresh CLI status",
           "5d432fe44d": "installed",
           "5dae812f50": "Refresh",
           "6053cf736c": "CLI skill",
-          "6930feda9e": "Use Orca from your terminal to open the app, manage worktrees, and interact with Orca terminals.",
           "7baec27029": "Failed to load CLI status.",
           "7f2747f7dd": "is not currently visible on PATH for this shell.",
           "8671e406f0": "Cancel",
@@ -7691,7 +7668,7 @@
             "defaultViewNative": "Chat UI",
             "defaultViewTerminal": "Terminal chat",
             "description": "Preview the desktop chat surface for supported agent terminal sessions.",
-            "structuredCopy": "Opt in to the host-owned structured chat runtime for Codex and Claude. Off keeps the existing terminal-backed chat path.",
+            "structuredCopy": "Open new Codex and Claude agents as structured chats. Off opens them in the terminal-backed chat. Chats that already exist stay as they are.",
             "structuredScope": "Local sessions only for now. WSL and remote execution hosts (including SSH) continue to use terminal chat, and Windows falls back to it unless Orca can read process start times.",
             "structuredTitle": "Use updated structured native chat",
             "structuredToggleLabel": "Toggle updated structured native chat",
@@ -7765,7 +7742,7 @@
           "51161d1647": "Show the minimap overview when editing a file.",
           "5195f0b9ef": "Show browser spelling underlines and suggestions while editing rich Markdown.",
           "5a1ea6eaa2": "Hidden",
-          "5f02e6fb21": "Show local markdown review note controls in rich editor mode.",
+          "5f02e6fb21": "Show local markdown review note controls in markdown files.",
           "6690b1ffb9": "Minimap",
           "70bb30feb1": "Save editor and editable diff changes automatically after a short pause.",
           "7311f67ee7": "Default Diff View",
@@ -7782,7 +7759,7 @@
           "d21136d9ef": "Configure how Orca persists file edits.",
           "d6cf227ca0": "Auto Save Delay",
           "f1b3ceeb98": "Diff Show Whitespace",
-          "f80603d293": "Show local markdown note controls in rich editor mode and agent handoff actions.",
+          "f80603d293": "Show markdown note controls in every markdown view and include markdown notes in agent handoff actions.",
           "fc5c5306ff": "ms.",
           "collapseUnchangedTitle": "Collapse Unchanged Regions",
           "collapseUnchangedDescription": "Show only changed lines and a little surrounding context in a file diff, hiding the rest behind expandable bands. The View All Changes diff always collapses this way."
@@ -8204,14 +8181,8 @@
         "MobileEmulatorAgentControlRow": {
           "1861982430": "Failed to load CLI status.",
           "2a674aa810": "Agent Mobile Emulator Control",
-          "2fef055608": "Registers the Orca CLI command so agents can control the active emulator from their shell.",
-          "3941719a56": "Checking Orca CLI before opening skill setup.",
-          "3be27641c9": "so emulator commands can run from agent shells.",
-          "3d34423e88": "Registering the Orca CLI",
-          "4f2205f3b6": "Enable Orca CLI",
           "67e19ee03c": "Orca CLI skill",
           "8af7a8bc38": "Commands target the active emulator for the current worktree. Coordinates are normalized from 0..1.",
-          "aaf62a3dd2": "Installed at",
           "c7f3fe0a6e": "Common emulator commands",
           "cdeaed9e37": "Registered the Orca CLI in PATH.",
           "d94ca6a623": "Enables agents to use Orca CLI commands, including mobile emulator control.",
@@ -9703,6 +9674,11 @@
           "47e082bc17": "deploy",
           "4a342f44c1": "Advanced Connection",
           "53e9aabfc0": "Uses OpenSSH multiplexing when available. Turn off for hosts with custom SSH restrictions.",
+          "remoteRuntime": "Runtime",
+          "remoteRuntimeHelp": "Which Node.js runs Orca on this host. Orca-managed Node uploads its own and needs no npm; Host Node uses the Node.js already installed there.",
+          "remoteRuntimeAuto": "Auto",
+          "remoteRuntimePinnedNode": "Orca-managed Node",
+          "remoteRuntimeHostNode": "Host Node",
           "55c56cf2c7": "Timeout after disconnect (seconds)",
           "63c0c145c1": "Identity File",
           "71fc546097": "Keep terminals alive until reset",
@@ -10102,6 +10078,7 @@
           "b6536a1d12": "extracting",
           "ba4a900d1d": "Dictation Mode",
           "cd9fe37556": "Microphone permission granted",
+          "openAiKeyName": "Your OpenAI transcription key",
           "cfde55c7b0": "Failed to download model.",
           "d504ab05f0": "streaming",
           "e24f7d43d2": "Select a speech model. Local models run offline; cloud models require an API key.",
@@ -10299,6 +10276,10 @@
           "7707c15abb": "Agent status hooks",
           "a68a642835": "Shows working, waiting, and done states in Orca. Turn off to remove Orca-managed hooks and stop reinstalling them."
         },
+        "agent-workspace-trust-copy": {
+          "title": "Trust the folder when Orca starts an agent",
+          "description": "Agents Orca starts skip their \"Do you trust this folder?\" prompt, so the project's agent hooks and settings run right away. Without this, each agent asks the first time it runs in a folder. Agents running without you watching, such as orchestration workers, automations and agents started from your phone, will wait at that question until you answer it in their terminal. Folders already trusted stay trusted."
+        },
         "agents": {
           "search": {
             "2814401339": "installed",
@@ -10306,6 +10287,9 @@
             "042c551bc5": "config",
             "0d1c334987": "lid",
             "0d752916f8": "hooks",
+            "agent-trust-trust": "trust",
+            "agent-trust-folder": "folder",
+            "agent-trust-worktree": "worktree",
             "13b20636a6": "waiting",
             "167daeb5e9": "command",
             "2afd3b5858": "enable",
@@ -10639,50 +10623,6 @@
           "showButtonDescription": "Show the Automations shortcut in the sidebar.",
           "title": "Automations"
         },
-        "bitbucket": {
-          "credentials": {
-            "dialog": {
-              "accessToken": "Access token",
-              "accessTokenPlaceholder": "Repository, project, or workspace access token",
-              "apiToken": "API token",
-              "apiTokenPlaceholder": "Atlassian API token",
-              "authModeLabel": "Bitbucket authentication method",
-              "baseUrl": "API base URL (optional)",
-              "basicHint": "Create an Atlassian API token for your account, then pair it with the email address that owns it.",
-              "cancel": "Cancel",
-              "connect": "Connect",
-              "connectFailed": "Connection failed",
-              "description": "Use a Bitbucket Cloud credential to browse pull requests and build statuses. Orca verifies it before saving.",
-              "docsLink": "Bitbucket API token docs",
-              "email": "Atlassian account email",
-              "emailPlaceholder": "you@example.com",
-              "environmentManaged": "Bitbucket is already configured through ORCA_BITBUCKET_* environment variables, which take precedence. Unset them to save a credential in Orca.",
-              "modeBasic": "Email & API token",
-              "modeToken": "Access token",
-              "remoteRuntime": "Bitbucket credentials saved here are stored on this local machine only. Set ORCA_BITBUCKET_* environment variables on the remote runtime instead.",
-              "storageNote": "Stored on this machine with encrypted storage when the OS keychain is available. ORCA_BITBUCKET_* environment variables always take precedence over what you save here.",
-              "title": "Connect Bitbucket",
-              "tokenHint": "Repository, project, and workspace access tokens are created from the matching Bitbucket settings page and need read access to pull requests.",
-              "verifying": "Verifying..."
-            }
-          },
-          "integration": {
-            "card": {
-              "description": "Pull requests and build statuses for Bitbucket Cloud.",
-              "edit": "Edit credentials",
-              "connect": "Connect",
-              "accountUnknown": "Bitbucket Cloud",
-              "authModeToken": "Access token",
-              "authModeBasic": "Email & API token",
-              "disconnect": "Disconnect Bitbucket",
-              "envManaged": "Configured via environment variables. Unset the ORCA_BITBUCKET_* variables to manage this credential in Orca.",
-              "storedAuthFailed": "The saved Bitbucket credential could not authenticate. Edit it, or check that the token still has pull request access.",
-              "storedCredential": "Saved in Orca on this machine. ORCA_BITBUCKET_* environment variables take precedence when set.",
-              "notConfigured": "Connect a Bitbucket Cloud account with an Atlassian API token or an access token. ORCA_BITBUCKET_* environment variables work too and take precedence.",
-              "disconnectFailed": "Could not remove the saved Bitbucket credential."
-            }
-          }
-        },
         "browser": {
           "search": {
             "060ac1fcba": "Import cookies from Chrome, Edge, or other browsers to use existing logins inside Orca.",
@@ -10780,25 +10720,18 @@
           "use": {
             "search": {
               "02837ee497": "session",
-              "034c5e8d7f": "enable",
               "088e7a9012": "chrome",
               "20c1323d1e": "computer use",
               "22fb801af8": "chrome profile",
               "2e1b09897b": "edge",
               "2fb24d17db": "Import cookies from Chrome, Edge, or other browsers so agents can reuse your logins.",
-              "30c74aaa1f": "path",
               "3f4c559deb": "arc profile",
-              "3ffafc9b95": "command",
               "48557f639c": "login",
-              "50f0860e18": "Enable Orca CLI",
               "59968bb9b4": "authenticated browser",
               "614c756ab1": "Import Browser Cookies",
               "62e2a790c0": "existing session",
               "63a66da648": "system browser",
               "6ea88e5206": "npx",
-              "7e0dcb257a": "shell",
-              "85fab5e12c": "cli",
-              "890ddf943d": "Register the Orca CLI so agents can drive the browser.",
               "96ce3d2de2": "auth",
               "9d97446873": "agent",
               "a1414dcefb": "Install Browser Use Skill",
@@ -10810,11 +10743,9 @@
               "cee44fb442": "automation",
               "d5ad1f7aad": "import",
               "d5afa54d21": "edge profile",
-              "e56c7b55c9": "setup",
               "e5a784bc54": "install",
               "f5b8fdddf5": "orca-cli",
-              "fb8178824f": "cookies",
-              "ff05cbc344": "orca"
+              "fb8178824f": "cookies"
             }
           }
         },
@@ -11092,6 +11023,7 @@
             "fe5688b761": "sidebar",
             "nativeChat": {
               "agent": "agent",
+              "queue": "queue",
               "chat": "chat",
               "claude": "claude",
               "codex": "codex",
@@ -11498,7 +11430,8 @@
               "efaab83c5d": "Add site",
               "fb854902d9": "connecting",
               "statusConnected": "Connected",
-              "statusNotConnected": "Not connected"
+              "statusNotConnected": "Not connected",
+              "jiraTokenName": "Your Jira API token"
             }
           }
         },
@@ -12140,7 +12073,8 @@
                 "eae4a9f16b": "Add Linear access to browse and link issues.",
                 "fe9231215b": "Checking Linear access before showing setup actions.",
                 "statusConnected": "Connected",
-                "statusNotConnected": "Not connected"
+                "statusNotConnected": "Not connected",
+                "linearTokenName": "Your Linear API token"
               }
             }
           }
@@ -12601,12 +12535,14 @@
           "usageLabel": "Usage",
           "noAllowance": "Cursor reported no usage allowance for this account.",
           "staleUsage": "Last known usage — the latest refresh failed: {{reason}}"
+        },
+        "UnsealedCredentialNotice": {
+          "body": "{{credential}} is stored unencrypted — this system has no OS keyring Orca can use. Anyone who can read your disk or a backup of it can read the credential. Install and unlock gnome-keyring or kwallet, then save it again to seal it."
         }
       },
       "setup": {
         "guide": {
           "SetupGuideModal": {
-            "28cf59fcb4": "This will hide the checklist from the sidebar",
             "3598a3ca0c": "Finish the core workflows that make Orca useful for parallel agent work.",
             "48a9e5ef2d": "Getting started",
             "f3b5ffb2a6": "Hide checklist from sidebar"
@@ -13006,10 +12942,7 @@
           "done": "Done",
           "dontShowAgain": "Don't show again",
           "hostCopy": "Install it for host agent handoffs from linked Linear work.",
-          "install": "Install CLI & Skill",
           "missingBoth": "Orca CLI and Linear agent skill are missing.",
-          "missingCli": "Orca CLI is missing.",
-          "missingCliAndSkill": "Orca CLI and Linear agent skill are missing.",
           "missingSkill": "Linear agent skill is missing.",
           "modalDescription": "Install the Linear skill from a terminal.",
           "modalPrompt": "Enable agents to read and edit the attached Linear ticket.",
@@ -13027,11 +12960,7 @@
           "terminalAria": "Linear agent skill installer terminal",
           "terminalTitle": "Install Linear agent skill",
           "title": "Set up Linear agent skill",
-          "toastInstallCliAndSkillDescription": "Install the Orca CLI and the Linear skill to enable your agents to read and edit Linear tasks.",
-          "toastInstallCliDescription": "Install the Orca CLI to enable your agents to read and edit Linear tasks.",
           "toastInstallSkillDescription": "Install the Linear skill to enable your agents to read and edit Linear tasks through the Orca CLI.",
-          "toastMissingCli": "Orca CLI is missing",
-          "toastMissingCliAndSkill": "Orca CLI and Linear skill are missing",
           "toastMissingSkill": "Linear skill is missing",
           "toastRemoteDescription": "{{value0}} Remote agent environments may need their own setup.",
           "toastWslDescription": "{{value0}} This setup runs in the selected WSL agent runtime.",
@@ -13386,6 +13315,7 @@
           "hosts": "Hosts",
           "jiraIssue": "Jira issue",
           "jiraIssues": "Jira issues",
+          "host": "Host",
           "newCardDisplay": {
             "title": "Card display"
           },
@@ -14658,6 +14588,9 @@
         },
         "sources": {
           "heading": "Skill folders"
+        },
+        "SkillInstallDialog": {
+          "39acb9e8f4": "Install skill"
         }
       },
       "source": {
@@ -15160,7 +15093,12 @@
             "checkLabel": "{{value0}} chats to check",
             "checkAriaOne": "1 chat to check after resuming. Click for details.",
             "checkAria": "{{value0}} chats to check after resuming. Click for details.",
-            "checkTooltip": "Chats Orca couldn’t resume, or couldn’t confirm it resumed, after the restart. Click for details."
+            "checkTooltip": "Chats Orca couldn’t resume, or couldn’t confirm it resumed, after the restart. Click for details.",
+            "resumingLabelOne": "Resuming 1 chat",
+            "resumingLabel": "Resuming {{value0}} chats",
+            "resumingAriaOne": "Resuming 1 chat. Click to open details.",
+            "resumingAria": "Resuming {{value0}} chats. Click to open details.",
+            "resumingTooltip": "Restoring interrupted chats and asking them to carry on…"
           },
           "SkillUpdateStatusSegment": {
             "errorAria": "Skill update failed. Click to open details.",
@@ -16551,11 +16489,7 @@
         "5f3d2c8a1b": "Failed to resolve MR base.",
         "dropPartiallyAttached": "{{failureCount}} of {{count}} items could not be attached.",
         "dropPartiallyAttached_one": "{{failureCount}} of {{count}} item could not be attached.",
-        "dropPartiallyAttached_other": "{{failureCount}} of {{count}} items could not be attached.",
-        "attachSkipMissing": "No longer at its original path.",
-        "attachSkipSymlink": "Symbolic links cannot be attached.",
-        "attachSkipPermissionDenied": "Permission denied.",
-        "attachSkipUnsupported": "Unsupported file type."
+        "dropPartiallyAttached_other": "{{failureCount}} of {{count}} items could not be attached."
       },
       "useGlobalFileDrop": {
         "38c9f034ff": "Failed to upload dropped files.",
@@ -16567,7 +16501,10 @@
         "nativeDropPathsTooLarge": "Drop path list is too large.",
         "ownerChanged": "Couldn't verify which host owns this workspace. Try again after it reconnects.",
         "nativeDropUnresolvedPathsDescription": "Save them to disk first, then drop the saved files.",
-        "nativeDropUnresolvedPaths": "Orca couldn't read a path for the dropped files."
+        "nativeDropUnresolvedPaths": "Orca couldn't read a path for the dropped files.",
+        "nativeDropTempCopyFailed": "Orca couldn't copy {{count}} dropped files.",
+        "nativeDropTempCopyFailed_one": "Orca couldn't copy {{count}} dropped file.",
+        "nativeDropTempCopyFailed_other": "Orca couldn't copy {{count}} dropped files."
       },
       "useInstalledAgentSkills": {
         "unreadableSkillSource": "A skill folder did not respond, so this status may be incomplete."
@@ -17151,6 +17088,23 @@
       },
       "clipboardWriteFailure": {
         "tooLarge": "The text is too large to copy."
+      },
+      "dropSkipReason": {
+        "missing": "No longer at its original path.",
+        "symlink": "Symbolic links cannot be attached.",
+        "permissionDenied": "Permission denied.",
+        "unsupported": "Unsupported file type."
+      },
+      "dropTempCopyFailure": {
+        "changed": "The file changed while Orca was copying it. Try the drop again.",
+        "outOfSpace": "Not enough disk space to copy the dropped files.",
+        "storageUnavailable": "Orca couldn't create storage for dropped files.",
+        "storageNotPrivate": "Orca's storage for dropped files can be read by other users, so nothing was copied.",
+        "timedOut": "Copying took too long. Try the drop again.",
+        "busy": "Too many drops are still being copied. Wait a moment, then try again.",
+        "tooLarge": "Too large to copy, so Orca couldn't hand it to the agent.",
+        "storageFull": "Orca's storage for dropped files is full, so Orca couldn't hand it to the agent.",
+        "generic": "Try the drop again."
       }
     },
     "main": {
@@ -17579,6 +17533,66 @@
       "select": "Select {{value0}}"
     },
     "native-chat": {
+      "failureWords": {
+        "theAgent": "The agent",
+        "providerStartFailed": "{{agent}} stopped before it finished starting.",
+        "runCommandAgain": "Run /{{command}} again.",
+        "sendToTryAgain": "Send your message to try again.",
+        "couldNotStart": "{{agent}} couldn't start.",
+        "couldNotRestart": "{{agent}} couldn't restart.",
+        "notSignedIn": "{{agent}} is not signed in for the selected account.",
+        "signInFirst": "Sign in first.",
+        "signInThenRunCommand": "Sign in, then run /{{command}} again.",
+        "signInThenSend": "Sign in, then send your message again.",
+        "historyTooLarge": "This conversation's history is too large to restore here.",
+        "managedAccountEnvOverride": "This Claude launch sets its own Anthropic sign-in variables. Remove them to use a managed Claude account.",
+        "accountSwitchInProgress": "A Claude account switch is in progress. Try again after it finishes.",
+        "managedAccountUnsupported": "While a Claude account is added in WSL, Claude chats need a Windows Claude account.",
+        "chooseClaudeAccount": "Choose or add one in Claude Accounts settings.",
+        "chooseClaudeAccountThenRunCommand": "Choose or add one in Claude Accounts settings, then run /{{command}} again.",
+        "chooseClaudeAccountThenSend": "Choose or add one in Claude Accounts settings, then send your message again.",
+        "providerExitedRow": "{{agent}} stopped while this response was in progress. You can continue in this conversation.",
+        "providerExitedRejection": "{{agent}} stopped before this message was sent.",
+        "providerRejected": "The provider did not accept this message.",
+        "providerRejectedQuoted": "The provider did not accept this message: {{detail}}.",
+        "attachmentEmpty": "An image on this message is empty, so the message was not sent.",
+        "attachmentTooLarge": "An image on this message is too large, so the message was not sent.",
+        "attachmentLargerThan": "An image on this message is larger than {{size}} MB, so the message was not sent.",
+        "attachmentTooMany": "This message has too many images, so it was not sent.",
+        "attachmentAtMost": "{{agent}} accepts at most {{limit}} images in one message, so this message was not sent.",
+        "attachmentTotalTooLarge": "The images on this message are too large together, so the message was not sent.",
+        "attachmentTotalMoreThan": "The images on this message add up to more than {{size}} MB, so the message was not sent.",
+        "attachmentUnsupportedType": "{{agent}} accepts only PNG, JPEG, GIF, and WebP images, so this message was not sent.",
+        "attachmentNotAFile": "An image on this message isn't a file, so the message was not sent.",
+        "attachmentNoSource": "An image on this message has no file to send, so the message was not sent.",
+        "attachmentInvalid": "An attachment on this message can't be sent to the agent.",
+        "attachmentUnreadable": "An attachment on this message couldn't be read, so the message was not sent.",
+        "emptyMessage": "This message is empty, so it was not sent.",
+        "queueFull": "Too many messages were waiting for the agent, so this one was not sent.",
+        "writeFailed": "Orca couldn't hand this message to the agent, so it was not sent.",
+        "cancelled": "This message was withdrawn before the agent started it.",
+        "chatClosed": "The chat closed before this message was sent.",
+        "hostRestarted": "Orca restarted before this message was sent.",
+        "notDelivered": "This message was not delivered.",
+        "notDeliveredSendAgain": "This message was not delivered. Send it again to continue.",
+        "commandRefused": "This command didn't run.",
+        "commandRefusedTryAgain": "This command didn't run. Try it again.",
+        "compactionFailed": "Compaction failed.",
+        "compactionFailedQuoted": "Compaction failed: {{detail}}.",
+        "compactionUnconfirmed": "Compaction completion is unconfirmed.",
+        "cancelUnconfirmed": "Cancellation was not confirmed.",
+        "stopRefused": "{{agent}} didn't stop.",
+        "stopRefusedQuoted": "{{agent}} didn't stop: {{detail}}.",
+        "noTurnToStop": "{{agent}} had no turn running to stop.",
+        "answerUnconfirmed": "Your answer was recorded but the agent did not confirm it.",
+        "hostFault": "Orca ran into a problem, so this didn't go through.",
+        "hostFaultTryAgain": "Orca ran into a problem, so this didn't go through. Try again.",
+        "hostStopped": "{{agent}} never finished starting, so Orca stopped it.",
+        "providerRateLimited": "{{agent}} is rate-limited and retrying.",
+        "providerRetrying": "{{agent}} hit a temporary problem and is retrying.",
+        "providerRetryingQuoted": "{{agent}} is retrying: {{detail}}.",
+        "previousExitUnverifiable": "Orca couldn't confirm {{agent}}'s previous process ended. Messages wait to be sent until Orca confirms it has ended."
+      },
       "writeNotice": {
         "notDoneReadHistory": "This chat's history couldn't be loaded.",
         "notDoneSend": "Your message was not sent.",
@@ -17597,6 +17611,8 @@
         "historyUnreadable": "Orca couldn't read this chat's saved history.",
         "historyUnusable": "Unable to load this chat.",
         "historyUnavailable": "Orca couldn't open this chat's history right now.",
+        "savedByNewerOrca": "Chats were saved by a newer Orca.",
+        "updateOrcaToKeepUsing": "Update Orca to keep using them.",
         "unsupported": "The Orca running this chat doesn't support this. Update Orca, then try again.",
         "unreachable": "Orca couldn't reach the agent.",
         "recordFailed": "Orca couldn't record it in this chat's history.",
@@ -17695,6 +17711,7 @@
         "imagePasteFailed": "Image paste failed.",
         "imageSaving": "Saving pasted image…",
         "worktreeNotReady": "Worktree not ready — try again in a moment.",
+        "pasteUnavailable": "Can't paste — this chat isn't accepting input right now.",
         "uploadingAttachments": "Uploading {{value0}} file(s) to remote…",
         "model": "Model",
         "effort": "Effort",
@@ -17807,6 +17824,8 @@
         "thinking": "Thinking",
         "toggleDetails": "Toggle turn details",
         "workedFor": "Worked for {{value0}}",
+        "interruptedAfter": "Interrupted after {{value0}}",
+        "failedAfter": "Failed after {{value0}}",
         "working": "Working…",
         "workingFor": "Working for {{value0}}"
       },
@@ -17863,6 +17882,7 @@
         "error": {
           "subtitle": "The transcript could not be read. Toggle back to the terminal to keep working.",
           "retryingSubtitle": "The transcript could not be read. Orca keeps trying to load it.",
+          "keepsTrying": "Orca keeps trying to load it.",
           "title": "Could not load conversation"
         },
         "reconnecting": "Reconnecting to this chat…",
@@ -17932,12 +17952,10 @@
         "ranOne": "Ran 1 subagent",
         "ranN": "Ran {{value0}} subagents",
         "tokens": "{{value0}} tokens",
-        "unnamed": "Subagent",
-        "writtenBy": "Written by subagent {{value0}}"
+        "unnamed": "Subagent"
       },
       "conversationCommand": {
-        "pendingWork": "Wait for pending work and messages to finish before using this command.",
-        "unconfirmed": "Conversation operation was not confirmed."
+        "pendingWork": "Wait for pending work and messages to finish before using this command."
       },
       "drop": {
         "title": "Drop to attach to this chat",
@@ -17969,6 +17987,38 @@
         "label": "Context {{used}} of {{window}} tokens, {{percent}}% used",
         "title": "Context",
         "estimated": "Estimated from the last response."
+      },
+      "contextMenu": {
+        "copyOrcaSessionId": "Copy Orca Session ID",
+        "orcaSessionIdCopied": "Orca session ID copied",
+        "orcaSessionIdCopyFailed": "Unable to copy Orca session ID",
+        "orcaSessionIdTooltip": "Orca's ID for this chat, separate from the agent CLI's own session ID. Agents use it to refer to each other through Orca."
+      },
+      "dismissDeliveryNotice": "Dismiss",
+      "messageNotSent": "Message not sent",
+      "deliveryUnconfirmed": "Delivery unconfirmed — check chat before retrying",
+      "queuedMessages": {
+        "behindReturnedHold": "Waiting — a message ahead needs attention",
+        "awaitingAnswerHold": "Waiting for your answer",
+        "steer": "Steer",
+        "send": "Send",
+        "steerHint": "Submit without interrupting the model",
+        "sendHint": "Send this message now",
+        "delete": "Delete",
+        "moreActions": "More actions",
+        "editMessage": "Edit message",
+        "turnOffQueueing": "Turn off queueing",
+        "listLabel": "Queued messages",
+        "alreadySent": "This message was already sent.",
+        "editAlreadySent": "Already sent — your text is still in the composer.",
+        "withdrawnHold": "Stopped before it was sent",
+        "pausedSendFailed": "Couldn't send — press Send to retry.",
+        "paused": "Paused",
+        "queuePausedStopped": "Queue paused because you interrupted",
+        "queuePausedRestarted": "Queue paused because Orca restarted",
+        "queuePausedCleared": "Queue paused after you cleared the conversation",
+        "queuePaused": "Queue paused",
+        "resume": "Resume"
       },
       "ask": {
         "awaiting": "Awaiting user input:",
@@ -18284,6 +18334,12 @@
           "readyOneOne": "1 workspace found, with 1 cleanup suggestion.",
           "singleError": "Could not check {{value0}}: {{value1}}. Some workspaces may be missing. Refresh to try again."
         }
+      },
+      "creation": {
+        "worktreeReadyToast": "Worktree {{name}} is ready",
+        "workspaceReadyToast": "Workspace {{name}} is ready",
+        "goToWorktree": "Go to worktree",
+        "goToWorkspace": "Go to workspace"
       }
     },
     "settings": {
@@ -18302,6 +18358,11 @@
             "spaces": "spaces"
           }
         }
+      },
+      "nativeChat": {
+        "queueFollowUpsTitle": "Queue follow-ups",
+        "queueFollowUpsCopy": "Messages you send while the agent is working wait as cards you can steer, edit, or delete. Messages with images send right away.",
+        "queueFollowUpsToggleLabel": "Toggle queue follow-ups"
       }
     },
     "agentChildRow": {
@@ -18409,6 +18470,11 @@
     "richMarkdown": {
       "openAnyway": "Open anyway",
       "tooLarge": "File is larger than the {{limit}} rich editing limit. Showing source mode instead."
+    },
+    "markdownPreview": {
+      "tooLarge": "File is larger than the {{limit}} preview limit. Open the file to view its source.",
+      "tooLargeInDiff": "File is larger than the {{limit}} preview limit. Switch to source mode to view the diff.",
+      "renderAnyway": "Render anyway"
     },
     "fileLoad": {
       "hostUnresolved": "The host couldn't find this file's workspace. It may have been removed, or the host may not know about it yet. Retry, or close this tab from the tab strip."
@@ -18520,6 +18586,14 @@
     "copyCommands": "Copy Commands",
     "crashLoopDetail": "Orca tried to recover {{recoveryCount}} times in a row without success.",
     "crashLoopMessage": "The app window crashed repeatedly and stopped reloading automatically.",
+    "lowCommitMessage": "Windows is out of memory.",
+    "lowCommitDetail": "Windows has only {{availableMB}} MB of memory left for apps, so the window ran out of memory again after reloading.",
+    "lowCommitAdvice": "Free memory by closing unused apps or Orca workspaces, or increase the Windows page file size, then click Reload.",
+    "tryAgain": "Try Again",
+    "launchFailedMessage": "Orca couldn't start the process that draws its window.",
+    "launchFailedDetail": "Orca retried {{recoveryCount}} times without success.",
+    "processLimitDetail": "The system refused to create a new process because your user account reached its process limit. This is often caused by runaway terminals, dev servers, or agents. Close some of them, then click Try Again.",
+    "launchFailedGenericDetail": "The system refused to start it. Free up memory or close other apps, then click Try Again. If this keeps happening, reinstall Orca.",
     "driverFallback": "If that does not help, the cause is usually a graphics driver.",
     "genericDetail": "This is often a graphics-driver or installation problem. Reload to try again, or quit and relaunch Orca.",
     "quit": "Quit",
@@ -18551,6 +18625,12 @@
     }
   },
   "settings": {
+    "terminal": {
+      "optionLayoutAlt": "ABC or U.S. — Option sends Alt/Esc sequences",
+      "optionLayoutCompose": "layout uses Option to compose characters like @, €, [, ]",
+      "optionLayoutUnknown": "unknown layout — Option composes characters (safe default)",
+      "optionShortcutHint": "Choose Both for Option shortcuts, Off for accents and symbols, or Left/Right to use one Option key for each."
+    },
     "appearance": {
       "language": {
         "chinese": "中文（简体）",
@@ -18637,6 +18717,10 @@
       "codexTerminalServerIsolation": {
         "title": "Run each Codex terminal on its own server",
         "description": "Keeps Orca's status and closing tabs working correctly. Turn off to use Codex's shared server and its agents overview. Applies to new terminals."
+      },
+      "codexSharedServerWarning": {
+        "title": "Warn when a Codex tab shares a server",
+        "description": "Shows a notice on a Codex you started yourself when it shares a server with other tabs, because its agent status may be wrong."
       }
     }
   },
@@ -18766,7 +18850,100 @@
       "title": "Orca now runs Codex without its shared server",
       "description": "This makes agent status more reliable. You can turn it back on in Settings.",
       "openSettings": "Open Settings"
+    },
+    "codexSharedServerBanner": {
+      "title": "This Codex is sharing a server with your other Codex tabs",
+      "body": "Sessions may end unexpectedly, and agent status may be wrong.",
+      "openedBeforeUpdateBody": "This terminal was opened before Orca started giving each Codex its own server.",
+      "oldTerminalDialogTitle": "Why this Codex shares a server",
+      "oldTerminalDialogRisk": "Codex sessions that share a server can end together, and agent status can be wrong.",
+      "oldTerminalDialogCause": "Older terminals still share a Codex server. Open a new terminal to run Codex on a separate server.",
+      "fix": "Fix",
+      "openNewTerminal": "Open new terminal",
+      "dontShowAgain": "Don't show again",
+      "dismiss": "Dismiss",
+      "dialogTitle": "Give each Codex tab its own server",
+      "dialogDescription": "Codex sessions started directly in a terminal share one background server. Orca keeps the Codex sessions it starts separate. When sessions share a server, closing one can end the others, and agent status can be wrong.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "done": "Done",
+      "step1Title": "Turn off Codex server sharing",
+      "step1Note": "This changes your Codex settings, so it also applies outside Orca.",
+      "step2Title": "Stop the running shared server",
+      "undo": "To undo, run codex features enable daemon_auto_start.",
+      "step2Warning": "Closes any open Codex sessions that share the server",
+      "learnMore": "Learn more",
+      "turnOff": "Turn off",
+      "turningOff": "Turning off…",
+      "turnedOff": "Turned off",
+      "turnOffFailed": "Orca couldn't turn this off.",
+      "stopServer": "Stop server",
+      "stopping": "Stopping…",
+      "stopped": "Stopped",
+      "stopFailed": "Orca couldn't stop the server.",
+      "confirmStopTitle": "Stop the shared server?",
+      "confirmStopDescription": "This closes any open Codex sessions that share it, including ones outside Orca.",
+      "cancel": "Cancel",
+      "runs": "Runs"
     }
+  },
+  "fileExplorer": {
+    "root": {
+      "label": "Explorer root",
+      "full": "Repository root",
+      "viewing": "Viewing: {{path}}",
+      "back": "Back to {{path}}",
+      "searchScope": "Search scope: workspace files",
+      "retry": "Retry",
+      "omittedFiles": "Files omitted by sparse checkout are not searched.",
+      "viewOnly": "Sparse checkout · View changes do not change checked-out files.",
+      "sparseStatus": "Sparse checkout",
+      "scopeDetails": "About sparse checkout scope",
+      "scopeExplanation": "The folder picker changes what you see, not which files are checked out. Repository root includes the checked-out root and ancestor files.",
+      "searchExplanation": "Names filters the folder you are viewing. Contents searches across the workspace. Files omitted by sparse checkout are not searched.",
+      "findInFolder": "Find in {{path}}",
+      "folderLoadError": "Could not load this folder:",
+      "emptyFolder": "No files in this folder"
+    }
+  },
+  "sparsePreset": {
+    "name": "Name",
+    "namePlaceholder": "Web app and shared UI",
+    "directories": "Directories",
+    "pathHelp": "One repository-relative directory per line. Spaces within a path are preserved.",
+    "coneHelp": "Git also keeps files at the repository root and along the parent folders of these directories.",
+    "cancel": "Cancel",
+    "save": "Save preset",
+    "new": "New sparse preset",
+    "edit": "Edit sparse preset",
+    "description": "Choose the folders a new workspace checks out.",
+    "saveFailed": "Could not save the preset. Try again.",
+    "nameRequired": "Name is required.",
+    "nameTooLong": "Name must be 80 characters or fewer.",
+    "nameExists": "A preset named “{{name}}” already exists.",
+    "loading": "Loading presets...",
+    "details": "What gets checked out?",
+    "finishEditing": "Save or cancel the preset to continue creating your workspace.",
+    "pathInstructions": "Pick folders from the repository, or type any repo-relative path.",
+    "retryLoad": "Retry loading presets",
+    "fullCheckout": "Full checkout",
+    "checkoutPreset": "Checkout preset",
+    "search": "Find a preset…",
+    "noMatches": "No matching presets.",
+    "allFiles": "All repository files",
+    "editNamed": "Edit {{name}}",
+    "addPath": "Add a folder",
+    "findPath": "Find a folder…",
+    "noPathMatches": "No folders found.",
+    "repositoryRoot": "Repository root",
+    "loadingPaths": "Reading folders…",
+    "pathsUnavailable": "Could not read this folder. Type the path instead.",
+    "pathAdded": "Added",
+    "openFolder": "Open {{name}}",
+    "findOrTypePath": "Find a folder, or type any path…",
+    "addTypedPath": "Add",
+    "noDirectories": "No folders added yet.",
+    "removePath": "Remove {{name}}"
   },
   "sessionSearch": {
     "panel": {
