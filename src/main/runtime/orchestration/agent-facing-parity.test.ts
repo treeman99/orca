@@ -40,6 +40,8 @@ const TERMINAL_HANDLE = 'term_worker'
 const CHAT_WORKER_HANDLE = 'structworker_1'
 // `skill-guides/orchestration.md` on main, plus the one Orca session ID line.
 const MAIN_KERNEL_LINES = 198 + 1
+// Fork: the `## Project Rule Ledger` section (15) and the rules.md read in the loop (1).
+const FORK_KERNEL_LINES = 16
 
 const db = new OrchestrationDb(':memory:')
 const SELF_LINE = `\nYour Orca session ID is: ${CHAT_ADDRESS}`
@@ -176,7 +178,7 @@ describe('the orchestration guide an agent loads', () => {
   const kernel = readFileSync(join(process.cwd(), 'skill-guides', 'orchestration.md'), 'utf8')
 
   it('has no chat-only section and grows only by the Orca session ID line', () => {
-    expect(kernel.split('\n').length - 1).toBeLessThanOrEqual(MAIN_KERNEL_LINES)
+    expect(kernel.split('\n').length - 1).toBeLessThanOrEqual(MAIN_KERNEL_LINES + FORK_KERNEL_LINES)
     expect(kernel).not.toMatch(/chat|session:<id>|ORCA_CLI_COMMAND|\/clear|end your turn/i)
     expect(kernel).toContain(
       '`ORCA status --json` shows your Orca session ID as `caller.orcaSessionId` when you have one.'

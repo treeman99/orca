@@ -34,9 +34,10 @@ export const AGENT_SKILL_INSTALL_ROOTS: readonly AgentSkillInstallRoot[] = [
   { rootId: 'home-omp', segments: ['.omp', 'agent', 'skills'], agentKey: null },
   { rootId: 'home-prime-agent', segments: ['.prime', 'agent', 'skills'], agentKey: null },
   { rootId: 'home-gemini', segments: ['.gemini', 'skills'], agentKey: 'gemini-cli' },
+  // v1.4.220 moved Antigravity's global skills from `.gemini/antigravity/skills` to here.
   {
     rootId: 'home-antigravity',
-    segments: ['.gemini', 'antigravity', 'skills'],
+    segments: ['.gemini', 'config', 'skills'],
     agentKey: 'antigravity'
   },
   { rootId: 'home-cursor', segments: ['.cursor', 'skills'], agentKey: 'cursor' },
