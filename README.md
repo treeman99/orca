@@ -793,6 +793,27 @@ v1.4.205가 lint 전용 플러그인 `oxlint-plugin-anti-slop` 을 **npm 레지�
 `tc:web` 이 수백 건 실패합니다. importer `version` 을 peer 포함 스냅샷(`3.31.3(@tiptap/pm@3.31.3)`)으로
 맞추면 재계산 후에도 유지됩니다. 판별식은 `ls node_modules/@tiptap/core/package.json` 입니다.
 
+#### 벤더가 원격으로 바꾸는 설정 — 에이전트 상태 규칙 다운로드 (v1.4.221에서 제거)
+
+v1.4.221 이 `src/main/runtime/agent-state-rules/agent-state-rules-live-update.ts` 를 들여왔습니다.
+`github.com/stablyai/orca/releases` 에서 규칙 묶음을 **시작할 때와 4시간마다** 받아, 터미널 화면을
+읽어 에이전트 상태를 판정하는 규칙을 덮어씁니다. 데스크톱·`orca serve`·**원격 orcad** 가 각자 받고,
+원격 호스트에는 데스크톱 정책 파일이 닿지 않으므로 스위치 대신 **다운로더를 지웠습니다.**
+
+| 무엇                                                         | 어디                                                                               |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| 다운로더와 그 테스트                                         | `agent-state-rules-live-update{,.test}.ts` — 삭제                                  |
+| 시작 지점 2곳을 로컬 override 전용 모듈로 (별칭 임포트)      | `main-process-runtime-service.ts`, `orcad/orcad-entry.ts`                          |
+| 그 모듈 (번들 규칙 + 사용자가 고른 `agentStateRulesPath` 만) | `agent-state-rules-local-override.ts` — 핫 리로드 테스트 2건도 이리로 옮김         |
+| 다운로드 URL 을 단언하던 케이스, fetch 호출 수 감사 항목     | `agent-state-rules-bundle.test.mjs`, `proxy-guarded-fetch-call-site-audit.test.ts` |
+
+**다음 동기화에서 할 일.** upstream 이 다운로더를 고치면 **DU 충돌**로 뜹니다 — 삭제 유지하세요.
+이 모듈이 import 하던 `src/shared/release-channel.ts` 는 업데이터와 함께 이미 지운 파일이라, tc 가
+"모듈 없음"으로 빨개져도 **되살리면 안 됩니다**(되살리는 순간 레인이 산다). 시작 지점이 upstream
+임포트로 되돌아가면 원장 `absentSymbols` 가, 파일이 새 이름으로 돌아오면 `absentPaths` 가 잡습니다.
+업데이터 계열 신규 파일은 하이픈 이름(`updater-*.test.ts`, `main-window-updater*`,
+`macos-update-running-instances*`)으로도 충돌 없이 들어오므로 원장이 계열 글롭으로 지킵니다.
+
 #### i18n 카탈로그는 포크 판을 기준으로 두고 upstream 델타만 얹어라 (v1.4.206에서 실제로 겪음)
 
 `src/renderer/src/i18n/locales/en.json` 은 3만 줄이고 키 순서가 양쪽에서 재배치돼 머지가
