@@ -195,6 +195,9 @@ describe('agent turn send boundary', () => {
         'runtime/claude-agent-teams-tmux-dispatcher.ts',
         // Intended: the runtime lending its own write to that agent-teams relay.
         'runtime/orca-runtime-resolve-terminal-split-source-authority.ts',
+        // Fork: the plain-text prompt lane under sendTerminalAgentPrompt — the same message
+        // sendAgentTurn handed in, typed without a paste frame for agents that cannot read one.
+        'runtime/orca-runtime-agent-prompt-rescue.ts',
         // Intended: a client's live keystroke stream, typed without Enter.
         'runtime/rpc/methods/terminal/terminal-input-delivery.ts',
         // Temporary: `terminal.send` into a terminal with no settled agent prompt, which may still

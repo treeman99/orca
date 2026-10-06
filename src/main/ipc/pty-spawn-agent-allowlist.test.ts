@@ -62,7 +62,11 @@ vi.mock('../opencode/hook-service', () => {
     clearPty: vi.fn(),
     refreshLegacySharedPlugin: vi.fn()
   })
-  return { openCodeHookService: service(), openCode2HookService: service() }
+  // Why the class: v1.4.221's opencode startup-prompt installer constructs its own service.
+  class OpenCodeHookService {
+    buildPtyEnv = () => ({})
+  }
+  return { OpenCodeHookService, openCodeHookService: service(), openCode2HookService: service() }
 })
 
 vi.mock('../pi/titlebar-extension-service', () => ({
@@ -158,12 +162,15 @@ function registerWithRuntimeController(): void {
   const runtimeStub = new Proxy(
     {},
     {
-      get: (_target, property) =>
-        property === 'setPtyController'
-          ? (controller: typeof ptyController) => {
-              ptyController = controller
-            }
-          : vi.fn()
+      get: (_target, property) => {
+        if (property === 'setPtyController') {
+          return (controller: typeof ptyController) => {
+            ptyController = controller
+          }
+        }
+        // Why undefined: v1.4.221's spawn commit reads `terminalRunFacts?.` as an object, not a call.
+        return property === 'terminalRunFacts' ? undefined : vi.fn()
+      }
     }
   )
   registerPtyHandlers(mainWindow as never, runtimeStub as never)

@@ -1,6 +1,6 @@
-import { TUI_AGENT_CONFIG } from '../../shared/tui-agent-config'
+import { isTuiAgent, TUI_AGENT_CONFIG } from '../../shared/tui-agent-config'
 import type { RuntimeTerminalSend } from '../../shared/runtime-types'
-import type { TuiAgent } from '../../shared/tui-agent'
+import type { TerminalAgent } from '../../shared/terminal-agent'
 import {
   AGENT_PROMPT_PASTE_QUIET_MS,
   AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS,
@@ -29,7 +29,8 @@ export type AgentPromptSubmitOutcome = 'verified' | 'unverified' | 'resent'
 type AgentPromptRescueForwardRefs = {
   getLivePtyForHandle(handle: string): { pty: { ptyId: string } } | null
   getLiveLeafForHandle(handle: string): { leaf: { ptyId?: string | null } }
-  getPtyAgent(ptyId: string): TuiAgent | null
+  // Why TerminalAgent: since v1.4.221 a pane can carry an observed identity outside the TUI roster.
+  getPtyAgent(ptyId: string): TerminalAgent | null
 }
 
 /**
@@ -50,7 +51,7 @@ export class OrcaRuntimeWithAgentPromptRescue extends OrcaRuntimeWithAgentPrompt
     const ptyId =
       this.forward.getLivePtyForHandle(handle)?.pty.ptyId ?? this.tryGetLeafPtyId(handle)
     const agent = ptyId ? this.forward.getPtyAgent(ptyId) : null
-    return agent !== null && TUI_AGENT_CONFIG[agent].promptDeliveryMode === 'plain-text'
+    return isTuiAgent(agent) && TUI_AGENT_CONFIG[agent].promptDeliveryMode === 'plain-text'
   }
 
   protected sendPlainTextAgentPrompt(

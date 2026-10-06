@@ -13,6 +13,7 @@ const {
   getActiveMultiplexerMock,
   resolveCliCommandsMock,
   isCommandOnLocalPathMock,
+  listLocalCommandPathsMock,
   mergePersistedWindowsPathAsyncMock,
   mergePersistedWindowsPathMock,
   getEnterprisePolicyMock,
@@ -26,6 +27,7 @@ const {
   getActiveMultiplexerMock: vi.fn(),
   resolveCliCommandsMock: vi.fn(),
   isCommandOnLocalPathMock: vi.fn(),
+  listLocalCommandPathsMock: vi.fn(),
   mergePersistedWindowsPathAsyncMock: vi.fn(),
   mergePersistedWindowsPathMock: vi.fn(),
   getEnterprisePolicyMock: vi.fn(),
@@ -46,7 +48,10 @@ vi.mock('../startup/hydrate-shell-path', () => ({
 vi.mock('../../shared/node-cli-command-resolution', () => ({
   resolveCliCommands: resolveCliCommandsMock
 }))
-vi.mock('./command-path-resolver', () => ({ isCommandOnLocalPath: isCommandOnLocalPathMock }))
+vi.mock('./command-path-resolver', () => ({
+  isCommandOnLocalPath: isCommandOnLocalPathMock,
+  listLocalCommandPaths: listLocalCommandPathsMock
+}))
 vi.mock('../pty/windows-environment-path', () => ({
   mergePersistedWindowsPathAsync: mergePersistedWindowsPathAsyncMock,
   mergePersistedWindowsPath: mergePersistedWindowsPathMock
@@ -89,6 +94,7 @@ describe('agent detection under an enterprise allowlist', () => {
         getActiveMultiplexerMock,
         resolveCliCommandsMock,
         isCommandOnLocalPathMock,
+        listLocalCommandPathsMock,
         mergePersistedWindowsPathAsyncMock,
         mergePersistedWindowsPathMock
       },

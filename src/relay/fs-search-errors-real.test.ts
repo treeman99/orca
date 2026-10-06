@@ -24,10 +24,12 @@ it('reports an invalid regular expression as an error', async () => {
 })
 
 it('distinguishes no matches from invalid syntax', async () => {
+  // Fork: results name their engine so the panel can say when the git grep fallback answered.
   await expect(searchWithRg(root, 'absent', { maxResults: 100 })).resolves.toEqual({
     files: [],
     totalMatches: 0,
-    truncated: false
+    truncated: false,
+    engine: 'ripgrep'
   })
 })
 

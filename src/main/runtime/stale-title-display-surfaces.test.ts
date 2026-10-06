@@ -360,13 +360,14 @@ describe('display surfaces after the stale-working title clear', () => {
           })
         } else {
           // Output after Enter is not a turn start, so a swallowed Enter still reads as stalled.
+          // Fork: the stall is rescued by re-pressing Enter once and the receipt says `resent`,
+          // instead of failing the send (the same contract as agent-prompt-line-settle.test.ts).
           const submission = runtime.sendTerminalAgentPrompt(handle, 'review this', {
             inputKind: 'driving'
           })
-          const rejected = expect(submission).rejects.toThrow('agent_prompt_stalled')
           // Past the 30 s effect window.
           await vi.advanceTimersByTimeAsync(40_000)
-          await rejected
+          await expect(submission).resolves.toMatchObject({ accepted: true, submit: 'resent' })
         }
       } finally {
         vi.useRealTimers()
