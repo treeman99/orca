@@ -24,6 +24,7 @@ import {
   inspectWindowsProcessTreeAddon,
   windowsProcessTreeAddonPath
 } from './windows-process-tree-gyp-rebuild.mjs'
+import { disableMsbuildFileTrackingOnWindows } from './msbuild-file-tracking.mjs'
 import {
   copyFileSync,
   existsSync,
@@ -161,6 +162,7 @@ try {
     // creates deps/node-addon-api, without which node-gyp dies on napi.h.
     ensureWindowsProcessTreeBuildSource(projectDir)
   }
+  disableMsbuildFileTrackingOnWindows()
   await rebuild({
     buildPath: projectDir,
     electronVersion,

@@ -13,6 +13,7 @@ import {
   type GitSubmoduleConfigEntry
 } from '../shared/git-submodule-list'
 import { buildDiffResult } from './git-diff-result'
+import { isGitReadInterruptedError } from './git-buffer-overflow'
 import type { GitExec } from './git-handler-ops'
 
 /**
@@ -139,7 +140,10 @@ export async function listSubmoduleConfigEntries(
       worktreePath
     )
     return parseSubmoduleConfigOutput(stdout)
-  } catch {
+  } catch (error) {
+    if (isGitReadInterruptedError(error)) {
+      throw error
+    }
     return []
   }
 }

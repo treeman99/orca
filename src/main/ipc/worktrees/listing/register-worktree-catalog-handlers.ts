@@ -37,8 +37,9 @@ import type { Worktree } from '../../../../shared/worktree/types'
 import {
   projectPendingWorktreeRemovals,
   snapshotPendingWorktreeRemovals,
+  withUnregisteredRemovalCheckouts,
   type PendingWorktreeRemovals
-} from '../../../worktree-background-removal'
+} from '../../../worktree-removal-listing'
 import { getLocalWorktreeScanGeneration } from '../../../local-worktree-scan-generation'
 import { getRegisteredWorktreeRootsRevision } from '../../registered-worktree-roots-cache'
 
@@ -175,7 +176,10 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
         }
         loggedWorktreeListFailures.delete(`${repo.id}:${repo.path}`)
         const metadata = metadataForRepo(repo)
-        const worktrees = buildDetectedGitWorktrees(store, repo, gitWorktrees, metadata)
+        const rows = connectionId
+          ? gitWorktrees
+          : await withUnregisteredRemovalCheckouts(repo.id, gitWorktrees)
+        const worktrees = buildDetectedGitWorktrees(store, repo, rows, metadata)
           .filter((worktree) => worktree.visible)
           .map((worktree) => stampAndMergeVisibleDetectedWorktree(store, repo, worktree, metadata))
         return connectionId ? worktrees : markLocalWorktreesUnderRemoval(worktrees, pendingAtScan)
@@ -276,7 +280,10 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
       }
       loggedWorktreeListFailures.delete(`${repo.id}:${repo.path}`)
       const metadata = allMeta ?? readAllWorktreeMetaForRepo(store, repo)
-      const worktrees = buildDetectedGitWorktrees(store, repo, gitWorktrees, metadata)
+      const rows = connectionId
+        ? gitWorktrees
+        : await withUnregisteredRemovalCheckouts(repo.id, gitWorktrees)
+      const worktrees = buildDetectedGitWorktrees(store, repo, rows, metadata)
         .filter((worktree) => worktree.visible)
         .map((worktree) => stampAndMergeVisibleDetectedWorktree(store, repo, worktree, metadata))
       return connectionId ? worktrees : markLocalWorktreesUnderRemoval(worktrees, pendingAtScan)

@@ -1,5 +1,6 @@
 import { LinearIcon } from '@/components/icons/LinearIcon'
-import { getAccountsPaneSearchEntries } from '@/components/settings/accounts-search'
+// Fork: aliased to upstream's name — the policy drops vendor rows and adds the corporate gateway.
+import { getAccountsPaneSearchEntriesUnderPolicy as getAccountsPaneSearchEntries } from '@/components/settings/accounts-search-enterprise-policy'
 import { getAgentsPaneSearchEntries } from '@/components/settings/agents-search'
 import { getComputerUsePaneSearchEntries } from '@/components/settings/computer-use-search'
 import { getGeneralPaneSearchEntries } from '@/components/settings/general-search'

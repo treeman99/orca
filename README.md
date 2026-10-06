@@ -549,7 +549,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.220`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.221`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -608,7 +608,7 @@ upstream v1.4.197이 "`node:child_process`를 직접 import 하는 파일 수"�
 
 v1.4.218 에서 upstream 이 `DIRECT_IMPORTER_PIN`(직접 import 수 백스톱)을 테스트째 폐기했고(#23815),
 포크도 따랐습니다 — 허용목록 검사는 남아 있어 새 직접 import 는 여전히 막힙니다. 남은 핀은
-`UNHIDDEN_SPAWNER_PIN` 하나로, 이 포크는 **58**, upstream 은 **60** 입니다(v1.4.220 기준). 포크가 더 **낮은**
+`UNHIDDEN_SPAWNER_PIN` 하나로, 이 포크는 **56**, upstream 은 **58** 입니다(v1.4.221 기준). 포크가 더 **낮은**
 것이 래칫이 원하는 방향입니다. 머지가 upstream 값으로 되돌리면 테스트가 "핀을 내려라"라고 정확히
 알려 주므로 그때 다시 낮추면 됩니다. 원장에 앵커로 등재돼 있습니다.
 

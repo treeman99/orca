@@ -1,3 +1,5 @@
+// Fork: falls back to the pre-SQLite JSON storage tree. See opencode-transcript-legacy-fallback.ts.
+import { readOpenCodeNativeChatTranscriptTailWithLegacyFallback as readOpenCodeNativeChatTranscriptTail } from './opencode-transcript-legacy-fallback'
 import type {
   AgentType,
   NativeChatMessage,
@@ -12,7 +14,6 @@ import {
   decodeOmpTranscriptLine
 } from './transcript-line-decoders'
 import { transcriptFallbackId } from './transcript-fallback-id'
-import { readOpenCodeTranscript } from './opencode-transcript-store'
 import {
   nativeChatTurnLifecycleDecoderForAgent,
   type NativeChatTurnLifecycleDecoder
@@ -182,7 +183,9 @@ export async function readNativeChatTranscriptTailFile(
     lineOffset: number,
     messages: { message: NativeChatMessage; offset: number }[]
   ): void {
-    let line = Buffer.concat([...lineParts].toReversed()).toString('utf8')
+    // Positional reads own these bytes; only multi-part records need joining in reverse order.
+    const bytes = lineParts.length === 1 ? lineParts[0] : Buffer.concat(lineParts.toReversed())
+    let line = bytes.toString('utf8')
     if (line.endsWith('\r')) {
       line = line.slice(0, -1)
     }
@@ -231,16 +234,8 @@ export async function readNativeChatTranscriptTail(
     }
   | { error: string; notFound?: true }
 > {
-  // opencode has no transcript file, so there is nothing to tail by offset: read the window off
-  // its storage tree instead. `hasMore` is false because the window is taken from the newest
-  // messages directly rather than paged backwards through bytes.
   if (resolveNativeChatTranscriptAgent(args.agent) === 'opencode') {
-    const result = await readOpenCodeTranscript({
-      sessionId: args.sessionId,
-      limit: args.limit,
-      ...(signal ? { signal } : {})
-    })
-    return 'error' in result ? result : { ...result, hasMore: false, beforeOffset: 0 }
+    return readOpenCodeNativeChatTranscriptTail(args, {}, signal)
   }
   const decode = nativeChatLineDecoderForAgent(args.agent)
   const decodeLifecycle = nativeChatTurnLifecycleDecoderForAgent(args.agent)

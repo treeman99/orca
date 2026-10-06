@@ -3,7 +3,6 @@ import { OrcaRuntimeWithGetWorktreeTerminalProvisioningHost } from './orca-runti
 import type { RuntimeManagedWorktreeCreateArgs } from './runtime-managed-worktree-create-types'
 import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
 import { isTuiAgentEnabled } from '../../shared/tui-agent-selection'
-import { assertManagedWorktreeAgentsAllowed } from './runtime-managed-worktree-agent-policy'
 import { isFolderRepo } from '../../shared/repo-kind'
 import { resolveWorktreeCreateRoute } from '../worktree-create-execution-host-route'
 import { ExecutionHostNotDispatchableError } from '../providers/execution-host-provider-dispatch'
@@ -13,6 +12,8 @@ import type { PreparationRearmHolder } from '../worktree-create-preparation'
 import { prepareRuntimeLocalWorktreeSetup } from './runtime-local-worktree-setup'
 import { invalidateAuthorizedRootsCacheForRepo } from '../ipc/filesystem-auth'
 import { startRuntimeLocalWorktreeTerminals } from './runtime-local-worktree-terminal-startup'
+import { trackRuntimeWorkspaceCreate } from '../workspace-create-telemetry'
+import type { RuntimeWorkspaceCreateEvents } from '../workspace-create-telemetry'
 
 export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWorktreeTerminalProvisioningHost {
   async createManagedWorktree(
@@ -23,7 +24,9 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
     // still arm the replacement. On success it fires last, once the startup terminals are up.
     const rearm: PreparationRearmHolder = { fire: () => {} }
     try {
-      return await this.performManagedWorktreeCreate(args, rearm)
+      return await trackRuntimeWorkspaceCreate(args, (events) =>
+        this.performManagedWorktreeCreate(args, rearm, events)
+      )
     } finally {
       rearm.fire()
     }
@@ -31,13 +34,12 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
 
   private async performManagedWorktreeCreate(
     args: RuntimeManagedWorktreeCreateArgs,
-    rearm: PreparationRearmHolder
+    rearm: PreparationRearmHolder,
+    events: RuntimeWorkspaceCreateEvents
   ): Promise<CreateWorktreeResult> {
     if (!this.store) {
       throw new Error('runtime_unavailable')
     }
-
-    assertManagedWorktreeAgentsAllowed(args)
 
     const repo = await this.resolveRepoSelector(args.repoSelector)
     const createSettings = this.store.getSettings()
@@ -127,6 +129,7 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
     if (createRoute.kind === 'runtime') {
       throw new ExecutionHostNotDispatchableError(createRoute.hostId)
     }
+    const timing = events.begin(repo.path)
     if (createRoute.kind === 'ssh') {
       // `createRoute.repo` carries the resolved connection in `connectionId`, because the
       // remote-create pipeline still reads `repo.connectionId!` at every depth. See the workaround
@@ -137,7 +140,8 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
         ...(effectiveStartup ? { startup: effectiveStartup } : {}),
         ...(effectiveStartupFollowup ? { startupFollowup: effectiveStartupFollowup } : {}),
         ...(effectiveCreatedWithAgent ? { createdWithAgent: effectiveCreatedWithAgent } : {}),
-        ...(effectiveDraftPaste ? { startupDraftPaste: effectiveDraftPaste } : {})
+        ...(effectiveDraftPaste ? { startupDraftPaste: effectiveDraftPaste } : {}),
+        timing
       })
       const recordedLineage = this.recordCreatedWorktreeLineage(result.worktree, lineageResolution)
       this.emitWorktreeLifecycle({
@@ -181,7 +185,8 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
           this.fetchRemoteWithCache(path, remote, ...options),
         onWorktreeMetadataPersisted: (persistedWorktree) =>
           this.recordCreatedWorktreeLineage(persistedWorktree, lineageResolution),
-        rearm
+        rearm,
+        timing
       })
     const settings = createSettings
     const { lineage, workspaceLineage, warnings: lineageWarnings } = metadataResult

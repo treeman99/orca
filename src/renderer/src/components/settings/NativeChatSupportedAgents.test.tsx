@@ -12,15 +12,14 @@ import { i18n } from '@/i18n/i18n'
 import { getAgentCatalog } from '@/lib/agent-catalog'
 import { NativeChatSupportedAgents } from './NativeChatSupportedAgents'
 
-// Fork: `opencode` is supported here (424588406b renders its sessions in the chat view),
-// so upstream's list-without-opencode assertion is amended rather than deleted.
 const EXPECTED_SUPPORTED_AGENTS = [
   'claude',
   'openclaude',
   'codex',
   'grok',
   'omp',
-  'opencode'
+  'opencode',
+  'opencode2'
 ] as const satisfies readonly TuiAgent[]
 const SUPPORTED_AGENTS_LABEL_KEY = 'auto.components.settings.NativeChatSupportedAgents.label'
 
@@ -44,7 +43,7 @@ describe('NativeChatSupportedAgents', () => {
     expect(NATIVE_CHAT_SUPPORTED_AGENT_LIST).toEqual(EXPECTED_SUPPORTED_AGENTS)
     for (const entry of getAgentCatalog()) {
       expect(isNativeChatSupportedAgent(entry.id), entry.id).toBe(
-        EXPECTED_SUPPORTED_AGENTS.includes(entry.id as (typeof EXPECTED_SUPPORTED_AGENTS)[number])
+        EXPECTED_SUPPORTED_AGENTS.some((agent) => agent === entry.id)
       )
     }
   })
@@ -61,17 +60,15 @@ describe('NativeChatSupportedAgents', () => {
     }
   })
 
-  // Fork: the OpenCode half of upstream's assertion is dropped — this fork renders OpenCode
-  // sessions in the chat view. The unsupported-agent sweep it was an instance of still runs.
-  it('omits agents native chat cannot render', () => {
+  it('omits agents outside the supported transcript contract', () => {
     const rendered = getRenderedChips().map((chip) => chip.agent)
 
     for (const entry of getAgentCatalog()) {
-      if (!isNativeChatSupportedAgent(entry.id)) {
+      if (!EXPECTED_SUPPORTED_AGENTS.some((agent) => agent === entry.id)) {
         expect(rendered).not.toContain(entry.id)
       }
     }
-    expect(rendered).toContain('opencode')
+    expect(rendered).not.toContain('cursor')
   })
 
   it('keeps the label in the English catalog', () => {

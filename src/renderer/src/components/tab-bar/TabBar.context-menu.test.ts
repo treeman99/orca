@@ -64,6 +64,11 @@ vi.mock('@/enterprise/enterprise-policy-access', () => ({
 }))
 
 vi.mock('zustand/react/shallow', () => stubShallowSelector())
+// The headless React stub has no dispatcher for the hook each tab row subscribes to language changes with.
+vi.mock('react-i18next', async () => ({
+  ...(await vi.importActual<Record<string, unknown>>('react-i18next')),
+  useTranslation: () => ({})
+}))
 
 vi.mock('lucide-react', async () => (await import('./lucide-icon-stub-fixture')).stubEveryIcon())
 

@@ -1,4 +1,7 @@
 {
+  "osDocumentOpen": {
+    "failed": "Failed to open the file."
+  },
   "agentsSidebarIntro": {
     "migrated": {
       "action": "Open Agents",
@@ -98,16 +101,12 @@
         "streamRestartFailed": "Failed to restart remote browser stream."
       },
       "CodexRestartChip": {
-        "3ea91b5c07": "This Codex session is using an outdated configuration",
         "6133594b12": "Keep old account",
-        "7b1d20f4c8": "Keep current session",
-        "8f0d5c92a1": "Codex setup changed",
         "9263e75f49": "Codex is using the previous account",
         "9375620cc3": "Restart this session to use {{value0}}. It stays on the previous account until you do.",
         "a4c8e1b2f7": "Codex is still signed in as {{value0}}",
         "c72a5fb234": "Restart",
-        "d3e8a1f4b2": "Account switched",
-        "e6b7139d2a": "Restart this session to load your current Codex configuration."
+        "d3e8a1f4b2": "Account switched"
       },
       "ComposerParentWorktreePicker": {
         "description": "Nests this workspace under another in the sidebar. Does not change the base branch.",
@@ -1054,7 +1053,7 @@
         "94f0339621": "Assigned to me",
         "969e26577c": "You can request up to 15 reviewers",
         "995dd6af9b": "Open PR checks",
-        "99c2755218": "Jira JQL, e.g. project = ABC AND statusCategory != Done",
+        "99c2755218": "Search issues or enter JQL, e.g. project = ABC",
         "9ae151b26b": "linear",
         "9bc8aea407": "Add description...",
         "9c57663908": "View",
@@ -1092,6 +1091,7 @@
         "b6795e65fd": "Close",
         "b73717af92": "Next",
         "b797bdd7c3": "Clear search",
+        "jiraTextMatchesNotice": "Showing text matches. Jira couldn't run this search as JQL.",
         "b7bae28b6a": "shown",
         "b95623e93f": "Atlassian API token",
         "backToCloseReasons": "Back",
@@ -1185,7 +1185,7 @@
         "f373ab1a4f": "Urgent",
         "f397d513e3": "Back",
         "f4374519ae": "Your preferred issue source (upstream) is no longer configured for {{value0}}. Using origin.",
-        "f51e254d35": "Try a different JQL query.",
+        "f51e254d35": "Try different search terms or JQL.",
         "f6fa3c97d0": "Reviewers",
         "f9191d1714": "Reviewer removed",
         "fc0d8a1fa4": "to submit.",
@@ -2750,6 +2750,11 @@
         },
         "CsvViewer": {
           "a233d55b77": "Empty file",
+          "delimiterComma": "Comma",
+          "delimiterSemicolon": "Semicolon",
+          "delimiterTab": "Tab",
+          "delimiterAuto": "Auto ({{delimiter}})",
+          "delimiter": "Delimiter",
           "ac31d2cd60": "rows",
           "eedd0d37a7": "columns"
         },
@@ -4752,9 +4757,6 @@
             "failed": "Chat could not be started.",
             "unknown": "Chat connection could not be confirmed.",
             "retry": "Retry"
-          },
-          "NativeChatStructuredSessionStatus": {
-            "starting": "{{value0}} is still starting. Messages wait until it is ready; close this chat to give up on it."
           }
         }
       },
@@ -6758,7 +6760,7 @@
           "0b3a9f6c2e": "Pick the host that matches your account. Both overseas (platform.minimax.io) and China (platform.minimaxi.com) accept either a session cookie or an API key.",
           "0b4591ff93": "Choose which local environment to inspect and where new managed Claude and Codex accounts are added.",
           "0b8c1c7e02": "Stored locally",
-          "0c64dc2a64": "Gemini",
+          "0c64dc2a64": "Gemini CLI (legacy)",
           "0c67a2a1aa": "WSL is not available on this machine.",
           "0c7f915b01": "Use Gemini CLI credentials",
           "0d47394635": "Remove Codex Account?",
@@ -6831,7 +6833,7 @@
           "93c47b333a": "Needs sign-in",
           "94d351af4a": "Accounts",
           "96f3649526": "Use Gemini CLI credentials (experimental)",
-          "973741a871": "Configure Gemini provider settings.",
+          "973741a871": "Keep existing Gemini CLI sessions available. Gemini credentials do not sign you into Antigravity.",
           "9baf45d071": "This device",
           "9dd50d3f75": "Advanced",
           "9fec52de4b": "How to copy the cookie",
@@ -7669,7 +7671,7 @@
             "defaultViewTerminal": "Terminal chat",
             "description": "Preview the desktop chat surface for supported agent terminal sessions.",
             "structuredCopy": "Open new Codex and Claude agents as structured chats. Off opens them in the terminal-backed chat. Chats that already exist stay as they are.",
-            "structuredScope": "Local sessions only for now. WSL and remote execution hosts (including SSH) continue to use terminal chat, and Windows falls back to it unless Orca can read process start times.",
+            "structuredScope": "Runs on this machine and on paired Orca servers running a version that supports it; older servers keep terminal chat. WSL and SSH hosts continue to use terminal chat, and Windows falls back to it unless Orca can read process start times.",
             "structuredTitle": "Use updated structured native chat",
             "structuredToggleLabel": "Toggle updated structured native chat",
             "title": "Chat UI",
@@ -9073,6 +9075,8 @@
           "projectRuntime": "Project Runtime",
           "projectRuntimeDescription": "Choose whether this project runs on Windows or WSL.",
           "removeProjectAllHosts": "Remove this project from Orca on all configured hosts.",
+          "removeProjectCheckout": "Remove this checkout from Orca. Other checkouts of this project stay.",
+          "removeProjectKeepCheckouts": "Remove this project from Orca. Checkouts that have their own settings stay.",
           "removeSetup": "Remove",
           "settingUpHost": "Importing...",
           "setupExistingFolder": "Import existing folder",
@@ -10200,6 +10204,18 @@
                 "spend": "spend",
                 "rateLimit": "rate limit",
                 "statusBar": "status bar"
+              }
+            },
+            "zcodePlan": {
+              "title": "GLM Coding Plan",
+              "description": "Track Z.AI or Zhipu (BigModel) GLM Coding Plan usage. Pick the site and save the plan API key.",
+              "kw": {
+                "glm": "glm",
+                "zai": "zai",
+                "zhipu": "zhipu",
+                "bigmodel": "bigmodel",
+                "codingPlan": "coding plan",
+                "rateLimit": "rate limit"
               }
             },
             "7e67d7d1b6": "wrk",
@@ -11612,6 +11628,12 @@
             "193e1f107c": "task",
             "3014ad1b8f": "ding",
             "4a210b2f72": "Enable Notifications",
+            "machines": "Machines",
+            "machinesDescription": "Choose which machines can show notifications on this computer, such as SSH machines or paired servers.",
+            "host": "host",
+            "remote": "remote",
+            "ssh": "ssh",
+            "mute": "mute",
             "4ada6bfde9": "filtering",
             "4e30b1925e": "Trigger a sample desktop notification using the native delivery path.",
             "51ae2183e1": "desktop",
@@ -12538,6 +12560,53 @@
         },
         "UnsealedCredentialNotice": {
           "body": "{{credential}} is stored unencrypted — this system has no OS keyring Orca can use. Anyone who can read your disk or a backup of it can read the credential. Install and unlock gnome-keyring or kwallet, then save it again to seal it."
+        },
+        "ZcodePlanAccountsSection": {
+          "site": {
+            "bigmodel": "Zhipu · BigModel (open.bigmodel.cn)",
+            "zai": "Z.AI (z.ai)"
+          },
+          "window": {
+            "session": "5 hours",
+            "weekly": "Weekly",
+            "mcp": "MCP monthly"
+          },
+          "resetIn": " — resets in {{value0}}",
+          "keyRequired": "GLM Coding Plan API key is required.",
+          "keySaved": "GLM Coding Plan API key saved.",
+          "keySaveFailed": "GLM Coding Plan credential update failed.",
+          "title": "GLM Coding Plan",
+          "subtitle": "Track Z.AI or Zhipu (BigModel) GLM Coding Plan usage in the status bar. Save the plan API key here — no ZCode CLI setup needed.",
+          "consoleLink": "Get API key",
+          "keyStored": "API key saved · {{value0}}",
+          "keyStoredHelp": "Stored locally and sent only to the selected site for usage refreshes. It takes priority over the ZCode CLI sign-in.",
+          "usingCli": "Using the ZCode CLI sign-in",
+          "usingCliHelp": "Orca reads the Coding Plan key from ~/.zcode/cli/config.json. Save an API key below to link the plan here instead.",
+          "notConfigured": "No GLM Coding Plan linked",
+          "notConfiguredHelp": "Save the plan API key below, or sign in with the ZCode CLI on this computer.",
+          "refreshUsage": "Refresh usage",
+          "siteTitle": "Plan site",
+          "siteDescription": "Pick the console your Coding Plan belongs to: Z.AI for the international site, Zhipu BigModel for the mainland site.",
+          "keyTitle": "API key",
+          "keyDescription": "Paste the API key from the selected console’s API Keys page. Stored locally, encrypted when the OS supports it, and sent only to that site for usage refreshes.",
+          "saved": "Saved",
+          "notSaved": "Not saved",
+          "keyPlaceholder": "Paste your GLM Coding Plan API key",
+          "replace": "Replace",
+          "save": "Save",
+          "forgetKey": "Forget key",
+          "keyHelp": "The same key your coding tools use for the plan (for example Claude Code with ANTHROPIC_BASE_URL pointed at the site). Switching the site above changes which host receives it.",
+          "usageTitle": "Plan usage",
+          "usageDescription": "Live quota windows for the linked Coding Plan, refreshed with the status bar usage cycle.",
+          "planLevel": "Plan: {{value0}}",
+          "hostOnly": "Change the plan site and API key in the desktop app on the computer running Orca.",
+          "detailsUnavailable": "Plan credential details are only readable on the computer running Orca.",
+          "siteUnavailable": "Host plan site unavailable"
+        },
+        "NotificationHostToggles": {
+          "offCount": "{{count}} off",
+          "machines": "Machines",
+          "machinesDescription": "Choose which machines can show notifications on this computer. A paired server’s switch also covers work reached through it."
         }
       },
       "setup": {
@@ -12845,7 +12914,12 @@
           "cf95e3b5bb": "Close"
         },
         "DeleteWorktreeDirtyChangeHint": {
-          "8e2994ce28": "Deleting this workspace permanently removes these changes from disk."
+          "8e2994ce28": "Deleting this workspace permanently removes these changes from disk.",
+          "showLoadedPaths": "Show loaded paths",
+          "loadedPathsNotice": "Loaded paths may be incomplete or out of date.",
+          "loadedChangedPaths": "Loaded changed paths",
+          "unresolvedConflict": "Unresolved conflict",
+          "moreLoadedPaths": "and {{value0}} more loaded paths"
         },
         "DeleteWorktreeLineageNotice": {
           "29b98bf9cd": "Deleting this workspace also deletes {{value0}} child workspaces.",
@@ -13406,6 +13480,7 @@
           "4f964d5e8c": "sparse",
           "57eaa61b55": "Hide child workspaces",
           "691ccfd622": "Deleting…",
+          "deleteFailed": "Delete failed",
           "6f09f58541": "Delete workspace",
           "74522ee457": "rename failed",
           "7d517f82e2": "primary",
@@ -15245,7 +15320,7 @@
           "UsageRosterPanel": {
             "allAgents": "all agents",
             "compact": "Compact",
-            "compactTooltip": "Condensed usage: only the tightest window",
+            "compactTooltip": "Condensed usage: one summary per provider",
             "detailed": "Detailed",
             "detailedTooltip": "Full usage with bars, labels, and percentages",
             "footerDetailAria": "Usage footer detail",
@@ -16697,7 +16772,9 @@
           "fc80296033": "Devin",
           "mimo_code_label": "MiMo Code",
           "opencode2_label": "OpenCode 2",
-          "codebuddy_label": "CodeBuddy"
+          "codebuddy_label": "CodeBuddy",
+          "qoder_cn_label": "Qoder CLI China",
+          "jcode_label": "Jcode"
         },
         "skill": {
           "cli": {
@@ -17591,12 +17668,13 @@
         "providerRateLimited": "{{agent}} is rate-limited and retrying.",
         "providerRetrying": "{{agent}} hit a temporary problem and is retrying.",
         "providerRetryingQuoted": "{{agent}} is retrying: {{detail}}.",
-        "previousExitUnverifiable": "Orca couldn't confirm {{agent}}'s previous process ended. Messages wait to be sent until Orca confirms it has ended."
+        "previousExitUnverifiable": "{{agent}} from before may still be running. Your messages will send once it stops."
       },
       "writeNotice": {
         "notDoneReadHistory": "This chat's history couldn't be loaded.",
         "notDoneSend": "Your message was not sent.",
         "tryAgainComposerSend": "Send it again.",
+        "messageNotSaved": "Couldn't save your message.",
         "notDoneStop": "The agent wasn't stopped.",
         "notDoneStopTask": "The background task wasn't stopped.",
         "notDoneStopTasks": "The background tasks weren't stopped.",
@@ -17607,15 +17685,17 @@
         "restartFailed": "The agent couldn't restart.",
         "capacity": "Orca has received too many requests in the last day.",
         "outcomeUnknown": "Orca couldn't confirm what happened. Check the chat.",
+        "sendOutcomeLost": "Orca couldn't confirm your message reached the agent. Check the chat, then send it again if needed.",
         "questionChanged": "This question was already answered or has changed.",
         "historyUnreadable": "Orca couldn't read this chat's saved history.",
         "historyUnusable": "Unable to load this chat.",
         "historyUnavailable": "Orca couldn't open this chat's history right now.",
         "savedByNewerOrca": "Chats were saved by a newer Orca.",
         "updateOrcaToKeepUsing": "Update Orca to keep using them.",
-        "unsupported": "The Orca running this chat doesn't support this. Update Orca, then try again.",
+        "unsupported": "This needs a newer Orca on the computer running this chat. Update Orca there, then try again.",
+        "notAvailable": "This isn't available in this chat.",
         "unreachable": "Orca couldn't reach the agent.",
-        "recordFailed": "Orca couldn't record it in this chat's history.",
+        "recordFailed": "Orca couldn't save this to the chat's history.",
         "conversationCleared": "This conversation has been cleared.",
         "openCurrentConversation": "Open the current conversation to continue.",
         "clearUnfinished": "The last /clear didn't finish.",
@@ -17629,19 +17709,19 @@
         "answerFirst": "Answer the question or approval first.",
         "backgroundTasksRunning": "Background tasks are still running.",
         "waitForBackgroundTasks": "Wait for the background tasks to finish.",
-        "messagesUnsettled": "A message you sent earlier hasn't been confirmed yet.",
+        "messagesUnsettled": "A message you sent earlier isn't confirmed yet.",
         "settleEarlierMessage": "Wait for your earlier message to go through, or retry it.",
         "optionRejected": "The agent didn't accept this setting.",
         "goalsUnsupported": "This agent doesn't support goals.",
         "agentRefused": "The agent turned this down.",
-        "ownerUnproven": "Orca hasn't confirmed that this chat's previous agent stopped.",
+        "ownerUnproven": "The previous agent in this chat may still be running.",
         "reopenChat": "Reopen the chat to check again.",
         "terminalAgentHoldsChat": "This chat is still open in a terminal agent.",
         "quitTerminalAgent": "Quit that agent to continue the chat here.",
         "hostReconciling": "Orca is still checking on this chat after restarting.",
         "waitMoment": "Wait a moment.",
         "recordUnreadable": "Orca couldn't read this chat's saved state.",
-        "chatNotFound": "The Orca running this chat has no record of it.",
+        "chatNotFound": "Orca can't find this chat.",
         "startNewChat": "Start a new chat to continue.",
         "tryAgain": "Try again."
       },
@@ -17677,7 +17757,9 @@
       "notices": {
         "compaction": "Context compacted",
         "details": "Details",
-        "plan": "Plan"
+        "plan": "Plan",
+        "historyRepaired": "Part of this chat's history couldn't be loaded.",
+        "historyItemTooLarge": "This part of the chat was too large to show."
       },
       "composer": {
         "imageUnsupported": "Image paste is not supported for this agent.",
@@ -17696,8 +17778,8 @@
         "skills": "Skills",
         "loadingSkills": "Loading skills...",
         "skillsLoaded": "Skills loaded",
-        "skillsUnavailableHost": "Skills are unavailable for this host",
-        "skillsLoadFailed": "Could not load skills from this host",
+        "skillsUnavailableHost": "Skills aren't available in SSH chats",
+        "skillsLoadFailed": "Couldn't load skills",
         "retrySkills": "Retry",
         "skillCommandCollision": "Also a skill name - agent decides",
         "skillMultipleSources": "{{sourceCount}} sources - agent resolves",
@@ -17722,8 +17804,6 @@
         "chooseInAgentPicker": "Choose in agent picker…",
         "toggleOption": "Toggle {{value0}}",
         "pillAccessibleName": "{{value0}} {{value1}}",
-        "valueIsDefault": "Default",
-        "valueNotReported": "Not reported",
         "sentNotConfirmed": "Sent to the agent — not confirmed",
         "setWhenSessionStarts": "Set when the session starts.",
         "availableAfterSessionStarts": "Available after the session starts.",
@@ -17858,9 +17938,9 @@
         "stateBlocked": "blocked",
         "stateDone": "done",
         "stateIdle": "stopped",
-        "stateUnverifiable": "unverifiable",
+        "stateUnverifiable": "no recent update",
+        "stateUnverifiableCount": "{{value0}} with no recent update",
         "reasonWaiting": "needs approval",
-        "reasonUnverifiable": "no contact",
         "reasonBlocked": "failed",
         "groupAgents": "Agents",
         "groupShell": "Shell",
@@ -17881,12 +17961,11 @@
         },
         "error": {
           "subtitle": "The transcript could not be read. Toggle back to the terminal to keep working.",
-          "retryingSubtitle": "The transcript could not be read. Orca keeps trying to load it.",
-          "keepsTrying": "Orca keeps trying to load it.",
           "title": "Could not load conversation"
         },
         "reconnecting": "Reconnecting to this chat…",
         "loading": {
+          "label": "Loading chat",
           "subtitle": "Reading the agent transcript.",
           "title": "Loading conversation…"
         },
@@ -17931,8 +18010,6 @@
         }
       },
       "launchPromptNotDelivered": "Not delivered — check the terminal",
-      "structuredSessionLaunchFailed": "Could not open {{value0}} chat",
-      "structuredSessionLaunchFailedDescription": "Orca could not open a structured {{value0}} chat. See the logs for details.",
       "subagents": {
         "state": {
           "completed": "completed",
@@ -17940,12 +18017,12 @@
           "idle": "idle",
           "failed": "failed",
           "stopped": "stopped",
-          "unverifiable": "unverifiable",
+          "unverifiable": "no recent update",
           "workingCount": "{{value0}} working",
           "idleCount": "{{value0}} idle",
           "failedCount": "{{value0}} failed",
           "stoppedCount": "{{value0}} stopped",
-          "unverifiableCount": "{{value0}} unverifiable"
+          "unverifiableCount": "{{value0}} with no recent update"
         },
         "startedOne": "Kicked off 1 subagent",
         "startedN": "Kicked off {{value0}} subagents",
@@ -18020,6 +18097,10 @@
         "queuePaused": "Queue paused",
         "resume": "Resume"
       },
+      "structuredSessionHostDeclined": "Opened {{value0}} in a terminal",
+      "structuredSessionHostDeclinedDescription": "This server can't run a {{value0}} chat in this workspace.",
+      "structuredSessionHostUnreachable": "Could not reach {{value0}}",
+      "structuredSessionHostUnreachableDescription": "Orca did not open a {{value0}} chat. Check the connection to the server and try again.",
       "ask": {
         "awaiting": "Awaiting user input:",
         "awaitingUnnamed": "Awaiting user input",
@@ -18474,7 +18555,13 @@
     "markdownPreview": {
       "tooLarge": "File is larger than the {{limit}} preview limit. Open the file to view its source.",
       "tooLargeInDiff": "File is larger than the {{limit}} preview limit. Switch to source mode to view the diff.",
-      "renderAnyway": "Render anyway"
+      "blockTooLarge": "This block is too large to render. Open source view to read it.",
+      "largeNotice": "Large preview. Use source view to copy the complete document. PDF export is unavailable.",
+      "processingFailed": "This document cannot be rendered within the preview limits. Open source view to read the complete file.",
+      "preparing": "Preparing preview…",
+      "searching": "Searching…",
+      "searchFailed": "Search could not finish. Try again.",
+      "refreshFailed": "Preview update failed. Showing the previous version; open source view for current content."
     },
     "fileLoad": {
       "hostUnresolved": "The host couldn't find this file's workspace. It may have been removed, or the host may not know about it yet. Retry, or close this tab from the tab strip."
@@ -18733,6 +18820,10 @@
     }
   },
   "sourceControl": {
+    "discard": {
+      "restoreStagedVersionDescription": "This will restore the last staged version and discard the deletion. This cannot be undone.",
+      "unstagedChangesDescription": "This will revert the unstaged changes to this file. This cannot be undone."
+    },
     "discardSubmoduleFileScope": "This file belongs to the submodule \"{{path}}\" and is restored to THAT submodule's HEAD, not to the commit this repository records.",
     "discardSubmodulePointerScope": "This restores the submodule \"{{path}}\" to the commit this repository records. The submodule ends up on a detached HEAD — the branch checked out inside it will not be kept.",
     "submoduleBranchDiffersFromParent": "(differs from root)",
@@ -18831,6 +18922,11 @@
     }
   },
   "aiVault": {
+    "antigravityReferenceDescription": "Continues in a new Antigravity CLI conversation using this transcript as a reference.",
+    "antigravityIdeToCli": "IDE → CLI",
+    "antigravity2ToCli": "2.0 → CLI",
+    "continueInCli": "Continue in CLI",
+    "continueInCliNewTab": "Continue in CLI in New Tab",
     "subagents": {
       "loading": "Loading subagents…",
       "loadError": "Could not load all subagents.",
@@ -18850,6 +18946,10 @@
       "title": "Orca now runs Codex without its shared server",
       "description": "This makes agent status more reliable. You can turn it back on in Settings.",
       "openSettings": "Open Settings"
+    },
+    "codexSharedSettingsNotice": {
+      "title": "Codex in Orca now uses ~/.codex",
+      "description": "Codex may ask again to trust folders or approve commands. Re-add any MCP servers you added only in Orca."
     },
     "codexSharedServerBanner": {
       "title": "This Codex is sharing a server with your other Codex tabs",
@@ -18945,6 +19045,54 @@
     "noDirectories": "No folders added yet.",
     "removePath": "Remove {{name}}"
   },
+  "accounts": {
+    "antigravity": {
+      "scope": "Manage the native agy account on {{host}}.",
+      "signIn": "Start agy on this host and complete its browser sign-in, then save the current account. To add a different account, use /logout in agy and sign in again.",
+      "docs": "Sign-in instructions",
+      "retry": "Retry",
+      "identityUnknown": "Signed-in identity unavailable",
+      "signedOut": "No native agy account is signed in.",
+      "changed": "The native account changed. Select a saved account again before launching agy.",
+      "save": "Save current account",
+      "refresh": "Refresh accounts",
+      "usage": "Refresh usage",
+      "working": "Updating account",
+      "usageReading": "Session: {{session}} · Weekly: {{weekly}}",
+      "saved": "Saved Google account",
+      "nativeActive": "Native account",
+      "selected": "Selected",
+      "select": "Select",
+      "remove": "Remove",
+      "sessions": "Selection applies to new agy sessions on this host. Existing sessions may keep their previous account.",
+      "searchTitle": "Antigravity Accounts",
+      "searchDescription": "Save and select native agy Google accounts on the execution host.",
+      "title": "Antigravity",
+      "keyword": {
+        "antigravity": "antigravity",
+        "agy": "agy",
+        "google": "google",
+        "accounts": "accounts"
+      }
+    },
+    "managedData": {
+      "description": "Add accounts by running this command in a terminal on the Orca host. Selection applies to new explicit agent launches on that host; direct SSH relay and Windows-hosted WSL launches use their own credentials.",
+      "copied": "Copied",
+      "add": "Copy add account command",
+      "refresh": "Refresh accounts",
+      "upgrade": "If accounts do not appear, update or restart the Orca host.",
+      "system": "System default",
+      "active": "Active",
+      "select": "Select",
+      "remove": "Remove",
+      "removeTitle": "Remove managed account?",
+      "removeDescription": "Stop agents using this profile first. Removal deletes its saved credentials and conversation data. Your system login stays unchanged.",
+      "cancel": "Cancel"
+    }
+  },
+  "fileSearch": {
+    "failed": "Search failed. Try again."
+  },
   "sessionSearch": {
     "panel": {
       "resultsOne": "{{count}} result",
@@ -18958,6 +19106,7 @@
       "remoteDisabled": "Search is disabled on this computer. Enable transcript indexing on that computer to search its sessions.",
       "notReady": "The search index is not ready yet. Try again shortly.",
       "noService": "Search is unavailable on this computer. It may need an Orca update or a runtime with search support.",
+      "unsupportedAgent": "This computer does not support history search for the selected agent. Update Orca on that computer or select another agent.",
       "scopeUnknown": "This computer does not have this workspace or project. Switch the scope to All to search everything on it.",
       "sortSessionsAriaLabel": "Sort sessions: {{value0}}",
       "sessionsOne": "{{count}} session",

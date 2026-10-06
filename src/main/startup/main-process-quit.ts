@@ -65,7 +65,10 @@ function shutdownWatchersOnce(): Promise<void> {
 }
 
 function installBeforeQuitHandler(): void {
-  app.on('before-quit', () => {
+  app.on('before-quit', (event: Event) => {
+    if (event.defaultPrevented) {
+      return
+    }
     state.isQuitting = true
     state.desktopRelayService?.fenceAndCloseNow()
     state.runtimeRpc?.setMobileRelayPairingProvider(null)

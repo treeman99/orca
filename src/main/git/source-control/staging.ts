@@ -2,8 +2,8 @@ import type { GitRuntimeOptions } from '../git-runtime-options'
 import { gitOptionsForWorktree } from '../git-runtime-options'
 import { gitExecFileAsync } from '../runner'
 import { invalidateGitReadCaches } from './git-read-cache-invalidation'
-import { bulkPathspecCommands, literalPathspec } from './git-pathspec'
-import { isUnbornHeadGitError } from '../../../shared/git-unborn-head-error'
+import { literalPathspec } from './git-pathspec'
+import { encodeGitPathspecs } from '../../../shared/git-pathspec-stdin'
 
 /**
  * Stage a file.
@@ -27,32 +27,6 @@ export async function stageFile(
 /**
  * Unstage a file.
  */
-/**
- * `git restore --staged`, falling back to `git reset` before the first commit.
- *
- * Why the fallback: `restore --staged` resolves HEAD and exits 128 on an unborn branch,
- * so a repository with no commit yet — the normal state of a freshly added submodule —
- * could stage but never unstage. `reset` treats a missing HEAD as the empty tree.
- */
-async function unstagePathspecs(
-  worktreePath: string,
-  pathspecs: string[],
-  options: GitRuntimeOptions
-): Promise<void> {
-  try {
-    await gitExecFileAsync(['restore', '--staged', '--', ...pathspecs], {
-      ...gitOptionsForWorktree(worktreePath, options)
-    })
-  } catch (error) {
-    if (!isUnbornHeadGitError(error)) {
-      throw error
-    }
-    await gitExecFileAsync(['reset', '-q', '--', ...pathspecs], {
-      ...gitOptionsForWorktree(worktreePath, options)
-    })
-  }
-}
-
 export async function unstageFile(
   worktreePath: string,
   filePath: string,
@@ -60,14 +34,17 @@ export async function unstageFile(
 ): Promise<void> {
   invalidateGitReadCaches()
   try {
-    await unstagePathspecs(worktreePath, [literalPathspec(filePath, options)], options)
+    // Reset treats an unborn HEAD as an empty tree, preserving the working file.
+    await gitExecFileAsync(['reset', '--quiet', '--', literalPathspec(filePath, options)], {
+      ...gitOptionsForWorktree(worktreePath, options)
+    })
   } finally {
     invalidateGitReadCaches()
   }
 }
 
 /**
- * Bulk stage files in batches to avoid E2BIG.
+ * Stage selected files through stdin to avoid argv limits and repeated index writes.
  */
 export async function bulkStageFiles(
   worktreePath: string,
@@ -79,16 +56,17 @@ export async function bulkStageFiles(
     return
   }
   try {
-    for (const args of bulkPathspecCommands(['add', '--'], filePaths, worktreePath, options)) {
-      await gitExecFileAsync(args, gitOptionsForWorktree(worktreePath, options))
-    }
+    await gitExecFileAsync(['add', '--pathspec-from-file=-', '--pathspec-file-nul'], {
+      ...gitOptionsForWorktree(worktreePath, options),
+      stdin: encodeGitPathspecs(filePaths.map((filePath) => literalPathspec(filePath, options)))
+    })
   } finally {
     invalidateGitReadCaches()
   }
 }
 
 /**
- * Bulk unstage files in batches to avoid E2BIG.
+ * Unstage selected files through stdin to avoid argv limits and repeated index writes.
  */
 export async function bulkUnstageFiles(
   worktreePath: string,
@@ -100,16 +78,10 @@ export async function bulkUnstageFiles(
     return
   }
   try {
-    const commands = bulkPathspecCommands(
-      ['restore', '--staged', '--'],
-      filePaths,
-      worktreePath,
-      options
-    )
-    for (const args of commands) {
-      // Take upstream's byte-budget chunking, but keep every chunk on the unborn-HEAD fallback.
-      await unstagePathspecs(worktreePath, args.slice(3), options)
-    }
+    await gitExecFileAsync(['reset', '--quiet', '--pathspec-from-file=-', '--pathspec-file-nul'], {
+      ...gitOptionsForWorktree(worktreePath, options),
+      stdin: encodeGitPathspecs(filePaths.map((filePath) => literalPathspec(filePath, options)))
+    })
   } finally {
     invalidateGitReadCaches()
   }

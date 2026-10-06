@@ -1,5 +1,6 @@
 import type { AgentType } from './agent-status-types'
 import { findCatalogModel, getAgentSessionOptionCatalog } from './agent-session-option-catalog'
+import type { CatalogOptionApply } from './agent-session-option-catalog-types'
 import type { SessionOptionValue } from './native-chat-session-options'
 
 export type ResolvedSessionOptionLaunch = {
@@ -15,6 +16,11 @@ function launchResult(
   appliedValues: Record<string, SessionOptionValue>
 ): ResolvedSessionOptionLaunch {
   return { args, ...(Object.keys(env).length > 0 ? { env } : {}), appliedValues }
+}
+
+function isOverriddenByAgentArgs(apply: CatalogOptionApply, tokens: readonly string[]): boolean {
+  const kept = apply.removeAgentArgs?.(tokens)
+  return kept !== undefined && kept.length < tokens.length
 }
 
 export function removeOverriddenAgentSessionArgs(
@@ -77,7 +83,7 @@ export function resolveAgentSessionOptionLaunch(
   // A model may replace the catalog-wide apply when the CLI cannot name it — a
   // corporate endpoint does so even after the policy stopped provisioning it.
   const modelApply = model?.apply ?? catalog.modelApply
-  const modelOverridden = modelApply.agentArgsOverride?.(trailingAgentArgs) === true
+  const modelOverridden = isOverriddenByAgentArgs(modelApply, trailingAgentArgs)
 
   if (modelApply.launchArgs) {
     args.push(...modelApply.launchArgs(composedModelId))
@@ -108,7 +114,7 @@ export function resolveAgentSessionOptionLaunch(
     if (option.apply.launchEnv) {
       Object.assign(env, option.apply.launchEnv(value))
     }
-    if (!modelOverridden && !option.apply.agentArgsOverride?.(trailingAgentArgs)) {
+    if (!modelOverridden && !isOverriddenByAgentArgs(option.apply, trailingAgentArgs)) {
       appliedValues[option.id] = value
     }
   }

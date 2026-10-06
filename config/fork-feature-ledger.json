@@ -63,8 +63,9 @@
           "contains": "isAgentAllowedByEnterprisePolicy(agent)"
         },
         {
-          "file": "src/main/runtime/orca-runtime-create-managed-worktree.ts",
-          "contains": "assertManagedWorktreeAgentsAllowed(args)"
+          "file": "src/main/runtime/orca-runtime-fork-surface.ts",
+          "contains": "assertManagedWorktreeAgentsAllowed(args)",
+          "why": "관리형 워크트리 생성의 allowedAgents 게이트. v1.4.221 부터 upstream 이 그 파일을 300줄 상한까지 채워 클래스 체인 말단(포크 표면)의 override 로 옮겼다."
         },
         {
           "file": "src/main/runtime/orca-runtime-activate-managed-worktree.ts",
@@ -149,6 +150,11 @@
           "file": "src/renderer/src/components/settings/AgentsPane.tsx",
           "contains": "{catalog.some((agent) => agent.id === 'codex') ? (",
           "why": "v1.4.218 이 Codex 전용 설정(터미널 공유 서버 격리)을 Agents 패널에 넣었다. codex 가 정책으로 막힌 fleet 에서는 숨긴다(agent-allowlist-surfaces.policy 가 지킨다). v1.4.220 이 그 자리를 작업 공간 신뢰 설정과 묶은 fragment 로 바꿔 조건을 안쪽으로 옮겼다."
+        },
+        {
+          "file": "src/renderer/src/lib/agent-catalog.tsx",
+          "contains": "filterAgentsByPolicy(getFullAgentCatalog(), (entry) => entry.id, getPolicyAllowedAgents())",
+          "why": "모든 에이전트 선택기의 기본 목록을 허용목록으로 거르는 렌더러 초크포인트. v1.4.221 이 이 파일을 −327줄 해체하며 같은 자리를 덮었다. `getFullAgentCatalog = getAgentCatalog` 별칭으로 \"고치면\" 타입체크는 초록인 채 필터만 사라진다."
         }
       ]
     },
@@ -200,9 +206,29 @@
           "why": "벤더 호스트 리터럴이 소스·테스트 픽스처로 되돌아오는 것을 잡는 감사 목록."
         },
         {
+          "file": "src/renderer/src/components/settings/accounts-pane-enterprise-policy.tsx",
+          "contains": "  cursor: ['cursor'],",
+          "why": "Accounts 패널의 Cursor 섹션(v1.4.215 신규)을 허용목록·disableVendorProviderAccounts 로 숨기는 매핑. v1.4.221 에 max-lines 로 AccountsPane 에서 포크 모듈로 이관."
+        },
+        {
+          "file": "src/renderer/src/components/settings/accounts-pane-enterprise-policy.tsx",
+          "contains": "  zcode: ['zcode']",
+          "why": "v1.4.221 신규 GLM Coding Plan(Z.AI/Zhipu 키 저장) 섹션. 매핑이 빠지면 zcode 가 허용되지 않은 fleet 에도 벤더 키 입력란이 보인다."
+        },
+        {
+          "file": "src/renderer/src/components/settings/accounts-pane-enterprise-policy.tsx",
+          "contains": "  antigravity: ['antigravity'],",
+          "why": "v1.4.221 신규 Antigravity 계정 섹션. 키가 `antigravity:<runtime>` 꼴이라 접두사로 대조한다."
+        },
+        {
           "file": "src/renderer/src/components/settings/AccountsPane.tsx",
-          "contains": "  cursor: 'cursor'",
-          "why": "Accounts 패널의 Cursor 섹션(v1.4.215 신규)을 허용목록·disableVendorProviderAccounts 로 숨기는 매핑."
+          "contains": "isAccountSectionAllowedByPolicy(section, vendorAccountPolicy)",
+          "why": "위 매핑을 실제로 적용하는 필터 한 줄. 빠지면 매핑이 남아 있어도 모든 벤더 섹션이 보인다."
+        },
+        {
+          "file": "src/renderer/src/components/settings/AccountsPane.tsx",
+          "contains": "PolicyGatedManagedDataAccountsSection as ManagedDataAccountsSection",
+          "why": "v1.4.221 신규 opencode·devin 관리형 데이터 계정 섹션을 정책 래퍼로 바꿔 끼우는 별칭 임포트. 호출부는 upstream 과 바이트 동일."
         },
         {
           "file": "src/renderer/src/components/feature-tips/feature-tip-startup-gate.ts",
@@ -218,6 +244,31 @@
           "file": "src/main/ssh/runtime-archive-download.ts",
           "contains": "if (getEnterprisePolicy().disableRuntimeDownloads) {",
           "why": "v1.4.215 신설 스위치의 유일한 게이트. v1.4.220 이 bun 을 고정 Node 런타임으로 바꾸고 다운로드를 downloadVerifiedArchive 한 곳으로 모았다 — SSH 릴레이 배포·WSL·OpenCode 준비가 사용자 조작 없이 런타임 아카이브를 받는 레인이다."
+        },
+        {
+          "file": "src/main/ipc/zcode-plan-credentials.ts",
+          "contains": "assertVendorAccountRegistrationAllowed()",
+          "why": "v1.4.221 신규 GLM Coding Plan(Z.AI/Zhipu) API 키 저장 IPC. MiniMax 키 저장과 같은 벤더 계정 등록이다."
+        },
+        {
+          "file": "src/main/ipc/opencode-go-credentials.ts",
+          "contains": "assertVendorAccountRegistrationAllowed()",
+          "why": "v1.4.221 이 OpenCode Go 키를 설정에서 전용 저장소 IPC 로 옮기며 새 등록 레인이 됐다."
+        },
+        {
+          "file": "src/main/runtime/runtime-account-controller.ts",
+          "contains": "assertVendorAccountRegistrationAllowed()\n    return getManagedDataAccountService().add(",
+          "why": "v1.4.221 신규 `orca account add --agent opencode|devin`(accounts.addDataFromHome) 등록. 같은 파일의 Claude/Codex 게이트와 별개로 빠질 수 있어 다음 줄까지 묶어 고정한다."
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/antigravity-accounts.ts",
+          "contains": "assertVendorAccountRegistrationAllowed()",
+          "why": "v1.4.221 신규 Antigravity(Google) 계정 저장 RPC. 목록·선택·삭제는 열어 둔다."
+        },
+        {
+          "file": "src/renderer/src/hooks/settings-navigation-capability-sections.ts",
+          "contains": "getAccountsPaneSearchEntriesUnderPolicy as getAccountsPaneSearchEntries",
+          "why": "Cmd+J 검색에서 벤더 계정 항목을 정책으로 끄고 사내 게이트웨이 항목을 더하는 별칭 임포트. v1.4.221 부터 upstream accounts-search.ts 는 300줄에 닿아 포크 델타 0 으로 두고 포크 모듈(accounts-search-enterprise-policy.ts)에서 감싼다."
         }
       ]
     },
@@ -306,6 +357,11 @@
         {
           "file": "src/main/rate-limits/usage-polling-disabled-providers.ts",
           "contains": "  zcode: 'zcode'"
+        },
+        {
+          "file": "src/renderer/src/components/status-bar/use-status-bar-controller.ts",
+          "contains": "isStatusBarItemAvailable('zcode', null, allowedAgents)",
+          "why": "v1.4.221: GLM Coding Plan 키가 있으면 CLI 감지를 건너뛰지만 허용목록은 그대로 적용한다. upstream 판 `(키 || 감지)` 로 받으면 키가 허용목록을 우회한다."
         }
       ]
     },
@@ -906,8 +962,8 @@
         },
         {
           "file": "src/shared/child-process/windows-console-visibility.test.ts",
-          "contains": "const UNHIDDEN_SPAWNER_PIN = 58",
-          "why": "upstream 은 66. 이 빌드는 updater·벤더 forge 레인을 지워 스폰 파일이 2개 적고, 래칫은 핀이 실제 수와 같기를 요구한다(낮추는 방향만 허용)."
+          "contains": "const UNHIDDEN_SPAWNER_PIN = 56",
+          "why": "upstream 은 58(v1.4.221). 이 빌드는 updater·벤더 forge 레인을 지워 스폰 파일이 2개 적고, 래칫은 핀이 실제 수와 같기를 요구한다(낮추는 방향만 허용)."
         }
       ]
     },
@@ -1213,6 +1269,59 @@
           "why": "upstream 은 EXDEV 에서만 copy 로 폴백하는데 Windows 는 EPERM/EACCES/EBUSY 로도 rename 을 거부한다."
         }
       ]
+    },
+    {
+      "id": "corporate-no-proxy-preserved",
+      "summary": "사내 NO_PROXY 를 보존해 PTY·사용량 PTY 자식의 내부 호스트(GHES 등)가 외부 프록시로 새지 않게 하는 두 번째 인자.",
+      "present": [
+        {
+          "file": "src/main/ipc/pty/host-env/assembly.ts",
+          "contains": "buildConfiguredProxyEnv(opts.networkProxySettings, baseEnv)",
+          "why": "선택 인자라 빠져도 타입체크가 통과한다. v1.4.221 이 바로 아래 OpenCode env 블록을 다시 써서 인접 hunk 가 됐다(표면 워커 보고)."
+        },
+        {
+          "file": "src/main/rate-limits/claude-pty.ts",
+          "contains": "buildConfiguredProxyEnv(options?.networkProxySettings, spawnEnv)",
+          "why": "같은 이유. Claude 사용량 PTY 자식."
+        }
+      ]
+    },
+    {
+      "id": "opencode-native-chat-legacy-storage",
+      "summary": "opencode 챗 뷰: upstream(v1.4.221)의 SQLite 리더를 먼저 쓰고, SQLite 이전 판이 쓴 JSON 저장소 트리에만 있는 세션은 포크 리더(424588406b)로 읽는다.",
+      "present": [
+        {
+          "file": "src/main/native-chat/transcript-reader.ts",
+          "contains": "readOpenCodeNativeChatTranscriptFullWithLegacyFallback as readOpenCodeNativeChatTranscriptFull",
+          "why": "별칭 임포트라 호출부는 upstream 과 바이트 동일하다. 빠지면 옛 opencode 의 세션이 \"Transcript unavailable\" 로 보인다."
+        },
+        {
+          "file": "src/main/native-chat/transcript-tail-reader.ts",
+          "contains": "readOpenCodeNativeChatTranscriptTailWithLegacyFallback as readOpenCodeNativeChatTranscriptTail",
+          "why": "같은 이유(tail 읽기)."
+        },
+        {
+          "file": "src/main/native-chat/transcript-watch.ts",
+          "contains": "subscribeOpenCodeNativeChatTranscriptWithLegacyFallback as subscribeOpenCodeNativeChatTranscript",
+          "why": "같은 이유(구독)."
+        }
+      ]
+    },
+    {
+      "id": "agent-state-rules-no-vendor-download",
+      "summary": "v1.4.221 의 에이전트 상태 규칙 라이브 업데이트(github.com/stablyai/orca releases 를 시작 시·4시간마다, 데스크톱·serve·원격 orcad 각각)를 제거하고 로컬 override 만 남겼다.",
+      "present": [
+        {
+          "file": "src/main/startup/main-process-runtime-service.ts",
+          "contains": "startAgentStateRulesLocalOverride as startAgentStateRulesLiveUpdates",
+          "why": "데스크톱·orca serve 시작 지점. 별칭이라 호출부는 upstream 과 같다."
+        },
+        {
+          "file": "src/main/orcad/orcad-entry.ts",
+          "contains": "startAgentStateRulesLocalOverride: startAgentStateRulesLiveUpdates",
+          "why": "원격 orcad 시작 지점. 원격 호스트에는 데스크톱 정책 파일이 닿지 않으므로 스위치가 아니라 소스 제거로 막는다."
+        }
+      ]
     }
   ],
   "absentPaths": [
@@ -1260,7 +1369,13 @@
     "src/main/updater.*.test.ts",
     "config/scripts/cloud-security-history-workflow.test.mjs",
     "src/main/startup/main-window-core-services.test.ts",
-    "src/renderer/src/components/settings/GeneralPane.section-lifetime.test.tsx"
+    "src/renderer/src/components/settings/GeneralPane.section-lifetime.test.tsx",
+    "src/main/runtime/agent-state-rules/agent-state-rules-live-update.ts",
+    "src/main/runtime/agent-state-rules/agent-state-rules-live-update.test.ts",
+    "src/shared/release-channel.ts",
+    "src/main/updater-*.test.ts",
+    "src/main/window/main-window-updater*",
+    "src/main/macos-update-running-instances*"
   ],
   "absentSymbols": [
     {
@@ -1357,6 +1472,16 @@
       "file": "config/reliability-gates.jsonc",
       "symbol": "GeneralPane.section-lifetime",
       "why": "v1.4.218 이 포크가 지운 업데이트 설정 섹션(GeneralUpdateSettingsSection·원격 서버 업데이트)을 검증하는 테스트와 그 게이트 항목 settings.general-section-lifetime 을 충돌 없이 들였다. 테스트는 absentPaths, 게이트 항목은 여기서 지킨다."
+    },
+    {
+      "file": "src/main/startup/main-process-runtime-service.ts",
+      "symbol": "agent-state-rules-live-update",
+      "why": "벤더 규칙 다운로더를 제거했다. 시작 지점이 upstream 임포트로 되돌아가면 다운로더 파일이 없어도 tc 가 아니라 이 검사가 먼저 말해 준다."
+    },
+    {
+      "file": "src/main/orcad/orcad-entry.ts",
+      "symbol": "agent-state-rules-live-update",
+      "why": "같은 이유(원격 orcad)."
     }
   ],
   "policySwitchMinConsumers": {

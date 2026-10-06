@@ -8,6 +8,7 @@ import {
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 import { translateMain } from '../i18n/main-i18n'
 import { createAppMenuSelectionItem } from './app-menu-selection-item'
+import { createAppWindowMenu } from './app-menu-window'
 
 export type AppearanceMenuState = {
   showTasksButton: boolean
@@ -284,10 +285,7 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     ]
   }
 
-  const windowMenu: Electron.MenuItemConstructorOptions = {
-    label: translateMain('menu.window', 'Window'),
-    submenu: [{ role: 'minimize' }, { role: 'zoom' }]
-  }
+  const windowMenu = createAppWindowMenu(translateMain('menu.window', 'Window'), isMac)
 
   // Fork: crash reporting, the feature tour and the setup guide left with the vendor
   // surfaces they belonged to — see docs/reference/external-integrations-audit.md. The

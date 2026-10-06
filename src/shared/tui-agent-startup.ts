@@ -17,6 +17,7 @@ import { inlineAgentDraftFitsPlatform } from './agent-draft-platform-limit'
 import type { TuiAgent } from './tui-agent'
 import type { SessionOptionValue } from './native-chat-session-options'
 import { resolveAgentLaunchCommand } from './tui-agent-launch-command'
+import { appliedSessionOptionProps, buildFlagPromptStartupPlan } from './flag-prompt-startup'
 
 export { buildAgentResumeStartupPlan } from './tui-agent-resume-startup'
 
@@ -33,10 +34,6 @@ export type AgentStartupPlan = {
   /** Values actually emitted into this launch command, kept as base model ids
    * so the native-chat surface can render only launch-backed state. */
   sessionOptions?: Record<string, SessionOptionValue>
-}
-
-function appliedSessionOptionProps(values: Record<string, SessionOptionValue>) {
-  return Object.keys(values).length > 0 ? { sessionOptions: { ...values } } : {}
 }
 
 export function buildAgentStartupPlan(args: {
@@ -112,15 +109,16 @@ export function buildAgentStartupPlan(args: {
   }
 
   if (config.promptInjectionMode === 'flag-prompt') {
-    return {
+    return buildFlagPromptStartupPlan({
       agent,
-      launchCommand: `${launchCommand} --prompt ${quotedPrompt}`,
-      expectedProcess: config.expectedProcess,
-      followupPrompt: null,
+      launchCommand,
+      quotedPrompt,
+      prompt: trimmedPrompt,
+      shell,
       launchConfig,
-      ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),
-      ...(baseCommand.env ? { env: baseCommand.env } : {})
-    }
+      sessionOptions: baseCommand.appliedSessionOptions,
+      agentEnv: baseCommand.env
+    })
   }
 
   if (config.promptInjectionMode === 'hermes-query') {

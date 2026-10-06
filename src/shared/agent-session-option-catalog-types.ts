@@ -26,10 +26,8 @@ export type CatalogOptionApply = {
   launchArgs?: (value: SessionOptionValue) => string[]
   /** Launch environment, for a choice the agent CLI exposes no flag for. */
   launchEnv?: (value: SessionOptionValue) => Record<string, string>
-  /** Why: later free-form args win, so the launch record must discard any
-   * picker value that those args may have replaced. */
-  agentArgsOverride?: (tokens: readonly string[]) => boolean
-  /** Removes conflicting defaults before a more specific launch choice is inserted. */
+  /** Strips the free-form args that set this option. Why: later free-form args win, so
+   * anything this strips also tells the launch record to discard the picker value. */
   removeAgentArgs?: (tokens: readonly string[]) => string[]
   composedIntoModel?: true
   midSession?: CatalogMidSessionApply
@@ -83,7 +81,7 @@ export type AgentSessionOptionCatalog = {
    *
    * Known gap: "no model flag" is unverified. A user `-m` in `agentArgs` launches that
    * model while the picker, which never reads launch args, still names the CLI default.
-   * A real fix means threading `modelApply.agentArgsOverride` through to the surface. */
+   * A real fix means threading `modelApply.removeAgentArgs` through to the surface. */
   defaultModelIsCliDefault?: true
   listModels?: {
     command: string

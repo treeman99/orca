@@ -1,3 +1,6 @@
+import { UNFLUSHED_SETTLE_MS } from './transcript-watch-contract'
+import { subscribeOpenCodeNativeChatTranscriptWithLegacyFallback as subscribeOpenCodeNativeChatTranscript } from './opencode-transcript-legacy-fallback'
+import { resolveNativeChatTranscriptAgent } from '../../shared/native-chat-agent-support'
 import { extname } from 'node:path'
 import type { NativeChatMessage } from '../../shared/native-chat-types'
 import {
@@ -12,8 +15,6 @@ import type {
   SubscribeNativeChatTranscriptArgs
 } from './transcript-watch-contract'
 import { nativeChatLineDecoderForAgent } from './transcript-tail-reader'
-import { resolveNativeChatTranscriptAgent } from '../../shared/native-chat-agent-support'
-import { subscribeOpenCodeTranscript } from './opencode-transcript-watch'
 import { WslTranscriptFsError, wslTranscriptFsRefusal } from './wsl-transcript-fs-gate'
 import { observeRunningWslDistros } from './wsl-transcript-running-observer'
 
@@ -57,7 +58,6 @@ const FALLBACK_RESOLVE_POLL_MS = 5_000
 // delay — a fresh session that has yet to be prompted never flushes, so the
 // spinner is permanent. Long enough that a merely slow resolve still wins the
 // race and paints history directly.
-const UNFLUSHED_SETTLE_MS = 1_500
 
 function exactTranscriptPath(args: SubscribeNativeChatTranscriptArgs): string | null {
   const path = args.transcriptPath?.trim()
@@ -266,10 +266,8 @@ export async function subscribeNativeChatTranscript(
   setupSignal?: AbortSignal
 ): Promise<NativeChatTranscriptSubscription> {
   setupSignal?.throwIfAborted()
-  // opencode has no file to tail — its own subscriber watches the storage tree and replaces the
-  // window when it changes. See opencode-transcript-watch.ts.
   if (resolveNativeChatTranscriptAgent(args.agent) === 'opencode') {
-    return subscribeOpenCodeTranscript(args)
+    return subscribeOpenCodeNativeChatTranscript(args, setupSignal)
   }
   const decode = nativeChatLineDecoderForAgent(args.agent)
   if (!decode) {

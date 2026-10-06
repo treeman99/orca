@@ -33,7 +33,6 @@ export function createAccumulator(): SearchAccumulator {
 
 // ─── Constants shared by both callers ────────────────────────────────
 
-export const MAX_MATCHES_PER_FILE = 100
 export const DEFAULT_SEARCH_MAX_RESULTS = 2000
 export const SEARCH_TIMEOUT_MS = 15_000
 export const SEARCH_JSON_STRUCTURE_LIMITS = {
@@ -61,6 +60,8 @@ export function buildGitGrepArgs(query: string, opts: SearchOptionsLike): string
   const gitArgs: string[] = [
     '-c',
     'submodule.recurse=false',
+    '-c',
+    'grep.column=false',
     'grep',
     '-n',
     '-I',
@@ -155,9 +156,9 @@ export function ingestGitGrepLine(
   if (nullIdx === -1) {
     return 'continue'
   }
-  const ownRelPath = normalizeRelativePath(line.substring(0, nullIdx))
+  const ownRelPath = normalizeRelativePath(line.substring(0, nullIdx), rootPath)
   const relPath = relPathPrefix
-    ? normalizeRelativePath(`${relPathPrefix}/${ownRelPath}`)
+    ? normalizeRelativePath(`${relPathPrefix}/${ownRelPath}`, rootPath)
     : ownRelPath
   const rest = line.substring(nullIdx + 1)
   const secondNullIdx = rest.indexOf('\0')

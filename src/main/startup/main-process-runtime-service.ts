@@ -32,6 +32,9 @@ import {
   AgentStatusObservedPaneIdentities,
   recordObservedAgentStatusPaneIdentity
 } from '../runtime/agent-status-observed-pane-identity'
+// Fork: aliased to upstream's name — the vendor rules download is removed, the local override stays.
+import { startAgentStateRulesLocalOverride as startAgentStateRulesLiveUpdates } from '../runtime/agent-state-rules/agent-state-rules-local-override'
+import { recordDurableCrashBreadcrumb } from '../crash-reporting/durable-crash-breadcrumb'
 
 export function getDesktopWindowStatus(): RuntimeDesktopWindowStatus {
   const activation = state.desktopActivationGate
@@ -162,6 +165,10 @@ export function initializeMainProcessRuntime(): OrcaRuntimeService {
     getScopeCatalog: () => sessionSearchScopeCatalogFromStore(store, LOCAL_EXECUTION_HOST_ID)
   })
   app.once('will-quit', () => sessionSearch?.dispose())
+  // Why here: this runs for the desktop and headless `orca serve`, and each evaluates its own panes.
+  startAgentStateRulesLiveUpdates(store, (rules) =>
+    recordDurableCrashBreadcrumb('agent_state_rules_active', rules)
+  )
   state.runtime = runtime
   agentHookServer.subscribeEnrichedStatus((enriched) =>
     recordObservedAgentStatusPaneIdentity(observedPaneIdentities, enriched.paneKey, runtime)

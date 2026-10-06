@@ -2,8 +2,15 @@ import { useEffect, useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { resolveClientEnvironmentFooter } from '@/lib/client-environment-info'
+import {
+  humanizeFolderWorkspacePathError,
+  isFolderWorkspacePathError
+} from '@/lib/folder-workspace-path-status'
 import { Button } from '@/components/ui/button'
-import { hasClientEnvironmentFooter } from '../../../../shared/client-environment-info'
+import {
+  hasClientEnvironmentFooter,
+  stripClientEnvironmentFooter
+} from '../../../../shared/client-environment-info'
 import {
   localizeTerminalSpawnHints,
   withoutTerminalSpawnIssueRequest
@@ -115,9 +122,22 @@ function humanizeUnreattachableSession(error: string): string {
   )
 }
 
+// Why: only an all-folder toast drops the issue link; an unrelated line still needs it.
+function isFolderWorkspacePathOnlyError(error: string): boolean {
+  const lines = stripClientEnvironmentFooter(error)
+    .split('\n')
+    .filter((line) => line.trim().length > 0)
+  return lines.length > 0 && lines.every(isFolderWorkspacePathError)
+}
+
+// Why: a moved or deleted folder is the user's to fix, so it gets actionable copy, not an issue link.
+function humanizeFolderWorkspacePathErrors(error: string): string {
+  return error.split('\n').map(humanizeFolderWorkspacePathError).join('\n')
+}
+
 /** Swaps raw daemon-boundary codes for copy a user can act on. */
 export function humanizeTerminalError(error: string): string {
-  let humanized = localizeTerminalSpawnHints(error)
+  let humanized = humanizeFolderWorkspacePathErrors(localizeTerminalSpawnHints(error))
   if (humanized.includes(PANE_OWNER_UNVERIFIED_MARKER)) {
     const explanation = isPaneOwnerUnverifiedError(humanized)
       ? translate(
@@ -189,6 +209,7 @@ export function TerminalErrorToast({
     !paneOwnerUnverified &&
     !showDaemonRestart &&
     !isExplainedTerminalError(error) &&
+    !isFolderWorkspacePathOnlyError(error) &&
     !disableVendorLinks
   const humanizedError = humanizeTerminalError(error)
   // Why: the toast appends its own linked request, so the host's plain-text one would repeat it.

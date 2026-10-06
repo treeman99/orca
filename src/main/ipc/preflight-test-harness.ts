@@ -13,6 +13,7 @@ export type PreflightMocks = {
   getActiveMultiplexerMock: Mock
   resolveCliCommandsMock: Mock
   isCommandOnLocalPathMock: Mock
+  listLocalCommandPathsMock: Mock
   mergePersistedWindowsPathAsyncMock: Mock
   mergePersistedWindowsPathMock: Mock
 }
@@ -28,6 +29,7 @@ export function resetPreflightMocks(mocks: PreflightMocks, handlers: HandlerMap)
     getActiveMultiplexerMock,
     resolveCliCommandsMock,
     isCommandOnLocalPathMock,
+    listLocalCommandPathsMock,
     mergePersistedWindowsPathAsyncMock,
     mergePersistedWindowsPathMock
   } = mocks
@@ -39,6 +41,11 @@ export function resetPreflightMocks(mocks: PreflightMocks, handlers: HandlerMap)
   hydrateShellPathMock.mockResolvedValue({ segments: [], ok: false, failureReason: 'no_shell' })
   mergePathSegmentsMock.mockReset()
   getActiveMultiplexerMock.mockReset()
+  // Why empty by default: with no fs candidates the local probe keeps its
+  // historical bare-name spawn, so cases that stub only where/which and execFile
+  // still assert on the command names they were written against.
+  listLocalCommandPathsMock.mockReset()
+  listLocalCommandPathsMock.mockResolvedValue([])
   mergePersistedWindowsPathAsyncMock.mockReset()
   mergePersistedWindowsPathAsyncMock.mockResolvedValue(undefined)
   mergePersistedWindowsPathMock.mockReset()

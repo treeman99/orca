@@ -5,6 +5,8 @@
  */
 export type GitStatusCommandArgsOptions = {
   includeIgnored?: boolean
+  /** Upstream #24602 skips Git's opportunistic index refresh on the relay's status only. */
+  disableAutoRefreshIndex?: boolean
 }
 
 /**
@@ -29,6 +31,7 @@ export function buildGitStatusCommandArgs(options: GitStatusCommandArgsOptions =
   const args = [
     '-c',
     'core.quotePath=false',
+    ...(options.disableAutoRefreshIndex ? ['-c', 'diff.autoRefreshIndex=false'] : []),
     'status',
     '--porcelain=v2',
     '--branch',

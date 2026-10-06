@@ -4,6 +4,9 @@ import { worktreeIdsEqual } from '../../shared/worktree/id'
 import { OrcaRuntimeWithResolveWaiter } from './orca-runtime-resolve-waiter'
 import { waitForWorktreeStartupDraft } from './runtime-worktree-startup-readiness'
 import type { LegacyWorkerRecoveryCandidate } from './runtime-legacy-worker-terminal-recovery-types'
+import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
+import type { RuntimeManagedWorktreeCreateArgs } from './runtime-managed-worktree-create-types'
+import { assertManagedWorktreeAgentsAllowed } from './runtime-managed-worktree-agent-policy'
 
 /**
  * Runtime members this fork owns. Kept at the tail of the class chain so an upstream
@@ -11,6 +14,17 @@ import type { LegacyWorkerRecoveryCandidate } from './runtime-legacy-worker-term
  * fails typecheck at the RPC methods that call these.
  */
 export class OrcaRuntimeForkSurface extends OrcaRuntimeWithResolveWaiter {
+  /**
+   * allowedAgents gate for managed worktree creation. Here rather than in the layer that defines
+   * it: upstream fills orca-runtime-create-managed-worktree.ts to its max-lines cap (v1.4.221).
+   */
+  override async createManagedWorktree(
+    args: RuntimeManagedWorktreeCreateArgs
+  ): Promise<CreateWorktreeResult> {
+    assertManagedWorktreeAgentsAllowed(args)
+    return super.createManagedWorktree(args)
+  }
+
   /** Settings gate for closing a worker tab once its dispatch settles. */
   shouldAutoCloseSettledWorkerTerminals(): boolean {
     return this.store?.getSettings()?.autoCloseCompletedOrchestrationWorkerTabs === true

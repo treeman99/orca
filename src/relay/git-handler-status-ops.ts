@@ -102,7 +102,7 @@ export async function getStatusOp(
   const conflictPromise = detectConflictOperation(worktreePath)
   // Why the shared builder: main and relay must not drift, and it carries
   // `--ignore-submodules=none` — inlining the argv here drops the gitlink row over SSH.
-  const statusArgs = buildGitStatusCommandArgs({ includeIgnored })
+  const statusArgs = buildGitStatusCommandArgs({ includeIgnored, disableAutoRefreshIndex: true })
   // Why: attach rejection ownership before awaiting marker I/O, so a fast Git failure cannot become unhandled.
   const statusSettlementPromise = Promise.allSettled([
     (async () => {
@@ -260,7 +260,17 @@ async function runNumstat(
 ): Promise<Map<string, GitLineStats> | null> {
   try {
     const { stdout } = await git(
-      ['-c', 'core.quotePath=false', 'diff', ...(cached ? ['--cached'] : []), '--numstat', '-M'],
+      [
+        '-c',
+        'core.quotePath=false',
+        '-c',
+        'diff.autoRefreshIndex=false',
+        'diff',
+        ...(cached ? ['--cached'] : []),
+        '-z',
+        '--numstat',
+        '-M'
+      ],
       worktreePath,
       { disableOptionalLocks: true, signal }
     )

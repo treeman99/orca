@@ -1,3 +1,5 @@
+// Fork: falls back to the pre-SQLite JSON storage tree. See opencode-transcript-legacy-fallback.ts.
+import { readOpenCodeNativeChatTranscriptFullWithLegacyFallback as readOpenCodeNativeChatTranscriptFull } from './opencode-transcript-legacy-fallback'
 import type {
   AgentType,
   NativeChatMessage,
@@ -15,7 +17,6 @@ import {
   decodeOmpTranscriptLine
 } from './transcript-line-decoders'
 import { decodeTranscriptStream } from './transcript-stream-lines'
-import { readOpenCodeTranscript } from './opencode-transcript-store'
 
 export type ReadTranscriptResult =
   | {
@@ -43,10 +44,8 @@ export async function readNativeChatTranscript(
   sessionId: string,
   options: ReadTranscriptOptions = {}
 ): Promise<ReadTranscriptResult> {
-  // opencode has no transcript FILE to resolve — its session is a storage tree, so it skips the
-  // path/tail machinery entirely and reads the tree. See opencode-transcript-store.ts.
   if (resolveNativeChatTranscriptAgent(agent) === 'opencode') {
-    return readOpenCodeTranscript({ sessionId })
+    return readOpenCodeNativeChatTranscriptFull(sessionId)
   }
   let filePath: string | null
   try {

@@ -1,3 +1,4 @@
+import type { ProjectGroupingModel } from '@/components/sidebar/worktree-list/grouping/project-grouping'
 import type { Repo } from '../../../shared/repo-types'
 import type { EnterprisePolicyView } from '../../../shared/enterprise-policy-view'
 
@@ -17,4 +18,5 @@ export type SettingsNavigationBuildOptions = {
   // subscribe to it and re-render on the startup fetch.
   policy: EnterprisePolicyView
   repos: readonly Repo[]
+  projectGrouping?: ProjectGroupingModel
 }

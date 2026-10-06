@@ -1,5 +1,5 @@
 import type { RequestContext } from './dispatcher'
-import type { InFlightPromiseDedupe } from '../shared/in-flight-promise-dedupe'
+import type { GitStatusReadLeaseOwner } from '../shared/git-status-read-lease-owner'
 import type { GitCapabilityCache } from '../shared/git-capability-cache'
 import type { SubmodulePathsCache } from './git-handler-submodule-ops'
 import type { SubmoduleIgnorePolicyCache } from './git-submodule-ignore-config'
@@ -21,7 +21,7 @@ export type GitHandlerCommandResult = { stdout: string; stderr: string }
 export type GitHandlerWatcherRegistry = Pick<RelayFilesystemWatchRegistry, 'runWithRemovalFence'>
 
 export type GitHandlerOperationHost = {
-  readonly gitDiffReadDedupe: InFlightPromiseDedupe<unknown>
+  readonly gitDiffReadDedupe: GitStatusReadLeaseOwner<unknown>
   readonly gitCapabilities: GitCapabilityCache
   readonly submodulePathsCache: SubmodulePathsCache
   readonly submoduleIgnorePolicyCache: SubmoduleIgnorePolicyCache
@@ -31,7 +31,7 @@ export type GitHandlerOperationHost = {
     cwd: string,
     opts?: GitHandlerCommandOptions
   ): Promise<GitHandlerCommandResult>
-  gitBuffer(args: string[], cwd: string): Promise<Buffer>
+  gitBuffer(args: string[], cwd: string, opts?: GitHandlerCommandOptions): Promise<Buffer>
   spawnClone(
     args: string[],
     cwd: string,
@@ -50,7 +50,7 @@ export type GitHandlerOperationHost = {
 export abstract class GitHandlerOperationContext {
   constructor(private readonly host: GitHandlerOperationHost) {}
 
-  protected get gitDiffReadDedupe(): InFlightPromiseDedupe<unknown> {
+  protected get gitDiffReadDedupe(): GitStatusReadLeaseOwner<unknown> {
     return this.host.gitDiffReadDedupe
   }
 
@@ -78,8 +78,25 @@ export abstract class GitHandlerOperationContext {
     return this.host.git(args, cwd, opts)
   }
 
-  protected gitBuffer(args: string[], cwd: string): Promise<Buffer> {
-    return this.host.gitBuffer(args, cwd)
+  protected gitBuffer(
+    args: string[],
+    cwd: string,
+    opts?: GitHandlerCommandOptions
+  ): Promise<Buffer> {
+    return this.host.gitBuffer(args, cwd, opts)
+  }
+
+  protected gitForSignal(signal?: AbortSignal) {
+    return signal
+      ? (args: string[], cwd: string, opts?: GitHandlerCommandOptions) =>
+          this.git(args, cwd, { ...opts, signal })
+      : this.git.bind(this)
+  }
+
+  protected gitBufferForSignal(signal?: AbortSignal) {
+    return signal
+      ? (args: string[], cwd: string) => this.gitBuffer(args, cwd, { signal })
+      : this.gitBuffer.bind(this)
   }
 
   protected spawnClone(

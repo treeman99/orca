@@ -21,10 +21,12 @@ import {
   getAccountsGeminiSearchEntries,
   getAccountsCursorSearchEntries,
   getAccountsGrokSearchEntries,
+  getAccountsAntigravitySearchEntries,
   getAccountsLocationSearchEntries,
   getAccountsMiniMaxSearchEntries,
   getAccountsOpencodeSearchEntries,
-  getAccountsPaneSearchEntries
+  getAccountsPaneSearchEntries,
+  getAccountsZcodePlanSearchEntries
 } from './accounts-search'
 import { getRemoteAccountsPaneScope } from './provider-account-scope'
 import { ProviderHostScopeControl } from './ProviderHostScopeControl'
@@ -41,8 +43,10 @@ import { GrokAccountsSection } from './GrokAccountsSection'
 import { GatewaySection } from './GatewaySection'
 import { getGatewaySearchEntries } from './gateway-search'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
-import { isAgentAllowedByPolicy } from '../../../../shared/corporate-agent-access'
+import { AntigravityAccountsSection } from './AntigravityAccountsSection'
+import { getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
 import { CursorAccountsSection } from './CursorAccountsSection'
+import { ZcodePlanAccountsSection } from './ZcodePlanAccountsSection'
 import type {
   AccountsPaneProps,
   AccountsPaneSectionModel,
@@ -65,23 +69,13 @@ import {
   renderOpenCodeAccountsSection
 } from './accounts-pane-provider-setting-sections'
 import { renderMiniMaxAccountsSection } from './accounts-pane-minimax-section'
+import {
+  isAccountSectionAllowedByPolicy,
+  PolicyGatedManagedDataAccountsSection as ManagedDataAccountsSection
+} from './accounts-pane-enterprise-policy'
 import { renderAccountsRemovalDialogs } from './accounts-pane-removal-dialogs'
 
 export { getAccountsPaneSearchEntries }
-
-// Which vendor an account section belongs to, keyed by its render key. Sections
-// absent here (account runtime, the corporate self-hosted endpoints) are never gated
-// by the agent allowlist. MiniMax has no TuiAgent id, so a synthetic one that no
-// allowlist contains hides it under any Bedrock-only policy — the intended behavior.
-const ACCOUNT_SECTION_AGENT_BY_KEY: Record<string, string> = {
-  'claude-accounts': 'claude',
-  'codex-accounts': 'codex',
-  gemini: 'gemini',
-  'opencode-go': 'opencode',
-  minimax: 'minimax',
-  grok: 'grok',
-  cursor: 'cursor'
-}
 
 export function AccountsPane({
   settings,
@@ -93,7 +87,7 @@ export function AccountsPane({
   accountOwnerPlatform = null
 }: AccountsPaneProps): React.JSX.Element {
   const searchQuery = useAppStore((s) => s.settingsSearchQuery)
-  const { allowedAgents, disableVendorProviderAccounts } = useEnterprisePolicyView()
+  const vendorAccountPolicy = useEnterprisePolicyView()
   const codexRateLimits = useAppStore((s) => s.rateLimits.codex)
   const codexRateLimitTarget = useAppStore((s) => s.rateLimits.codexTarget)
   const miniMaxRateLimits = useAppStore((s) => s.rateLimits.minimax)
@@ -389,6 +383,12 @@ export function AccountsPane({
     clearMiniMaxCookie
   }
   const visibleSections = [
+    !searchQuery || /opencode|devin|account/i.test(searchQuery) ? (
+      <div key={settings.activeRuntimeEnvironmentId ?? 'local'} className="space-y-8">
+        <ManagedDataAccountsSection provider="opencode" target={getActiveRuntimeTarget(settings)} />
+        <ManagedDataAccountsSection provider="devin" target={getActiveRuntimeTarget(settings)} />
+      </div>
+    ) : null,
     wslSupportedPlatform &&
     !isRemoteAccountScope &&
     matchesSettingsSearch(searchQuery, getAccountsLocationSearchEntries())
@@ -403,6 +403,14 @@ export function AccountsPane({
     matchesSettingsSearch(searchQuery, getAccountsGeminiSearchEntries())
       ? renderGeminiAccountsSection(model)
       : null,
+    matchesSettingsSearch(searchQuery, getAccountsAntigravitySearchEntries()) ? (
+      <AntigravityAccountsSection
+        key={`antigravity:${settings.activeRuntimeEnvironmentId ?? 'local'}:${accountRuntime.runtime}:${accountRuntime.wslDistro ?? ''}`}
+        owner={getActiveRuntimeTarget(settings)}
+        target={{ runtime: accountRuntime.runtime, wslDistro: accountRuntime.wslDistro }}
+        label={accountRuntimeSentenceLabel}
+      />
+    ) : null,
     matchesSettingsSearch(searchQuery, getAccountsOpencodeSearchEntries())
       ? renderOpenCodeAccountsSection(model)
       : null,
@@ -415,24 +423,13 @@ export function AccountsPane({
     matchesSettingsSearch(searchQuery, getAccountsCursorSearchEntries()) ? (
       <CursorAccountsSection key="cursor" />
     ) : null,
+    matchesSettingsSearch(searchQuery, getAccountsZcodePlanSearchEntries()) ? (
+      <ZcodePlanAccountsSection key="zcode" />
+    ) : null,
     matchesSettingsSearch(searchQuery, getGatewaySearchEntries()) ? (
       <GatewaySection key="gateway" />
     ) : null
-  ]
-    .filter(Boolean)
-    // Hide the account sections of vendors the corporate policy does not allow.
-    //
-    // Two separate rules, because agents and vendor credentials are different axes: a
-    // Bedrock fleet needs `allowedAgents: ["claude"]` — the CLI binary — while forbidding
-    // the platform.claude.com login that shares its name. Only the second rule removes it.
-    .filter((section) => {
-      const key = (section as React.ReactElement).key
-      const agentId = typeof key === 'string' ? ACCOUNT_SECTION_AGENT_BY_KEY[key] : undefined
-      if (agentId === undefined) {
-        return true
-      }
-      return !disableVendorProviderAccounts && isAgentAllowedByPolicy(agentId, allowedAgents)
-    })
+  ].filter((section) => isAccountSectionAllowedByPolicy(section, vendorAccountPolicy))
 
   return (
     <div className="space-y-8">

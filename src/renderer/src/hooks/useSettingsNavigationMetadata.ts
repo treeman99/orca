@@ -25,6 +25,8 @@ import {
 } from '@/lib/windows-terminal-capabilities'
 import { getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
 import { useAppStore } from '@/store'
+import { useProjectHostSetupProjection } from '@/store/selectors'
+import type { ProjectGroupingModel } from '@/components/sidebar/worktree-list/grouping/project-grouping'
 import type { Repo } from '../../../shared/repo-types'
 import {
   buildCapabilitySettingsSections,
@@ -53,7 +55,8 @@ export function buildSettingsNavigationMetadata({
   // surfaces read — is where the switches land. Passed in rather than read here so the hook
   // below can subscribe to it and re-render on the startup fetch.
   policy = getEnterprisePolicyView(),
-  repos
+  repos,
+  projectGrouping
 }: {
   isMac: boolean
   isWindows: boolean
@@ -66,6 +69,7 @@ export function buildSettingsNavigationMetadata({
   isLinearConnected?: boolean
   policy?: EnterprisePolicyView
   repos: readonly Repo[]
+  projectGrouping?: ProjectGroupingModel
 }): SettingsNavSection[] {
   const terminalPaneSearchEntries = getTerminalPaneSearchEntries({
     isWindows,
@@ -92,7 +96,8 @@ export function buildSettingsNavigationMetadata({
     isDev,
     isLinearConnected,
     policy,
-    repos
+    repos,
+    projectGrouping
   }
 
   // Why: this array's order must mirror SETTINGS_NAV_GROUPS so the Settings
@@ -115,6 +120,7 @@ export function useSettingsNavigationMetadata(): SettingsNavSection[] {
   const { i18n } = useTranslation()
   const activeLocale = i18n.language
   const repos = useAppStore((state) => state.repos)
+  const projectHostSetupProjection = useProjectHostSetupProjection()
   const settings = useAppStore((state) => state.settings)
   const [managedBrowserCreationEnabled, mobileEmulatorCreationEnabled] = useAppStore(
     useShallow((state) => {
@@ -173,7 +179,11 @@ export function useSettingsNavigationMetadata(): SettingsNavSection[] {
         isDev: import.meta.env.DEV,
         isLinearConnected,
         policy,
-        repos
+        repos,
+        projectGrouping: {
+          projects: projectHostSetupProjection.projects,
+          projectHostSetups: projectHostSetupProjection.setups
+        }
       }),
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- activeLocale is read implicitly by the translate() calls inside buildSettingsNavigationMetadata; without it the memo keeps the previous language's sections.
     [
@@ -187,6 +197,7 @@ export function useSettingsNavigationMetadata(): SettingsNavSection[] {
       isLinearConnected,
       policy,
       repos,
+      projectHostSetupProjection,
       activeLocale
     ]
   )
