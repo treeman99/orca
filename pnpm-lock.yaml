@@ -166,6 +166,7 @@ overrides:
   monaco-editor>dompurify: 3.4.16
 
 patchedDependencies:
+  '@streamparser/json@0.0.26': b2cf43861e5b4e485e97ffa7449ea65acab4d65dd983ab8c0508f1c68f7d80c9
   '@vscode/windows-process-tree@0.8.0': 9da74aa3d17243aa53dcdc95c9f06e97437e7fbccf098aeb017579e2d24cbac2
   '@xterm/addon-image@0.10.0-beta.300': e5254a46d6f57bef4a8a19683bfa685afa0ca0127545aea53b54a48104ca3562
   '@xterm/addon-ligatures@0.11.0-beta.300': 47405b9994b5acf1b4e90b49250358c1ca03649854d59560e7732b72fe336920
@@ -198,7 +199,7 @@ importers:
         version: 2.5.6
       '@streamparser/json':
         specifier: 0.0.26
-        version: 0.0.26
+        version: 0.0.26(patch_hash=b2cf43861e5b4e485e97ffa7449ea65acab4d65dd983ab8c0508f1c68f7d80c9)
       '@xterm/addon-serialize':
         specifier: 0.15.0-beta.300
         version: 0.15.0-beta.300(patch_hash=b35533fe252e7e45433150170348889f4e08a6c17f7017ac34ea694d831fec7f)(@xterm/xterm@6.1.0-beta.303(patch_hash=dd0ccc59cd1ccf99f4d76e5aa2456da165fa0804dce19a833d7638bd07ffa393))
@@ -238,6 +239,9 @@ importers:
       sherpa-onnx:
         specifier: 1.12.37
         version: 1.12.37
+      smol-toml:
+        specifier: 1.8.0
+        version: 1.8.0
       ssh2:
         specifier: ^1.17.0
         version: 1.17.0
@@ -356,6 +360,12 @@ importers:
       '@tiptap/starter-kit':
         specifier: 3.31.3
         version: 3.31.3
+      '@types/hast':
+        specifier: ^3.0.4
+        version: 3.0.4
+      '@types/mdast':
+        specifier: ^4.0.4
+        version: 4.0.4
       '@types/node':
         specifier: ^25.6.0
         version: 25.9.5
@@ -446,6 +456,9 @@ importers:
       happy-dom:
         specifier: ^20.14.5
         version: 20.14.5
+      hast-util-to-jsx-runtime:
+        specifier: 2.3.6
+        version: 2.3.6(supports-color@7.2.0)
       html-to-image:
         specifier: ^1.11.13
         version: 1.11.13
@@ -551,6 +564,9 @@ importers:
       remark-parse:
         specifier: ^11.0.0
         version: 11.0.0(supports-color@7.2.0)
+      remark-rehype:
+        specifier: 11.1.2
+        version: 11.1.2
       shadcn:
         specifier: ^4.13.1
         version: 4.13.1(supports-color@7.2.0)(typescript@7.0.2)
@@ -6190,8 +6206,8 @@ packages:
   micromark-extension-gfm-strikethrough@2.1.0:
     resolution: {integrity: sha512-ADVjpOOkjz1hhkZLlBiYA9cR2Anf8F4HqZUO6e5eDcPQd0Txw5fxLzzxnEkSkfnD0wziSGiv7sYhk/ktvbf1uw==}
 
-  micromark-extension-gfm-table@2.1.1:
-    resolution: {integrity: sha512-t2OU/dXXioARrC6yWfJ4hqB7rct14e8f7m0cbI5hUmDyyIlwv5vEtooptH8INkbLzOatzKuVbQmAYcbWoyz6Dg==}
+  micromark-extension-gfm-table@2.1.2:
+    resolution: {integrity: sha512-pRzm4kDTu0MjlmBkxmS9yYhw60nncfcEwu9NNdPFSQEFXS95ZKyIIyTSHu/o3ReBUrLKYEq+7YaXCRn/bPB4MA==}
 
   micromark-extension-gfm-tagfilter@2.0.0:
     resolution: {integrity: sha512-xHlTOmuCSotIA8TW1mDIM6X2O1SiX5P9IuDtqGonFhEK0qgRI4yeC6vMxEV2dgyr2TiD+2PQ10o+cOhdVAcwfg==}
@@ -10193,7 +10209,7 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@streamparser/json@0.0.26': {}
+  '@streamparser/json@0.0.26(patch_hash=b2cf43861e5b4e485e97ffa7449ea65acab4d65dd983ab8c0508f1c68f7d80c9)': {}
 
   '@swc/core-darwin-arm64@1.15.46':
     optional: true
@@ -13495,7 +13511,7 @@ snapshots:
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.2
 
-  micromark-extension-gfm-table@2.1.1:
+  micromark-extension-gfm-table@2.1.2:
     dependencies:
       devlop: 1.1.0
       micromark-factory-space: 2.0.1
@@ -13520,7 +13536,7 @@ snapshots:
       micromark-extension-gfm-autolink-literal: 2.1.0
       micromark-extension-gfm-footnote: 2.1.0
       micromark-extension-gfm-strikethrough: 2.1.0
-      micromark-extension-gfm-table: 2.1.1
+      micromark-extension-gfm-table: 2.1.2
       micromark-extension-gfm-tagfilter: 2.0.0
       micromark-extension-gfm-task-list-item: 2.1.0
       micromark-util-combine-extensions: 2.0.1
