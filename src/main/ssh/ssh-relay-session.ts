@@ -26,6 +26,7 @@ import { SshFilesystemProvider } from '../providers/ssh-filesystem-provider'
 import { isMethodNotFoundError } from './ssh-filesystem-stream-reader'
 import { SshGitProvider } from '../providers/ssh-git-provider'
 import { selectOpenCodePluginSources } from '../agent-hooks/opencode-plugin-settings'
+import { bindRemoteClaudeInterruptReconciliation } from './ssh-agent-hook-interrupt-reconciliation'
 import { agentHookServer } from '../agent-hooks/server'
 import { isAgentStatusHooksEnabled } from '../agent-hooks/managed-agent-hook-controls'
 import {
@@ -94,7 +95,7 @@ import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import {
   findTerminalTabIdForLeaf,
   hasHostAuthoritativeTerminalMembership
-} from '../runtime/workspace-session-terminal-membership-authority'
+} from '../persistence/terminal-topology/terminal-topology-membership'
 import { DEFAULT_PTY_SOURCE_WINDOW_SU } from '../../shared/pty-source-credit-contract'
 import { PTY_CONSUMER_STALE_OWNER_RECOVERY_ERROR } from '../../shared/pty-consumer-session'
 import {
@@ -323,6 +324,7 @@ export class SshRelaySession {
   private abortController: AbortController | null = null
   private muxDisposeCleanup: (() => void) | null = null
   // Why: hold the notification-handler disposer so teardownProviders can release it on reconnect/shutdown (symmetric with muxDisposeCleanup).
+  private remoteInterruptCleanup: (() => void) | null = null
   private muxNotificationCleanup: (() => void) | null = null
   private pluginSettingsCleanup: (() => void) | null = null
   private pluginInstallRetryTimer: ReturnType<typeof setTimeout> | null = null
@@ -1709,6 +1711,13 @@ export class SshRelaySession {
     }
     // Why: capture the disposer so teardownProviders can release this handler and re-wiring can't double-register it.
     this.muxNotificationCleanup?.()
+    this.remoteInterruptCleanup?.()
+    this.remoteInterruptCleanup = bindRemoteClaudeInterruptReconciliation(
+      agentHookServer,
+      mux,
+      this.targetId,
+      () => this.mux === mux
+    )
     this.muxNotificationCleanup = mux.onNotification((method, params) => {
       if (method !== AGENT_HOOK_NOTIFICATION_METHOD) {
         return
@@ -1725,6 +1734,7 @@ export class SshRelaySession {
       agentHookServer.ingestRemote(
         {
           paneKey: envelope.paneKey,
+          hostTurnRevision: envelope.hostTurnRevision,
           launchToken: typeof envelope.launchToken === 'string' ? envelope.launchToken : undefined,
           tabId: typeof envelope.tabId === 'string' ? envelope.tabId : undefined,
           worktreeId: typeof envelope.worktreeId === 'string' ? envelope.worktreeId : undefined,
@@ -1808,6 +1818,8 @@ export class SshRelaySession {
     this.leavePlainSshMode()
     this.muxNotificationCleanup?.()
     this.muxNotificationCleanup = null
+    this.remoteInterruptCleanup?.()
+    this.remoteInterruptCleanup = null
     for (const cleanup of this.ptyRecoveryNotificationCleanups) {
       cleanup()
     }
@@ -2922,33 +2934,33 @@ export class SshRelaySession {
     if (lease?.worktreeId && lease.tabId && lease.leafId) {
       const { worktreeId, leafId, tabId: leaseTabId } = lease
       let tabId = lease.tabId
+      // The pane's home is this target's partition, where its spawn bound it. Binding into `local`
+      // left a copy there that startup then preferred over the home copy (STA-9544).
+      const hostId = toSshExecutionHostId(this.targetId)
       const bound = await this.store.persistPtyBinding(() => {
         if (!shouldContinue()) {
           return null
         }
-        const session = this.store.getWorkspaceSession?.()
+        const session = this.store.getWorkspaceSession?.(hostId)
+        // Rows an older build left in `local`; the renderer moves them home on its next save.
+        const legacySession = this.store.getWorkspaceSession?.()
         // The lease froze its tabId at write time; `detachTerminalPaneToTab` moves a live pane, so
         // trusting it would fence this reattach to the tab the pane LEFT and refuse a pane that
         // merely moved. Leaf is the identity, the tab is only where it currently sits.
-        // SSH spawns bind panes into `ssh:<target>` while this reattach binds into `local`, so a
-        // fence that consulted only one partition would read "no pane" for a pane the other holds.
-        const hostSession = this.store.getWorkspaceSession?.(toSshExecutionHostId(this.targetId))
         tabId =
           findTerminalTabIdForLeaf(session, leafId) ??
-          findTerminalTabIdForLeaf(hostSession, leafId) ??
+          findTerminalTabIdForLeaf(legacySession, leafId) ??
           leaseTabId
         // Absence of the pane only means "the user closed it" once the persisted membership
         // speaks for this worktree. Before that it means the renderer has not published its
         // layout yet, and refusing there drops a tab the user still has — the regression that
         // reverted this fix twice. Losing a tab is worse than keeping a duplicate, so an
         // unauthoritative session still gets the creating write.
-        // Authority is read from `local` because that is the partition this write lands in — it
-        // is local's absence we would be interpreting. But a pane the other partition still holds
-        // is not gone, so it keeps its creating write: refusing there would strand a live pane
+        // A pane only `local` still holds is not gone either: refusing it would strand a live pane
         // behind a binding reattach can no longer reach.
         const mayCreate =
           !hasHostAuthoritativeTerminalMembership(session, worktreeId) ||
-          findTerminalTabIdForLeaf(hostSession, leafId) !== undefined
+          findTerminalTabIdForLeaf(legacySession, leafId) !== undefined
         return {
           worktreeId: worktreeId,
           tabId,
@@ -2959,7 +2971,7 @@ export class SshRelaySession {
           mayReviveRetiredSurface: false,
           origin: 'relay_reattach' as const
         }
-      })
+      }, hostId)
       if (!shouldContinue()) {
         return 'missing-surface'
       }

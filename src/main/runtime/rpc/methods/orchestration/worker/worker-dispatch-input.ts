@@ -10,7 +10,8 @@ import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { buildDispatchInputEffect } from '../../orchestration-dispatch-input-effect'
 import {
   awaitWorkerComposer,
-  recordWorkerPromptDispatch
+  recordWorkerPromptDispatch,
+  recordWorkerPromptReadiness
 } from '../../orchestration-worker-prompt-diagnostics'
 import { deliverWorkerDispatchPreamble } from './deliver-worker-dispatch-preamble'
 import type { WorkerEffect } from './worker-topology'
@@ -29,6 +30,14 @@ export async function deliverWorkerDispatchInput(
   // agent's composer exists. A paste written into that window is dropped when the TUI drains
   // stdin at init. A structured session has no composer to wait on.
   if (!structuredSession && agent) {
+    // Why here and not after the wait: an unsatisfied tui-idle wait never reaches dispatch, and
+    // the worker-start call site sits at its max-lines cap. What matters is the title it settled on.
+    await recordWorkerPromptReadiness(runtime as OrcaRuntimeService, {
+      taskId,
+      agent,
+      handle: terminalHandle,
+      wait: { satisfied: true, status: 'settled' }
+    })
     await awaitWorkerComposer(runtime as OrcaRuntimeService, {
       taskId,
       agent,

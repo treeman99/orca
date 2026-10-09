@@ -15,6 +15,10 @@ import {
   type AgentHookTarget
 } from '../../shared/agent-hook-types'
 import { isAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
+import {
+  isAgentStatusHooksEnabledForAgent,
+  type AgentStatusHooksSettings
+} from '../../shared/agent-status-hooks-setting'
 import { sweepEnterpriseBlockedAgentHooks } from './enterprise-agent-hook-sweep'
 import {
   applyAgentStatusHooksEnabled,
@@ -22,6 +26,20 @@ import {
   type InstallOptions,
   type ManagedHookSettings
 } from './managed-agent-hook-controls'
+
+/**
+ * The switch for upstream's Codex hook reconcile (v1.4.223). That lane runs `codex --version` and
+ * `codex app-server` and writes ~/.codex on app start and every native PTY spawn, reading only the
+ * hooks setting — so a fleet that does not allow codex would have Orca run and configure it anyway.
+ */
+export function isCodexHookReconcileEnabledUnderEnterprisePolicy(
+  settings: AgentStatusHooksSettings
+): boolean {
+  return (
+    isAgentAllowedByEnterprisePolicy('codex') &&
+    isAgentStatusHooksEnabledForAgent(settings, 'codex')
+  )
+}
 
 function enterpriseBlockedAgentHookTargets(): AgentHookTarget[] {
   return AGENT_HOOK_TARGETS.filter((agent) => !isAgentAllowedByEnterprisePolicy(agent))

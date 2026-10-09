@@ -14,7 +14,8 @@ import {
   stubSortableTab,
   stubStatusDisplay,
   stubTabInsertion,
-  stubTabStripDragScroll
+  stubTabStripDragScroll,
+  stubTooltip
 } from './tab-bar-windows-shell-launch-render-stubs'
 import {
   appStoreSnapshot,
@@ -46,6 +47,7 @@ vi.mock('./QuickLaunchButton', () => stubQuickLaunchButton())
 vi.mock('./shell-icons', () => stubShellIcons())
 vi.mock('@/lib/focus-terminal-tab-surface', () => stubFocusTerminalTabSurface())
 vi.mock('@/components/ui/dropdown-menu', () => stubDropdownMenu())
+vi.mock('@/components/ui/tooltip', () => stubTooltip())
 
 describe('TabBar PowerShell launch wiring', () => {
   beforeEach(() => {

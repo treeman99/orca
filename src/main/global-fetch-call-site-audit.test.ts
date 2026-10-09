@@ -1,3 +1,6 @@
+// Fork-owned since v1.4.223: upstream deleted this census (#25791) but the corporate egress audit
+// (docs/reference/external-integrations-audit.md) cites it, so a new global-fetch call site turns
+// this red and lands in the next egress review instead of shipping unseen.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -18,6 +21,8 @@ const AUDITED_GLOBAL_FETCH_LINES = new Map<string, number>([
   ['main/artifacts/artifact-cloud-request.ts', 1],
   // Generated OpenCode claim source consumes JSON or cancels its body in finally.
   ['main/opencode/opencode-startup-prompt-source.ts', 1],
+  // Loopback to the `opencode serve` Orca spawned for the model preflight; body cancelled in finally.
+  ['main/opencode/opencode-launch-model-context.ts', 1],
   ['main/orca-profiles/profile-cloud-client.ts', 1],
   ['main/orca-profiles/profile-cloud-org-members-client.ts', 1],
   ['main/rate-limits/codex-fetcher.ts', 3],

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import type { ChildProcess } from 'node:child_process'
+import { PassThrough } from 'node:stream'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { spawnMock, spawnProcessMock, runProcessMock } = vi.hoisted(() => ({
@@ -25,19 +25,19 @@ async function flushMicrotasks(): Promise<void> {
 import { searchWithGitGrep } from './fs-handler-git-fallback'
 import { searchWithRg } from './fs-handler-utils'
 
-function createProcess(): ChildProcess {
+function createProcess() {
   return Object.assign(new EventEmitter(), {
-    stdout: Object.assign(new EventEmitter(), { setEncoding: vi.fn() }),
+    stdout: new PassThrough(),
     stderr: new EventEmitter(),
     kill: vi.fn()
-  }) as unknown as ChildProcess
+  })
 }
 
 const searchCases = [
   {
     name: 'ripgrep',
     search: searchWithRg,
-    arm: (child: ChildProcess) => spawnProcessMock.mockReturnValueOnce(child),
+    arm: (child: ReturnType<typeof createProcess>) => spawnProcessMock.mockReturnValueOnce(child),
     encode: (text: string, line: number) =>
       JSON.stringify({
         type: 'match',
@@ -52,7 +52,7 @@ const searchCases = [
   {
     name: 'git grep',
     search: searchWithGitGrep,
-    arm: (child: ChildProcess) => spawnProcessMock.mockReturnValueOnce(child),
+    arm: (child: ReturnType<typeof createProcess>) => spawnProcessMock.mockReturnValueOnce(child),
     encode: (text: string, line: number) => `unicode.ts\0${line}\0${text}`
   }
 ]
@@ -70,14 +70,13 @@ beforeEach(() => {
 })
 
 describe.each(searchCases)('relay $name line fragments', ({ search, encode, arm }) => {
-  async function run(chunks: string[]) {
+  async function run(chunks: Buffer[]) {
     const child = createProcess()
     arm(child)
     const result = search('/remote/root', 'hit', { maxResults: 100 })
     await flushMicrotasks()
-    expect(child.stdout!.setEncoding).toHaveBeenCalledWith('utf-8')
     for (const chunk of chunks) {
-      child.stdout!.emit('data', chunk)
+      child.stdout!.write(chunk)
     }
     child.emit('close', 0, null)
     const value = await result
@@ -91,9 +90,12 @@ describe.each(searchCases)('relay $name line fragments', ({ search, encode, arm 
 
   it('preserves decoded Unicode, batched lines, empty lines and the final unterminated match', async () => {
     const text = 'hit café 漢字 🐋'
-    const wire = `${encode(text, 1)}\n\n${encode('hit second', 2)}\n${encode(text, 3)}`
+    const wire = Buffer.from(
+      `${encode(text, 1)}\n\n${encode('hit second', 2)}\n${encode(text, 3)}`,
+      'utf8'
+    )
     const complete = await run([wire])
-    const fragmented = await run(Array.from(wire))
+    const fragmented = await run(Array.from(wire, (byte) => Buffer.from([byte])))
     expect(fragmented).toEqual(complete)
     expect(fragmented.totalMatches).toBe(3)
     expect(fragmented.truncated).toBe(false)
@@ -103,11 +105,11 @@ describe.each(searchCases)('relay $name line fragments', ({ search, encode, arm 
   })
 
   it('does not repeatedly split the growing partial output of a large matching line', async () => {
-    const wire = `${encode(`hit ${'x'.repeat(1024 * 1024)}`, 7)}\n`
+    const wire = Buffer.from(`${encode(`hit ${'x'.repeat(1024 * 1024)}`, 7)}\n`, 'utf8')
     const complete = await run([wire])
-    const chunks: string[] = []
+    const chunks: Buffer[] = []
     for (let offset = 0; offset < wire.length; offset += 4096) {
-      chunks.push(wire.slice(offset, offset + 4096))
+      chunks.push(wire.subarray(offset, offset + 4096))
     }
     // Method-shaped type: a call-signature capture would reject `split`'s splitter-object overload.
     const originalSplit: { split(separator: unknown, limit?: number): string[] }['split'] =

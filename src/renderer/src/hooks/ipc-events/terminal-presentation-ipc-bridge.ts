@@ -1,3 +1,4 @@
+import { releaseAgentLaunchPaneSpawn } from '@/lib/agent-launch-pane-spawn-hold'
 import { requestBackgroundTerminalWorktreeMount } from '@/components/terminal/background-terminal-worktree-mount'
 import { hasRegisteredRuntimeTerminalTab } from '@/runtime/sync-runtime-graph'
 import { planMobileTerminalTabMount } from '@/lib/mobile-terminal-tab-mount'
@@ -10,12 +11,9 @@ import { initialAgentTabViewModeProps } from '@/lib/native-chat-initial-view-mod
 import { getConnectionIdFromState } from '@/lib/connection-context'
 import { isNativeChatTranscriptLocalReadable } from '@/lib/native-chat-transcript-readability'
 import { tryMakePaneKey } from './agent-status-routing'
+import { wasAgentLaunchPaneClosedByUser } from '@/lib/agent-launch-pane-closes'
 import { useAppStore } from '../../store'
-import {
-  claimOrchestrationWorkerPaneGroup,
-  placeOrchestrationWorkerTabInGroup,
-  recordOrchestrationWorkerTab
-} from '@/store/slices/orchestration-worker-pane-column'
+import { claimWorkerPane } from './orchestration-worker-pane-ipc'
 import {
   activateExistingLeafInLayout,
   activateTerminalInitiatedWorktree,
@@ -64,6 +62,13 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
             activateTerminalInitiatedWorktree(store, worktreeId)
           }
           const worktreeTabs = store.tabsByWorktree[worktreeId] ?? []
+          if (ptyId && tabId && leafId && wasAgentLaunchPaneClosedByUser(tabId, leafId)) {
+            // The user closed the launch's tab or pane while it waited. That close wins: it stays
+            // closed, and its agent stops, as closing any tab stops what runs in it.
+            // The host stops the same agent; a second kill of a retired PTY may reject, harmlessly.
+            window.api.pty.kill(ptyId).catch(() => {})
+            throw new Error('agent_launch_tab_closed')
+          }
           // Why: a split pane revealed from mobile is only bound in the persisted
           // layout until its pane mounts; missing it minted a duplicate tab (#10486).
           const ownership = ptyId
@@ -86,27 +91,21 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
             throw new Error(`Terminal tab ${tabId} not found`)
           }
           const reusedTab = existingTab ?? splitTargetTab
-          // Why: an orchestration worker opens beside its coordinator instead of in the
-          // active group. Undefined (preference off, foreign worktree) keeps the old path.
-          // A reused tab still claims: another path (host graph sweep, stable-pane
-          // reattach) may have minted it into the active group moments earlier, and the
-          // column is owed either way — it is moved below.
-          let paneSkip = isSplitReveal ? 'split-reveal' : 'none'
-          const workerPaneGroupId =
-            paneGroupPlacement && !isSplitReveal
-              ? claimOrchestrationWorkerPaneGroup(useAppStore, {
-                  worktreeId,
-                  paneGroupPlacement,
-                  ...(reusedTab ? { existingWorkerTabId: reusedTab.id } : {}),
-                  onSkip: (reason) => {
-                    paneSkip = reason
-                  }
-                })
-              : undefined
+          const workerPane = claimWorkerPane(
+            worktreeId,
+            paneGroupPlacement,
+            isSplitReveal,
+            reusedTab
+          )
+          if (ptyId && tabId && leafId && reusedTab?.agentLaunchPane?.leafId === leafId) {
+            // A launch pane this window made and the host never showed early: the host now holds it,
+            // so its spawn may attach instead of waiting out the whole launch.
+            releaseAgentLaunchPaneSpawn(tabId, leafId)
+          }
           const tab =
             reusedTab ??
             (ptyId
-              ? store.createTab(worktreeId, workerPaneGroupId, undefined, {
+              ? store.createTab(worktreeId, workerPane.groupId, undefined, {
                   initialPtyId: ptyId,
                   activate: shouldActivate,
                   ...(launchAgent
@@ -132,7 +131,7 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
                   worktreeId,
                   // Why not undefined: claiming the group already split the layout, so
                   // dropping the id here would leave an empty worker pane behind.
-                  workerPaneGroupId,
+                  workerPane.groupId,
                   undefined,
                   shouldActivate
                     ? cwd
@@ -150,26 +149,7 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
               `[onCreateTerminal] tabId hint ${tabId} ignored for ptyId ${ptyId}; existing tab ${tab.id} adopted instead (hook attribution will degrade for this terminal)`
             )
           }
-          if (workerPaneGroupId && paneGroupPlacement) {
-            if (reusedTab) {
-              // createTab could not place a tab that already existed; move it instead.
-              placeOrchestrationWorkerTabInGroup(useAppStore, {
-                worktreeId,
-                terminalTabId: tab.id,
-                groupId: workerPaneGroupId
-              })
-            }
-            recordOrchestrationWorkerTab(paneGroupPlacement.coordinatorTabId, tab.id)
-          }
-          if (paneGroupPlacement) {
-            void window.api.diagnosticLog?.write('worker-pane-renderer', {
-              agent: launchAgent ?? 'none',
-              coord: paneGroupPlacement.coordinatorTabId,
-              tab: tab.id,
-              group: workerPaneGroupId ?? 'none',
-              skip: paneSkip
-            })
-          }
+          workerPane.finish(tab, launchAgent)
           if (shouldActivate) {
             store.setActiveTabType('terminal', worktreeId)
             store.setActiveTab(tab.id)

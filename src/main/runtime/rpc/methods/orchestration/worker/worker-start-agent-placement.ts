@@ -21,7 +21,10 @@ import {
   resolveWorkerStartModeOnHost,
   type WorkerStartModeReceipt
 } from '../../orchestration-worker-start-mode'
-import { workerPaneAnchorForStart } from '../../orchestration-worker-pane-anchor'
+import {
+  workerPaneAnchorForStart,
+  type WorkerStartCoordinator
+} from '../../orchestration-worker-pane-anchor'
 import type { WorkerStartInput } from './worker-start-schema'
 import {
   createExistingWorktreeWorkerTerminal,
@@ -58,8 +61,7 @@ type WorkerAgentPlacementArgs = {
   /** The already-resolved placement, present only when this start does not create one. */
   resolvedWorktree: PlacedWorktree | undefined
   /** Coordinator pane key and worktree — the fork anchors a same-worktree worker column to them. */
-  coordinatorPane: string | null
-  coordinatorWorktreeId: string
+  workerPaneAnchor: WorkerStartCoordinator
   mode: WorkerStartModeReceipt
   agent: TuiAgent | undefined
   launchPreferences: AgentLaunchPreferences | undefined
@@ -176,9 +178,7 @@ async function createWorkerAgentSurface(
     ...(args.launchPreferences ? { launchPreferences: args.launchPreferences } : {}),
     taskId: args.taskId,
     effects: args.effects,
-    ...workerPaneAnchorForStart(args.coordinatorPane, args.coordinatorWorktreeId, {
-      id: worktreeId
-    })
+    ...workerPaneAnchorForStart(args.workerPaneAnchor, { id: worktreeId })
   })
   return {
     terminalHandle: terminal.handle,

@@ -61,6 +61,7 @@ describe('launchAgentInNewTab forceTerminalView', () => {
     const { launchAgentInNewTab } = await import('./launch-agent-in-new-tab')
 
     launchAgentInNewTab({
+      requestId: 'request-1',
       agent: 'codex',
       worktreeId: 'wt-1',
       forceTerminalView: true
@@ -78,7 +79,7 @@ describe('launchAgentInNewTab forceTerminalView', () => {
   it('still honours the setting without the override', async () => {
     const { launchAgentInNewTab } = await import('./launch-agent-in-new-tab')
 
-    launchAgentInNewTab({ agent: 'codex', worktreeId: 'wt-1' })
+    launchAgentInNewTab({ requestId: 'request-2', agent: 'codex', worktreeId: 'wt-1' })
 
     expect(store.createTab.mock.calls.at(-1)?.[3]).toMatchObject({ viewMode: 'chat' })
   })

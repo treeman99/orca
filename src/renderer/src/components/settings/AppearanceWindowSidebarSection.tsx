@@ -15,6 +15,7 @@ import {
 import { useAvailableStatusBarToggles } from '../status-bar/use-available-status-bar-toggles'
 import {
   getLayoutEntries,
+  getFollowSymlinkedDirectoriesEntry,
   getSidebarEntries,
   getStatusBarToggles,
   getUsagePercentageDisplayEntry
@@ -84,6 +85,7 @@ export function AppearanceWindowSidebarSection({
   const showMobileButtonEntry = getShowMobileButtonEntry()
   const workspaceCardLayoutEntry = getWorkspaceCardLayoutEntry()
   const layoutEntries = getLayoutEntries()
+  const followSymlinkEntry = getFollowSymlinkedDirectoriesEntry()
   const statusBarTitle = translate(
     'auto.components.settings.AppearancePane.3e4175e5c6',
     'Status Bar'
@@ -384,6 +386,18 @@ export function AppearanceWindowSidebarSection({
                       onChange={() =>
                         updateSettings({
                           showGitIgnoredFiles: !(settings.showGitIgnoredFiles ?? true)
+                        })
+                      }
+                    />
+                  </SearchableSetting>
+                  <SearchableSetting {...followSymlinkEntry}>
+                    <SettingsSwitchRow
+                      label={followSymlinkEntry.title}
+                      description={followSymlinkEntry.description}
+                      checked={settings.followSymlinkedDirectories ?? false}
+                      onChange={() =>
+                        updateSettings({
+                          followSymlinkedDirectories: !settings.followSymlinkedDirectories
                         })
                       }
                     />

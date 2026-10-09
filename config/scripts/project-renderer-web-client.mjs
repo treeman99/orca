@@ -189,7 +189,10 @@ async function minifyWebOutput() {
           {
             legalComments: 'none',
             loader,
-            minify: true,
+            // Vite asset scripts already have short names; keep them stable across asset hash changes.
+            minifyIdentifiers: !outputPath.startsWith('assets/'),
+            minifySyntax: true,
+            minifyWhitespace: true,
             target: 'es2020'
           }
         )

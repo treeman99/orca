@@ -3,7 +3,7 @@ import { translate } from '@/i18n/i18n'
 import {
   ORCHESTRATION_WORKER_PANE_MAX_GROUP_CHOICES,
   resolveOrchestrationWorkerPaneMaxGroups
-} from '../../../../shared/terminal-pane-placement'
+} from '../../../../shared/orchestration-worker-pane-group-placement'
 import { SearchableSetting } from './SearchableSetting'
 import { SettingsRow, SettingsSegmentedControl, SettingsSwitch } from './SettingsFormControls'
 import { getOrchestrationWorkerPaneLayoutSearchEntries } from './orchestration-worker-pane-layout-search'

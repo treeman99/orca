@@ -25,7 +25,6 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { useAppStore } from '@/store'
-import { showLocalPathOpenBlockedToast } from '@/lib/local-path-open-guard'
 import { openOpenInAppsSettings } from '@/components/sidebar/WorktreeOpenInMenu'
 import { useOpenInPathEntries } from '@/components/open-in-path/use-open-in-path-entries'
 import {
@@ -34,35 +33,19 @@ import {
 } from '@/components/open-in-path/open-in-path-entry-row'
 import { useOptionalShortcutLabel } from '@/hooks/useShortcutLabel'
 import type { OpenFile } from '../../store/slices/editor'
-import { shouldBlockEditorTabLocalOpen } from './editor-tab-local-open-guard'
 import { canOpenEditorTabPathInApp } from './editor-tab-open-in-eligibility'
 import { translate } from '@/i18n/i18n'
+import { LocalOnlyMenuHint } from '@/components/local-only-menu-hint'
+import {
+  getRevealInFileManagerLabel,
+  isRevealInFileManagerBlocked,
+  revealInFileManager
+} from '@/lib/reveal-in-file-manager'
 import { TabWorkspaceLayoutMenuSection } from './TabWorkspaceLayoutMenuSection'
 import {
   TAB_CONTEXT_MENU_CONTENT_CLASS,
   TAB_CONTEXT_SUBMENU_CONTENT_CLASS
 } from './tab-context-menu-sizing'
-
-const isMac = navigator.userAgent.includes('Mac')
-const isLinux = navigator.userAgent.includes('Linux')
-
-/** Platform-appropriate label: macOS → Finder, Windows → File Explorer, Linux → Files */
-function getRevealLabel(): string {
-  return isMac
-    ? translate(
-        'auto.components.tab.bar.EditorFileTabContextMenu.revealInFinder',
-        'Reveal in Finder'
-      )
-    : isLinux
-      ? translate(
-          'auto.components.tab.bar.EditorFileTabContextMenu.openContainingFolder',
-          'Open Containing Folder'
-        )
-      : translate(
-          'auto.components.tab.bar.EditorFileTabContextMenu.revealInFileExplorer',
-          'Reveal in File Explorer'
-        )
-}
 
 type EditorFileTabContextMenuProps = {
   open: boolean
@@ -137,6 +120,12 @@ export function EditorFileTabContextMenu({
     connectionId: repoConnectionId,
     runtimeEnvironmentId: file.runtimeEnvironmentId
   })
+  const revealBlocked = useAppStore((s) =>
+    isRevealInFileManagerBlocked(s.settings, {
+      connectionId: file.externalSshTargetId ?? repoConnectionId,
+      runtimeEnvironmentId: file.runtimeEnvironmentId
+    })
+  )
 
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
@@ -266,53 +255,48 @@ export function EditorFileTabContextMenu({
             'Copy Relative Path'
           )}
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        {canOpenInApp ? (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger disabled={!openInPath.hasPath}>
-              <FolderOpen className="size-3.5" />
-              {translate('auto.components.sidebar.WorktreeOpenInMenu.8009ab69a6', 'Open in')}
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className={TAB_CONTEXT_SUBMENU_CONTENT_CLASS}>
-              {openInPath.entries.map((entry) => (
-                <DropdownMenuItem
-                  key={entry.id}
-                  onSelect={() => openInPath.openEntry(entry)}
-                  disabled={entry.disabled}
-                >
-                  {getOpenInPathEntryIcon(entry)}
-                  <OpenInPathEntryLabel label={entry.label} metadata={entry.metadata} />
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={openOpenInAppsSettings}>
-                <Settings2 className="size-3.5" />
-                {translate(
-                  'auto.components.sidebar.WorktreeOpenInMenu.1417fd8380',
-                  'Customize apps...'
-                )}
-              </DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        ) : null}
-        <DropdownMenuItem
-          onSelect={() => {
-            if (
-              shouldBlockEditorTabLocalOpen(
-                useAppStore.getState().settings,
-                file.runtimeEnvironmentId,
-                repoConnectionId
-              )
-            ) {
-              showLocalPathOpenBlockedToast()
-              return
-            }
-            window.api.shell.openPath(file.filePath)
-          }}
-        >
-          <ExternalLink className="size-3.5" />
-          {getRevealLabel()}
-        </DropdownMenuItem>
+        {/* Why: virtual editor tabs use synthetic ids instead of on-disk paths. */}
+        {file.mode !== 'check-details' && (
+          <>
+            <DropdownMenuSeparator />
+            {canOpenInApp ? (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger disabled={!openInPath.hasPath}>
+                  <FolderOpen className="size-3.5" />
+                  {translate('auto.components.sidebar.WorktreeOpenInMenu.8009ab69a6', 'Open in')}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className={TAB_CONTEXT_SUBMENU_CONTENT_CLASS}>
+                  {openInPath.entries.map((entry) => (
+                    <DropdownMenuItem
+                      key={entry.id}
+                      onSelect={() => openInPath.openEntry(entry)}
+                      disabled={entry.disabled}
+                    >
+                      {getOpenInPathEntryIcon(entry)}
+                      <OpenInPathEntryLabel label={entry.label} metadata={entry.metadata} />
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={openOpenInAppsSettings}>
+                    <Settings2 className="size-3.5" />
+                    {translate(
+                      'auto.components.sidebar.WorktreeOpenInMenu.1417fd8380',
+                      'Customize apps...'
+                    )}
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            ) : null}
+            <DropdownMenuItem
+              disabled={revealBlocked}
+              onSelect={() => void revealInFileManager(file.filePath)}
+            >
+              <ExternalLink className="size-3.5" />
+              {getRevealInFileManagerLabel()}
+              {revealBlocked ? <LocalOnlyMenuHint /> : null}
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

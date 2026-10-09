@@ -56,7 +56,7 @@
       "present": [
         {
           "file": "src/main/startup/main-process-ready-runtime.ts",
-          "contains": "installManagedAgentHooksUnderEnterprisePolicy"
+          "contains": "void installManagedAgentHooksUnderEnterprisePolicy(managedHookStore.getSettings(), {"
         },
         {
           "file": "src/main/runtime/orca-runtime-get-terminal-interactive-wait.ts",
@@ -155,6 +155,26 @@
           "file": "src/renderer/src/lib/agent-catalog.tsx",
           "contains": "filterAgentsByPolicy(getFullAgentCatalog(), (entry) => entry.id, getPolicyAllowedAgents())",
           "why": "모든 에이전트 선택기의 기본 목록을 허용목록으로 거르는 렌더러 초크포인트. v1.4.221 이 이 파일을 −327줄 해체하며 같은 자리를 덮었다. `getFullAgentCatalog = getAgentCatalog` 별칭으로 \"고치면\" 타입체크는 초록인 채 필터만 사라진다."
+        },
+        {
+          "file": "src/main/acp/acp-structured-launch-resolution.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy(record.provider)",
+          "why": "v1.4.223 이 structured 세션의 세 번째 provider(Grok/ACP)를 들였다. 생성·attach 는 provider 무관 퍼널이 막지만 저장된 레코드는 wake·재시작 복원에서 이 resolver 로 바로 재기동된다 — codex·claude resolver 와 같은 마지막 거부."
+        },
+        {
+          "file": "src/main/opencode/opencode-model-startup-plan.ts",
+          "contains": "!isAgentAllowedByEnterprisePolicy('opencode')",
+          "why": "v1.4.223 의 opencode 모델 프리플라이트(opencode serve / opencode models 스폰)가 오케스트레이션·터미널 경로의 허용목록 거부보다 먼저 돈다. 이 줄이 빠지면 opencode 를 뺀 플릿에서도 프로브 1회가 스폰된다."
+        },
+        {
+          "file": "src/main/startup/main-process-ready-runtime.ts",
+          "contains": "isEnabled: () => isCodexHookReconcileEnabledUnderEnterprisePolicy(store.getSettings()),",
+          "why": "v1.4.223 의 Codex 훅 reconcile 레인(앱 시작·모든 네이티브 PTY 스폰마다 codex --version/app-server 실행, ~/.codex 쓰기)의 유일한 스위치. upstream 판은 훅 설정만 본다."
+        },
+        {
+          "file": "src/main/preflight/agent-detection.ts",
+          "contains": "return filterAgentsByEnterprisePolicy(\n    resolveDetectedTuiAgentIds(",
+          "why": "v1.4.223 이 WSL·로컬 감지를 detectAgentCommandsOnHost 하나로 합치며 포크 래핑 두 곳이 충돌 hunk 에 들어갔다. 원장의 기존 앵커는 원격 감지(세 번째 호출)뿐이었다."
         }
       ]
     },
@@ -269,6 +289,21 @@
           "file": "src/renderer/src/hooks/settings-navigation-capability-sections.ts",
           "contains": "getAccountsPaneSearchEntriesUnderPolicy as getAccountsPaneSearchEntries",
           "why": "Cmd+J 검색에서 벤더 계정 항목을 정책으로 끄고 사내 게이트웨이 항목을 더하는 별칭 임포트. v1.4.221 부터 upstream accounts-search.ts 는 300줄에 닿아 포크 델타 0 으로 두고 포크 모듈(accounts-search-enterprise-policy.ts)에서 감싼다."
+        },
+        {
+          "file": "src/main/claude-accounts/environment.ts",
+          "contains": "if (options?.stripAuthEnv && !getEnterprisePolicy().disableManagedClaudeAccounts) {",
+          "why": "관리형 Claude 계정 잠금의 마지막 방어선(Bedrock 토큰 보존). v1.4.223 이 들인 잠복 레인(WSL Claude 프로필 라우터)이 켜지는 날 이 줄만 남는다."
+        },
+        {
+          "file": "src/renderer/src/components/github-project/ProjectViewStates.tsx",
+          "contains": "const { disableVendorLinks } = useEnterprisePolicyView()",
+          "why": "미지원 레이아웃 안내의 벤더 트래커 링크·툴팁 숨김. v1.4.223 에서 바로 옆 줄이 바뀌어 충돌했다(원장 미등재였다)."
+        },
+        {
+          "file": "src/renderer/src/components/native-chat/NativeChatComposerActions.tsx",
+          "contains": "{disableVoice ? null : (",
+          "why": "구조화 챗 컴포저의 받아쓰기 버튼 숨김. v1.4.223 에서 같은 블록이 바뀌어 충돌했다 — policySwitchMinConsumers 는 구조분해 소비를 세지 않아 이 줄을 못 지킨다."
         }
       ]
     },
@@ -429,11 +464,6 @@
         {
           "file": "src/main/git/hosted-remote-url.ts",
           "contains": "getEnterprisePolicy().githubEnterpriseHost"
-        },
-        {
-          "file": "src/main/git/command-runner/gh-spawn-boundary.test.ts",
-          "contains": "INTERACTIVE_LOGIN_EXEMPTIONS",
-          "why": "v1.4.197 이 모든 gh 스폰을 ghExecFileAsync 로 강제하는 트리 게이트를 넣었다. 포크의 GHES 로그인은 대화형 PTY 디바이스 플로우와 stdin 토큰 파이프라 그 헬퍼로 못 보내고, API 호출이 아니므로 GitHub 동시성 세마포어를 잡아서도 안 된다. 예외가 사라지면 이 레인이 게이트에 걸려 CI 가 빨개진다."
         }
       ]
     },
@@ -519,6 +549,11 @@
           "file": "skills/orca-cli/SKILL.md",
           "contains": "cardStatus",
           "why": "같은 재작성에서 함께 사라지는 포크 문구."
+        },
+        {
+          "file": "skill-guides/orchestration.md",
+          "contains": "## Project Rule Ledger",
+          "why": "포크의 오케스트레이션 규칙 원장 프로토콜. 이를 지키던 upstream 테스트(orchestration-skill-guidance.test.mjs)를 v1.4.223 이 지워 포크 테스트 orchestration-skill-rule-ledger.test.mjs 로 옮겼다."
         }
       ]
     },
@@ -528,13 +563,26 @@
       "present": [
         {
           "file": "src/main/runtime/rpc/methods/orchestration/worker/worker-start-agent-placement.ts",
-          "contains": "...workerPaneAnchorForStart(args.coordinatorPane, args.coordinatorWorktreeId, {",
+          "contains": "...workerPaneAnchorForStart(args.workerPaneAnchor, { id: worktreeId })",
           "why": "worker-start 가 앵커를 만드는 유일한 줄(v1.4.200 이 local-worker-start 에서 placeWorkerAgent 로 추출). 같은 워크트리 판정은 바이트 비교가 아니라 정규화 비교여야 한다 — Windows 에서 PTY 의 worktreeId 표기(드라이브 문자 대소문자·구분자·WSL UNC 별칭)가 스토어 행과 달라도 같은 워크트리이며, 바이트 비교는 그 경우 워커를 코디네이터 그룹의 탭 하나로 떨어뜨렸다."
         },
         {
+          "file": "src/renderer/src/hooks/ipc-events/terminal-presentation-ipc-bridge.ts",
+          "contains": "const workerPane = claimWorkerPane(",
+          "why": "렌더러가 앵커(paneGroupPlacement)를 워커 컬럼으로 바꾸는 유일한 자리. v1.4.223 에서 max-lines 때문에 본체를 orchestration-worker-pane-ipc.ts 로 뺐고, 브리지에는 claim·createTab 인자·finish 세 줄만 남았다 — 원장에 없던 소비 측이라 이번에 등재했다."
+        },
+        {
+          "file": "src/renderer/src/hooks/ipc-events/terminal-presentation-ipc-bridge.ts",
+          "contains": "store.createTab(worktreeId, workerPane.groupId, undefined, {"
+        },
+        {
+          "file": "src/renderer/src/hooks/ipc-events/terminal-presentation-ipc-bridge.ts",
+          "contains": "workerPane.finish(tab, launchAgent)"
+        },
+        {
           "file": "src/main/runtime/rpc/methods/orchestration/worker/local-worker-start.ts",
-          "contains": "coordinatorPane,\n      coordinatorWorktreeId,",
-          "why": "앵커 입력 두 개를 placeWorkerAgent 로 넘기는 전달 라인. 끊기면 타입체크가 잡지만, upstream 이 인자 객체를 다시 쪼개면 같이 사라진다."
+          "contains": "workerPaneAnchor: { coordinatorPane, coordinatorWorktreeId },",
+          "why": "앵커 입력을 placeWorkerAgent 로 넘기는 전달 라인. v1.4.223 에서 max-lines 때문에 두 줄을 한 prop 으로 묶었다. 끊기면 타입체크가 잡지만, upstream 이 인자 객체를 다시 쪼개면 같이 사라진다."
         },
         {
           "file": "src/main/runtime/rpc/methods/orchestration/worker/worker-worktree-creation.ts",
@@ -604,8 +652,8 @@
         },
         {
           "file": "src/shared/global-settings-types.ts",
-          "contains": "GlobalSettings = ForkGlobalSettings & {",
-          "note": "Carries all eight fork-owned settings fields (worker panes, diagnostic log, Confluence); dropping the intersection removes them all."
+          "contains": "import type { NativeChatGlobalSettings } from './fork-global-settings'",
+          "note": "fork-global-settings.ts re-exports upstream's NativeChatGlobalSettings intersected with all fork-owned settings fields (worker panes, diagnostic log, Confluence) under upstream's name, so the GlobalSettings declaration stays byte-identical to upstream (v1.4.223). If this import goes back to native-chat-appearance-settings, every fork field drops at once."
         }
       ]
     },
@@ -614,9 +662,9 @@
       "summary": "워커 프롬프트 배달 진단 — 준비 판정 로그(worker-prompt-ready), 컴포저 대기, submit 결과를 실은 dispatch_input effect. 세 줄 다 upstream 의 worker-start 파일 안에 있어 추출 때마다 같이 사라진다.",
       "present": [
         {
-          "file": "src/main/runtime/rpc/methods/orchestration/worker/local-worker-start.ts",
-          "contains": "await recordWorkerReadiness(runtime, task.id, agent, terminalHandle, wait)",
-          "why": "tui-idle 판정 직후 터미널 제목을 함께 남긴다. opencode 가 아직 제목을 못 그린 창에 프롬프트가 들어가 사라지는 사고를 사용자 PC 로그로 확정하기 위한 것."
+          "file": "src/main/runtime/rpc/methods/orchestration/worker/worker-dispatch-input.ts",
+          "contains": "await recordWorkerPromptReadiness(runtime as OrcaRuntimeService, {",
+          "why": "tui-idle 판정 직후 터미널 제목을 함께 남긴다. opencode 가 아직 제목을 못 그린 창에 프롬프트가 들어가 사라지는 사고를 사용자 PC 로그로 확정하기 위한 것. v1.4.223 에서 local-worker-start 가 max-lines 상한에 닿아 포크 모듈(배달 직전)로 옮겼다 — 불만족 대기는 배달까지 오지 않으므로 같은 시점이다."
         },
         {
           "file": "src/main/runtime/rpc/methods/orchestration/worker/worker-start-readiness-settlement.ts",
@@ -760,14 +808,19 @@
           "contains": "stalled: true"
         },
         {
-          "file": "src/shared/runtime-terminal-contracts.ts",
+          "file": "src/shared/runtime-terminal-send-contract.ts",
           "contains": "RuntimeTerminalSend = ForkTerminalFields['send'] & {",
-          "why": "v1.4.201 에서 max-lines 때문에 포크 필드(submit)를 terminal-fork-fields.ts 로 뺐다. 교차 타입이 빠지면 terminal.send 영수증의 submit 이 조용히 사라진다."
+          "why": "v1.4.201 에서 max-lines 때문에 포크 필드(submit)를 terminal-fork-fields.ts 로 뺐고, v1.4.223 이 send 계약을 runtime-terminal-send-contract.ts 로 옮겼다. 교차 타입이 빠지면 terminal.send 영수증의 submit 이 조용히 사라진다."
         },
         {
           "file": "src/shared/tui-agent-config.ts",
+          "contains": "resolveTuiAgentConfig({ ...source, ...FORK_TUI_AGENT_OVERRIDES[agent] })",
+          "why": "opencode 평문 배달 스위치(tui-agent-fork-config.ts 의 promptDeliveryMode: 'plain-text')를 upstream 표에 얹는 유일한 줄. v1.4.223 에서 max-lines 때문에 값을 포크 모듈로 뺐다 — 이 줄이 upstream 판으로 돌아가면 Windows opencode 워커 프롬프트가 다시 사라진다."
+        },
+        {
+          "file": "src/shared/tui-agent-fork-config.ts",
           "contains": "promptDeliveryMode: 'plain-text'",
-          "why": "opencode 평문 배달의 스위치. v1.4.209 에서 이 파일이 타입 이관으로 충돌했다."
+          "why": "위 스위치의 값."
         }
       ]
     },
@@ -959,11 +1012,6 @@
         {
           "file": "pnpm-workspace.yaml",
           "contains": "verifyDepsBeforeRun"
-        },
-        {
-          "file": "src/shared/child-process/windows-console-visibility.test.ts",
-          "contains": "const UNHIDDEN_SPAWNER_PIN = 56",
-          "why": "upstream 은 58(v1.4.221). 이 빌드는 updater·벤더 forge 레인을 지워 스폰 파일이 2개 적고, 래칫은 핀이 실제 수와 같기를 요구한다(낮추는 방향만 허용)."
         }
       ]
     },
@@ -1019,6 +1067,11 @@
           "file": "src/main/ipc/settings.ts",
           "contains": "requestedId === null || isRemoteOrcaServerDisabled()",
           "why": "activeRuntimeEnvironmentId 를 저장하는 입구. 정책이 켜지면 던지지 않고 local 로 되돌린다 — 정책 이전에 원격을 저장한 기기도 부팅해야 하고 hydration 이 이 값을 재생한다."
+        },
+        {
+          "file": "src/main/ipc/runtime-environment-connectivity-handlers.ts",
+          "contains": "assertRemoteOrcaServerAllowed()",
+          "why": "원격 Orca 연결·재연결 IPC 의 게이트. v1.4.223 egress 감사에서 원장 미등재로 확인돼 등재했다."
         }
       ]
     },
@@ -1482,6 +1535,31 @@
       "file": "src/main/orcad/orcad-entry.ts",
       "symbol": "agent-state-rules-live-update",
       "why": "같은 이유(원격 orcad)."
+    },
+    {
+      "file": "src/main/startup/main-window-core-services.ts",
+      "symbol": "updateInstallMode",
+      "why": "인앱 업데이터를 지웠으므로 serve 승격 경로가 업데이트 설치 정책을 다시 들이면 안 된다. 이를 지키던 포크 가드(serve-desktop-activation-wiring.test.ts)를 v1.4.223 이 파일째 폐기해 원장으로 옮겼다."
+    },
+    {
+      "file": "src/cli/specs/skills.ts",
+      "symbol": "'skills', 'share'",
+      "why": "스킬 공유 레인은 소스에서 제거했다. 이를 지키던 포크 가드(src/cli/specs/skills.test.ts)를 v1.4.223 이 파일째 폐기해 원장으로 옮겼다 — 스펙이 upstream 판으로 돌아오면 없는 명령이 도움말에 다시 뜬다."
+    },
+    {
+      "file": "src/shared/claude-profile-routing.ts",
+      "symbol": "claudeProfileRoutingEnabled(): boolean {\n  return true",
+      "why": "v1.4.223 이 들인 WSL Claude 프로필 라우터는 컴파일 상수로 꺼져 있다. 켜지면 관리형 계정 게이트(runtime-auth-preparation)를 지나지 않는 준비 경로와 nodejs.org 다운로드 호출자(disableRuntimeDownloads 가 막음)가 산다 — 켜지는 머지에서 라우터 preparation() 에 disableManagedClaudeAccounts 게이트를 이식하라."
+    },
+    {
+      "file": "package.json",
+      "symbol": "node config/scripts/run-vitest.mjs",
+      "why": "v1.4.223 이 pnpm test 를 Bun 위에서 돌리게 바꿨다(bun --bun vitest). 사내 개발기·빌드 PC 에는 Bun 이 없어 pnpm test 가 시작조차 못 하므로 포크는 Node 실행(upstream 의 test:node 와 같은 명령)을 유지한다. upstream 판 package.json 을 받으면 이 줄이 돌아온다."
+    },
+    {
+      "file": "package.json",
+      "symbol": "\"bun config/scripts/verify-localization-catalogs.mjs\"",
+      "why": "같은 이유로 pnpm lint 의 카탈로그 검증도 Node 로 돌린다(스크립트는 두 런타임에서 같은 판정을 내도록 upstream 이 테스트한다)."
     }
   ],
   "policySwitchMinConsumers": {

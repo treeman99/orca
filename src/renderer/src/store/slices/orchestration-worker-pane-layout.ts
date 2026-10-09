@@ -1,5 +1,5 @@
 import type { TabGroupLayoutNode } from '../../../../shared/tab-types'
-import { DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS } from '../../../../shared/terminal-pane-placement'
+import { DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS } from '../../../../shared/orchestration-worker-pane-group-placement'
 
 /**
  * Pure layout math for the orchestration worker column: the coordinator keeps

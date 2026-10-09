@@ -1,39 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import {
-  DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS,
-  ORCHESTRATION_WORKER_PANE_MAX_GROUP_CHOICES,
-  resolveOrchestrationWorkerPaneMaxGroups
-} from './terminal-pane-placement'
+import { parseTerminalPanePlacement } from './terminal-pane-placement'
 
-describe('resolveOrchestrationWorkerPaneMaxGroups', () => {
-  it('falls back to the default for settings written before the choice existed', () => {
-    expect(resolveOrchestrationWorkerPaneMaxGroups(undefined)).toBe(
-      DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS
-    )
+const LEAF = '11111111-1111-4111-8111-111111111111'
+
+describe('parseTerminalPanePlacement', () => {
+  it('accepts each kind', () => {
+    const split = { kind: 'split', parentLeafId: LEAF, direction: 'vertical' }
+    expect(parseTerminalPanePlacement({ kind: 'new-tab' })).toEqual({ kind: 'new-tab' })
+    expect(parseTerminalPanePlacement(split)).toEqual(split)
+    expect(parseTerminalPanePlacement({ kind: 'root' })).toEqual({ kind: 'root' })
   })
 
-  it('keeps every offered choice verbatim', () => {
-    for (const choice of ORCHESTRATION_WORKER_PANE_MAX_GROUP_CHOICES) {
-      expect(resolveOrchestrationWorkerPaneMaxGroups(choice)).toBe(choice)
-    }
+  it('strips fields a newer sender adds', () => {
+    expect(parseTerminalPanePlacement({ kind: 'root', future: 1 })).toEqual({ kind: 'root' })
+    expect(parseTerminalPanePlacement({ kind: 'new-tab', size: { cols: 120, rows: 40 } })).toEqual({
+      kind: 'new-tab'
+    })
   })
 
-  it('clamps a hand-edited value into range instead of stranding the column', () => {
-    expect(resolveOrchestrationWorkerPaneMaxGroups(0)).toBe(1)
-    expect(resolveOrchestrationWorkerPaneMaxGroups(-4)).toBe(1)
-    expect(resolveOrchestrationWorkerPaneMaxGroups(1e9)).toBe(6)
-  })
-
-  it('rejects the non-numeric shapes a settings file can actually hold', () => {
-    for (const value of [Number.NaN, Infinity, null, '4']) {
-      expect(resolveOrchestrationWorkerPaneMaxGroups(value as unknown as number)).toBe(
-        DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS
-      )
-    }
-  })
-
-  it('rounds a fractional value onto a real pane count', () => {
-    expect(resolveOrchestrationWorkerPaneMaxGroups(2.4)).toBe(2)
-    expect(resolveOrchestrationWorkerPaneMaxGroups(2.6)).toBe(3)
+  it.each([
+    ['absent', undefined],
+    ['a future kind', { kind: 'floating' }],
+    ['a legacy parent leaf id', { kind: 'split', parentLeafId: 'pane-1', direction: 'vertical' }],
+    ['a bad direction', { kind: 'split', parentLeafId: LEAF, direction: 'diagonal' }],
+    ['a split without direction', { kind: 'split', parentLeafId: LEAF }]
+  ])('rejects %s', (_name, value) => {
+    expect(parseTerminalPanePlacement(value)).toBeNull()
   })
 })

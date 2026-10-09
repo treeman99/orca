@@ -1,5 +1,12 @@
 // Fork-owned GlobalSettings fields, kept out of global-settings-types.ts so that upstream file
 // stays inside max-lines as upstream grows it (README §6). Intersected into GlobalSettings there.
+import type { NativeChatGlobalSettings as UpstreamNativeChatGlobalSettings } from './native-chat-appearance-settings'
+
+// Why upstream's name: global-settings-types.ts imports this instead of upstream's own type, so its
+// `GlobalSettings = NativeChatGlobalSettings & {` line stays byte-identical to upstream — a second
+// intersection there makes the formatter re-indent the whole ~490-line body (v1.4.223).
+export type NativeChatGlobalSettings = UpstreamNativeChatGlobalSettings & ForkGlobalSettings
+
 export type ForkGlobalSettings = {
   /** Opt-in: orchestration workers started in the coordinator's own worktree open in a split column beside it instead of as tabs in the active group. */
   autoSplitOrchestrationWorkerPanes?: boolean

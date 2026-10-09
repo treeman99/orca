@@ -15,6 +15,7 @@ import {
   killSpawnedRipgrepProcess
 } from './ripgrep-process-availability'
 import { ingestGitGrepLine, type SearchAccumulator } from './text-search'
+import { GitGrepRecordCapacityError, GIT_GREP_MAX_RECORD_BYTES } from './git-grep-record-limit'
 
 export type GitGrepIngestOptions = {
   /** Always the PARENT worktree root, so submodule hits resolve to parent-relative paths. */
@@ -32,21 +33,22 @@ export type GitGrepIngestOptions = {
 
 /**
  * Resolves once the child ends, is killed at `maxResults`, or the budget expires.
- * Never rejects: a failed fallback pass degrades to the matches collected so far.
+ * A failed fallback pass degrades to the matches collected so far; only a record past
+ * GIT_GREP_MAX_RECORD_BYTES rejects, because dropping it would hide a match silently.
  */
 export function ingestGitGrepChild(
   child: ChildProcessHandle,
   { rootPath, matchRegex, acc, maxResults, timeoutMs, relPathPrefix, signal }: GitGrepIngestOptions
 ): Promise<void> {
-  return new Promise((resolve) => {
-    const lines = new SearchSubprocessLineAccumulator(Number.MAX_SAFE_INTEGER)
+  return new Promise((resolve, reject) => {
+    const lines = new SearchSubprocessLineAccumulator(GIT_GREP_MAX_RECORD_BYTES)
     let done = false
     let processErrorObserved = false
     let killTimeout: ReturnType<typeof setTimeout>
 
-    function resolveOnce(): void {
+    function settle(): boolean {
       if (done) {
-        return
+        return false
       }
       done = true
       signal?.removeEventListener('abort', onAbort)
@@ -62,7 +64,13 @@ export function ingestGitGrepChild(
         errorObserved: processErrorObserved,
         unavailableExitObserved: false
       })
-      resolve()
+      return true
+    }
+
+    function resolveOnce(): void {
+      if (settle()) {
+        resolve()
+      }
     }
 
     function onAbort(): void {
@@ -84,8 +92,15 @@ export function ingestGitGrepChild(
       }
     }
 
-    function handleStdoutData(chunk: string): void {
-      lines.push(chunk, processLine)
+    function handleStdoutData(chunk: Buffer | string): void {
+      if (!lines.push(chunk, processLine) && settle()) {
+        try {
+          killSpawnedRipgrepProcess(child)
+        } catch {
+          // Release the request even when the host refuses the kill.
+        }
+        reject(new GitGrepRecordCapacityError())
+      }
     }
 
     function handleStderrData(): void {
@@ -105,7 +120,6 @@ export function ingestGitGrepChild(
       resolveOnce()
     }
 
-    child.stdout?.setEncoding('utf-8')
     child.stdout?.on('data', handleStdoutData)
     child.stderr?.on('data', handleStderrData)
     child.once('error', handleError)

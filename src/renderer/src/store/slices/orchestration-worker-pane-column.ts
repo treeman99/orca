@@ -3,7 +3,7 @@ import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import {
   resolveOrchestrationWorkerPaneMaxGroups,
   type TerminalPaneGroupPlacement
-} from '../../../../shared/terminal-pane-placement'
+} from '../../../../shared/orchestration-worker-pane-group-placement'
 import type { TabSplitDirection } from './tabs'
 import {
   buildWorkerStackRatioUpdates,

@@ -91,6 +91,19 @@ describe('Store', () => {
     expect(ui.groupBy).toBe('repo') // default preserved
   })
 
+  it.each([false, true])(
+    'restores sidebarOpen=%s from disk without changing the right sidebar',
+    async (sidebarOpen) => {
+      const store = await createStore()
+      store.updateUI({ sidebarOpen, rightSidebarOpen: false })
+      store.flush()
+
+      const reloaded = await createStore()
+      expect(reloaded.getUI().sidebarOpen).toBe(sidebarOpen)
+      expect(reloaded.getUI().rightSidebarOpen).toBe(false)
+    }
+  )
+
   it('round-trips and normalizes the host-qualified manual repo order', async () => {
     const store = await createStore()
     store.updateUI({

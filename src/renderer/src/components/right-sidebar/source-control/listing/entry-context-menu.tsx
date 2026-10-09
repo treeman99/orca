@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react'
-import { Copy, Eye, FolderOpen, Settings2 } from 'lucide-react'
+import { Copy, ExternalLink, Eye, FolderOpen, Settings2 } from 'lucide-react'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -16,11 +16,16 @@ import {
   OpenInPathEntryLabel
 } from '@/components/open-in-path/open-in-path-entry-row'
 import { translate } from '@/i18n/i18n'
-import { getLocalFileManagerLabel } from '@/lib/local-file-manager-label'
+import { LocalOnlyMenuHint } from '@/components/local-only-menu-hint'
+import {
+  getRevealInFileManagerLabel,
+  isRevealInFileManagerBlocked,
+  revealInFileManager
+} from '@/lib/reveal-in-file-manager'
+import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { NO_OPEN_IN_APPLICATIONS } from '@/lib/open-in-application-selection'
 import {
   getOpenInEntryAvailability,
-  getWorktreeOpenInEntries,
   openOpenInAppsSettings,
   openWorktreePath
 } from '@/components/sidebar/WorktreeOpenInMenu'
@@ -29,6 +34,8 @@ type SourceControlEntryContextMenuProps = {
   currentWorktreeId: string
   absolutePath?: string
   relativePath?: string
+  /** False for a deleted entry: there is no file for the OS file manager to show. */
+  hasWorkingTreeFile: boolean
   connectionId?: string | null
   onView?: () => void
   onRevealInExplorer: (worktreeId: string, absolutePath: string) => void
@@ -40,6 +47,7 @@ export function SourceControlEntryContextMenu({
   currentWorktreeId,
   absolutePath,
   relativePath,
+  hasWorkingTreeFile,
   connectionId,
   onView,
   onRevealInExplorer,
@@ -50,11 +58,15 @@ export function SourceControlEntryContextMenu({
     (s) => s.settings?.openInApplications ?? NO_OPEN_IN_APPLICATIONS
   )
   const settings = useAppStore((s) => s.settings)
-  const fileManagerLabel = getLocalFileManagerLabel()
-  const openInEntries = React.useMemo(
-    () => getWorktreeOpenInEntries(openInApplications, fileManagerLabel),
-    [fileManagerLabel, openInApplications]
+  // Why: a repo can belong to a runtime other than the focused one, and the OS reveal
+  // cannot tell that host's path from a local one of the same name.
+  const runtimeEnvironmentId = useAppStore((s) =>
+    getRuntimeEnvironmentIdForWorktree(s, currentWorktreeId)
   )
+  const revealBlocked = isRevealInFileManagerBlocked(settings, {
+    connectionId,
+    runtimeEnvironmentId
+  })
 
   const handleCopyPath = useCallback(() => {
     if (!absolutePath) {
@@ -77,13 +89,19 @@ export function SourceControlEntryContextMenu({
     onRevealInExplorer(currentWorktreeId, absolutePath)
   }, [absolutePath, currentWorktreeId, onRevealInExplorer])
 
-  const handleOpenInExternal = useCallback(
-    (target: 'file-manager' | 'external-editor', command?: string) => {
+  const handleRevealInFileManager = useCallback(() => {
+    if (absolutePath) {
+      void revealInFileManager(absolutePath)
+    }
+  }, [absolutePath])
+
+  const handleOpenInApplication = useCallback(
+    (command: string) => {
       if (!absolutePath) {
         return
       }
       void openWorktreePath({
-        target,
+        target: 'external-editor',
         worktreePath: absolutePath,
         connectionId,
         command
@@ -122,20 +140,30 @@ export function SourceControlEntryContextMenu({
             {translate('auto.components.sidebar.WorktreeOpenInMenu.8009ab69a6', 'Open in')}
           </ContextMenuSubTrigger>
           <ContextMenuSubContent className="w-52">
-            {openInEntries.map((entry) => {
-              const availability = getOpenInEntryAvailability(entry, settings, connectionId)
+            {openInApplications.map((application) => {
+              const availability = getOpenInEntryAvailability(
+                { ...application, target: 'external-editor' },
+                settings,
+                connectionId
+              )
               return (
                 <ContextMenuItem
-                  key={entry.id}
-                  onSelect={() => handleOpenInExternal(entry.target, entry.command)}
+                  key={application.id}
+                  onSelect={() => handleOpenInApplication(application.command)}
                   disabled={!absolutePath || availability.disabled}
                 >
-                  {getOpenInPathEntryIcon(entry)}
-                  <OpenInPathEntryLabel label={entry.label} metadata={availability.metadata} />
+                  {getOpenInPathEntryIcon({
+                    target: 'external-editor',
+                    command: application.command
+                  })}
+                  <OpenInPathEntryLabel
+                    label={application.label}
+                    metadata={availability.metadata}
+                  />
                 </ContextMenuItem>
               )
             })}
-            <ContextMenuSeparator />
+            {openInApplications.length > 0 ? <ContextMenuSeparator /> : null}
             <ContextMenuItem onSelect={openOpenInAppsSettings}>
               <Settings2 className="size-3.5" />
               {translate(
@@ -145,6 +173,14 @@ export function SourceControlEntryContextMenu({
             </ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>
+        <ContextMenuItem
+          onSelect={handleRevealInFileManager}
+          disabled={!absolutePath || !hasWorkingTreeFile || revealBlocked}
+        >
+          <ExternalLink className="size-3.5" />
+          {getRevealInFileManagerLabel()}
+          {revealBlocked ? <LocalOnlyMenuHint /> : null}
+        </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={handleRevealInOrcaExplorer} disabled={!absolutePath}>
           <FolderOpen className="size-3.5" />

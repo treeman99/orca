@@ -48,7 +48,6 @@ type EditorPanelHeaderProps = {
   onOpenDiffTargetFile: (preferredMarkdownViewMode?: 'rich') => void
   onOpenPreviewToSide: () => void
   onOpenMarkdownPreview: () => void
-  onOpenContainingFolder: () => void
   onToggleSideBySide: () => void
   onEditorToggleChange: (next: EditorToggleValue) => void
   onToggleMarkdownTableOfContents: () => void
@@ -83,7 +82,6 @@ export function EditorPanelHeader({
   onOpenDiffTargetFile,
   onOpenPreviewToSide,
   onOpenMarkdownPreview,
-  onOpenContainingFolder,
   onToggleSideBySide,
   onEditorToggleChange,
   onToggleMarkdownTableOfContents,
@@ -114,7 +112,6 @@ export function EditorPanelHeader({
         canShowMarkdownPreview={canShowMarkdownPreview}
         onCopyPath={onCopyPath}
         onOpenMarkdownPreview={onOpenMarkdownPreview}
-        onOpenContainingFolder={onOpenContainingFolder}
       />
       {canOpenPreviewToSide && (
         <TooltipProvider delayDuration={300}>
@@ -270,7 +267,7 @@ export function EditorPanelHeader({
           </Tooltip>
         </TooltipProvider>
       )}
-      {hasEditorToggle && (
+      {hasEditorToggle && !activeFile.csvPreviewOnly && (
         <EditorViewToggle
           value={effectiveToggleValue}
           modes={availableEditorToggleModes}

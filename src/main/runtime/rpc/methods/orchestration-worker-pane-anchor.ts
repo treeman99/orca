@@ -40,9 +40,14 @@ export function resolveWorkerPaneAnchor(
 }
 
 /** The worker-start call site's shape: it holds the coordinator's pane key, not its tab id. */
+/** The coordinator a worker start anchors to, bundled so local-worker-start passes one prop. */
+export type WorkerStartCoordinator = {
+  coordinatorPane: string | null
+  coordinatorWorktreeId: string
+}
+
 export function workerPaneAnchorForStart(
-  coordinatorPane: string | null,
-  coordinatorWorktreeId: string,
+  { coordinatorPane, coordinatorWorktreeId }: WorkerStartCoordinator,
   worker: { id: string }
 ): WorkerPaneAnchor {
   const coordinatorTabId = coordinatorPane ? parsePaneKey(coordinatorPane)?.tabId : undefined

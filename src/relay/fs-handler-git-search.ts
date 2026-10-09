@@ -1,6 +1,7 @@
 import { abortSignalReason } from '../shared/abort-signal-reason'
 import type { SearchOptions, SearchResult } from './fs-handler-utils'
 import { ingestGitGrepChild } from '../shared/git-grep-stream-ingest'
+import { GitGrepRecordCapacityError } from '../shared/git-grep-record-limit'
 import {
   buildGitGrepArgs,
   buildSubmatchRegex,
@@ -42,8 +43,12 @@ export async function searchWithGitGrep(
       timeoutMs: deadlineAt - Date.now(),
       signal
     })
-  } catch {
-    // A failed parent pass must not cost the submodule results.
+  } catch (error) {
+    // A failed parent pass must not cost the submodule results; an over-long record is not a
+    // failure to degrade past — the results would silently miss it.
+    if (error instanceof GitGrepRecordCapacityError) {
+      throw error
+    }
   }
   // Why: an abandoned request must not start one more git per submodule.
   if (signal?.aborted) {

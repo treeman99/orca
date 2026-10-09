@@ -1,6 +1,6 @@
 // Fork-owned fields on upstream terminal contracts, kept here so runtime-terminal-contracts.ts
 // stays under its line budget as upstream grows it.
-import type { TerminalPaneGroupPlacement } from './terminal-pane-placement'
+import type { TerminalPaneGroupPlacement } from './orchestration-worker-pane-group-placement'
 
 // Why: 'verified' means the agent was observed working on the prompt; 'resent'
 // means a swallowed Enter was rescued; 'unverified' means the write went out but

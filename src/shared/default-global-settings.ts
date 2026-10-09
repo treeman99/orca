@@ -16,7 +16,7 @@ import {
 } from './left-sidebar-appearance'
 import { DEFAULT_SOURCE_CONTROL_GROUP_ORDER } from './source-control-group-order'
 import { DESKTOP_TERMINAL_SCROLLBACK_ROWS_DEFAULT } from './terminal-scrollback-policy'
-import { DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS } from './terminal-pane-placement'
+import { DEFAULT_ORCHESTRATION_WORKER_PANE_MAX_GROUPS } from './orchestration-worker-pane-group-placement'
 
 export function buildDefaultSettings(args: {
   workspaceDir: string
@@ -152,6 +152,7 @@ export function buildDefaultSettings(args: {
     openInApplications: [...DEFAULT_OPEN_IN_APPLICATIONS],
     rightSidebarOpenByDefault: true,
     showGitIgnoredFiles: true,
+    followSymlinkedDirectories: false,
     sourceControlViewMode: 'list',
     sourceControlGroupOrder: DEFAULT_SOURCE_CONTROL_GROUP_ORDER,
     sourceControlCompareAgainstUpstream: false,

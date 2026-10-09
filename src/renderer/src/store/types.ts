@@ -44,6 +44,7 @@ import type { OrcaProfilesSlice } from './slices/orca-profiles'
 import type { NewIssueDraftSlice } from './slices/new-issue-draft'
 import type { TaskCreationDraftsSlice } from './slices/task-creation-drafts'
 import type { TerminalQuickCommandHostsSlice } from './slices/terminal-quick-command-hosts'
+import type { StructuredSessionLaunchDirectorySlice } from './slices/structured-session-launch-directories'
 
 export type AppState = RepoSlice &
   SparsePresetsSlice &
@@ -88,4 +89,5 @@ export type AppState = RepoSlice &
   OrcaProfilesSlice &
   NewIssueDraftSlice &
   TaskCreationDraftsSlice &
-  TerminalQuickCommandHostsSlice
+  TerminalQuickCommandHostsSlice &
+  StructuredSessionLaunchDirectorySlice

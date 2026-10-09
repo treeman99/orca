@@ -204,7 +204,8 @@ export async function subscribeRuntimeEnvironment(
     ) => void
     onClose: () => void
   },
-  isCurrent: () => boolean = () => true
+  isCurrent: () => boolean = () => true,
+  signal?: AbortSignal
 ): Promise<RemoteRuntimeSubscription> {
   assertRemoteOrcaServerAllowed()
   const environment = resolveEnvironment(userDataPath, selector)
@@ -249,7 +250,8 @@ export async function subscribeRuntimeEnvironment(
         params,
         timeoutMs: effectiveTimeoutMs,
         callbacks,
-        isCurrent
+        isCurrent,
+        signal
       })
     }
     return await subscribeRemoteRuntimeRequest(
@@ -258,7 +260,7 @@ export async function subscribeRuntimeEnvironment(
       params,
       effectiveTimeoutMs,
       callbacksWithMarkUsed,
-      { clientCapabilities: ELECTRON_REMOTE_RUNTIME_CLIENT_CAPABILITIES }
+      { clientCapabilities: ELECTRON_REMOTE_RUNTIME_CLIENT_CAPABILITIES, signal }
     )
   } catch (error) {
     if (error instanceof Error) {

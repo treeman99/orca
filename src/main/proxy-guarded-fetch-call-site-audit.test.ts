@@ -1,3 +1,6 @@
+// Fork-owned since v1.4.223: upstream deleted this census (#25791) but the corporate egress audit
+// (docs/reference/external-integrations-audit.md) cites it, so a new global-fetch call site turns
+// this red and lands in the next egress review instead of shipping unseen.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -14,7 +17,8 @@ import { describe, expect, it } from 'vitest'
 // means a call site was added, removed, or moved: re-audit the file and update the count.
 const AUDITED_NON_NET_FETCH_CALLS = new Map<string, number>([
   // Isolated cookie-jar session, proxied by createOpenCodeRequestSession before any request.
-  ['main/rate-limits/opencode-go-usage-fetcher.ts', 2],
+  // v1.4.223 adds the billing-status read beside status; all three ride the proxied partition session.
+  ['main/rate-limits/opencode-go-usage-fetcher.ts', 3],
   // Isolated cookie-jar session that does NOT apply the proxy — a pre-existing gap, not a
   // regression: no proxy has ever reached this partition. Keep it listed so it stays visible.
   ['main/rate-limits/minimax/minimax-request-context.ts', 2],
