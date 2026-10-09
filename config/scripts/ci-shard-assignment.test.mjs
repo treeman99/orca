@@ -109,7 +109,10 @@ describe('timing-weighted shard selection', () => {
         resolve('config/scripts/happy-dom-offscreen-canvas.ts'),
         resolve('config/scripts/happy-dom-mutation-observer-retention.ts'),
         resolve('config/scripts/vitest-host-ports-setup.ts'),
-        resolve('config/scripts/vitest-caller-identity-env-setup.ts')
+        resolve('config/scripts/vitest-caller-identity-env-setup.ts'),
+        // Fork: corporate policy file and session-search retention isolation (README §6).
+        resolve('config/vitest-enterprise-policy-isolation.ts'),
+        resolve('config/vitest-session-search-retention-isolation.ts')
       ])
       expect(project.test).toMatchObject({
         environment: 'node',

@@ -34,6 +34,7 @@ import {
   RuntimeMobileNotificationController,
   type MobileNotificationEvent
 } from '../../src/main/runtime/runtime-mobile-notification-controller'
+import { withPhonePushRoute } from '../../src/main/runtime/mobile-push-route.test-fixture'
 import { MobileNotificationDismissalStore } from '../../src/main/runtime/mobile-notification-dismissal-store'
 import { createNotificationDeliveryService } from '../../src/main/notifications/notification-delivery-service'
 import { SESSION } from '../../src/main/runtime/rpc/methods/structured-agent-session-rpc.test-fixture'
@@ -46,6 +47,7 @@ async function mountPausedRelay({ viewed = true, away = false } = {}) {
   const relayDirectory = join(fixture.directory, 'relay')
   const relay = new RuntimeMobileNotificationController()
   relay.configureDismissalStore(relayDirectory)
+  withPhonePushRoute(relay)
   const relayEvents: MobileNotificationEvent[] = []
   relay.onDispatched((event) => relayEvents.push(event))
   const delivery = createNotificationDeliveryService({

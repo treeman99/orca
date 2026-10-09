@@ -11,6 +11,7 @@ import {
   RuntimeMobileNotificationController,
   type MobileNotificationEvent
 } from '../../src/main/runtime/runtime-mobile-notification-controller'
+import { withPhonePushRoute } from '../../src/main/runtime/mobile-push-route.test-fixture'
 import { createStructuredAttentionMobileDelivery } from '../../src/main/runtime/structured-agent-session-mobile-attention'
 import {
   createHarness,
@@ -56,6 +57,7 @@ function prompt(id: string, sequence: number): AgentJournalRenderItem {
 function attentionPath(directory: string) {
   const controller = new RuntimeMobileNotificationController()
   controller.configureDismissalStore(directory)
+  withPhonePushRoute(controller)
   const events: MobileNotificationEvent[] = []
   controller.onDispatched((event) => events.push(event))
   let items: AgentJournalRenderItem[] = [
@@ -215,6 +217,7 @@ it('a restart sends the original delivery fence in the existing native gateway f
   }
   const restarted = new RuntimeMobileNotificationController()
   restarted.configureDismissalStore(directory)
+  withPhonePushRoute(restarted)
   const gateway = createHarness({
     devices: [{ deviceId: 'phone', pushRegistration: registration() }]
   })

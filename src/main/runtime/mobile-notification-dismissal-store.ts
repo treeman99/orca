@@ -43,7 +43,9 @@ export class MobileNotificationDismissalStore {
   }
 
   record(
-    event: MobileNotificationEvent & { notificationEpoch: string; notificationSeq: number }
+    event: MobileNotificationEvent & { notificationEpoch: string; notificationSeq: number },
+    // Fork: false keeps the in-memory ledger without the write (see the controller's push gate).
+    options: { persist?: boolean } = {}
   ): void {
     if (!event.notificationId) {
       return
@@ -96,7 +98,7 @@ export class MobileNotificationDismissalStore {
     }
     next = next.slice(-LIMIT)
     this.entries = next
-    if (!this.unreadable) {
+    if (!this.unreadable && options.persist !== false) {
       writeSecureJsonFile(this.path, next)
     }
   }

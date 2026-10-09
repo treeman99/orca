@@ -20,6 +20,7 @@ import {
   RuntimeMobileNotificationController,
   type MobileNotificationEvent
 } from './runtime-mobile-notification-controller'
+import { withPhonePushRoute } from './mobile-push-route.test-fixture'
 import { createStructuredAttentionMobileDelivery } from './structured-agent-session-mobile-attention'
 import { MobileNotificationDismissalStore } from './mobile-notification-dismissal-store'
 
@@ -58,6 +59,7 @@ describe('prompt delivery after host recovery', () => {
     await attach()
     const original = new RuntimeMobileNotificationController()
     original.configureDismissalStore(h.root)
+    withPhonePushRoute(original)
     const sent: MobileNotificationEvent[] = []
     original.onDispatched((event) => sent.push(event))
     const unsubscribe = wire(h.host, original)
@@ -82,6 +84,7 @@ describe('prompt delivery after host recovery', () => {
     unsubscribe()
     const restarted = new RuntimeMobileNotificationController()
     restarted.configureDismissalStore(h.root)
+    withPhonePushRoute(restarted)
     const events: MobileNotificationEvent[] = []
     restarted.onDispatched((event) => events.push(event))
     const store = await openTestAgentSessionRecordStore(h.root)

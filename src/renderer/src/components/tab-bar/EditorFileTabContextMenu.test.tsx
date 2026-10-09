@@ -62,6 +62,13 @@ vi.mock('lucide-react', () => ({
   Eye: function Eye(props: Record<string, unknown>) {
     return { type: 'Eye', props }
   },
+  // Fork: the "Open in" submenu's icons (EditorFileTabContextMenu.open-in.test.tsx covers it).
+  FolderOpen: function FolderOpen(props: Record<string, unknown>) {
+    return { type: 'FolderOpen', props }
+  },
+  Settings2: function Settings2(props: Record<string, unknown>) {
+    return { type: 'Settings2', props }
+  },
   ListX: function ListX(props: Record<string, unknown>) {
     return { type: 'ListX', props }
   },

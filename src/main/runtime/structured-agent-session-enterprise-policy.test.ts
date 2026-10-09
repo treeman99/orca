@@ -96,7 +96,8 @@ function codexResolver(): ReturnType<typeof createCodexStructuredLaunchResolver>
     store: { getRecord: () => codexRecord() },
     resolveWorkspacePath: async () => '/repos/w1',
     resolveCommand: () => '/usr/local/bin/codex',
-    resolveEnvironment: async () => ({ PATH: '/usr/local/bin' })
+    resolveEnvironment: async () => ({ PATH: '/usr/local/bin' }),
+    resolveLaunchArgs: () => []
   } as unknown as Parameters<typeof createCodexStructuredLaunchResolver>[0])
 }
 
@@ -126,7 +127,8 @@ function claudeLaunch(): Promise<unknown> {
     resolveWorkspacePath: async () => '/repos/w1',
     resolveCommand: () => '/usr/local/bin/claude',
     resolveEnv: async () => ({ PATH: '/usr/local/bin' }),
-    resolveAuthPolicy: () => ({ stripAuthEnv: false }) as never
+    resolveAuthPolicy: () => ({ stripAuthEnv: false }) as never,
+    resolveLaunchArgs: () => []
   } as unknown as Parameters<typeof createClaudeStructuredLaunchResolver>[0])({
     identity: { sessionId: 'session-1', providerHandle: { kind: 'claude' } } as never
   })

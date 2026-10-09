@@ -11,10 +11,7 @@ import {
   ContextMenuTrigger
 } from '@/components/ui/context-menu'
 import { useAppStore } from '@/store'
-import {
-  getOpenInPathEntryIcon,
-  OpenInPathEntryLabel
-} from '@/components/open-in-path/open-in-path-entry-row'
+import { OpenInApplicationIcon } from '@/lib/open-in-app-catalog'
 import { translate } from '@/i18n/i18n'
 import { LocalOnlyMenuHint } from '@/components/local-only-menu-hint'
 import {
@@ -152,14 +149,17 @@ export function SourceControlEntryContextMenu({
                   onSelect={() => handleOpenInApplication(application.command)}
                   disabled={!absolutePath || availability.disabled}
                 >
-                  {getOpenInPathEntryIcon({
-                    target: 'external-editor',
-                    command: application.command
-                  })}
-                  <OpenInPathEntryLabel
-                    label={application.label}
-                    metadata={availability.metadata}
-                  />
+                  {application.command ? (
+                    <OpenInApplicationIcon application={application} size={14} />
+                  ) : (
+                    <ExternalLink className="size-3.5" />
+                  )}
+                  <span className="min-w-0 truncate">{application.label}</span>
+                  {availability.metadata ? (
+                    <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
+                      {availability.metadata}
+                    </span>
+                  ) : null}
                 </ContextMenuItem>
               )
             })}

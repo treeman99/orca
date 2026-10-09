@@ -28,6 +28,11 @@ vi.mock('@/lib/agent-catalog', () => ({
     { id: 'claude', label: 'Claude' },
     { id: 'codex', label: 'Codex' }
   ],
+  // Fork: useAgentCatalog filters the full catalog by the policy view.
+  getFullAgentCatalog: () => [
+    { id: 'claude', label: 'Claude' },
+    { id: 'codex', label: 'Codex' }
+  ],
   AgentIcon: ({ agent }: { agent: string }) => <span>{agent}</span>
 }))
 vi.mock('@/components/ui/dropdown-menu', () => ({

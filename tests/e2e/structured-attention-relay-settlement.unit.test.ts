@@ -22,6 +22,7 @@ import type { NotificationDispatchRequest } from '../../src/shared/notification-
 import type { AgentJournalRenderItem } from '../../src/shared/agent-session-journal-types'
 import type { AgentSessionExecutionLocation } from '../../src/shared/agent-session-record'
 import { RuntimeMobileNotificationController } from '../../src/main/runtime/runtime-mobile-notification-controller'
+import { withPhonePushRoute } from '../../src/main/runtime/mobile-push-route.test-fixture'
 import { MobileNotificationDismissalStore } from '../../src/main/runtime/mobile-notification-dismissal-store'
 import { createNotificationDeliveryService } from '../../src/main/notifications/notification-delivery-service'
 import { SESSION } from '../../src/main/runtime/rpc/methods/structured-agent-session-rpc.test-fixture'
@@ -34,6 +35,7 @@ async function mountRemoteRelay(options?: { promptStatus?: false; raise?: false 
   const relayDirectory = join(fixture.directory, 'relay')
   const relay = new RuntimeMobileNotificationController()
   relay.configureDismissalStore(relayDirectory)
+  withPhonePushRoute(relay)
   const delivery = createNotificationDeliveryService({
     readNotificationSettings: () => NOTIFICATION_SETTINGS,
     findActiveWindow: () => null,

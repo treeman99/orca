@@ -65,7 +65,8 @@ vi.mock('@/lib/open-in-app-catalog', () => ({
   OpenInApplicationIcon: () => null
 }))
 
-vi.mock('@/lib/local-file-manager-label', () => ({
+vi.mock(import('@/lib/local-file-manager-label'), async (importOriginal) => ({
+  ...(await importOriginal()),
   getLocalFileManagerLabel: () => 'Finder'
 }))
 

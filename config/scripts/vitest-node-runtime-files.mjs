@@ -22,6 +22,8 @@ export const NODE_RUNTIME_INCLUDE = [
   'src/main/managed-data-accounts/**/*.test.ts',
   'src/main/quit-path-durable-write-blocking.test.ts',
   'src/main/automations/automation-worker-durability.test.ts',
+  // Fork: the unattended-run policy gate drives a real Store.
+  'src/main/automations/service-enterprise-policy.test.ts',
   'src/**/*.node-pty.test.ts',
   'src/**/node-pty-*.test.ts',
   'src/**/*.live-shell.test.ts',
