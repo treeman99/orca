@@ -182,7 +182,7 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다 (`enterprise-
 >
 > `disableAutoUpdate: true` 여도 **항목과 섹션은 그대로 보이고, 누르면 "관리자 정책으로 비활성화됨"이라고 답합니다** — 조회는 일어나지 않습니다. 숨기지 않는 이유: 아무 반응 없는 메뉴는 그 자체로 결함이고, 사용자가 왜 안 되는지 알 수 있어야 검증이 됩니다. 도움말의 크래시 리포트 / Explore Orca / Getting Started 는 제거 상태 그대로입니다.
 
-회귀 방지는 정책 테스트가 아니라 **"이 표면이 더 이상 없다"를 주장하는 테스트**가 담당합니다 — `src/main/menu/register-app-menu.test.ts`, `src/renderer/src/components/sidebar/SidebarSettingsHelpMenu.test.tsx`, `src/renderer/src/app-startup-routing.test.ts`, `src/main/ipc/crash-reporting.test.ts`, `src/main/serve-update-handoff.test.ts`, `src/main/startup/serve-desktop-activation-wiring.test.ts`, `src/main/runtime/mobile-rpc-allowlist.test.ts`, `src/preload/renderer-restart-wiring.test.ts`.
+회귀 방지는 정책 테스트가 아니라 **"이 표면이 더 이상 없다"를 주장하는 테스트**가 담당합니다 — `src/main/menu/register-app-menu.test.ts`, `src/renderer/src/components/sidebar/SidebarSettingsHelpMenu.test.tsx`, `src/renderer/src/app-startup-routing.test.ts`, `src/main/ipc/crash-reporting.test.ts`, `src/main/serve-update-handoff.test.ts`, `src/main/runtime/mobile-rpc-allowlist.test.ts`, `src/preload/renderer-restart-wiring.test.ts`. serve 승격 경로에 업데이트 설치 정책이 다시 배선되지 않는다는 단정은 v1.4.223 에서 upstream 이 그 테스트(`serve-desktop-activation-wiring.test.ts`)를 지워 원장 `absentSymbols`(`main-window-core-services.ts` 의 `updateInstallMode`)로 옮겼습니다.
 
 ### 3-1. `disableManagedClaudeAccounts` — Bedrock 플릿에서는 필수입니다
 
@@ -262,6 +262,7 @@ This Claude launch defines explicit Anthropic auth environment variables. Remove
 - **외부 자동화:** `hermes`·`openclaw`는 provider id가 곧 에이전트 CLI id라, `allowedAgents`가 자동화 페이지의 외부 소스와 에디터의 Orca/Hermes 대상 토글까지 함께 좁힙니다 (`src/main/automations/external-manager.ts`). 마스터 스위치로 끄고 싶다면 `disableExternalAutomations`를 쓰세요.
 - **폴링 차단 (메인):** 허용되지 않은 벤더의 사용량 미터는 네트워크로 나가지 않습니다 — 예로 Codex는 `chatgpt.com`을 조회하지 않습니다 (`src/main/rate-limits/service.ts`의 `isUsageProviderAllowed`). `claude`는 Bedrock 에이전트라 여기서 게이트되지 않습니다 (Claude 사용량 폴링 자체를 끄려면 `disableUsagePolling`).
 - **managed hook 설치/스윕 (메인):** 허용되지 않은 에이전트는 훅 런처를 **새로 받지 않고**, 이미 깔린 것은 앱이 뜰 때 지워집니다 — 설정 파일의 managed 항목을 먼저 정리하고 그다음 `~/.orca/agent-hooks/`의 런처를 지웁니다. 초크포인트 1곳: `src/main/agent-hooks/enterprise-agent-hook-policy.ts`(토글 `:30`, 부팅 설치 `:44`). ⚠️ **원격/SSH·WSL 호스트는 새 설치만 막고 이미 깔린 원격 런처는 지우지 않습니다.** 자세한 범위와 잔여 위험은 §3 표의 `allowedAgents` 행을 보세요.
+- **에이전트를 직접 띄우는 보조 레인 (메인, v1.4.223):** 허용되지 않은 에이전트는 사용자가 띄우지 않은 곳에서도 실행되지 않습니다 — ① Codex 훅 reconcile(앱 시작·네이티브 PTY 스폰마다 `codex --version`/`app-server` 실행, `~/.codex` 쓰기)은 codex 가 허용될 때만 돕니다(`enterprise-agent-hook-policy.ts` 의 `isCodexHookReconcileEnabledUnderEnterprisePolicy`), ② `--model` 을 붙인 opencode 실행의 모델 프리플라이트(`opencode serve`·`opencode models`)는 opencode 가 허용될 때만 돕니다(`opencode-model-startup-plan.ts`), ③ 저장된 구조화 채팅 레코드(Claude·Codex·Grok)는 재기동 직전에 다시 거부됩니다(각 provider 의 launch resolver). 구조화 채팅의 **자동 이름 짓기**는 Source Control AI 에이전트를 쓰며 아직 이 목록을 보지 않습니다 — `docs/reference/external-integrations-audit.md` §0.2 #37.
 - **안전장치:** 빈 배열이나 전부 무효한 값은 "제한 없음(`null`)"으로 처리되고 경고가 나갑니다 (`enterprise-policy.ts`의 `readAgentAllowlist`) — 관리자의 오타가 피커를 완전히 비워 앱을 못 쓰게 만드는 사고를 막습니다. `lockdown`을 상속하지 않으므로 제한하려면 **명시**해야 합니다.
 
 ### 3-4. 사내 GHES 로그인 — 설정 UI에서 브라우저 로그인

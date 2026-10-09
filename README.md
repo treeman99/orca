@@ -549,7 +549,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.221`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.223`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -579,7 +579,7 @@ git diff --name-status v1.4.163..HEAD   # A=신규, M=upstream 파일 수정, D=
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **신규(포크 전용)**               | `src/shared/enterprise-policy.ts`(+`.test.ts`), `src/main/enterprise/**` 24개(정책 파일 탐색·트레이스·네트워크 가드·직접 다운로드 가드·secure DNS·에뮬레이터/원격 서버/에이전트 허용목록 가드·픽스처·테스트), `src/main/rate-limits/usage-polling-disabled-providers.ts`(+`.test.ts`), `src/main/observability/observability-consent.test.ts`, `src/main/claude-accounts/environment.test.ts`, `src/main/emulator/android/scrcpy-server-download.test.ts`, `config/vitest-enterprise-policy-isolation.ts`, `docs/reference/*.md` 5개, `.claude/harness/*.md` 3개(규칙 원장 — [7절](#7-오케스트레이션-규칙-원장))                                                                                                                                                                                                                                                                                                                          | 거의 없음                                                                                                                                                                                                                                                                                                                                                                    |
 | **포크가 삭제한 표면**            | upstream 대비 **123개 파일**을 지웠습니다. 도메인별로 피드백 제출 12개(`ipc/feedback*`, `sidebar/SidebarFeedback*`, `lib/feedback-image-attachments*`, `crash-reporting/crash-feedback-diagnostic-bundle.ts`), 크래시 리포트 7개, local-builds 7개, orca-profiles 4개, artifacts 3개 등. 게이트를 다는 대신 표면 자체를 없앤 경우입니다                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | **가장 위험한 범주입니다.** upstream이 지운 파일을 수정하면 modify/delete 충돌이 나고, incoming을 수용하면 **표면이 통째로 되살아납니다** — 파일이 통째로 돌아오므로 게이트 grep에도 타입체크에도 잡히지 않습니다. 동기화마다 `comm -23 <(git ls-tree -r --name-only <옛태그>) <(git ls-tree -r --name-only HEAD)` 로 삭제 목록을 뽑아 upstream 변경분과 교집합을 확인하세요 |
-| **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄). 문서: `skill-guides/orchestration.md`의 `## Project Rule Ledger` 절 + `## Next Action`의 원장 로드 한 구절 | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다. 오케스트레이션 가이드 절은 `config/scripts/orchestration-skill-guidance.test.mjs`가 지키므로 유실 시 테스트가 먼저 붉어집니다                                                                                                                                    |
+| **upstream 파일에 삽입한 게이트** | 메인: `telemetry/consent.ts`, `observability/index.ts`, `github/client.ts`, `git/hosted-remote-url.ts`, `orca-profiles/profile-cloud-auth-config.ts`, `rate-limits/service.ts`, `rate-limits/claude-pty.ts`, `claude-accounts/{environment,oauth-refresh,runtime-auth-service}.ts`, `ipc/pty.ts`, `window/{createMainWindow,dashboard-popout-window}.ts`, `browser/{browser-manager,offscreen-browser-backend}.ts`, `lib/html-to-pdf.ts`, `emulator/android/scrcpy-server-download.ts`, `index.ts`, `src/shared/network-proxy.ts`. 렌더러: `src/renderer/index.html`(CSP 주석), `components/settings/PrivacyDiagnosticsSection.tsx`. 빌드·테스트: `config/electron-builder.config.cjs`, `config/vitest.config.ts`, `tests/e2e/helpers/electron-home-isolation.ts` (+ 대응 테스트 파일들, i18n 카탈로그 5개, `.gitignore` 3줄). 문서: `skill-guides/orchestration.md`의 `## Project Rule Ledger` 절 + `## Next Action`의 원장 로드 한 구절 | upstream이 같은 함수를 건드리면 발생. 게이트를 각 도메인의 **단일 초크포인트**에 넣어 둔 이유가 이것입니다. 오케스트레이션 가이드 절은 `config/scripts/orchestration-skill-rule-ledger.test.mjs`가 지키므로 유실 시 테스트가 먼저 붉어집니다                                                                                                                                 |
 | **포크가 재작성해 소유한 문서**   | `README.md`(upstream 원문 268줄을 사내 문서로 전면 교체 — 남은 공통 문장이 거의 없어 자동 병합이 되지 않습니다), `CLAUDE.md`(upstream은 `@AGENTS.md` 한 줄짜리 11바이트 스텁 → 126줄로 확장)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | **둘 다 upstream에도 존재하므로 upstream이 손댈 때마다 반드시 충돌합니다.** 리베이스에서 사내 버전을 남기려면 `git checkout --theirs README.md CLAUDE.md` — **리베이스에서는 `--ours`가 재배치 대상(upstream), `--theirs`가 재생 중인 사내 커밋**이라 머지와 의미가 뒤집혀 있습니다. 그다음 upstream 변경분 중 필요한 것만 수동으로 반영하세요                               |
 
 #### 자식 프로세스는 창구를 지난다 — `runProcess`/`spawnProcess` (v1.4.197부터 숫자로 강제)
@@ -608,9 +608,13 @@ upstream v1.4.197이 "`node:child_process`를 직접 import 하는 파일 수"�
 
 v1.4.218 에서 upstream 이 `DIRECT_IMPORTER_PIN`(직접 import 수 백스톱)을 테스트째 폐기했고(#23815),
 포크도 따랐습니다 — 허용목록 검사는 남아 있어 새 직접 import 는 여전히 막힙니다. 남은 핀은
-`UNHIDDEN_SPAWNER_PIN` 하나로, 이 포크는 **56**, upstream 은 **58** 입니다(v1.4.221 기준). 포크가 더 **낮은**
-것이 래칫이 원하는 방향입니다. 머지가 upstream 값으로 되돌리면 테스트가 "핀을 내려라"라고 정확히
-알려 주므로 그때 다시 낮추면 됩니다. 원장에 앵커로 등재돼 있습니다.
+`UNHIDDEN_SPAWNER_PIN` 하나였습니다(포크 **56**, upstream **58**, v1.4.221 기준).
+
+**v1.4.223 에서 upstream 이 남은 핀과 허용목록까지 전부 지웠습니다**(#25791 "low-value test inventories" —
+`windows-console-visibility.test.ts`, 두 `__fixtures__/*-allowlist.txt`, `gh-spawn-boundary.test.ts`).
+포크는 삭제를 따랐고 원장의 두 앵커(`UNHIDDEN_SPAWNER_PIN = 56`, GHES 로그인의
+`INTERACTIVE_LOGIN_EXEMPTIONS`)도 함께 뺐습니다 — 지켜야 할 게이트가 사라졌으므로 예외도 필요 없습니다.
+창구 사용 규칙 자체(AGENTS.md)는 그대로이고, 이제 숫자로 강제하는 장치가 없으니 리뷰가 지킵니다.
 
 #### 디렉터리 통째로 지운 것 — `cloud/` (v1.4.197에서 제거)
 
@@ -644,7 +648,7 @@ PR 트리거이며, 사내 보안 리뷰어가 우리 저장소에서 벤더 배
    upstream이 `cloud-26.yml`을 새로 추가해도 잡힙니다.
 2. 빨개지면 `git rm -rqf cloud .github/workflows/cloud-*.yml .github/actions/cloud-sql-rollout-lease`.
 3. `.github/CODEOWNERS`와 `release-blocker-fixes.test.mjs`는 **자동 병합됩니다** — 충돌 표시 없이
-   되살아나므로 직접 확인하세요.
+   되살아나므로 직접 확인하세요. (`release-blocker-fixes.test.mjs` 는 v1.4.223 에서 upstream 이 지웠습니다.)
 4. **`cloud/` 를 import 하는 코드는 `src/`·`tests/` 에도 들어옵니다**(v1.4.201 에서 3건). 판별식은
    `git grep -n -E "cloud/(apps|packages)|@orca-cloud/" -- src tests config .github` — 주석 외에는 비어야 합니다.
    upstream 이 벤더 클라우드에 기능을 붙일 때마다 데스크톱 쪽 클라이언트도 같이 오므로, 그 클라이언트가
@@ -793,6 +797,20 @@ v1.4.205가 lint 전용 플러그인 `oxlint-plugin-anti-slop` 을 **npm 레지�
 `tc:web` 이 수백 건 실패합니다. importer `version` 을 peer 포함 스냅샷(`3.31.3(@tiptap/pm@3.31.3)`)으로
 맞추면 재계산 후에도 유지됩니다. 판별식은 `ls node_modules/@tiptap/core/package.json` 입니다.
 
+#### 테스트·카탈로그 검증을 Bun 으로 옮긴 upstream — 포크는 Node 유지 (v1.4.223)
+
+v1.4.223 이 `pnpm test` 를 `node config/scripts/run-vitest.mjs`(= `bun --bun vitest`)로, `pnpm lint` 안의
+`verify:localization-catalogs` 를 `bun` 실행으로 바꿨습니다(`config/.bun-version` 1.4.2). 사내 개발 PC·빌드 PC 에는
+Bun 이 없어 둘 다 시작조차 못 하므로 **포크는 Node 실행을 유지합니다** — `test` 는 upstream 이 남겨 둔
+`test:node` 와 같은 명령이고, 카탈로그 검증 스크립트는 두 런타임에서 같은 판정을 내도록 upstream 이 테스트합니다.
+`config/vitest.config.ts` 의 `projects` 는 Bun 이 없으면 `node` 프로젝트 하나로 돌므로 그대로 받았습니다.
+
+**다음 동기화에서 할 일.** `package.json` 은 늘 포크판 + upstream 델타로 풀므로 보통은 유지되지만, upstream 판을
+받으면 두 줄이 돌아옵니다 — 원장 `absentSymbols`(`node config/scripts/run-vitest.mjs`,
+`"bun config/scripts/verify-localization-catalogs.mjs"`)가 잡습니다. `verify-localization-catalogs.test.mjs` 는
+`bun` 을 직접 띄워 두 런타임을 비교하므로 Bun 이 없는 PC 에서는 **순정 태그에서도** 빨갛습니다(환경성).
+Bun 을 사내 미러로 들이기로 하면 이 절을 지우고 두 줄을 upstream 판으로 되돌리면 됩니다.
+
 #### 벤더가 원격으로 바꾸는 설정 — 에이전트 상태 규칙 다운로드 (v1.4.221에서 제거)
 
 v1.4.221 이 `src/main/runtime/agent-state-rules/agent-state-rules-live-update.ts` 를 들여왔습니다.
@@ -852,8 +870,9 @@ electron-builder `beforePack` 에 `assertMobileWebBundleBuilt` 를 걸었습니�
   제거(스크립트 정의 자체는 남김 — 꺼진 upstream 워크플로와 테스트가 부른다).
 - `config/electron-builder.config.cjs` — `beforePack` 의 번들 가드와 그 import 제거.
 - upstream 핀 테스트 2개를 포크 계약으로 뒤집음 — `mobile-web-bundle-packaging-workflow-contract.test.mjs`
-  ("어떤 체인도 build:mobile-web 에 닿지 않는다"), `verify-packaged-mobile-web-bundle.test.mjs`
-  ("beforePack 은 번들 없이 통과한다").
+  ("어떤 체인도 build:mobile-web 에 닿지 않는다", **v1.4.223 에서 upstream 이 파일째 삭제** — 원장이 대신 지킨다),
+  `verify-packaged-mobile-web-bundle.test.mjs`("beforePack 은 번들 없이 통과한다").
+- v1.4.223 이 새로 넣은 `build:release:javascript` 체인에서도 `&& pnpm run build:mobile-web` 을 뺐다.
 - 원장 `absentSymbols` 2건(`package.json` 의 `&& pnpm run build:mobile-web`, 빌드 설정의
   `assertMobileWebBundleBuilt`)이 **다음 머지에서 체인이 조용히 돌아오는 것**을 잡습니다.
 
@@ -953,7 +972,8 @@ skill-guides/orchestration.md          ← 유일한 편집 대상
 마켓플레이스 URL로 설치하면 사용자는 스텁만 받고, 스텁은 `orca skills get orchestration`을
 실행하라고 지시합니다. 그 명령이 **설치된 사내 바이너리**에서 위 절을 그대로 꺼내므로 원장
 프로토콜이 그대로 적용됩니다. 반대로 스텁에 프로토콜을 넣으면 바이너리와 드리프트하므로 넣지
-않습니다(`orchestration-skill-guidance.test.mjs`가 이를 강제합니다).
+않습니다(`orchestration-skill-rule-ledger.test.mjs`가 이를 강제합니다 — upstream 이 v1.4.223 에서
+원래 테스트 `orchestration-skill-guidance.test.mjs` 를 지워 포크 소유로 옮겼습니다).
 
 **편집 절차:** `skill-guides/orchestration.md`를 고친 뒤 `pnpm generate:bundled-skill-guides`를
 반드시 실행하세요. 빼먹으면 `pnpm lint`의 `verify:bundled-skill-guides`가 stale로 실패합니다.
