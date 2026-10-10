@@ -1660,6 +1660,6 @@
     "disableStarNag": 2,
     "disableTelemetry": 2,
     "disableRuntimeDownloads": 1,
-    "disableChatVisuals": 2
+    "disableChatVisuals": 5
   }
 }

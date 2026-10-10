@@ -549,7 +549,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.223`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.224`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -810,6 +810,23 @@ Bun 이 없어 둘 다 시작조차 못 하므로 **포크는 Node 실행을 유
 `"bun config/scripts/verify-localization-catalogs.mjs"`)가 잡습니다. `verify-localization-catalogs.test.mjs` 는
 `bun` 을 직접 띄워 두 런타임을 비교하므로 Bun 이 없는 PC 에서는 **순정 태그에서도** 빨갛습니다(환경성).
 Bun 을 사내 미러로 들이기로 하면 이 절을 지우고 두 줄을 upstream 판으로 되돌리면 됩니다.
+
+#### Chat UI 가 곧 구조화 채팅이 됐다 — 포크 기본값을 upstream 과 같은 꺼짐으로 (v1.4.224)
+
+upstream #22933 이 `openAgentTabsInChatByDefault`(새 탭을 채팅으로 열기)와 `experimentalStructuredNativeChat` 을
+폐기했습니다. 이제 **Chat UI(`experimentalNativeChat`)를 켜면 Claude/Codex 새 탭이 곧바로 구조화 채팅**(PTY 없음)이고,
+끄면 채팅/터미널 토글도 없습니다. 포크는 봇 레인 시절부터 이 값을 켜짐으로 출하해 왔지만(봇 레인은 이미
+`enterprise/bots` 로 빠졌습니다) 그 전제가 사라져 **upstream 과 같은 꺼짐**으로 바꿨고, 저장된 프로필은 upstream
+마이그레이션(`savedChatUiWithTerminalDefaultView`)이 같은 값으로 내립니다. 그 설정을 덮어쓰던 포크의 탭 바 `+` 메뉴
+강제 터미널(`forceTerminalView`, `launch-agent-forced-terminal-view.ts`)도 함께 폐기했습니다.
+
+**다음 동기화에서 할 일.** `default-global-settings.ts` 의 `experimentalNativeChat` 은 이제 upstream 과 같은 줄이라
+충돌하지 않습니다. 다시 켜짐으로 출하하려면 Windows 에서 구조화 채팅이 실패할 때 터미널로 떨어지지 않는다는 점
+(upstream 이 폴백을 약속하지 않음)부터 확인하세요.
+
+**같은 판에서 upstream 이 `docs/reference/` 를 통째로 지웠습니다**(64개). 포크 소유 문서 8개만 남기고
+`.gitignore` 허용목록·`CLAUDE.md`·이 README 의 링크를 정리했습니다. 지워진 upstream 문서는
+`git show v1.4.223:docs/reference/<이름>.md` 로 읽을 수 있고, `AGENTS.md` 도 그 링크를 뺀 판으로 들어왔습니다.
 
 #### 벤더가 원격으로 바꾸는 설정 — 에이전트 상태 규칙 다운로드 (v1.4.221에서 제거)
 

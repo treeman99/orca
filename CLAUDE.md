@@ -209,7 +209,8 @@ _upstream 이 이 파일을 쪼개면 내 변경이 사라지는가?_ 그렇다�
 **사내 잠금(정책 파일)** — 시작 시 무장(Secure DNS·네트워크 허용목록·정책 트레이스), 플러그인
 3중 차단, 에이전트 허용목록(실행 문 8곳), 벤더 자체 호출 차단(텔레메트리·star-nag·클라우드
 릴레이·음성·관리형 Claude 계정·벤더 계정 등록), 사용량 폴링 잠금, 모바일 페어링/에뮬레이터,
-맞춤법 검사, GHES 호스트, 제거한 상위 뷰(Mobile/Artifacts)의 디스크 복원 차단, 스위트 전체의
+맞춤법 검사, GHES 호스트, 채팅 인라인 비주얼의 공개 CDN(`disableChatVisuals`), 관리형 orcad SSH
+배포(`disableRemoteOrcaServer`), 제거한 상위 뷰(Mobile/Artifacts)의 디스크 복원 차단, 스위트 전체의
 정책 파일 격리.
 
 **빌드에서 제거한 표면** — 인앱 자동 업데이트(+`electron-updater`), artifact 공유, 스킬 공유,
