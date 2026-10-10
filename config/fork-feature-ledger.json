@@ -1508,7 +1508,8 @@
     "src/main/updater-nudge.ts",
     "src/main/update-install-exit-watchdog.ts",
     "src/renderer/src/components/sidebar/use-feedback-image-drop.ts",
-    "src/main/ipc/feedback-request-ownership.test.ts"
+    "src/main/ipc/feedback-request-ownership.test.ts",
+    "src/main/skills/skill-package-download-response-lifetime.test.ts"
   ],
   "absentSymbols": [
     {
