@@ -67,7 +67,10 @@ import { pairingCode } from './runtime-environments-ipc-test-harness'
 
 describe('remote Orca status probes under the enterprise policy', () => {
   let userDataPath: string
-  const store = { getSettings: () => ({ activeRuntimeEnvironmentId: null }) }
+  const store = {
+    getSettings: () => ({ activeRuntimeEnvironmentId: null }),
+    getWorkspaceSessionHostIds: () => []
+  }
 
   beforeEach(() => {
     userDataPath = mkdtempSync(join(tmpdir(), 'orca-boot-probe-policy-'))

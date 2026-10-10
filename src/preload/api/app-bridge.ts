@@ -13,6 +13,14 @@ import { awaitBeforeUnloadCheckpoint, startupDiagnosticsEnabled } from '../prelo
 import type { PreloadApi } from '../api-types'
 
 export const appApi = {
+  isProfileStateSaveDelayed: (): Promise<boolean> =>
+    ipcRenderer.invoke('app:isProfileStateSaveDelayed'),
+  onProfileStateSaveDelayChanged: (callback: (delayed: boolean) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, delayed: boolean): void =>
+      callback(delayed === true)
+    ipcRenderer.on('app:profileStateSaveDelayChanged', listener)
+    return () => ipcRenderer.removeListener('app:profileStateSaveDelayChanged', listener)
+  },
   getIdentity: (): Promise<AppIdentity> => ipcRenderer.invoke('app:getIdentity'),
   // Fork surface: upstream serves the app version off the updater bridge this build removed.
   getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),

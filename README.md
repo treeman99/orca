@@ -248,8 +248,8 @@ SignPath 서명, 텔레메트리 빌드 식별자, 벤더 릴리스 업로드를
 > 과금되며 Windows 러너는 2배로 계산됩니다.
 
 > Linux 산출물의 glibc 하한(Ubuntu 20.04 / glibc 2.31)은 패키징 훅이 강제하고, 워크플로는 그 위에
-> 패키징된 `node-pty` 를 실제로 로드해 보는 스모크까지 돌립니다
-> ([linux-glibc-compatibility.md](docs/reference/linux-glibc-compatibility.md)).
+> 패키징된 `node-pty` 를 실제로 로드해 보는 스모크까지 돌립니다(upstream 이 v1.4.224 에서
+> `docs/reference/` 를 통째로 지워 근거 문서는 `v1.4.223` 태그에만 남아 있습니다).
 
 ---
 

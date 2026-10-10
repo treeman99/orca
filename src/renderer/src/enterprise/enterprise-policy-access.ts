@@ -26,7 +26,8 @@ const UNRESTRICTED: EnterprisePolicyView = {
   disableVoice: false,
   disablePlugins: false,
   disableVendorLinks: false,
-  requireComputerUseApproval: false
+  requireComputerUseApproval: false,
+  disableChatVisuals: false
 }
 
 // Read at module evaluation, synchronously, before anything can memoize an answer.

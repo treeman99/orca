@@ -46,7 +46,7 @@ export function buildSettingsNavigationMetadata({
   isLocalWindowsHost = isWindows,
   isWindowsTerminalHost = isWindows,
   isWebClient,
-  experimentalStructuredNativeChat = false,
+  nativeChatEnabled = false,
   managedBrowserCreationEnabled = !isWebClient,
   mobileEmulatorCreationEnabled = !isWebClient,
   isDev = import.meta.env.DEV,
@@ -64,7 +64,7 @@ export function buildSettingsNavigationMetadata({
   isLocalWindowsHost?: boolean
   isWindowsTerminalHost?: boolean
   isWebClient: boolean
-  experimentalStructuredNativeChat?: boolean
+  nativeChatEnabled?: boolean
   managedBrowserCreationEnabled?: boolean
   mobileEmulatorCreationEnabled?: boolean
   isDev?: boolean
@@ -93,7 +93,7 @@ export function buildSettingsNavigationMetadata({
     isLocalWindowsHost,
     isWindowsTerminalHost,
     isWebClient,
-    experimentalStructuredNativeChat,
+    nativeChatEnabled,
     managedBrowserCreationEnabled,
     mobileEmulatorCreationEnabled,
     isDev,
@@ -134,7 +134,7 @@ export function useSettingsNavigationMetadata(): SettingsNavSection[] {
       ] as const
     })
   )
-  const experimentalStructuredNativeChat = settings?.experimentalStructuredNativeChat === true
+  const nativeChatEnabled = settings?.experimentalNativeChat === true
   const isMac = isMacUserAgent()
   const isWindows = isWindowsUserAgent()
   const isWebClient = isWebClientLocation()
@@ -178,7 +178,7 @@ export function useSettingsNavigationMetadata(): SettingsNavSection[] {
         isLocalWindowsHost,
         isWindowsTerminalHost,
         isWebClient,
-        experimentalStructuredNativeChat,
+        nativeChatEnabled,
         managedBrowserCreationEnabled,
         mobileEmulatorCreationEnabled,
         isDev: import.meta.env.DEV,
@@ -197,7 +197,7 @@ export function useSettingsNavigationMetadata(): SettingsNavSection[] {
       isLocalWindowsHost,
       isWindowsTerminalHost,
       isWebClient,
-      experimentalStructuredNativeChat,
+      nativeChatEnabled,
       managedBrowserCreationEnabled,
       mobileEmulatorCreationEnabled,
       isLinearConnected,

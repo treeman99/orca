@@ -13,6 +13,7 @@ import {
   throwIfSkillDownloadUnavailable
 } from './skill-package-download-availability'
 import { startSkillPhaseOperation } from './skill-operation-observability'
+import { cancelUnreadResponseBody } from '../lib/unread-response-body'
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
 const MAX_REDIRECTS = 3
@@ -101,18 +102,26 @@ async function fetchWithoutCredentialRedirect(
     if (!REDIRECT_STATUSES.has(response.status)) {
       return response
     }
-    if (redirectCount >= MAX_REDIRECTS) {
-      throw new Error('skill-download-redirect-limit')
+    try {
+      if (redirectCount >= MAX_REDIRECTS) {
+        throw new Error('skill-download-redirect-limit')
+      }
+      const location = response.headers.get('location')
+      if (!location) {
+        throw new Error('skill-download-redirect-invalid')
+      }
+      const redirected = validateUrl(
+        new URL(location, url).href,
+        allowedOrigins,
+        input.requireHttps
+      )
+      if (redirected.origin !== url.origin) {
+        throw new Error('skill-download-cross-origin-redirect')
+      }
+      url = redirected
+    } finally {
+      await cancelUnreadResponseBody(response)
     }
-    const location = response.headers.get('location')
-    if (!location) {
-      throw new Error('skill-download-redirect-invalid')
-    }
-    const redirected = validateUrl(new URL(location, url).href, allowedOrigins, input.requireHttps)
-    if (redirected.origin !== url.origin) {
-      throw new Error('skill-download-cross-origin-redirect')
-    }
-    url = redirected
   }
 }
 
@@ -141,8 +150,9 @@ async function downloadSkillPackageGrantUnobserved(
     now: input.now!,
     expiresAt
   })
+  let response: Response | undefined
   try {
-    const response = await fetchWithoutCredentialRedirect(
+    response = await fetchWithoutCredentialRedirect(
       input,
       allowedOrigins,
       expiresAt,
@@ -230,6 +240,9 @@ async function downloadSkillPackageGrantUnobserved(
       throw error
     }
   } finally {
+    if (response && !response.bodyUsed) {
+      await cancelUnreadResponseBody(response)
+    }
     availability.cleanup()
   }
 }

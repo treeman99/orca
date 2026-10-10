@@ -89,6 +89,7 @@ function makeDraft(overrides: Partial<AutomationDraft> = {}): AutomationDraft {
     name: '',
     prompt: '',
     agentId: 'claude',
+    extraAgentArgs: '',
     projectId: '',
     workspaceMode: 'new_per_run',
     workspaceId: '',

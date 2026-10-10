@@ -18,6 +18,7 @@ import {
 } from '../../../../shared/tui-agent-selection'
 import { translate } from '@/i18n/i18n'
 import { newAgentPromptOutcome } from '@/lib/new-agent-prompt-outcome'
+import { activeAgentNotesSendFailureMessage } from '@/lib/active-agent-note-send-result'
 
 export type QuickLaunchAgentMenuItemsProps = {
   worktreeId: string
@@ -38,9 +39,6 @@ export type QuickLaunchAgentMenuItemsProps = {
   launchSource?: LaunchSource
   /** Called after a prompt is queued into the agent, or immediately for argv prompt launches. */
   onPromptDelivered?: () => void
-  /** Set where terminal and chat are offered as two separate rows (the tab bar `+` menu), so
-   *  an agent row never silently becomes a chat window via `openAgentTabsInChatByDefault`. */
-  forceTerminalView?: boolean
   /** Given the launch's own delivery result while the prompt is still on its way. */
   onPromptHandedOff?: (delivered: Promise<unknown>) => void
   /** Nothing to send: e.g. every note is already on its way, so no agent is started. */
@@ -117,8 +115,7 @@ function QuickLaunchAgentMenuItemsInner({
   launchSource,
   onPromptDelivered,
   onPromptHandedOff,
-  disabled = false,
-  forceTerminalView
+  disabled = false
 }: QuickLaunchAgentMenuItemsProps): React.JSX.Element | null {
   // Why: resolving only the SSH connectionId here made paired-runtime
   // worktrees fall back to LOCAL detection, listing the client's agents
@@ -156,7 +153,8 @@ function QuickLaunchAgentMenuItemsInner({
         ...(promptDelivery !== undefined ? { promptDelivery } : {}),
         ...(launchSource !== undefined ? { launchSource } : {}),
         ...(onPromptDelivered !== undefined ? { onPromptDelivered } : {}),
-        ...(forceTerminalView ? { forceTerminalView: true } : {})
+        // Notes keep their text until it goes out, so the new chat's composer never gets a copy.
+        ...(onPromptHandedOff ? { promptKeptByCaller: true as const } : {})
       })
       if (!result) {
         toast.error(
@@ -169,15 +167,24 @@ function QuickLaunchAgentMenuItemsInner({
         return
       }
       if (onPromptHandedOff && result.promptDeliveryResult) {
-        onPromptHandedOff(
-          newAgentPromptOutcome({
-            prompt: prompt ?? '',
-            ...(result.surface.kind === 'local-agent-session'
-              ? { sessionId: result.surface.sessionId }
-              : {}),
-            delivery: result.promptDeliveryResult
-          })
-        )
+        const outcome = newAgentPromptOutcome({ delivery: result.promptDeliveryResult })
+        onPromptHandedOff(outcome)
+        // The notes keep the text, so they say once why it did not go, as a send to a chat does.
+        void outcome.then(({ failure }) => {
+          if (failure) {
+            toast.error(
+              translate('auto.store.slices.ui.53883b7bc3', "Couldn't send to {{value0}}", {
+                value0: label
+              }),
+              {
+                description: activeAgentNotesSendFailureMessage(failure.status, {
+                  explicitTarget: true,
+                  code: failure.code
+                })
+              }
+            )
+          }
+        })
       }
       if (result.surface.kind !== 'local-terminal') {
         return
@@ -214,8 +221,7 @@ function QuickLaunchAgentMenuItemsInner({
       launchSource,
       onPromptDelivered,
       onPromptHandedOff,
-      disabled,
-      forceTerminalView
+      disabled
     ]
   )
 

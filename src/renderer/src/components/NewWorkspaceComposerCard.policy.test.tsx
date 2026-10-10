@@ -36,7 +36,8 @@ const UNRESTRICTED: EnterprisePolicyView = {
   disableVoice: false,
   disablePlugins: false,
   disableVendorLinks: false,
-  requireComputerUseApproval: false
+  requireComputerUseApproval: false,
+  disableChatVisuals: false
 }
 
 const policyState = vi.hoisted(() => ({ current: null as EnterprisePolicyView | null }))

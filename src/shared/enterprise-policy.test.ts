@@ -54,7 +54,8 @@ describe('resolveEnterprisePolicy', () => {
       'disablePlugins',
       'disableVendorLinks',
       'requireComputerUseApproval',
-      'disableRuntimeDownloads'
+      'disableRuntimeDownloads',
+      'disableChatVisuals'
     ])
   })
 

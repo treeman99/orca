@@ -175,6 +175,26 @@
           "file": "src/main/preflight/agent-detection.ts",
           "contains": "return filterAgentsByEnterprisePolicy(\n    resolveDetectedTuiAgentIds(",
           "why": "v1.4.223 이 WSL·로컬 감지를 detectAgentCommandsOnHost 하나로 합치며 포크 래핑 두 곳이 충돌 hunk 에 들어갔다. 원장의 기존 앵커는 원격 감지(세 번째 호출)뿐이었다."
+        },
+        {
+          "file": "src/main/claude/claude-cli-flag-prewarm.ts",
+          "contains": "if (!isAgentAllowedByEnterprisePolicy('claude')) {",
+          "why": "v1.4.224 신규: 네이티브 채팅 호스트가 설치될 때마다 claude --version 을 미리 돌린다. 레코드 게이트를 거치지 않는 스폰이다."
+        },
+        {
+          "file": "src/main/runtime/structured-agent-model-catalog-wiring.ts",
+          "contains": "if (discovery.kind === 'probe' && isAgentAllowedByEnterprisePolicy(agent)) {",
+          "why": "v1.4.224 가 런타임 시작 prewarm 을 넣어 모델 카탈로그 프로브(pi·grok·opencode-ACP 포함)가 세션 없이 CLI 를 띄운다. 등록 목록 하나에서 거르는 일반 초크포인트."
+        },
+        {
+          "file": "src/main/acp/acp-structured-launch-resolution.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy(spec.agent)",
+          "why": "v1.4.224 가 resolveAcpLaunchInvocation 을 export 하고 카탈로그 프로브가 직접 부른다(실패 모드 V 재발)."
+        },
+        {
+          "file": "src/main/pi/rpc-launch-resolution.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy('pi')",
+          "why": "v1.4.224 신규 pi 구조화 채팅: 실행·create-support·카탈로그 프로브가 모두 이 해석기로 바이너리를 찾는다."
         }
       ]
     },
@@ -431,6 +451,11 @@
         {
           "file": "src/renderer/src/components/use-terminal-workspace-store-bindings.ts",
           "contains": "isMobileEmulatorAvailable"
+        },
+        {
+          "file": "src/main/runtime/runtime-rpc/runtime-rpc-websocket-dispatch.ts",
+          "contains": "if (device.scope === 'mobile' && getEnterprisePolicy().disableMobilePairing) {",
+          "why": "정책 이전에 페어링된 폰의 토큰을 거부한다. v1.4.224 가 같은 자리를 RpcCallerScope 로 바꿨는데 min-consumers 하한으로는 이 한 줄 유실을 못 잡아 앵커로 등재했다."
         }
       ]
     },
@@ -913,6 +938,16 @@
           "file": "src/relay/fs-handler-git-search.ts",
           "contains": "await runGitGrepSubmodulePasses({",
           "why": "SSH 원격의 git grep 폴백이 서브모듈 안을 검색한다. v1.4.217 에서 upstream 이 searchWithGitGrep 을 fs-handler-git-fallback.ts 에서 이 파일로 추출해 포크 구현을 옮겼다."
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/git.ts",
+          "contains": "...GIT_SUBMODULE_METHODS,",
+          "why": "v1.4.224 가 RPC permission 을 필수로 만들고 git.ts 를 상한 근처로 키워, 서브모듈 RPC 8개를 git-submodule-methods.ts 로 옮겼다. 이 한 줄이 등록 지점이다."
+        },
+        {
+          "file": "src/renderer/src/web/preload-api/web-git-api.ts",
+          "contains": "createWebGitSubmoduleApi",
+          "why": "웹 클라이언트의 서브모듈 API 배선. v1.4.224 충돌에서 import 가 다시 보였는데 원장에 없었다."
         }
       ]
     },
@@ -984,11 +1019,6 @@
           "contains": "createUiShellPreferenceActions"
         },
         {
-          "file": "src/renderer/src/lib/launch-agent-in-new-tab.ts",
-          "contains": "resolveLaunchAgentViewMode(args, store.settings, initialViewModeOptions)",
-          "why": "탭 바 `+` 메뉴는 터미널과 챗을 별개 행으로 제시하므로 에이전트 행은 openAgentTabsInChatByDefault 와 무관하게 raw 터미널을 열어야 한다. 판정은 launch-agent-forced-terminal-view.ts 가 소유하고, 이 한 줄이 그 유일한 호출지점이다."
-        },
-        {
           "file": "src/renderer/src/lib/adopt-agent-background-session-tab.ts",
           "contains": "isTuiAgent(launchAgentType) ? { launchAgent: launchAgentType }",
           "why": "첫 훅이 도착하기 전까지 탭에 에이전트 정체성이 없으면 native-chat 라우트가 \"에이전트 페인이 아님\"으로 읽어 챗으로 연 봇 페인을 몇 초 뒤 터미널로 되돌린다."
@@ -1047,7 +1077,7 @@
       "summary": "disableRemoteOrcaServer: 이 데스크톱이 다른 Orca 에 붙는 모든 아웃바운드 소켓을 막는다. v1.4.201 이 status 프로브를 상태 소유자로 옮기며 시작 시 저장된 환경을 모두 프로브하는 루프를 새로 열었다.",
       "present": [
         {
-          "file": "src/main/ipc/runtime-environment-transport-routing.ts",
+          "file": "src/main/ipc/runtime-environment-status-probe.ts",
           "contains": "const refusal = remoteOrcaServerRefusal<RuntimeStatus>()"
         },
         {
@@ -1077,6 +1107,21 @@
           "file": "src/main/ipc/runtime-environment-connectivity-handlers.ts",
           "contains": "assertRemoteOrcaServerAllowed()",
           "why": "원격 Orca 연결·재연결 IPC 의 게이트. v1.4.223 egress 감사에서 원장 미등재로 확인돼 등재했다."
+        },
+        {
+          "file": "src/main/ipc/ssh-host-server-connect.ts",
+          "contains": "if (isRemoteOrcaServerDisabled()) {",
+          "why": "v1.4.224 가 SSH 기본 경로를 관리형 orcad(원격 호스트에 Orca 서버 배포·전환)로 바꿨다. 정책 아래에서는 판정 없이 relay 로 간다."
+        },
+        {
+          "file": "src/main/ssh/orcad-runtime-deployment.ts",
+          "contains": "assertRemoteOrcaServerAllowed()",
+          "why": "배포·생성·재개·전환이 모두 createManagedOrcadEnvironment 로 모인다."
+        },
+        {
+          "file": "src/main/ssh/orcad-runtime-conversion.ts",
+          "contains": "assertRemoteOrcaServerAllowed()",
+          "why": "fenceOrResume 보다 앞 — 거부된 전환이 relay 호스트에 펜스를 남기지 않게."
         }
       ]
     },
@@ -1245,6 +1290,11 @@
           "file": "src/renderer/src/components/settings/general-search.ts",
           "contains": "...getGeneralAppUpdateSearchEntries()",
           "why": "설정 검색과 cmd-J 인덱스에 항목을 합류시키는 한 줄. 스프레드 점 세 개까지 포함해 앵커를 잡은 이유는, 이 파일의 import 와 재export 에도 같은 이름이 있어 이름만으로는 배열에서 빠진 것을 못 잡기 때문이다. 빠져도 아무도 참조하지 않으니 tc 와 테스트가 모두 초록이고, 증상은 \"설정에서 업데이트를 검색해도 안 나온다\" 뿐이다."
+        },
+        {
+          "file": "src/main/startup/serve-quit-handling.ts",
+          "contains": "isQuittingForUpdate: () => false,",
+          "why": "v1.4.224 신규 파일이 포크가 지운 ../updater 를 import 했다. 사내 빌드에는 업데이트 종료가 없다."
         }
       ]
     },
@@ -1380,6 +1430,27 @@
           "why": "원격 orcad 시작 지점. 원격 호스트에는 데스크톱 정책 파일이 닿지 않으므로 스위치가 아니라 소스 제거로 막는다."
         }
       ]
+    },
+    {
+      "id": "enterprise-chat-visuals",
+      "summary": "disableChatVisuals(lockdown 상속, v1.4.224 신설) — 구조화 채팅 인라인 비주얼의 공개 CDN 로드를 끈다.",
+      "present": [
+        {
+          "file": "src/main/runtime/orca-runtime-get-worktree-ps.ts",
+          "contains": "isEnabled: () => nativeChatVisualsAllowed(this.requireStore().getSettings()),",
+          "why": "실행 시 비주얼 폴더·스킬 전달의 단일 초크포인트(nativeChatVisuals.isEnabled)."
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/structured-agent-session-visual.ts",
+          "contains": "if (getEnterprisePolicy().disableChatVisuals) {",
+          "why": "정책 이전에 쓰인 비주얼 파일도 렌더러에 넘기지 않는다."
+        },
+        {
+          "file": "src/renderer/src/components/settings/ChatSettingsSection.tsx",
+          "contains": "showDesktopOnlySettings && !disableChatVisuals",
+          "why": "설정 토글을 숨긴다(거부는 main 이 한다)."
+        }
+      ]
     }
   ],
   "absentPaths": [
@@ -1433,7 +1504,11 @@
     "src/shared/release-channel.ts",
     "src/main/updater-*.test.ts",
     "src/main/window/main-window-updater*",
-    "src/main/macos-update-running-instances*"
+    "src/main/macos-update-running-instances*",
+    "src/main/updater-nudge.ts",
+    "src/main/update-install-exit-watchdog.ts",
+    "src/renderer/src/components/sidebar/use-feedback-image-drop.ts",
+    "src/main/ipc/feedback-request-ownership.test.ts"
   ],
   "absentSymbols": [
     {
@@ -1584,6 +1659,7 @@
     "disableCloudRelay": 2,
     "disableStarNag": 2,
     "disableTelemetry": 2,
-    "disableRuntimeDownloads": 1
+    "disableRuntimeDownloads": 1,
+    "disableChatVisuals": 2
   }
 }

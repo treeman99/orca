@@ -8,7 +8,11 @@ import {
 import { zoomDashboardPopoutIfFocused } from '../window/dashboard-popout-window'
 import { recordCrashBreadcrumb } from '../crash-reporting/crash-breadcrumb-store'
 import { mainProcessState as state } from './main-process-state'
-import { openSettingsFromSystemMenu, requestUpdateCheckFromSystemMenu } from './main-window-actions'
+import {
+  openSettingsFromSystemMenu,
+  quitFromUserCommand,
+  requestUpdateCheckFromSystemMenu
+} from './main-window-actions'
 import { logStartupMilestone } from './startup-diagnostics'
 
 export async function initializeMainProcessI18nAndMenu(): Promise<void> {
@@ -21,6 +25,7 @@ export async function initializeMainProcessI18nAndMenu(): Promise<void> {
   logStartupMilestone('i18n-ready')
   registerAppMenu({
     appMenuLabel: state.devInstanceIdentity?.name ?? app.name,
+    ...(state.isServeMode ? { onQuit: quitFromUserCommand } : {}),
     onBeforeReload: ({ ignoreCache, webContentsId }) => {
       if (state.mainWindow?.webContents.id === webContentsId) {
         state.expectedRendererReload.mark(webContentsId)

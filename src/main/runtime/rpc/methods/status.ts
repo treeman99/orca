@@ -3,6 +3,7 @@ import { defineMethod } from '../core'
 export const STATUS_METHODS = [
   defineMethod({
     name: 'status.get',
+    permission: 'workspace',
     params: null,
     // Why env rather than `app.getVersion()`: main stamps ORCA_APP_VERSION at
     // startup, and keeping electron out of the RPC layer lets the relay and

@@ -25,6 +25,7 @@ const VIEW_FIELDS = [
   'allowedModels',
   'disableAgentInstallSuggestions',
   'disableAutoUpdate',
+  'disableChatVisuals',
   'disableCloudRelay',
   'disableExternalAutomations',
   'disableMobileEmulator',
@@ -80,7 +81,8 @@ describe('registerEnterprisePolicyHandlers', () => {
       disableVoice: false,
       disablePlugins: false,
       disableVendorLinks: false,
-      requireComputerUseApproval: false
+      requireComputerUseApproval: false,
+      disableChatVisuals: false
     })
   })
 
@@ -105,7 +107,8 @@ describe('registerEnterprisePolicyHandlers', () => {
       disableVoice: true,
       disablePlugins: true,
       disableVendorLinks: true,
-      requireComputerUseApproval: true
+      requireComputerUseApproval: true,
+      disableChatVisuals: true
     })
   })
 

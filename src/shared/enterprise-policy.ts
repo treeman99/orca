@@ -149,6 +149,12 @@ export type EnterprisePolicy = {
    * sessions on that host; the download is skipped, not the connection.
    */
   disableRuntimeDownloads: boolean
+  /**
+   * Turn off structured chat's inline visuals. A visual is agent-written HTML run in a sandboxed
+   * iframe whose CSP admits public CDNs (jsdelivr, unpkg, cdnjs, esm.sh, Google Fonts), so every
+   * one rendered loads code from — and can carry data to — hosts outside the fleet's control.
+   */
+  disableChatVisuals: boolean
   /** Opt-in hard allowlist over renderer + main-process HTTP. Never inherited. */
   enforceNetworkAllowlist: boolean
   /** Hosts the allowlist permits, normalized. Always includes the GHES host. */
@@ -215,7 +221,8 @@ export const LOCKDOWN_INHERITING_KEYS = [
   'disablePlugins',
   'disableVendorLinks',
   'requireComputerUseApproval',
-  'disableRuntimeDownloads'
+  'disableRuntimeDownloads',
+  'disableChatVisuals'
 ] as const
 
 type LockdownInheritingKey = (typeof LOCKDOWN_INHERITING_KEYS)[number]

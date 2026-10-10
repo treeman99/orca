@@ -8,7 +8,7 @@ export type SettingsNavigationBuildOptions = {
   isLocalWindowsHost: boolean
   isWindowsTerminalHost: boolean
   isWebClient: boolean
-  experimentalStructuredNativeChat: boolean
+  nativeChatEnabled: boolean
   managedBrowserCreationEnabled: boolean
   mobileEmulatorCreationEnabled: boolean
   isDev: boolean

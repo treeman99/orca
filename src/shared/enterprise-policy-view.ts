@@ -42,6 +42,8 @@ export type EnterprisePolicyView = {
   disableVendorLinks: boolean
   /** Computer Use must confirm with the user before it changes anything. */
   requireComputerUseApproval: boolean
+  /** Hide the structured chat inline-visuals toggle; main refuses the lane itself. */
+  disableChatVisuals: boolean
 }
 
 /** Every key the view carries. A field added above fails to compile until it is listed. */
@@ -62,7 +64,8 @@ export const ENTERPRISE_POLICY_VIEW_KEYS = [
   'disableVoice',
   'disablePlugins',
   'disableVendorLinks',
-  'requireComputerUseApproval'
+  'requireComputerUseApproval',
+  'disableChatVisuals'
 ] as const satisfies readonly (keyof EnterprisePolicyView)[]
 
 type ViewKey = (typeof ENTERPRISE_POLICY_VIEW_KEYS)[number]
@@ -94,6 +97,7 @@ export function toEnterprisePolicyView(
     disableVoice: policy.disableVoice,
     disablePlugins: policy.disablePlugins,
     disableVendorLinks: policy.disableVendorLinks,
-    requireComputerUseApproval: policy.requireComputerUseApproval
+    requireComputerUseApproval: policy.requireComputerUseApproval,
+    disableChatVisuals: policy.disableChatVisuals
   }
 }

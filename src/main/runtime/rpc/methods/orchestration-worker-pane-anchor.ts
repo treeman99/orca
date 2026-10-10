@@ -47,9 +47,14 @@ export type WorkerStartCoordinator = {
 }
 
 export function workerPaneAnchorForStart(
-  { coordinatorPane, coordinatorWorktreeId }: WorkerStartCoordinator,
+  start: WorkerStartCoordinator | undefined,
   worker: { id: string }
-): WorkerPaneAnchor {
+): WorkerPaneAnchor | Record<string, never> {
+  // Why optional: upstream placement tests build the args without the fork's coordinator prop.
+  if (!start) {
+    return {}
+  }
+  const { coordinatorPane, coordinatorWorktreeId } = start
   const coordinatorTabId = coordinatorPane ? parsePaneKey(coordinatorPane)?.tabId : undefined
   return resolveWorkerPaneAnchor(coordinatorTabId, { worktreeId: coordinatorWorktreeId }, worker)
 }

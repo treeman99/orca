@@ -1,7 +1,7 @@
 import type { TuiAgent } from '../../shared/tui-agent'
 import { TUI_AGENT_CONFIG } from '../../shared/tui-agent-config'
 import { worktreeIdsEqual } from '../../shared/worktree/id'
-import { OrcaRuntimeWithResolveWaiter } from './orca-runtime-resolve-waiter'
+import { OrcaRuntimeWithMigrationCatalog } from './orca-runtime-migration-catalog'
 import { waitForWorktreeStartupDraft } from './runtime-worktree-startup-readiness'
 import type { LegacyWorkerRecoveryCandidate } from './runtime-legacy-worker-terminal-recovery-types'
 import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
@@ -13,7 +13,7 @@ import { assertManagedWorktreeAgentsAllowed } from './runtime-managed-worktree-a
  * split of any layer below cannot silently drop them — a rebase that loses this file
  * fails typecheck at the RPC methods that call these.
  */
-export class OrcaRuntimeForkSurface extends OrcaRuntimeWithResolveWaiter {
+export class OrcaRuntimeForkSurface extends OrcaRuntimeWithMigrationCatalog {
   /**
    * allowedAgents gate for managed worktree creation. Here rather than in the layer that defines
    * it: upstream fills orca-runtime-create-managed-worktree.ts to its max-lines cap (v1.4.221).

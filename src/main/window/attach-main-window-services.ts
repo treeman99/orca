@@ -37,7 +37,7 @@ import {
 } from '../ipc/worktree-base-directory-watcher'
 import { startFolderRepoGitUpgradeWatch } from '../ipc/folder-repo-git-upgrade'
 import { registerRuntimeWindowLifecycle } from './runtime-window-lifecycle'
-import { registerFileDropRelay } from './native-file-drop-relay'
+import { registerDroppedPathPreparation } from './dropped-path-preparation-ipc'
 
 let appReloadHandlerTokenCounter = 0
 let activeAppReloadHandlerToken: number | null = null
@@ -119,7 +119,7 @@ export function attachMainWindowServices(
   }
   registerSshHandlers(store, () => mainWindow, runtime)
   registerRemoteWorkspaceHandlers(store, () => mainWindow, runtime)
-  registerFileDropRelay(mainWindow)
+  registerDroppedPathPreparation(mainWindow)
   registerTccPromptNoticeHandlers(mainWindow)
   registerRuntimeWindowLifecycle(mainWindow, runtime)
 

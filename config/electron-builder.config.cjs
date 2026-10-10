@@ -100,6 +100,13 @@ const bundledSkillPackageResources = {
   from: 'skills',
   to: 'skills/packages'
 }
+
+// Why a real directory: native-chat agents load this skill plugin by path (Claude --plugin-dir,
+// Codex skill roots), and neither can read inside app.asar.
+const nativeChatVisualsResource = {
+  from: 'resources/native-chat-visuals',
+  to: 'native-chat-visuals'
+}
 // Why: SSH relay deploy resolves bundles from process.resourcesPath in packaged
 // apps. Keeping relay assets as extraResources makes them real directories
 // instead of paths hidden inside app.asar.
@@ -140,6 +147,7 @@ const commonExtraResources = [
   bundledPluginResources,
   skillFreshnessResources,
   bundledSkillPackageResources,
+  nativeChatVisualsResource,
   emojiShortcodeDatasetResource,
   bundledEnterprisePolicyResource
 ]
@@ -278,6 +286,7 @@ module.exports = {
     // reads. A second copy in app.asar(.unpacked) would be dead weight that an auditor
     // still has to reason about — keep exactly one file to hash and to protect.
     '!resources/enterprise-policy.json',
+    '!resources/native-chat-visuals/**',
     // Why: bundled plugins ship via extraResources to resources/plugins/launch;
     // packing the source tree into app.asar would duplicate those exact bytes.
     '!resources/plugins/launch/**',

@@ -10,12 +10,26 @@ import {
 import type { AiVaultResumeCommandSession } from './ai-vault-resume-command'
 import { markAiVaultSessionReused } from './ai-vault-session-reuse'
 
-export async function prepareAiVaultSessionForResume(
-  session: AiVaultSession
-): Promise<AiVaultSession> {
+export function prepareAiVaultSessionForResume(session: AiVaultSession): Promise<AiVaultSession> {
   // Fork: every resume path (terminal, new chat, copied command) passes here.
   markAiVaultSessionReused(session)
-  if (session.structuredSession || !aiVaultSessionNeedsResumePreparation(session)) {
+  return session.structuredSession
+    ? Promise.resolve(session)
+    : prepareAiVaultSessionHome(session, false)
+}
+
+/** Picks the Codex home a fork of `session` runs under, the same way a resume picks it. */
+export function prepareAiVaultSessionForFork(session: AiVaultSession): Promise<AiVaultSession> {
+  // Fork: forking a past session is reuse, like continuing it (session-search retention).
+  markAiVaultSessionReused(session)
+  return prepareAiVaultSessionHome(session, true)
+}
+
+async function prepareAiVaultSessionHome(
+  session: AiVaultSession,
+  fork: boolean
+): Promise<AiVaultSession> {
+  if (!aiVaultSessionNeedsResumePreparation(session)) {
     return session
   }
   const result = await window.api.aiVault.prepareSessionResume({
@@ -23,7 +37,8 @@ export async function prepareAiVaultSessionForResume(
     sessionId: session.sessionId,
     filePath: session.filePath,
     codexHome: session.codexHome,
-    executionHostId: session.executionHostId
+    executionHostId: session.executionHostId,
+    ...(fork ? { fork: true } : {})
   })
   if (result.useRealCodexHome) {
     return { ...session, codexHome: null }

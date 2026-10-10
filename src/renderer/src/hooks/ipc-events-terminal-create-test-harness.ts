@@ -139,7 +139,6 @@ export async function setupTerminalCreateSurfacing(
     settings: {
       terminalFontSize: 13,
       experimentalNativeChat: false,
-      openAgentTabsInChatByDefault: false,
       activeRuntimeEnvironmentId: undefined as string | undefined
     }
   }

@@ -341,6 +341,8 @@ async function executePreflightCheck(
 ): Promise<PreflightStatus> {
   if (process.platform === 'win32' && !wslTarget) {
     await mergePersistedWindowsPathAsync(process.env, { forceRefresh: force })
+  } else if (process.platform !== 'win32') {
+    await hydrateShellPathForAgentDetection(context, force)
   }
 
   if (force) {
@@ -364,11 +366,9 @@ async function executePreflightCheck(
     glabProbe.installed ? isGlabAuthenticated(glabProbe) : Promise.resolve(false)
   ])
 
-  const result = {
+  return {
     git: { installed: gitProbe.installed },
     gh: { installed: ghProbe.installed, authenticated: ghAuthenticated },
     glab: { installed: glabProbe.installed, authenticated: glabAuthenticated }
   }
-
-  return result
 }

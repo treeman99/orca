@@ -7,10 +7,7 @@ import { installEnterpriseNetworkGuard } from '../enterprise/enterprise-network-
 import { applyEnterpriseSecureDnsPolicy } from '../enterprise/enterprise-secure-dns'
 import { handleElectronProxyLogin } from '../network/electron-proxy-credentials'
 import { installMainThreadHangWatchdog } from '../hang-watchdog/main-thread-hang-watchdog'
-import {
-  consumeHangDetectionMarker,
-  hangDetectionMarkerPath
-} from '../hang-watchdog/hang-detection-marker'
+import { preservePreviousHangDetection } from '../hang-watchdog/previous-hang-detection'
 import { browserCertificateTrustController } from '../browser/browser-manager'
 import { ensureActiveOrcaProfile } from '../orca-profiles/profile-index-store'
 import { getCanonicalUserDataPath } from '../persistence'
@@ -18,6 +15,7 @@ import { createProfileStateStoreForStartup } from '../persistence/profile-state/
 import { initializeBrowserClientHostId } from '../browser/browser-client-host-id'
 import { scheduleSecretProtectionGapReport } from '../host/deferred-secret-protection-report'
 import { initSshHostKeyStoreFile } from '../ssh/ssh-host-key-store'
+import { initOrcadHeldFenceTokenFile } from '../ssh/orcad-held-fence-tokens'
 import { neutralizeLegacyTerminalShimDir } from '../pty/legacy-terminal-shim-dir'
 import { createWindowsShellPathHydration } from './windows-shell-path-hydration'
 import {
@@ -47,7 +45,6 @@ import { browserSessionRegistry } from '../browser/browser-session-registry'
 import { logStartupMilestone } from './startup-diagnostics'
 import { writeHttp1CompatibilityMarker } from './http1-compatibility-marker'
 import { mainProcessState as state } from './main-process-state'
-import { recordDurableCrashBreadcrumb } from '../crash-reporting/durable-crash-breadcrumb'
 import { syncMacMenuBarIcon } from './main-window-actions'
 import { updateGpuAccelerationAboutPanel } from './gpu-lifecycle'
 import { reconcileManagedWslCliRegistrations } from '../cli/wsl-cli-registration-reconciliation'
@@ -55,6 +52,7 @@ import { createWslCliReconciliationStartupBarrier } from './wsl-cli-reconciliati
 import { agentHookServer } from '../agent-hooks/server'
 import { isAgentStatusHooksEnabled } from '../agent-hooks/managed-agent-hook-controls'
 import { reportProfileStateWriteFailure } from './profile-state-write-failure'
+import { reportProfileStateSaveDelay } from './profile-state-save-delay'
 
 export async function initializeReadyFoundation(): Promise<void> {
   logStartupMilestone('app-ready')
@@ -72,15 +70,8 @@ export async function initializeReadyFoundation(): Promise<void> {
     )
   })
   const canonicalUserDataPath = getCanonicalUserDataPath()
+  preservePreviousHangDetection(canonicalUserDataPath)
   installMainThreadHangWatchdog({ userDataPath: canonicalUserDataPath })
-  state.hangDetection = consumeHangDetectionMarker(hangDetectionMarkerPath(canonicalUserDataPath))
-  if (state.hangDetection) {
-    recordDurableCrashBreadcrumb('main_thread_hang_detected', {
-      unresponsiveMs: state.hangDetection.unresponsiveMs,
-      previousPid: state.hangDetection.parentPid,
-      selfRecovered: state.hangDetection.selfRecovered
-    })
-  }
   // Why: install certificate decisions before any webview or headless window issues its first TLS request.
   app.on(
     'certificate-error',
@@ -148,7 +139,8 @@ export async function initializeReadyFoundation(): Promise<void> {
     profileId: profile.profile.id,
     runtime: 'desktop',
     storageAuthority: state.isServeMode ? 'runtime' : 'desktop',
-    onPersistenceFailure: reportProfileStateWriteFailure
+    onPersistenceFailure: reportProfileStateWriteFailure,
+    onPersistenceSaveDelayChanged: reportProfileStateSaveDelay
   })
   state.profileStateStartup = {
     backend: profileState.backend,
@@ -190,6 +182,7 @@ export async function initializeReadyFoundation(): Promise<void> {
   // it. Left unbound it reports nothing trusted, which is safe but silently discards our own
   // accept records on every launch.
   initSshHostKeyStoreFile(profile.dataFile)
+  initOrcadHeldFenceTokenFile(profile.dataFile)
   // Why: must precede PTY handler registration and run in headless serve too, which returns before openMainWindow.
   neutralizeLegacyTerminalShimDir(app.getPath('userData'))
   const windowsShellPathHydration = createWindowsShellPathHydration()

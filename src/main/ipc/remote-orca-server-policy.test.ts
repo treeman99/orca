@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
+import type * as RuntimeEnvironmentStore from '../../shared/runtime-environment-store'
+import type * as RuntimeEnvironments from '../../shared/runtime-environments'
 
 const getEnterprisePolicyMock = vi.hoisted(() => vi.fn())
 vi.mock('../enterprise/enterprise-policy-file', () => ({
@@ -19,9 +21,13 @@ const store = vi.hoisted(() => ({
   resolveEnvironment: vi.fn(() => ({ id: 'env-1', runtimeId: 'rt-1', createdAt: 1 })),
   markEnvironmentUsed: vi.fn()
 }))
-vi.mock('../../shared/runtime-environment-store', () => store)
+vi.mock('../../shared/runtime-environment-store', async (importOriginal) => ({
+  ...(await importOriginal<typeof RuntimeEnvironmentStore>()),
+  ...store
+}))
 
-vi.mock('../../shared/runtime-environments', () => ({
+vi.mock('../../shared/runtime-environments', async (importOriginal) => ({
+  ...(await importOriginal<typeof RuntimeEnvironments>()),
   getPreferredPairingOffer: () => ({
     endpoint: 'ws://10.0.0.5:6768',
     deviceToken: 't',
