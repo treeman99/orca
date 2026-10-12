@@ -44,11 +44,6 @@ const DEFAULT_PASTE_INGEST_BYTES_PER_MS = 4_096
 // both ConPTY hosts show below the linear term.
 const AGENT_PROMPT_SUBMIT_SETTLE_MS = 500
 
-/** The fork's output-settle floor, kept after upstream replaced the flat submit delay with the
- *  ingest model above: `watchTerminalOutput` waits on a TUI repainting, not on a paste being
- *  ingested, and ConPTY's slower repaint is why win32 holds longer. */
-export const AGENT_PROMPT_SUBMIT_DELAY_MS = process.platform === 'win32' ? 1_500 : 500
-
 /** Lower bound on when a paste of `byteLength` can have reached the child, given the
  *  ingest rate of the host that owns the pty transport (not the OS the command runs under). */
 export function getTerminalPasteIngestMs(platform: NodeJS.Platform, byteLength: number): number {

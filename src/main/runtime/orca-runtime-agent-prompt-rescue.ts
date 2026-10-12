@@ -5,7 +5,6 @@ import {
   AGENT_PROMPT_PASTE_QUIET_MS,
   AGENT_PROMPT_PASTE_SETTLE_TIMEOUT_MS,
   AGENT_PROMPT_SUBMIT,
-  AGENT_PROMPT_SUBMIT_DELAY_MS,
   AGENT_PROMPT_SUBMIT_VERIFY_ATTEMPTS,
   AGENT_PROMPT_SUBMIT_VERIFY_FLOOR_MS,
   sanitizeAgentPromptText
@@ -20,6 +19,13 @@ import {
 import { OrcaRuntimeWithAgentPromptRequestCorrelation } from './orca-runtime-agent-prompt-request-correlation'
 
 export type AgentPromptSubmitOutcome = 'verified' | 'unverified' | 'resent'
+
+/** The fork's output-settle floor, kept after upstream replaced the flat submit delay with an
+ *  ingest model: `watchTerminalOutput` waits on a TUI repainting, not on a paste being ingested,
+ *  and ConPTY's slower repaint is why win32 holds longer. Main-only on purpose: in
+ *  src/shared this top-level `process` read reached the sandboxed renderer's boot graph and
+ *  threw before first paint (v1.4.223–224 white window). */
+export const AGENT_PROMPT_SUBMIT_DELAY_MS = process.platform === 'win32' ? 1_500 : 500
 
 /**
  * Members this layer needs that the split chain defines below it. Upstream's mechanically

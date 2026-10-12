@@ -2,6 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
+import { verifyRendererBootGraphNodeGlobals } from './renderer-boot-graph-node-globals.mjs'
+
 export const RENDERER_BUILD_DIR = path.join('out', 'renderer')
 
 /**
@@ -111,8 +113,10 @@ export function verifyRendererBootGraph(root = process.cwd()) {
   console.log(
     `Renderer boot graph: ${chunks.length} chunks, ${(totalBytes / 1024).toFixed(1)} KB minified.`
   )
+  // Fork: a module-scope Node global in the sandboxed renderer blanks the window (v1.4.223–224).
+  const nodeGlobalStatus = verifyRendererBootGraphNodeGlobals(chunks)
   if (violations.length === 0) {
-    return 0
+    return nodeGlobalStatus
   }
   console.error('Payloads that must stay off the renderer boot graph are preloaded again:')
   for (const violation of violations) {

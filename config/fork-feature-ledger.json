@@ -1451,6 +1451,22 @@
           "why": "설정 토글을 숨긴다(거부는 main 이 한다)."
         }
       ]
+    },
+    {
+      "id": "renderer-boot-graph-node-globals",
+      "summary": "샌드박스 렌더러의 부팅 그래프가 모듈 평가 중 Node 전역(process 등)을 읽으면 빌드를 실패시키는 게이트. v1.4.223~224 사내 설치본 하얀 화면의 재발 방지.",
+      "present": [
+        {
+          "file": "config/scripts/renderer-boot-graph.mjs",
+          "contains": "const nodeGlobalStatus = verifyRendererBootGraphNodeGlobals(chunks)",
+          "why": "빌드 래퍼(run-electron-vite-build.mjs)와 verify:renderer-boot-graph 둘 다 이 함수를 거친다. 이 줄이 upstream 판으로 돌아가면 게이트가 조용히 꺼지고, 단위 테스트(Node 위에서 돈다)·tc:web·원장 어느 것도 하얀 화면을 못 잡는다."
+        },
+        {
+          "file": "config/scripts/renderer-boot-graph.mjs",
+          "contains": "return nodeGlobalStatus",
+          "why": "위 판정을 종료 코드로 내보내는 줄. 빠지면 위반을 출력만 하고 빌드는 통과한다."
+        }
+      ]
     }
   ],
   "absentPaths": [
@@ -1641,6 +1657,11 @@
       "file": "package.json",
       "symbol": "\"bun config/scripts/verify-localization-catalogs.mjs\"",
       "why": "같은 이유로 pnpm lint 의 카탈로그 검증도 Node 로 돌린다(스크립트는 두 런타임에서 같은 판정을 내도록 upstream 이 테스트한다)."
+    },
+    {
+      "file": "src/shared/agent-prompt-injection.ts",
+      "symbol": "AGENT_PROMPT_SUBMIT_DELAY_MS",
+      "why": "모듈 최상위 process.platform 읽기라 메인 전용(orca-runtime-agent-prompt-rescue.ts)으로 옮겼다. upstream #24257(v1.4.222)이 이 모듈을 렌더러 부팅 그래프로 import 하면서 v1.4.223~224 사내 설치본이 하얀 화면이 됐다. 머지가 이 줄을 shared 로 되돌리면 같은 사고가 난다."
     }
   ],
   "policySwitchMinConsumers": {
