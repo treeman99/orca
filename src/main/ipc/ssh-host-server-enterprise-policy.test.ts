@@ -1,10 +1,10 @@
-// disableRemoteOrcaServer over the v1.4.224 managed-orcad SSH lane. A managed server is an Orca
-// server on the remote host, out of reach of this machine's policy file, so under the policy the
-// connect keeps the relay and the deploy/convert chokepoints refuse before touching the host.
+// disableRemoteOrcaServer over the managed-orcad lane. A managed server is an Orca server on the
+// remote host, out of reach of this machine's policy file, so under the policy the deploy and
+// convert chokepoints refuse before touching the host. (v1.4.226 deleted the SSH relay; this build
+// also removes SSH hosts outright — ssh-remote-hosts-removal.test.ts — so these are the second wall.)
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
-import type { SshTarget } from '../../shared/ssh-types'
 import type * as SshTargetRegistry from '../ssh/ssh-target-registry'
 
 const mocks = vi.hoisted(() => ({
@@ -41,16 +41,15 @@ vi.mock('../ssh/orcad-managed-runtime-context', () => ({
   requireManagedOrcadInfrastructure: mocks.requireManagedOrcadInfrastructure
 }))
 
-const { decideHostServer } = await import('./ssh-host-server-connect')
 const { createManagedOrcadEnvironment } = await import('../ssh/orcad-runtime-deployment')
 const { convertSshTargetToManagedOrcad } = await import('../ssh/orcad-runtime-conversion')
+const { deployOrcad } = await import('../ssh/orcad-remote-deploy')
+const { wslHostsGateOpen } = await import('../wsl/wsl-host-gate')
 
-const target: SshTarget = { id: 'ssh-1', label: 'Box', host: 'box', port: 22, username: 'me' }
 const REFUSED = 'remote_orca_server_disabled_by_policy'
 const conversion: Parameters<typeof convertSshTargetToManagedOrcad>[1] = {
   sshTargetId: 'ssh-1',
   name: 'box',
-  listRelayPtyIds: null,
   destinationFor: () => {
     throw new Error('no destination in this test')
   },
@@ -67,23 +66,6 @@ beforeEach(() => {
 })
 
 describe('the managed Orca server SSH lane under the corporate policy', () => {
-  it('keeps the relay without deciding a managed server under lockdown', async () => {
-    mocks.getEnterprisePolicy.mockReturnValue(makeLockdownPolicy())
-
-    await expect(decideHostServer(target)).resolves.toBeNull()
-    expect(mocks.resolve).not.toHaveBeenCalled()
-  })
-
-  it('decides the host server when the policy allows remote Orca servers', async () => {
-    mocks.getEnterprisePolicy.mockReturnValue(makeEnterprisePolicy())
-
-    await expect(decideHostServer(target)).resolves.toEqual({
-      route: 'relay',
-      reason: 'orcad_unavailable'
-    })
-    expect(mocks.resolve).toHaveBeenCalledTimes(1)
-  })
-
   it('refuses a deploy before it queues any host lifecycle work under lockdown', async () => {
     mocks.getEnterprisePolicy.mockReturnValue(makeLockdownPolicy())
 
@@ -118,5 +100,25 @@ describe('the managed Orca server SSH lane under the corporate policy', () => {
       'infrastructure stubbed out'
     )
     expect(mocks.requireManagedOrcadInfrastructure).toHaveBeenCalledTimes(1)
+  })
+
+  // v1.4.226's WSL hosts call deployOrcad directly, past the wrapper above, so the deploy itself
+  // carries the refusal.
+  it('refuses a direct orcad deploy under lockdown', async () => {
+    mocks.getEnterprisePolicy.mockReturnValue(makeLockdownPolicy())
+
+    await expect(deployOrcad({ target: 'linux-x64-glibc' } as never)).rejects.toThrow(REFUSED)
+  })
+
+  it('keeps the env-opened WSL host gate closed under lockdown', () => {
+    vi.stubEnv('ORCA_INTERNAL_WSL_HOSTS', '1')
+    try {
+      mocks.getEnterprisePolicy.mockReturnValue(makeEnterprisePolicy())
+      expect(wslHostsGateOpen()).toBe(true)
+      mocks.getEnterprisePolicy.mockReturnValue(makeLockdownPolicy())
+      expect(wslHostsGateOpen()).toBe(false)
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 })

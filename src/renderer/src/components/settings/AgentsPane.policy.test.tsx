@@ -50,6 +50,7 @@ vi.mock('@/hooks/useDetectedAgents', () => ({
 }))
 
 import { AgentsPane } from './AgentsPane'
+import { LOCAL_SETTINGS_HOST_SCOPE } from './settings-host-scope'
 import { TooltipProvider } from '../ui/tooltip'
 
 function setPolicy(overrides: Partial<EnterprisePolicyView> = {}): void {
@@ -63,7 +64,8 @@ function render(): string {
       null,
       React.createElement(AgentsPane, {
         settings: getDefaultSettings('/tmp'),
-        updateSettings: vi.fn()
+        updateSettings: vi.fn(),
+        hostScope: LOCAL_SETTINGS_HOST_SCOPE
       })
     )
   )

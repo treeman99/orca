@@ -23,7 +23,8 @@ import {
 } from './external-automation-manager-cache'
 import type { ExternalAutomationProbeScheduler } from './external-automation-probe-scheduler'
 import { isExternalAutomationProviderAllowed } from './external-automation-policy-gate'
-import { listLocalManager, listRemoteManager } from './external-manager-discovery'
+import { listLocalManager } from './external-manager-discovery'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 import {
   createExternalAutomation,
   runExternalAutomationAction,
@@ -91,7 +92,7 @@ export function createScopedExternalAutomations(
               !isExternalAutomationProviderAllowed(scope.provider)
                 ? Promise.resolve(null)
                 : scope.sshTarget
-                  ? listRemoteManager(scope.sshTarget, scope.provider)
+                  ? Promise.reject(new SshHostNotServedError(scope.sshTarget.id))
                   : listLocalManager(scope.provider)
           }),
         { refresh: request.refresh }

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ProcessSpec } from '../../shared/child-process/process-spec'
+import type { ProcessSpec } from '@orca/process-host/process-spec'
 
 // The seam under test is the child-process chokepoint, not `node:child_process`.
 const runProcess = vi.hoisted(() => vi.fn())
-vi.mock('../../shared/child-process/run-process', () => ({ runProcess }))
+vi.mock('@orca/process-host', () => ({ runProcess }))
 vi.mock('node:fs', () => ({ existsSync: vi.fn(() => false) }))
 
 import { existsSync } from 'node:fs'

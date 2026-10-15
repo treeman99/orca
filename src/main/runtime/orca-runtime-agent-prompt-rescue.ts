@@ -45,7 +45,7 @@ type AgentPromptRescueForwardRefs = {
  */
 // Why above the request-correlation layer and not beside it: the rescue only runs after upstream's
 // verifier has had its say, so it must see that layer's members. Chain, do not fork the chain.
-export class OrcaRuntimeWithAgentPromptRescue extends OrcaRuntimeWithAgentPromptRequestCorrelation {
+export abstract class OrcaRuntimeWithAgentPromptRescue extends OrcaRuntimeWithAgentPromptRequestCorrelation {
   private get forward(): AgentPromptRescueForwardRefs {
     return this as unknown as AgentPromptRescueForwardRefs
   }

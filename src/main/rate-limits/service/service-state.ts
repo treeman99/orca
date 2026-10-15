@@ -26,6 +26,7 @@ import { readGrokAuthSession } from '../grok-auth'
 import { getEnterprisePolicy } from '../../enterprise/enterprise-policy-file'
 import { isAgentAllowedByPolicy } from '../../../shared/corporate-agent-access'
 import { usageProviderAgentId } from '../../../shared/usage-provider-agent'
+import { unavailableSnapshot } from '../usage-polling-disabled-providers'
 
 export abstract class RateLimitServiceState {
   // Why: an administrator-locked deployment must not reach AI-vendor usage endpoints at all, so every
@@ -45,6 +46,16 @@ export abstract class RateLimitServiceState {
       usageProviderAgentId(provider),
       getEnterprisePolicy().allowedAgents
     )
+  }
+
+  /** The provider's fetch, or its unavailable snapshot without fetching when the allowlist omits it. */
+  protected fetchUsageIfAllowed(
+    provider: ProviderRateLimits['provider'],
+    fetchUsage: () => Promise<ProviderRateLimits>
+  ): Promise<ProviderRateLimits> {
+    return this.isUsageProviderAllowed(provider)
+      ? fetchUsage()
+      : Promise.resolve(unavailableSnapshot(provider))
   }
 
   protected state: InternalRateLimitState = {

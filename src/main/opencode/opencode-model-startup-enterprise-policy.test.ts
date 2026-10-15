@@ -31,6 +31,7 @@ function scope() {
       settings: { agentCmdOverrides: {}, agentDefaultEnv: {} },
       platform: process.platform,
       isRemote: false,
+      shell: undefined,
       sessionOptions: { model: 'opencode/fledge-alpha-free' }
     }),
     cwd: '/private/project',

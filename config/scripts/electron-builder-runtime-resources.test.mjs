@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { removeTree } from '../../src/shared/windows-transient-lock-removal.ts'
+import { seedPackagedEnterpriseResources } from './packaged-enterprise-resources-test-fixture.mjs'
 
 const require = createRequire(import.meta.url)
 const projectRoot = resolve(import.meta.dirname, '..', '..')
@@ -40,31 +41,6 @@ describe('packaged runtime resources', () => {
       const sources = new Map([
         ['out\\main\\index.js', 'const z = require("zod")'],
         ['out\\main\\agent-hooks\\managed-agent-hook-controls.js', 'const YAML = require("yaml")']
-      ])
-      const asar = {
-        listPackage: () => [...sources.keys()].map((entry) => `\\${entry}`),
-        extractFile: (_asarPath, internalPath) => Buffer.from(sources.get(internalPath), 'utf8')
-      }
-
-      expect(() => verifyPackagedMainRuntimeDeps(resourcesDir, asar)).not.toThrow()
-    } finally {
-      await removeTree(resourcesDir)
-    }
-  })
-
-  // Why: node:sqlite is a core module absent from builtinModules, so the guard must
-  // treat the reserved node: scheme as builtin rather than a missing npm package.
-  it('accepts node: scheme builtins that are absent from builtinModules', async () => {
-    const resourcesDir = await mkdtemp(join(tmpdir(), 'orca-runtime-node-scheme-'))
-    try {
-      await writeFile(join(resourcesDir, 'app.asar'), '', 'utf8')
-
-      const sources = new Map([
-        ['out\\main\\index.js', 'const { DatabaseSync } = require("node:sqlite")'],
-        [
-          'out\\main\\agent-hooks\\managed-agent-hook-controls.js',
-          'const test = require("node:test")'
-        ]
       ])
       const asar = {
         listPackage: () => [...sources.keys()].map((entry) => `\\${entry}`),
@@ -436,13 +412,7 @@ describe('packaged runtime resources', () => {
           { recursive: true }
         )
         // Fork: afterPack also asserts the bundled enterprise policy and offline skill packages.
-        await cp(
-          join(process.cwd(), 'resources', 'enterprise-policy.json'),
-          join(resourcesDir, 'enterprise-policy.json')
-        )
-        const cpDir = { recursive: true }
-        await cp(join(process.cwd(), 'resources', 'skills'), join(resourcesDir, 'skills'), cpDir)
-        await cp(join(process.cwd(), 'skills'), join(resourcesDir, 'skills', 'packages'), cpDir)
+        await seedPackagedEnterpriseResources(resourcesDir)
         await seedBundledRipgrep(resourcesDir)
 
         const unpackedMainDir = join(resourcesDir, 'app.asar.unpacked', 'out', 'main')
@@ -475,11 +445,9 @@ describe('packaged runtime resources', () => {
         wrongArchElf[5] = 1
         wrongArchElf.writeUInt16LE(target.machine, 18)
         await writeFile(join(wrongArchPackage, 'watcher.node'), wrongArchElf)
+        await seedClipboardPublisher(resourcesDir, target.machine)
 
-        const stubBinDir = join(root, 'bin')
-        await mkdir(stubBinDir)
-        await writeFile(join(stubBinDir, 'objdump'), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
-        process.env.PATH = `${stubBinDir}${delimiter}${previousPath ?? ''}`
+        await stubObjdump(root)
 
         await expect(
           electronBuilderConfig.afterPack({
@@ -501,6 +469,7 @@ describe('packaged runtime resources', () => {
     'marks packaged Unix CLI launchers executable',
     async () => {
       const root = await mkdtemp(join(tmpdir(), 'orca-electron-builder-config-'))
+      const previousPath = process.env.PATH
       try {
         const resourcesDir = join(root, 'linux-unpacked', 'resources')
         const launcherPath = join(resourcesDir, 'bin', 'orca-ide')
@@ -511,18 +480,11 @@ describe('packaged runtime resources', () => {
           { recursive: true }
         )
         await seedBundledRipgrep(resourcesDir)
+        await seedClipboardPublisher(resourcesDir, 0x3e)
+        await stubObjdump(root)
         await mkdir(join(resourcesDir, 'node_modules', 'zod', 'src'), { recursive: true })
-        // Why: afterPack fails hard without the bundled enterprise policy, so the
-        // fixture carries the real one exactly as extraResources places it.
-        await cp(
-          join(process.cwd(), 'resources', 'enterprise-policy.json'),
-          join(resourcesDir, 'enterprise-policy.json')
-        )
-        // Why: same for the skill manifest and the package bytes beside it — afterPack
-        // asserts them because a build without the packages has no offline install path.
-        const cpDir = { recursive: true }
-        await cp(join(process.cwd(), 'resources', 'skills'), join(resourcesDir, 'skills'), cpDir)
-        await cp(join(process.cwd(), 'skills'), join(resourcesDir, 'skills', 'packages'), cpDir)
+        // Fork: afterPack fails hard without the bundled enterprise policy and skill packages.
+        await seedPackagedEnterpriseResources(resourcesDir)
         // Why: afterPack now fails hard when the unpacked daemon entry is
         // missing, so the fixture must carry one like a real package layout.
         const unpackedMainDir = join(resourcesDir, 'app.asar.unpacked', 'out', 'main')
@@ -565,16 +527,33 @@ describe('packaged runtime resources', () => {
         ).resolves.toContain('"version": "9.9.9"')
         await expect(readFile(join(resourcesDir, 'package-type'), 'utf8')).resolves.toBe('AppImage')
       } finally {
+        process.env.PATH = previousPath
         await removeTree(root)
       }
     }
   )
 })
 
-// Why source-anchored: the bundler renames a createRequire()'d require, so
-// verifyPackagedMainRuntimeDeps' `require("x")` scan cannot see these specifiers — packaging
-// stays green while the packaged app throws MODULE_NOT_FOUND the first time the path runs.
-// Why stubs: afterPack only checks each platform binary exists; non-ELF bytes skip the glibc scan.
+// Headers model architecture; objdump is stubbed for these packaging-layout tests.
+async function seedClipboardPublisher(resourcesDir, machine) {
+  const binDir = join(resourcesDir, 'bin')
+  await mkdir(binDir, { recursive: true })
+  const elf = Buffer.alloc(64)
+  elf.set([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1])
+  elf.writeUInt16LE(2, 16)
+  elf.writeUInt16LE(machine, 18)
+  elf.writeUInt32LE(1, 20)
+  elf.writeUInt16LE(64, 52)
+  await writeFile(join(binDir, 'orca-wayland-clipboard'), elf)
+}
+
+async function stubObjdump(root) {
+  const directory = join(root, 'bin')
+  await mkdir(directory)
+  await writeFile(join(directory, 'objdump'), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+  process.env.PATH = `${directory}${delimiter}${process.env.PATH ?? ''}`
+}
+
 async function seedBundledRipgrep(resourcesDir) {
   const { BUNDLED_RIPGREP_PLATFORMS } = require('../bundled-ripgrep-resources.cjs')
   for (const platform of BUNDLED_RIPGREP_PLATFORMS) {
@@ -584,6 +563,9 @@ async function seedBundledRipgrep(resourcesDir) {
   }
 }
 
+// Why source-anchored: the bundler renames a createRequire()'d require, so
+// verifyPackagedMainRuntimeDeps' `require("x")` scan cannot see these specifiers — packaging
+// stays green while the packaged app throws MODULE_NOT_FOUND the first time the path runs.
 function collectLazyRequireSpecifiers(directory, found = new Map()) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const entryPath = join(directory, entry.name)

@@ -131,6 +131,12 @@ vi.mock('./SortableTab', () => ({
   }
 }))
 
+vi.mock('./TerminalSortableTab', () => ({
+  default: function SortableTab(props: Record<string, unknown>) {
+    return { type: 'SortableTab', props }
+  }
+}))
+
 vi.mock('./EditorFileTab', () => ({
   default: function EditorFileTab(props: Record<string, unknown>) {
     return { type: 'EditorFileTab', props }

@@ -14,6 +14,11 @@ const { items, mockSettings, openInExternalEditorMock } = vi.hoisted(() => ({
   },
   openInExternalEditorMock: vi.fn()
 }))
+const worktreeOwner = vi.hoisted(() => ({ runtimeEnvironmentId: null as string | null }))
+vi.mock(import('@/lib/worktree-runtime-owner'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getRuntimeEnvironmentIdForWorktree: () => worktreeOwner.runtimeEnvironmentId
+}))
 
 vi.mock('@/components/ui/context-menu', async () => {
   const React_ = await import('react')
@@ -118,6 +123,7 @@ describe('FileExplorerRowContextMenu open-in submenu', () => {
   beforeEach(() => {
     items.list = []
     mockSettings.activeRuntimeEnvironmentId = null
+    worktreeOwner.runtimeEnvironmentId = null
     mockSettings.openInApplications = [{ id: 'vscode', label: 'VS Code', command: 'code' }]
     openInExternalEditorMock.mockReset()
     openInExternalEditorMock.mockResolvedValue({ ok: true })
@@ -155,7 +161,8 @@ describe('FileExplorerRowContextMenu open-in submenu', () => {
     expect(openInExternalEditorMock).toHaveBeenCalledWith({
       path: '/repo/src/example.ts',
       command: 'code',
-      connectionId: null
+      connectionId: null,
+      ownerHostId: 'local'
     })
   })
 
@@ -170,12 +177,14 @@ describe('FileExplorerRowContextMenu open-in submenu', () => {
     expect(openInExternalEditorMock).toHaveBeenCalledWith({
       path: '/repo/src/example.ts',
       command: 'code',
-      connectionId: 'ssh-1'
+      connectionId: 'ssh-1',
+      ownerHostId: 'ssh:ssh-1'
     })
   })
 
-  it('disables local launchers while a remote runtime is active', () => {
-    mockSettings.activeRuntimeEnvironmentId = 'runtime-1'
+  // Why the owner: upstream routes host-owned work by the resource's host, not the focused one.
+  it('disables local launchers for a file a remote runtime owns', () => {
+    worktreeOwner.runtimeEnvironmentId = 'runtime-1'
 
     renderMenu()
 

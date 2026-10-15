@@ -32,11 +32,13 @@ vi.mock('./daemon-spawner', () => ({
   unlinkDaemonPidFileWhen: vi.fn(() => true)
 }))
 vi.mock('./daemon-pty-adapter', () => moduleFactories.daemonPtyAdapter())
-vi.mock('../ipc/pty', () => moduleFactories.ipcPty())
+vi.mock('../ipc/pty/provider/registry', () => moduleFactories.ptyProviderRegistry())
+vi.mock('../ipc/pty/provider/listener-lifecycle', () => moduleFactories.ptyListenerLifecycle())
 vi.mock('./daemon-host-relocation', () => ({
   materializeRelocatedDaemonHost: materializeRelocatedDaemonHostMock,
   collectPinnedDaemonVersions: vi.fn(() => new Set<string>()),
-  pruneOldDaemonHosts: vi.fn()
+  pruneOldDaemonHosts: vi.fn(),
+  pruneDaemonHostStaging: vi.fn()
 }))
 // Why: the launch log appends synchronously to the real logs dir otherwise; the fallback is what's under test.
 vi.mock('./daemon-launch-log', async (importOriginal) => ({

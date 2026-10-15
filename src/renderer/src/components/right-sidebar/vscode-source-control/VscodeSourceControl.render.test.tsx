@@ -40,7 +40,7 @@ vi.mock('./use-vscode-scm-context', () => ({
 // Why mocked rather than stubbed at the hook: this keeps the real repository
 // assembly (dirty-submodule discovery, branch labels, per-section rows) under test.
 vi.mock('@/lib/connection-context', () => ({ getConnectionId: () => null }))
-vi.mock('@/runtime/runtime-git-client', () => ({
+vi.mock('@/runtime/runtime-git-status-client', () => ({
   getRuntimeGitSubmoduleStatus: async (
     _context: unknown,
     submodulePath: string
@@ -53,7 +53,9 @@ vi.mock('@/runtime/runtime-git-client', () => ({
       throw seeded
     }
     return seeded
-  },
+  }
+}))
+vi.mock('@/runtime/runtime-git-submodule-client', () => ({
   listRuntimeGitSubmodules: async () => submoduleListMock.current,
   stageRuntimeGitSubmodulePaths: async (
     _context: unknown,
@@ -97,7 +99,7 @@ function seedContext(overrides: Partial<VscodeScmContext> = {}): VscodeScmContex
     ready: true,
     worktreeId: 'worktree-1',
     worktreePath: '/work/orca',
-    repoSettings: null,
+    repoTarget: { kind: 'local' },
     entries: [],
     branch: 'feature/x',
     upstreamStatus: { hasUpstream: true, ahead: 0, behind: 0 },

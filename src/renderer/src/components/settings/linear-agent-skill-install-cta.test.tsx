@@ -139,7 +139,7 @@ describe('LinearAgentSkillInstallCta', () => {
 
     expect(rendered.textContent).toContain('Installed')
     expect(rendered.textContent).toContain('Agent skill installed. To update it, run:')
-    expect(rendered.textContent).toContain('orca skills update --skill orca-linear')
+    expect(rendered.textContent).toContain('orca skills install --skill orca-linear')
     expect(rendered.textContent).not.toContain('Not installed')
   })
 
@@ -155,7 +155,7 @@ describe('LinearAgentSkillInstallCta', () => {
 
     const rendered = await renderCta()
 
-    expect(rendered.textContent).toContain('orca skills update --skill linear-tickets')
+    expect(rendered.textContent).toContain('orca skills install --skill linear-tickets')
   })
 
   it('notes that remote agent environments need their own setup', async () => {

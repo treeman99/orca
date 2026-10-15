@@ -1,3 +1,4 @@
+import { isRemoteRuntimePtyId } from '../../../../../shared/remote-runtime-pty-id'
 import { subscribeToTerminalInputData } from '../terminal-user-input-signal'
 import { installTerminalImeCompositionRoute } from '../terminal-ime-composition-route'
 import { useAppStore } from '@/store'
@@ -17,7 +18,6 @@ import {
 } from '@/lib/pane-manager/pane-pty-resize-hold'
 
 import { TERMINAL_FOCUS_IN_SEQUENCE, TERMINAL_FOCUS_OUT_SEQUENCE } from './foreground-output-scan'
-import { isRemoteRuntimePtyId } from './paired-parked-terminal-restore'
 import { isCodexPaneStale } from './codex-pane-stale'
 import { installTerminalSelectionFitGuard } from '../terminal-selection-fit-guard'
 import { initializePaneGeometry, readPaneSize } from './read-pane-size'

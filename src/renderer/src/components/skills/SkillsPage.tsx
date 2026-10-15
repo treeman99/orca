@@ -5,7 +5,9 @@ import { discoverSkillsForRuntimeTarget } from '@/runtime/runtime-skills-client'
 import { useActiveSkillDiscoveryRuntimeTarget } from '@/hooks/use-active-skill-discovery-runtime-target'
 import { useMountedRef } from '@/hooks/useMountedRef'
 import { readIpcErrorDetail } from '@/lib/ipc-error'
-import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
+import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
+import { getRuntimeTargetHostId } from '@/runtime/runtime-client-target'
+import { UNRESOLVED_OWNER_HOST_ID } from '../../../../shared/execution-host'
 import type { DiscoveredSkill, SkillDiscoveryResult } from '../../../../shared/skills'
 import { SkillsList } from './SkillsList'
 import { SkillInstallManagementDialog } from './SkillInstallManagementDialog'
@@ -191,7 +193,13 @@ export default function SkillsPage(): React.JSX.Element {
           {loading && skills.length === 0 ? (
             <SkillsListSkeleton />
           ) : visibleSkills.length > 0 ? (
-            <SkillsList skills={visibleSkills} agentByRootPath={agentByRootPath} />
+            <SkillsList
+              skills={visibleSkills}
+              ownerHostId={
+                runtimeTarget ? getRuntimeTargetHostId(runtimeTarget) : UNRESOLVED_OWNER_HOST_ID
+              }
+              agentByRootPath={agentByRootPath}
+            />
           ) : skills.length > 0 ? (
             <SkillsNoMatchesState onClearFilters={() => setFilters(NO_FILTERS)} />
           ) : result ? (

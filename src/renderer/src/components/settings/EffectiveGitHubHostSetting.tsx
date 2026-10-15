@@ -57,8 +57,10 @@ export function EffectiveGitHubHostSetting(): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false
-    void window.api.githubEnterprise
-      .getStatus()
+    // Why optional: the web client's preload carries no githubEnterprise bridge, and upstream's
+    // settings-pane suites render without a preload at all.
+    void window.api?.githubEnterprise
+      ?.getStatus()
       .then((next) => {
         if (!cancelled) {
           setStatus(next)

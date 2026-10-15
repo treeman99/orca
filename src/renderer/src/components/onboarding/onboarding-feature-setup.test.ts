@@ -26,6 +26,7 @@ import {
   type OnboardingFeatureSetupSelection
 } from './onboarding-feature-setup'
 import { getOnboardingFeatureSetupAgentRuntime } from './onboarding-feature-setup-runtime'
+import { buildAgentFeatureSkillInstallCommand as buildSkillInstallCommandFor } from '../../../../shared/agent-feature-install-commands'
 
 const ALL_SKILL_NAMES = [
   ORCA_CLI_SKILL_NAME,
@@ -39,10 +40,10 @@ const ORCHESTRATION_ONLY_SKILL_INSTALL_COMMAND = buildAgentFeatureSkillInstallCo
 ])
 // Why: what reaches the clipboard is retargeted to the host's registered command name.
 // This suite exposes no platform API, so that resolution takes its Linux fallback.
-const ALL_SKILL_COPIED_COMMAND = buildAgentFeatureSkillInstallCommand(ALL_SKILL_NAMES, {
+const ALL_SKILL_COPIED_COMMAND = buildSkillInstallCommandFor(ALL_SKILL_NAMES, {
   commandName: 'orca-ide'
 })
-const ORCHESTRATION_ONLY_SKILL_COPIED_COMMAND = buildAgentFeatureSkillInstallCommand(
+const ORCHESTRATION_ONLY_SKILL_COPIED_COMMAND = buildSkillInstallCommandFor(
   [ORCHESTRATION_SKILL_NAME],
   { commandName: 'orca-ide' }
 )

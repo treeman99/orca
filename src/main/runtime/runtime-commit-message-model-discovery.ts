@@ -7,7 +7,6 @@ import { agentBlockedByPolicyResult } from '../enterprise/agent-allowlist-guard'
 import { prepareLocalCommitMessageAgentEnv } from '../text-generation/commit-message-agent-environment'
 import {
   discoverCommitMessageModelsLocal,
-  discoverCommitMessageModelsRemote,
   type DiscoverCommitMessageModelsResult
 } from '../text-generation/commit-message-text-generation'
 import {
@@ -39,16 +38,7 @@ export async function discoverRuntimeCommitMessageModelsForHost(
     host.getRuntimeSettings().agentCmdOverrides?.[typedAgentId]
   const route = runtimeGitRouteForTarget(target)
   if (route.kind === 'ssh') {
-    const provider = route.provider
-    if (!provider) {
-      return { success: false, error: `No git provider for connection "${route.connectionId}"` }
-    }
-    return discoverCommitMessageModelsRemote(
-      typedAgentId,
-      target.worktree.path,
-      (plan, cwd, timeoutMs) => provider.executeCommitMessagePlan(plan, cwd, timeoutMs),
-      agentCommandOverride
-    )
+    return { success: false, error: `No git provider for connection "${route.connectionId}"` }
   }
   const localEnv = await prepareLocalCommitMessageAgentEnv(
     typedAgentId,

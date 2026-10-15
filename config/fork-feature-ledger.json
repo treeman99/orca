@@ -18,8 +18,8 @@
         },
         {
           "file": "config/scripts/electron-builder-runtime-resources.test.mjs",
-          "contains": "join(process.cwd(), 'resources', 'enterprise-policy.json')",
-          "why": "afterPack 은 번들된 정책 파일이 없으면 하드 실패한다. v1.4.196→197 파일 분해 때 이 픽스처가 사라져 패키징 계약이 커버 밖으로 나갔다."
+          "contains": "await seedPackagedEnterpriseResources(resourcesDir)",
+          "why": "afterPack 은 번들된 정책 파일이 없으면 하드 실패한다. v1.4.196→197 파일 분해 때 이 픽스처가 사라져 패키징 계약이 커버 밖으로 나갔다. v1.4.226 에서 이 스위트가 max-lines 한도에 닿아 시드를 포크 모듈(packaged-enterprise-resources-test-fixture.mjs)로 뺐다 — 이 호출이 빠지면 afterPack 픽스처가 정책 파일 없이 돌아 빨개진다."
         }
       ]
     },
@@ -55,11 +55,12 @@
       "summary": "allowedAgents — 에이전트를 실제로 띄우는 모든 문. 하나라도 빠지면 우회로가 된다.",
       "present": [
         {
-          "file": "src/main/startup/main-process-ready-runtime.ts",
-          "contains": "void installManagedAgentHooksUnderEnterprisePolicy(managedHookStore.getSettings(), {"
+          "file": "src/main/agent-hooks/managed-agent-hook-startup.ts",
+          "contains": "import { installManagedAgentHooksUnderEnterprisePolicy as installManagedAgentHooks } from './enterprise-agent-hook-policy'",
+          "why": "v1.4.226 이 시작 시 관리형 훅 설치를 이 모듈로 뺐다. 별칭 임포트라 본문은 upstream 과 바이트 동일하고, 이 한 줄이 빠지면 허용목록 밖 에이전트의 벤더 설정 파일에 훅이 써진다."
         },
         {
-          "file": "src/main/runtime/orca-runtime-get-terminal-interactive-wait.ts",
+          "file": "src/main/runtime/terminal/wait/terminal-interactive-wait.ts",
           "contains": "isAgentAllowedByEnterprisePolicy(agent)"
         },
         {
@@ -68,7 +69,7 @@
           "why": "관리형 워크트리 생성의 allowedAgents 게이트. v1.4.221 부터 upstream 이 그 파일을 300줄 상한까지 채워 클래스 체인 말단(포크 표면)의 override 로 옮겼다."
         },
         {
-          "file": "src/main/runtime/orca-runtime-activate-managed-worktree.ts",
+          "file": "src/main/runtime/workspaces/workspace-activation.ts",
           "contains": "assertAgentAllowedByEnterprisePolicy(agent)"
         },
         {
@@ -94,11 +95,11 @@
         },
         {
           "file": "src/main/codex/codex-structured-launch-resolution.ts",
-          "contains": "assertAgentAllowedByEnterprisePolicy(record.provider)"
+          "contains": "assertAgentAllowedByEnterprisePolicy('codex')"
         },
         {
           "file": "src/main/claude/claude-structured-launch-resolution.ts",
-          "contains": "assertAgentAllowedByEnterprisePolicy(record.provider)",
+          "contains": "assertAgentAllowedByEnterprisePolicy('claude')",
           "why": "v1.4.198 이 structured 레인에 두 번째 제공자(Claude Agent SDK)를 붙이면서, codex 쌍둥이에만 있던 마지막 스폰 게이트가 이쪽에는 없었다. attach 퍼널은 provider-agnostic 이라 진입은 막지만, 이미 저장된 레코드를 wake·소유자 교체·재시작 복원에서 다시 띄우는 경로는 attach 를 두 번 지나지 않는다."
         },
         {
@@ -108,7 +109,7 @@
         },
         {
           "file": "src/main/preflight/agent-detection.ts",
-          "contains": "return filterAgentsByEnterprisePolicy(uniqueAgentIds(result.agents))",
+          "contains": "return filterAgentsByEnterprisePolicy(\n    resolveDetectedTuiAgentIds(",
           "why": "감지 결과가 모든 피커·자동 선택·웹/모바일/CLI 응답의 원천이다. v1.4.209 에서 upstream import 와 같은 줄에 충돌했는데 등재돼 있지 않았다."
         },
         {
@@ -148,7 +149,7 @@
         },
         {
           "file": "src/renderer/src/components/settings/AgentsPane.tsx",
-          "contains": "{catalog.some((agent) => agent.id === 'codex') ? (",
+          "contains": "{codexAllowed ? (",
           "why": "v1.4.218 이 Codex 전용 설정(터미널 공유 서버 격리)을 Agents 패널에 넣었다. codex 가 정책으로 막힌 fleet 에서는 숨긴다(agent-allowlist-surfaces.policy 가 지킨다). v1.4.220 이 그 자리를 작업 공간 신뢰 설정과 묶은 fragment 로 바꿔 조건을 안쪽으로 옮겼다."
         },
         {
@@ -158,7 +159,7 @@
         },
         {
           "file": "src/main/acp/acp-structured-launch-resolution.ts",
-          "contains": "assertAgentAllowedByEnterprisePolicy(record.provider)",
+          "contains": "assertAgentAllowedByEnterprisePolicy(spec.agent)",
           "why": "v1.4.223 이 structured 세션의 세 번째 provider(Grok/ACP)를 들였다. 생성·attach 는 provider 무관 퍼널이 막지만 저장된 레코드는 wake·재시작 복원에서 이 resolver 로 바로 재기동된다 — codex·claude resolver 와 같은 마지막 거부."
         },
         {
@@ -195,6 +196,31 @@
           "file": "src/main/pi/rpc-launch-resolution.ts",
           "contains": "assertAgentAllowedByEnterprisePolicy('pi')",
           "why": "v1.4.224 신규 pi 구조화 채팅: 실행·create-support·카탈로그 프로브가 모두 이 해석기로 바이너리를 찾는다."
+        },
+        {
+          "file": "src/main/runtime/structured-agent-launch-composition.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy(record.provider)",
+          "why": "v1.4.226 이 구조화 채팅 재기동 경로를 공통 admittedRecord() 로 모았다. acp/claude/codex/pi 개별 게이트와 별개로 저장된 세션 레코드의 재기동을 막는 초크포인트."
+        },
+        {
+          "file": "src/main/ipc/pty/ipc/spawn-agent-launch.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy(intent.agent)",
+          "why": "v1.4.226 의 agentLaunch 의도 경로는 계획(plan)이 launchAgent 를 대체해 spawn.ts 입구 게이트가 호출자의 주장만 본다."
+        },
+        {
+          "file": "src/main/text-generation/jira-issue-summary-requests.ts",
+          "contains": "agentBlockedByPolicyResult(resolved.params.agentId)",
+          "why": "v1.4.226 신규 Jira 제목 생성 — Source Control AI 에이전트 CLI 를 Jira 초안을 프롬프트로 스폰한다."
+        },
+        {
+          "file": "src/main/ipc/pty/ipc/spawn.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy(args.launchAgent)",
+          "why": "데스크톱 pty:spawn IPC 입구의 허용목록 게이트. v1.4.226 egress 감사에서 원장 미등재로 확인돼 등재했다."
+        },
+        {
+          "file": "src/main/ipc/pty/runtime/spawn.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy(args.launchAgent)",
+          "why": "런타임(RPC) 경로 PTY 스폰의 허용목록 게이트. 위와 같은 이유."
         }
       ]
     },
@@ -219,8 +245,14 @@
           "contains": "getEnterprisePolicy().disableVoice"
         },
         {
-          "file": "src/main/claude-accounts/oauth-refresh.ts",
-          "contains": "getEnterprisePolicy().disableManagedClaudeAccounts"
+          "file": "src/main/claude-accounts/claude-profile-router.ts",
+          "contains": "import { getSelectedClaudeAccountIdUnderEnterprisePolicy as getSelectedClaudeAccountIdForTarget } from './claude-account-selection-policy'",
+          "why": "v1.4.226 이 관리형 Claude 계정을 계정별 폴더(#26801)로 재설계하며 oauth-refresh.ts 를 지웠다. 선택된 관리형 계정을 고르는 지점이 이제 라우터라, 정책 아래에서는 선택을 null 로 읽게 별칭 임포트로 바꿨다."
+        },
+        {
+          "file": "src/main/claude-accounts/claude-profile-wsl-router.ts",
+          "contains": "import { getSelectedClaudeAccountIdUnderEnterprisePolicy as getSelectedClaudeAccountIdForTarget } from './claude-account-selection-policy'",
+          "why": "같은 이유, WSL 대상 라우터."
         },
         {
           "file": "src/main/runtime/runtime-account-controller.ts",
@@ -262,13 +294,8 @@
         },
         {
           "file": "src/renderer/src/components/settings/AccountsPane.tsx",
-          "contains": "isAccountSectionAllowedByPolicy(section, vendorAccountPolicy)",
-          "why": "위 매핑을 실제로 적용하는 필터 한 줄. 빠지면 매핑이 남아 있어도 모든 벤더 섹션이 보인다."
-        },
-        {
-          "file": "src/renderer/src/components/settings/AccountsPane.tsx",
-          "contains": "PolicyGatedManagedDataAccountsSection as ManagedDataAccountsSection",
-          "why": "v1.4.221 신규 opencode·devin 관리형 데이터 계정 섹션을 정책 래퍼로 바꿔 끼우는 별칭 임포트. 호출부는 upstream 과 바이트 동일."
+          "contains": "import { ManagedDataAccountsSection, SettingsSectionStack } from './accounts-pane-enterprise-policy'",
+          "why": "v1.4.226 에서 AccountsPane 이 max-lines 한도에 닿아, 정책 필터·게이트웨이 섹션·관리형 데이터 래퍼를 upstream 이름의 대역으로 포크 모듈에 옮겼다. 이 한 줄이 빠지면 모든 벤더 계정 섹션이 보이고 사내 게이트웨이 로그인이 사라진다 — 호출부는 upstream 과 바이트 동일하므로 타입체크는 초록이다."
         },
         {
           "file": "src/renderer/src/components/feature-tips/feature-tip-startup-gate.ts",
@@ -281,7 +308,7 @@
           "why": "v1.4.220 신규 Antigravity 사용량 레인. `agy /usage` 를 스폰해 벤더 API 를 부르고 쿼터를 쓴다 — 허용목록 밖이면 스폰하지 않는다."
         },
         {
-          "file": "src/main/ssh/runtime-archive-download.ts",
+          "file": "src/main/node-runtime/runtime-archive-download.ts",
           "contains": "if (getEnterprisePolicy().disableRuntimeDownloads) {",
           "why": "v1.4.215 신설 스위치의 유일한 게이트. v1.4.220 이 bun 을 고정 Node 런타임으로 바꾸고 다운로드를 downloadVerifiedArchive 한 곳으로 모았다 — SSH 릴레이 배포·WSL·OpenCode 준비가 사용자 조작 없이 런타임 아카이브를 받는 레인이다."
         },
@@ -324,6 +351,21 @@
           "file": "src/renderer/src/components/native-chat/NativeChatComposerActions.tsx",
           "contains": "{disableVoice ? null : (",
           "why": "구조화 챗 컴포저의 받아쓰기 버튼 숨김. v1.4.223 에서 같은 블록이 바뀌어 충돌했다 — policySwitchMinConsumers 는 구조분해 소비를 세지 않아 이 줄을 못 지킨다."
+        },
+        {
+          "file": "src/main/ipc/claude-accounts.ts",
+          "contains": "assertVendorAccountRegistrationAllowed()",
+          "why": "v1.4.226 의 Claude 계정 추가·재인증 IPC. 브라우저 OAuth 로그인 레인을 연다."
+        },
+        {
+          "file": "src/main/ipc/shell.ts",
+          "contains": "ipcMain.handle('shell:openUrl', (_event, rawUrl: string) => openExternalUrlUnderPolicy(rawUrl))",
+          "why": "외부 링크 열기를 정책(허용목록) 아래로 보내는 위임 한 줄. v1.4.226 이 shell.ts 를 고쳤고 원장에 없었다 — 빠지면 벤더 문서·다운로드 링크(www.onorca.dev 등)가 정책 무관하게 브라우저로 열린다."
+        },
+        {
+          "file": "src/shared/task-providers.ts",
+          "contains": "export const TASK_PROVIDERS: readonly TaskProvider[] = FORK_OFFERED_TASK_PROVIDERS",
+          "why": "작업 공급자를 GitHub(사내 GHES) 하나로 좁히는 한 줄. upstream 이 이 상수를 네 개 목록으로 되돌리면 GitLab·Linear·Jira 로 작업 제목·본문이 나간다. v1.4.226 에서 포크 모듈로 빼, 숨긴 공급자의 upstream 스위트가 그 모듈만 모킹해 휴면 코드를 계속 검증한다."
         }
       ]
     },
@@ -353,7 +395,7 @@
         },
         {
           "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
-          "contains": "this.isUsageProviderAllowed('gemini')"
+          "contains": "this.fetchUsageIfAllowed('gemini', () => fetchGeminiRateLimits(geminiCliOAuthEnabled)),"
         },
         {
           "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
@@ -361,7 +403,7 @@
         },
         {
           "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
-          "contains": "this.isUsageProviderAllowed('kimi')"
+          "contains": "this.fetchUsageIfAllowed('kimi', () => this.fetchKimiWithResolvedHome()),"
         },
         {
           "file": "src/main/rate-limits/service/service-full-cycle-preparation.ts",
@@ -456,6 +498,11 @@
           "file": "src/main/runtime/runtime-rpc/runtime-rpc-websocket-dispatch.ts",
           "contains": "if (device.scope === 'mobile' && getEnterprisePolicy().disableMobilePairing) {",
           "why": "정책 이전에 페어링된 폰의 토큰을 거부한다. v1.4.224 가 같은 자리를 RpcCallerScope 로 바꿨는데 min-consumers 하한으로는 이 한 줄 유실을 못 잡아 앵커로 등재했다."
+        },
+        {
+          "file": "src/main/runtime/runtime-rpc/runtime-rpc-mobile-devices.ts",
+          "contains": "getEnterprisePolicy().disableMobilePairing ? [] : phones",
+          "why": "v1.4.226 의 위임 모바일 기기 동기화 — 페어링된 데스크톱이 자기 폰을 이 호스트에 넘기면 폰마다 토큰을 민팅한다. 정책 아래에서는 민팅하지 않고 기존 위임 폰을 회수한다."
         }
       ]
     },
@@ -605,9 +652,9 @@
           "contains": "workerPane.finish(tab, launchAgent)"
         },
         {
-          "file": "src/main/runtime/rpc/methods/orchestration/worker/local-worker-start.ts",
-          "contains": "workerPaneAnchor: { coordinatorPane, coordinatorWorktreeId },",
-          "why": "앵커 입력을 placeWorkerAgent 로 넘기는 전달 라인. v1.4.223 에서 max-lines 때문에 두 줄을 한 prop 으로 묶었다. 끊기면 타입체크가 잡지만, upstream 이 인자 객체를 다시 쪼개면 같이 사라진다."
+          "file": "src/main/runtime/rpc/methods/orchestration/worker/workers.ts",
+          "contains": "import { startLocalWorkerWithPaneAnchor as startLocalWorker } from './worker-start-pane-anchor'",
+          "why": "v1.4.226 이 local-worker-start.ts 를 max-lines 한도에 정확히 맞춰, 앵커를 placeWorkerAgent 로 넘기던 포크 한 줄이 들어갈 자리가 없다. 이제 이 별칭 임포트가 upstream 의 startLocalWorker 를 코디네이터 앵커 비동기 컨텍스트로 감싸고(worker-start-pane-anchor.ts), 배치는 workerPaneAnchorForStart 에서 그 컨텍스트를 읽는다. 두 upstream 파일 모두 호출부가 바이트 동일하다 — 이 한 줄이 빠지면 워커가 분할 없이 탭으로만 뜬다(composed-workers.test 3건이 잡는다)."
         },
         {
           "file": "src/main/runtime/rpc/methods/orchestration/worker/worker-worktree-creation.ts",
@@ -619,8 +666,9 @@
           "contains": "paneGroupPlacement"
         },
         {
-          "file": "src/main/runtime/orca-runtime-create-terminal.ts",
-          "contains": "opts.paneGroupPlacement"
+          "file": "src/main/runtime/orca-runtime-create-terminal-dependencies.ts",
+          "contains": "...ownerSurfacingWithPaneGroup(opts.surfaceOwner !== false, opts.paneGroupPlacement),",
+          "why": "v1.4.226 이 생성 경로의 표면화 옵션을 terminalRevealViewerOptions 로 뺐다. 이 전달이 빠지면 워커가 분할 없이 코디네이터 그룹에 탭으로만 남는다."
         },
         {
           "file": "src/main/runtime/orca-runtime-create-terminal-desktop.ts",
@@ -652,7 +700,7 @@
           "contains": "expect(showTerminal).not.toHaveBeenCalledWith('structworker_coord')"
         },
         {
-          "file": "src/renderer/src/components/terminal-pane/pty-connection/direct-ssh-retry-status.ts",
+          "file": "src/renderer/src/components/terminal-pane/pty-connection/pane-host-capability-flags.ts",
           "contains": "// Fork: worker takeover reporting lives in installTypedUserInputTakeover",
           "why": "user_takeover 는 타이핑·붙여넣기·IME 입력에서만 나야 한다. upstream 은 이 자리에서 xterm 의 user-input 신호를 그대로 reportWorkerTerminalUserInput 에 잇는데 그 신호는 마우스 추적 보고와 휠이 합성한 화살표 키에도 켜진다 — 분할로 보이게 된 워커 패널 위에서 휠 한 번에 디스패치가 user_owned 로 뒤집혔다(2026-09-11 실측). upstream 의 호출이 이 블록으로 되돌아오면 증상이 그대로 재발한다."
         },
@@ -802,8 +850,8 @@
         },
         {
           "file": "src/main/runtime/mobile-notification-dismissal-store.ts",
-          "contains": "if (!this.unreadable && options.persist !== false) {",
-          "why": "위 게이트가 실제로 막는 쓰기(writeSecureJsonFile → Windows icacls 동기 spawn)."
+          "contains": "if (this.unreadable || options.persist === false) {",
+          "why": "위 게이트가 실제로 막는 쓰기(writeSecureJsonFile → Windows icacls 동기 spawn). v1.4.226 이 조기 반환형으로 뒤집었다."
         }
       ]
     },
@@ -912,13 +960,8 @@
         },
         {
           "file": "src/main/runtime/runtime-git-submodule-commands.ts",
-          "contains": "requireRuntimeGitProvider(target)",
-          "why": "v1.4.197 이 RuntimeGitTarget.connectionId 를 없애고 실행 호스트 라우팅으로 바꿨다. 이 파일 9곳이 옛 필드를 쓰고 있었다."
-        },
-        {
-          "file": "src/main/runtime/rpc/methods/git-params.ts",
-          "contains": "shared/rpc-contract/git-submodule-params",
-          "why": "v1.4.201 이 RPC 파라미터 스키마를 shared/rpc-contract 로 옮기며 이 파일을 re-export 목록으로 바꿨다. 포크 서브모듈 스키마 re-export 한 줄이 빠지면 git.ts 의 서브모듈 RPC 가 import 에러로 죽는다."
+          "contains": "requireLocalRuntimeGitRoute(target)",
+          "why": "v1.4.226 이 SSH relay 를 지워 git provider 레지스트리가 사라졌다. 서브모듈 명령은 로컬 라우트만 받고 ssh: 워크트리는 거부한다."
         },
         {
           "file": "src/shared/rpc-contract/client-ui-params.ts",
@@ -933,11 +976,6 @@
           "file": "src/renderer/src/components/right-sidebar/source-control/commit/use-discard-confirmation.ts",
           "contains": "refreshSubmodule: refreshSubmodule ?? noSubmoduleRefresh",
           "why": "행 폐기가 서브모듈 안 파일과 gitlink 행을 서브모듈 저장소로 보낸다. v1.4.205 에서 upstream 이 같은 함수를 공용 실패 토스트로 고쳐 충돌했고, 인자를 선택으로 바꿔 upstream 훅 테스트를 건드리지 않았다 — 그래서 패널이 넘기는지는 타입체크가 못 잡는다."
-        },
-        {
-          "file": "src/relay/fs-handler-git-search.ts",
-          "contains": "await runGitGrepSubmodulePasses({",
-          "why": "SSH 원격의 git grep 폴백이 서브모듈 안을 검색한다. v1.4.217 에서 upstream 이 searchWithGitGrep 을 fs-handler-git-fallback.ts 에서 이 파일로 추출해 포크 구현을 옮겼다."
         },
         {
           "file": "src/main/runtime/rpc/methods/git.ts",
@@ -1037,6 +1075,11 @@
           "file": "src/renderer/src/components/browser-pane/assemble-chrome/browser-page-toolbar.tsx",
           "contains": "!ARTIFACT_SHARING_REMOVED && shareableArtifactFile",
           "why": "artifact 공유 버튼이 브라우저 툴바에 되살아나지 않게 한다. v1.4.217 에서 upstream 이 render-prop 으로 바꾸며 충돌했는데 원장에 없었다."
+        },
+        {
+          "file": "src/renderer/src/components/browser-pane/workspace-doc/doc-preview-artifact-share.tsx",
+          "contains": "if (ARTIFACT_SHARING_REMOVED || !location || !isShareableHtmlPath(filePath)) {",
+          "why": "v1.4.226 의 HTML 미리보기 툴바 공유 버튼. artifact 공유는 이 빌드에서 제거된 표면이다."
         }
       ]
     },
@@ -1109,9 +1152,24 @@
           "why": "원격 Orca 연결·재연결 IPC 의 게이트. v1.4.223 egress 감사에서 원장 미등재로 확인돼 등재했다."
         },
         {
-          "file": "src/main/ipc/ssh-host-server-connect.ts",
-          "contains": "if (isRemoteOrcaServerDisabled()) {",
-          "why": "v1.4.224 가 SSH 기본 경로를 관리형 orcad(원격 호스트에 Orca 서버 배포·전환)로 바꿨다. 정책 아래에서는 판정 없이 relay 로 간다."
+          "file": "src/main/ssh/orcad-remote-deploy.ts",
+          "contains": "assertRemoteOrcaServerAllowed()",
+          "why": "v1.4.226 이 SSH relay 를 지워 SSH 호스트는 관리형 orcad 로만 돈다. 정책 아래 relay 로 돌리던 분기(ssh-host-server-connect)는 갈 곳이 없어 사라졌고, 원격에 orcad·Node 를 올리는 배포 자체를 막는다."
+        },
+        {
+          "file": "src/main/wsl/wsl-host-gate.ts",
+          "contains": "&& !isRemoteOrcaServerDisabled()",
+          "why": "v1.4.226 의 WSL 배포판 호스트는 배포판 안에 Orca 서버를 띄워 붙는다 — 정책상 원격 Orca 서버와 같은 부류(2026-10-15 사용자 결정)."
+        },
+        {
+          "file": "src/renderer/src/components/sidebar/AddRepoHostSelectorSlot.tsx",
+          "contains": "disableRemoteOrcaServer ? undefined : () => setAddRemoteHostMode('server')",
+          "why": "upstream 은 핸들러가 넘어올 때만 행을 그린다. 핸들러를 빼는 것이 곧 게이트."
+        },
+        {
+          "file": "src/renderer/src/components/new-workspace/NewWorkspaceComposerProjectSection.tsx",
+          "contains": "onAddRemoteServer={disableRemoteOrcaServer ? undefined : handleAddRemoteServer}",
+          "why": "같은 콤보박스의 새 워크스페이스 진입점."
         },
         {
           "file": "src/main/ssh/orcad-runtime-deployment.ts",
@@ -1347,7 +1405,7 @@
         },
         {
           "file": "src/main/ipc/worktrees/listing/register-worktree-catalog-handlers.ts",
-          "contains": "safeToAuthorize = scan.safeToAuthorize ?? true"
+          "contains": "if ((scan.safeToAuthorize ?? true) && !scan.fresh) {"
         }
       ]
     },
@@ -1388,9 +1446,9 @@
           "why": "선택 인자라 빠져도 타입체크가 통과한다. v1.4.221 이 바로 아래 OpenCode env 블록을 다시 써서 인접 hunk 가 됐다(표면 워커 보고)."
         },
         {
-          "file": "src/main/rate-limits/claude-pty.ts",
-          "contains": "buildConfiguredProxyEnv(options?.networkProxySettings, spawnEnv)",
-          "why": "같은 이유. Claude 사용량 PTY 자식."
+          "file": "src/main/rate-limits/codex-fetcher.ts",
+          "contains": "buildConfiguredProxyEnv(options?.networkProxySettings, process.env)",
+          "why": "v1.4.226 이 Claude 사용량 PTY 폴백(claude-pty.ts)을 지웠다. 남은 사용량 자식 프로세스는 Codex app-server 다."
         }
       ]
     },
@@ -1467,6 +1525,38 @@
           "why": "위 판정을 종료 코드로 내보내는 줄. 빠지면 위반을 출력만 하고 빌드는 통과한다."
         }
       ]
+    },
+    {
+      "id": "ssh-remote-hosts-removed",
+      "summary": "SSH 호스트를 빌드에서 제거한다(src/shared/ssh-remote-hosts-removal.ts). v1.4.226 이 SSH relay 를 지워 SSH 호스트가 관리형 orcad 로만 도는데, 이 빌드는 orcad 템플릿을 싣지 않고 첫 배포가 nodejs.org 에서 Node 를 받으며 원격 서버는 이 데스크톱의 정책을 읽지 않는다(2026-10-15 사용자 결정: 전체 차단). 연결·추가·편집·가져오기를 main 에서 거부하고, 목록·삭제는 남긴다.",
+      "present": [
+        {
+          "file": "src/main/ipc/ssh-connect-flow.ts",
+          "contains": "assertSshRemoteHostsSupported()",
+          "why": "모든 연결(수동·자동 재연결)이 지나는 초크포인트."
+        },
+        {
+          "file": "src/main/ipc/ssh-target-crud-handlers.ts",
+          "contains": "assertSshRemoteHostsSupported()",
+          "why": "추가·편집·ssh config 가져오기."
+        },
+        {
+          "file": "src/renderer/src/hooks/settings-navigation-remote-sections.ts",
+          "contains": "showDesktopOnlySettings && !SSH_REMOTE_HOSTS_REMOVED"
+        },
+        {
+          "file": "src/renderer/src/components/settings/settings-pane-policy-visibility.ts",
+          "contains": "...(SSH_REMOTE_HOSTS_REMOVED ? ['ssh'] : [])"
+        },
+        {
+          "file": "src/renderer/src/components/sidebar/AddRepoHostSelectorSlot.tsx",
+          "contains": "onAddSshHost={SSH_REMOTE_HOSTS_REMOVED ? undefined : () => setAddRemoteHostMode('ssh')}"
+        },
+        {
+          "file": "src/renderer/src/components/new-workspace/NewWorkspaceComposerProjectSection.tsx",
+          "contains": "onAddSshHost={SSH_REMOTE_HOSTS_REMOVED ? undefined : handleAddSshHost}"
+        }
+      ]
     }
   ],
   "absentPaths": [
@@ -1525,7 +1615,16 @@
     "src/main/update-install-exit-watchdog.ts",
     "src/renderer/src/components/sidebar/use-feedback-image-drop.ts",
     "src/main/ipc/feedback-request-ownership.test.ts",
-    "src/main/skills/skill-package-download-response-lifetime.test.ts"
+    "src/main/skills/skill-package-download-response-lifetime.test.ts",
+    "src/main/update-restart-preservation.ts",
+    "src/main/updater-handler-context.ts",
+    "src/main/electron-updater-*",
+    "src/renderer/src/components/settings/RemoteServerUpdateStatus*",
+    "config/patches/oxlint-plugin-anti-slop*",
+    "src/main/updater-*",
+    "config/scripts/anti-slop-scope-regression.test.mjs",
+    "src/main/orca-profiles/profile-cloud-auth-characterization.test.ts",
+    "config/scripts/verify-skill-update-roundtrip.test.mjs"
   ],
   "absentSymbols": [
     {
@@ -1662,6 +1761,21 @@
       "file": "src/shared/agent-prompt-injection.ts",
       "symbol": "AGENT_PROMPT_SUBMIT_DELAY_MS",
       "why": "모듈 최상위 process.platform 읽기라 메인 전용(orca-runtime-agent-prompt-rescue.ts)으로 옮겼다. upstream #24257(v1.4.222)이 이 모듈을 렌더러 부팅 그래프로 import 하면서 v1.4.223~224 사내 설치본이 하얀 화면이 됐다. 머지가 이 줄을 shared 로 되돌리면 같은 사고가 난다."
+    },
+    {
+      "file": "src/main/startup/main-process-runtime-launch.ts",
+      "symbol": "setupHeadlessServeAutoUpdater",
+      "why": "v1.4.226 이 headless serve 자동 업데이트를 런치 경로에 새로 물렸다. 인앱 업데이터는 이 빌드에서 제거한 표면이다(README §6)."
+    },
+    {
+      "file": "pnpm-workspace.yaml",
+      "symbol": "oxlint-plugin-anti-slop",
+      "why": "v1.4.226 이 anti-slop 플러그인 패치를 새로 선언했다. 포크는 이 플러그인을 제거했다(package.json 항목과 같은 이유)."
+    },
+    {
+      "file": "src/renderer/src/components/terminal-pane/pty-connection/pane-host-capability-flags.ts",
+      "symbol": "reportWorkerTerminalUserInput",
+      "why": "v1.4.226 이 xterm user-input 신호를 워커 takeover 보고에 다시 이었다. 그 신호는 마우스 보고·휠에도 켜져 휠 한 번에 디스패치가 user_owned 로 뒤집힌다(orchestration-worker-pane 앵커와 짝)."
     }
   ],
   "policySwitchMinConsumers": {

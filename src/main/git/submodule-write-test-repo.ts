@@ -7,7 +7,7 @@
  */
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
-import { runProcessSync } from '../../shared/child-process/run-process'
+import { runProcessSync } from '@orca/process-host'
 
 const IDENTITY = [
   '-c',

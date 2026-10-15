@@ -1,7 +1,7 @@
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { defineMethod } from '../../../core'
 import { startFederatedWorker } from '../federation/federated-worker-start'
-import { startLocalWorker } from './local-worker-start'
+import { startLocalWorkerWithPaneAnchor as startLocalWorker } from './worker-start-pane-anchor'
 import {
   decideWorkerStartMode,
   readWorkerStartModeSettings

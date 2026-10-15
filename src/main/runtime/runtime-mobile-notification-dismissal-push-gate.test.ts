@@ -30,16 +30,18 @@ const registrar = {
 
 // Fork: the vendor push gateway is removed, so no registrar is ever set. The dismissal write
 // spawned icacls synchronously on Windows for every completion and ack (Windows input freeze).
-it('does not persist dismissals while no push registrar exists', () => {
+// Why flushed: v1.4.226 coalesces the write, so an unflushed check would pass with the gate gone.
+it('does not persist dismissals while no push registrar exists', async () => {
   const h = fixture()
   h.controller.dismiss('pane-1')
   h.controller.dismiss('pane-2')
+  await h.controller.flushDismissals()
   expect(existsSync(h.dismissalsPath)).toBe(false)
 })
 
 // Why: v1.4.223 retires structured attention from the store's in-memory ledger. Skipping the whole
 // record (the gate's first form) left that ledger empty, so a read never withdrew its alert.
-it('still retires a read structured alert from memory without a push registrar', () => {
+it('still retires a read structured alert from memory without a push registrar', async () => {
   const h = fixture()
   const dismissed: string[] = []
   h.controller.onDispatched((event) => {
@@ -71,13 +73,15 @@ it('still retires a read structured alert from memory without a push registrar',
     observedCursor: { epoch: 'journal-a', sequence: 10 }
   })
   expect(dismissed).toEqual(['read'])
+  await h.controller.flushDismissals()
   expect(existsSync(h.dismissalsPath)).toBe(false)
 })
 
-it('persists dismissals once a push registrar is present', () => {
+it('persists dismissals once a push registrar is present', async () => {
   const h = fixture()
   h.controller.setPushRegistrar(registrar)
   h.controller.dismiss('pane-1')
+  await h.controller.flushDismissals()
   expect(existsSync(h.dismissalsPath)).toBe(true)
   const delivered = {
     notificationId: 'pane-1',

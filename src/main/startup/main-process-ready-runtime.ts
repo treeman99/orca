@@ -15,16 +15,9 @@ import { handleGpuChildCrash } from './gpu-lifecycle'
 import { isGpuFallbackCrashCandidate } from '../crash-reporting/gpu-crash-fallback-decision'
 import { startCodexHooks } from '../codex/codex-hook-reconcile'
 import { hydrateAgentCliShellPath } from '../agent-hooks/local-agent-cli-presence'
-import {
-  resolveStartupManagedHookAction,
-  shouldContinueManagedHookStartup
-} from '../agent-hooks/managed-agent-hook-controls'
-import {
-  installManagedAgentHooksUnderEnterprisePolicy,
-  isCodexHookReconcileEnabledUnderEnterprisePolicy
-} from '../agent-hooks/enterprise-agent-hook-policy'
+import { reconcileStartupManagedAgentHooks } from '../agent-hooks/managed-agent-hook-startup'
+import { isCodexHookReconcileEnabledUnderEnterprisePolicy } from '../agent-hooks/enterprise-agent-hook-policy'
 import { shouldInstallManagedHooks } from './configure-process'
-import { recordManagedHookInstallFailure } from '../agent-hooks/install-telemetry'
 import { mainProcessState as state } from './main-process-state'
 import { initializeMainProcessObservers } from './main-process-observers'
 import { initializeMainProcessAccountServices } from './main-process-account-services'
@@ -119,23 +112,12 @@ export async function initializeReadyRuntimeServices(): Promise<void> {
       return state.codexRuntimeHome.resolveHostCodexHomePathForLaunchReadOnly()
     }
   })
-  const startupManagedHookSettings = store.getSettings()
-  const shouldReconcileStartupManagedHooks =
-    shouldInstallManagedHooks(is.dev) &&
-    resolveStartupManagedHookAction(startupManagedHookSettings) === 'install'
-  // Why skip rather than remove when the off switch is set: the hook files are user-global but this
-  // decision reads only THIS profile's settings, so removing here deletes the hooks every other Orca
-  // instance depends on (STA-5679). Skipping already keeps removed hooks from reappearing on launch.
-  if (shouldReconcileStartupManagedHooks) {
-    const managedHookStore = store
-    void installManagedAgentHooksUnderEnterprisePolicy(managedHookStore.getSettings(), {
-      shouldHydrateShellPath: app.isPackaged,
-      onInstallError: recordManagedHookInstallFailure,
-      shouldContinue: (agent) =>
-        shouldContinueManagedHookStartup(state.isQuitting, managedHookStore.getSettings(), agent)
-    }).catch((error: unknown) =>
-      console.warn('[agent-hooks] failed to reconcile managed hooks on startup:', error)
-    )
+  if (shouldInstallManagedHooks(is.dev)) {
+    reconcileStartupManagedAgentHooks({
+      getSettings: () => store.getSettings(),
+      isQuitting: () => state.isQuitting,
+      shouldHydrateShellPath: app.isPackaged
+    })
   }
   // Why: process-gone metrics only see survivors, and the gone-time host memory
   // read lands after the corpse released its pages; both need a live pre-gone

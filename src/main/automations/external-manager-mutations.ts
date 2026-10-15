@@ -8,7 +8,7 @@ import type {
 } from '../../shared/automations-types'
 import { assertExternalAutomationJobId } from './external-manager-job-id'
 import { runLocalAutomationCommand } from './external-manager-local-command'
-import { requireExternalAutomationMultiplexer } from './external-manager-relay'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 import { clearHermesCronOutputRunCountCache } from './hermes-cron-output'
 
 const PROVIDER_ACTION_COMMANDS: Record<
@@ -89,13 +89,7 @@ export async function createExternalAutomation(
     clearHermesCronOutputRunCountCache()
     return
   }
-  await requireExternalAutomationMultiplexer(input.target.connectionId).request(
-    'externalAutomations.create',
-    {
-      provider: input.provider,
-      ...normalized
-    }
-  )
+  throw new SshHostNotServedError(input.target.connectionId)
 }
 
 export async function updateExternalAutomation(
@@ -109,14 +103,7 @@ export async function updateExternalAutomation(
     clearHermesCronOutputRunCountCache(input.jobId)
     return
   }
-  await requireExternalAutomationMultiplexer(input.target.connectionId).request(
-    'externalAutomations.update',
-    {
-      provider: input.provider,
-      jobId: input.jobId,
-      ...normalized
-    }
-  )
+  throw new SshHostNotServedError(input.target.connectionId)
 }
 
 export async function runExternalAutomationAction(
@@ -132,12 +119,5 @@ export async function runExternalAutomationAction(
     }
     return
   }
-  await requireExternalAutomationMultiplexer(input.target.connectionId).request(
-    'externalAutomations.act',
-    {
-      provider: input.provider,
-      action: input.action,
-      jobId: input.jobId
-    }
-  )
+  throw new SshHostNotServedError(input.target.connectionId)
 }

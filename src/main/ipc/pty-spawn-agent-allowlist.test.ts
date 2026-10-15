@@ -1,234 +1,203 @@
-// Behavioural test for the corporate agent allowlist at the PTY spawn chokepoint.
+// Behavioural test for the corporate agent allowlist at the PTY spawn chokepoints.
 //
-// The renderer already hides blocked agents from every picker, but hiding is not refusing:
-// a keyboard chord bound before the policy landed, devtools, and the bundled web client all
-// reach `pty:spawn` directly. These cases prove the refusal happens in main, and — just as
-// important — that a build with no policy file spawns exactly as upstream does.
-
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+// The renderer already hides blocked agents from every picker, but hiding is not refusing: a
+// keyboard chord bound before the policy landed, devtools, the bundled web client and the runtime's
+// own PTY controller (CLI, paired clients, automations, orchestration) all reach a spawn directly.
+// These cases prove the refusal happens in main — including for a pane that plans its own launch,
+// where the planner, not the caller, names the agent — and that a build with no policy file
+// spawns exactly as upstream does.
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AgentPaneLaunchRequest } from '../../shared/agent-pane-launch-request'
 import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
+import { setupPtyIpcSuite } from './pty-ipc-test-harness'
+import { registerPtyHandlers } from './pty/register-handlers'
+import { resetAgentLaunchPanesForTests } from '../agent-launch/agent-launch-pane-attachment'
+import type * as EnterprisePolicyFileModule from '../enterprise/enterprise-policy-file'
 
-const { handleMock, onMock, removeHandlerMock, removeAllListenersMock, policyState } = vi.hoisted(
-  () => ({
-    handleMock: vi.fn(),
-    onMock: vi.fn(),
-    removeHandlerMock: vi.fn(),
-    removeAllListenersMock: vi.fn(),
-    policyState: { current: null as unknown }
-  })
+const policyState = vi.hoisted(() => ({ current: null as unknown }))
+
+vi.mock('electron', () => import('./pty-ipc-mock-registry').then((m) => m.electronModuleMock()))
+vi.mock('fs', () => import('./pty-ipc-mock-registry').then((m) => m.fsModuleMock()))
+vi.mock('node-pty', () => import('./pty-ipc-mock-registry').then((m) => m.nodePtyModuleMock()))
+vi.mock('node:child_process', async (importOriginal) =>
+  (await import('./pty-ipc-mock-registry')).childProcessModuleMock(await importOriginal())
 )
-
-vi.mock('electron', () => ({
-  app: {
-    isPackaged: true,
-    getPath: vi.fn().mockReturnValue('/tmp/orca-test-userdata')
-  },
-  ipcMain: {
-    handle: handleMock,
-    on: onMock,
-    removeHandler: removeHandlerMock,
-    removeAllListeners: removeAllListenersMock
-  },
-  powerMonitor: { on: vi.fn() }
-}))
-
-vi.mock('fs', () => ({
-  existsSync: () => true,
-  statSync: () => ({ isDirectory: () => true, mode: 0o755 }),
-  accessSync: () => undefined,
-  mkdirSync: vi.fn(),
-  readFileSync: vi.fn(() => ''),
-  writeFileSync: vi.fn(),
-  chmodSync: vi.fn(),
-  constants: { X_OK: 1 }
-}))
-
-vi.mock('node-pty', () => ({
-  spawn: vi.fn().mockReturnValue({
-    onData: vi.fn(),
-    onExit: vi.fn(),
-    write: vi.fn(),
-    resize: vi.fn(),
-    kill: vi.fn(),
-    process: 'zsh',
-    pid: 12345
-  })
-}))
-
-vi.mock('../opencode/hook-service', () => {
-  // Why refreshLegacySharedPlugin: v1.4.218's spawn env assembly refreshes both services' retired plugin.
-  const service = () => ({
-    buildPtyEnv: () => ({}),
-    clearPty: vi.fn(),
-    refreshLegacySharedPlugin: vi.fn()
-  })
-  // Why the class: v1.4.221's opencode startup-prompt installer constructs its own service.
-  class OpenCodeHookService {
-    buildPtyEnv = () => ({})
-  }
-  return { OpenCodeHookService, openCodeHookService: service(), openCode2HookService: service() }
-})
-
-vi.mock('../pi/titlebar-extension-service', () => ({
-  piTitlebarExtensionService: { buildPtyEnv: () => ({}), clearPty: vi.fn() }
-}))
-
-vi.mock('../enterprise/enterprise-policy-file', () => ({
+vi.mock('../opencode/hook-service', () =>
+  import('./pty-ipc-mock-registry').then((m) => m.openCodeHookServiceModuleMock())
+)
+vi.mock('../mimo/hook-service', () =>
+  import('./pty-ipc-mock-registry').then((m) => m.mimoHookServiceModuleMock())
+)
+vi.mock('../agent-hooks/server', () =>
+  import('./pty-ipc-mock-registry').then((m) => m.agentHookServerModuleMock())
+)
+vi.mock('../pi/titlebar-extension-service', () =>
+  import('./pty-ipc-mock-registry').then((m) => m.piTitlebarExtensionModuleMock())
+)
+vi.mock('../pwsh', () => import('./pty-ipc-mock-registry').then((m) => m.pwshModuleMock()))
+vi.mock('../wsl', async (importOriginal) =>
+  (await import('./pty-ipc-mock-registry')).wslModuleMock(await importOriginal())
+)
+vi.mock('../telemetry/client', () =>
+  import('./pty-ipc-mock-registry').then((m) => m.telemetryClientModuleMock())
+)
+vi.mock('../telemetry/classify-error', () =>
+  import('./pty-ipc-mock-registry').then((m) => m.classifyErrorModuleMock())
+)
+vi.mock('../cli/linux-terminal-orca-cli-shim', () =>
+  import('./pty-ipc-mock-registry').then((m) => m.linuxCliShimModuleMock())
+)
+vi.mock('../memory/pty-registry', () =>
+  import('./pty-ipc-mock-registry').then((m) => m.ptyRegistryModuleMock())
+)
+vi.mock('../agent-hooks/migration-unsupported-pty-state', () =>
+  import('./pty-ipc-mock-registry').then((m) => m.migrationUnsupportedPtyModuleMock())
+)
+vi.mock('../codex/codex-pane-account-registry', () =>
+  import('./pty-ipc-mock-registry').then((m) => m.codexPaneAccountRegistryModuleMock())
+)
+vi.mock('../codex/codex-state-db-backfill-recovery', () =>
+  import('./pty-ipc-mock-registry').then((m) => m.codexBackfillRecoveryModuleMock())
+)
+vi.mock('../enterprise/enterprise-policy-file', async (importOriginal) => ({
+  ...(await importOriginal<typeof EnterprisePolicyFileModule>()),
   getEnterprisePolicy: () => policyState.current
 }))
 
-import { registerPtyHandlers, setLocalPtyProvider } from './pty'
-import { setPtyHostBindings } from './pty-host-bindings'
-import type { IPtyProvider } from '../providers/types'
+const BLOCKED = /agent_blocked_by_enterprise_policy/
+const CODEX_BLOCKED = (): unknown => makeLockdownPolicy({ allowedAgents: ['claude', 'opencode'] })
 
-const handlers = new Map<string, (...args: unknown[]) => unknown>()
-const mainWindow = {
-  isDestroyed: () => false,
-  webContents: { on: vi.fn(), send: vi.fn(), removeListener: vi.fn() }
-}
+describe('PTY spawns under the corporate agent allowlist', () => {
+  const { handlers, mainWindow, installDaemonTestProvider } = setupPtyIpcSuite()
+  const tabId = 'tab-allowlist'
+  const leafId = '77777777-7777-4777-8777-777777777777'
+  const worktreeId = 'repo-1::/tmp/allowlist'
 
-let spawnSpy: ReturnType<typeof vi.fn>
-// The runtime's own PTY entry point — what the CLI, a paired mobile client, an automation
-// run and an orchestration dispatch reach instead of the `pty:spawn` IPC channel.
-let ptyController: { spawn: (args: Record<string, unknown>) => Promise<unknown> } | null = null
-
-function createMockProvider(): IPtyProvider {
-  spawnSpy = vi.fn().mockResolvedValue({ id: 'pty-allowlist-test' })
-  return {
-    spawn: spawnSpy,
-    attach: vi.fn(),
-    write: vi.fn(),
-    resize: vi.fn(),
-    shutdown: vi.fn(),
-    sendSignal: vi.fn(),
-    getCwd: vi.fn(),
-    getInitialCwd: vi.fn(),
-    clearBuffer: vi.fn(),
-    acknowledgeDataEvent: vi.fn(),
-    hasChildProcesses: vi.fn(),
-    getForegroundProcess: vi.fn(),
-    serialize: vi.fn(),
-    revive: vi.fn(),
-    listProcesses: vi.fn(),
-    getDefaultShell: vi.fn(),
-    getProfiles: vi.fn(),
-    onData: vi.fn().mockReturnValue(() => {}),
-    onReplay: vi.fn().mockReturnValue(() => {}),
-    onExit: vi.fn().mockReturnValue(() => {})
-  } as unknown as IPtyProvider
-}
-
-function spawnAgent(launchAgent: string): Promise<unknown> {
-  return handlers.get('pty:spawn')!(null, {
-    cols: 80,
-    rows: 24,
-    cwd: '/tmp/worktree',
-    command: launchAgent,
-    launchAgent,
-    worktreeId: 'repo::/tmp/worktree'
-  }) as Promise<unknown>
-}
-
-beforeEach(() => {
-  handlers.clear()
-  handleMock.mockReset()
-  onMock.mockReset()
-  handleMock.mockImplementation((channel: string, handler: (...a: unknown[]) => unknown) => {
-    handlers.set(channel, handler)
+  beforeEach(() => {
+    policyState.current = makeEnterprisePolicy()
   })
-  onMock.mockImplementation((channel: string, handler: (...a: unknown[]) => unknown) => {
-    handlers.set(channel, handler)
+  afterEach(() => {
+    resetAgentLaunchPanesForTests()
   })
-  // Upstream v1.4.190 registers against injected host surfaces instead of importing
-  // `ipcMain`, so mocking the electron module alone no longer reaches the handlers.
-  setPtyHostBindings({
-    ipc: {
-      handle: handleMock,
-      on: onMock,
-      removeHandler: removeHandlerMock,
-      removeAllListeners: removeAllListenersMock
-    } as never,
-    power: { on: vi.fn() }
-  })
-  policyState.current = makeEnterprisePolicy()
-  ptyController = null
-  setLocalPtyProvider(createMockProvider() as never)
-  registerPtyHandlers(mainWindow as never)
-})
 
-// Everything the spawn path calls on the runtime is incidental here; only
-// setPtyController matters, so the rest resolve to inert stubs.
-function registerWithRuntimeController(): void {
-  const runtimeStub = new Proxy(
-    {},
-    {
-      get: (_target, property) => {
-        if (property === 'setPtyController') {
-          return (controller: typeof ptyController) => {
-            ptyController = controller
-          }
-        }
-        // Why undefined: v1.4.221's spawn commit reads `terminalRunFacts?.` as an object, not a call.
-        return property === 'terminalRunFacts' ? undefined : vi.fn()
-      }
+  function register(plan: () => Promise<Record<string, unknown>> = async () => ({ command: 'claude' })) {
+    const providerSpawn = vi.fn(async () => ({ id: 'pty-allowlist' }))
+    installDaemonTestProvider({ spawn: providerSpawn })
+    const runtime = {
+      setPtyController: vi.fn(),
+      createPreAllocatedTerminalHandle: vi.fn(() => 'term_allowlist'),
+      registerPreAllocatedHandleForPty: vi.fn(),
+      registerPty: vi.fn(),
+      onPtySpawned: vi.fn(),
+      onPtyExit: vi.fn(),
+      onPtyData: vi.fn(),
+      hasLiveTerminalForPaneKey: vi.fn(() => false),
+      reportAgentLaunchPaneVerdict: vi.fn(),
+      showTerminalWorkspaceLaunchScope: vi.fn(async () => ({
+        id: worktreeId,
+        path: '/tmp/allowlist',
+        connectionId: null,
+        repo: null,
+        folderWorkspace: null
+      })),
+      planAgentPaneLaunch: vi.fn(plan),
+      getTerminalHandleForPaneKey: vi.fn(() => null),
+      closeTerminal: vi.fn(async () => ({}))
     }
-  )
-  registerPtyHandlers(mainWindow as never, runtimeStub as never)
-}
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the suite's window double, carrying the members a renderer spawn reaches.
+    const window = mainWindow as never
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a runtime carrying only the members these spawns reach.
+    registerPtyHandlers(window, runtime as never)
+    return { runtime, providerSpawn }
+  }
 
-describe('pty:spawn under the corporate agent allowlist', () => {
-  it('refuses a launch for an agent the policy does not list', async () => {
-    policyState.current = makeLockdownPolicy({ allowedAgents: ['claude', 'opencode'] })
-    await expect(spawnAgent('codex')).rejects.toThrow(/agent_blocked_by_enterprise_policy/)
-    expect(spawnSpy).not.toHaveBeenCalled()
+  function spawnAgent(launchAgent: string): Promise<unknown> {
+    return Promise.resolve(
+      handlers.get('pty:spawn')!(null, {
+        cols: 80,
+        rows: 24,
+        cwd: '/tmp/allowlist',
+        command: launchAgent,
+        launchAgent,
+        worktreeId
+      })
+    )
+  }
+
+  it('refuses a renderer launch for an agent the policy does not list', async () => {
+    policyState.current = CODEX_BLOCKED()
+    const { providerSpawn } = register()
+    await expect(spawnAgent('codex')).rejects.toThrow(BLOCKED)
+    expect(providerSpawn).not.toHaveBeenCalled()
   })
 
   it('still spawns an agent the policy lists', async () => {
-    policyState.current = makeLockdownPolicy({ allowedAgents: ['claude', 'opencode'] })
+    policyState.current = CODEX_BLOCKED()
+    const { providerSpawn } = register()
     await expect(spawnAgent('claude')).resolves.toBeTruthy()
-    expect(spawnSpy).toHaveBeenCalled()
+    expect(providerSpawn).toHaveBeenCalled()
   })
 
-  // The no-regression half: without an allowlist nothing narrows, which is what a build
-  // with no policy file — every non-corporate install — runs.
+  // The no-regression half: without an allowlist nothing narrows, which is what a build with no
+  // policy file — every non-corporate install — runs.
   it('spawns any agent when no allowlist is configured', async () => {
+    const { providerSpawn } = register()
     await expect(spawnAgent('codex')).resolves.toBeTruthy()
-    expect(spawnSpy).toHaveBeenCalled()
+    expect(providerSpawn).toHaveBeenCalled()
   })
 
-  // allowedAgents deliberately does not inherit `lockdown`: which CLIs a site standardizes
-  // on is a list an administrator has to write out.
+  // allowedAgents deliberately does not inherit `lockdown`: which CLIs a site standardizes on is a
+  // list an administrator has to write out.
   it('does not narrow on the master lockdown switch alone', async () => {
     policyState.current = makeLockdownPolicy()
+    const { providerSpawn } = register()
     await expect(spawnAgent('codex')).resolves.toBeTruthy()
-    expect(spawnSpy).toHaveBeenCalled()
-  })
-})
-
-describe('the runtime PTY controller under the corporate agent allowlist', () => {
-  beforeEach(() => {
-    registerWithRuntimeController()
+    expect(providerSpawn).toHaveBeenCalled()
   })
 
-  function controllerSpawn(launchAgent: string): Promise<unknown> {
-    return ptyController!.spawn({
-      cols: 80,
-      rows: 24,
-      cwd: '/tmp/worktree',
-      command: launchAgent,
-      launchAgent,
-      worktreeId: 'repo::/tmp/worktree'
-    })
-  }
-
-  it('refuses a blocked agent on the non-renderer entry point too', async () => {
-    policyState.current = makeLockdownPolicy({ allowedAgents: ['claude', 'opencode'] })
-    await expect(controllerSpawn('codex')).rejects.toThrow(/agent_blocked_by_enterprise_policy/)
-    expect(spawnSpy).not.toHaveBeenCalled()
+  // v1.4.226: a pane can plan its own launch (`agentLaunch`); the planner then replaces the
+  // caller's `launchAgent`, so the entry check alone would trust a claim the plan overrides.
+  it("refuses a pane's own launch when the planned agent is blocked, whatever the caller claims", async () => {
+    policyState.current = CODEX_BLOCKED()
+    const { runtime, providerSpawn } = register(async () => ({ command: 'codex', launchAgent: 'codex' }))
+    const codexButton: AgentPaneLaunchRequest = {
+      launch: { agent: 'codex', target: { kind: 'existing', worktree: `id:${worktreeId}` } }
+    }
+    await expect(
+      Promise.resolve(
+        handlers.get('pty:spawn')!(null, {
+          cols: 80,
+          rows: 24,
+          cwd: '/tmp/allowlist',
+          worktreeId,
+          tabId,
+          leafId,
+          command: '',
+          launchAgent: 'claude',
+          agentLaunch: codexButton
+        })
+      )
+    ).rejects.toThrow()
+    expect(runtime.planAgentPaneLaunch).not.toHaveBeenCalled()
+    expect(providerSpawn).not.toHaveBeenCalled()
   })
 
-  it('does not narrow when no allowlist is configured', async () => {
-    await expect(controllerSpawn('codex')).resolves.toBeTruthy()
-    expect(spawnSpy).toHaveBeenCalled()
+  it('refuses a blocked agent on the runtime PTY controller too', async () => {
+    policyState.current = CODEX_BLOCKED()
+    const { runtime, providerSpawn } = register()
+    const controller = runtime.setPtyController.mock.calls[0]?.[0] as {
+      spawn: (args: Record<string, unknown>) => Promise<unknown>
+    }
+    await expect(
+      controller.spawn({
+        cols: 80,
+        rows: 24,
+        cwd: '/tmp/allowlist',
+        command: 'codex',
+        launchAgent: 'codex',
+        worktreeId
+      })
+    ).rejects.toThrow(BLOCKED)
+    expect(providerSpawn).not.toHaveBeenCalled()
   })
 })

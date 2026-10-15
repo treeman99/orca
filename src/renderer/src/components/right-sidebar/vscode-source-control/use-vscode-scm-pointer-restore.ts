@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { getConnectionId } from '@/lib/connection-context'
-import { restoreRuntimeGitSubmodulePointer } from '@/runtime/runtime-git-client'
+import { restoreRuntimeGitSubmodulePointer } from '@/runtime/runtime-git-submodule-client'
 import type { VscodeScmContext } from './use-vscode-scm-context'
 
 export type VscodeScmPointerRestore = {
@@ -20,7 +20,7 @@ export type VscodeScmPointerRestore = {
  * submodule on a detached HEAD, which the confirmation dialog states before we get here.
  */
 export function useVscodeScmPointerRestore(scm: VscodeScmContext): VscodeScmPointerRestore {
-  const { repoSettings, worktreeId, worktreePath } = scm
+  const { repoTarget, worktreeId, worktreePath } = scm
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,7 +30,7 @@ export function useVscodeScmPointerRestore(scm: VscodeScmContext): VscodeScmPoin
     clearError: useCallback(() => setError(null), []),
     restore: useCallback(
       async (submodulePath: string): Promise<void> => {
-        if (!worktreeId || !worktreePath) {
+        if (!worktreeId || !worktreePath || !repoTarget) {
           return
         }
         setBusy(true)
@@ -38,7 +38,7 @@ export function useVscodeScmPointerRestore(scm: VscodeScmContext): VscodeScmPoin
         try {
           await restoreRuntimeGitSubmodulePointer(
             {
-              settings: repoSettings,
+              target: repoTarget,
               worktreeId,
               worktreePath,
               connectionId: getConnectionId(worktreeId) ?? undefined
@@ -55,7 +55,7 @@ export function useVscodeScmPointerRestore(scm: VscodeScmContext): VscodeScmPoin
           await scm.refresh()
         }
       },
-      [repoSettings, scm, worktreeId, worktreePath]
+      [repoTarget, scm, worktreeId, worktreePath]
     )
   }
 }

@@ -21,10 +21,21 @@ const AUDITED_NON_NET_FETCH_CALLS = new Map<string, number>([
   ['main/rate-limits/opencode-go-usage-fetcher.ts', 3],
   // Isolated cookie-jar session that does NOT apply the proxy — a pre-existing gap, not a
   // regression: no proxy has ever reached this partition. Keep it listed so it stays visible.
-  ['main/rate-limits/minimax/minimax-request-context.ts', 2],
+  // v1.4.226 adds the API-key lane on the main HttpClient (below) as the third.
+  ['main/rate-limits/minimax/minimax-request-context.ts', 3],
   // Injected HttpClient, not a session: resolves to net.fetch on defaultSession
   // (main/host/electron-http-client.ts) or to the global-fetch-audited Node fallback.
-  ['main/jira/authenticated-request.ts', 1]
+  ['main/jira/authenticated-request.ts', 1],
+  // v1.4.226 moved the usage fetchers onto the same main HttpClient (`getMainHttpClient()`):
+  // destinations unchanged, now on defaultSession instead of Node fetch / bare net.fetch.
+  ['main/rate-limits/claude-oauth-usage-request.ts', 1],
+  ['main/rate-limits/codex-fetcher.ts', 1],
+  ['main/rate-limits/cursor-fetcher.ts', 1],
+  ['main/rate-limits/gemini-oauth-sources.ts', 2],
+  ['main/rate-limits/gemini-usage-fetcher.ts', 1],
+  ['main/rate-limits/grok-fetcher.ts', 1],
+  ['main/rate-limits/kimi-fetcher.ts', 1],
+  ['main/rate-limits/opencode-go-usage-api.ts', 1]
   // Fork: agent-state-rules-live-update.ts (2) is removed with the vendor rules download.
 ])
 
@@ -34,6 +45,11 @@ const AUDITED_NON_NET_FETCH_CALLS = new Map<string, number>([
 const FETCH_CALL = /\.fetch\s*\(/g
 const RECEIVER_IDENTIFIER = /(?:^|[^.\w$])([A-Za-z_$][\w$]*)\s*$/
 const DEFAULT_SESSION_RECEIVERS = new Set(['net', 'globalThis', 'global'])
+// Rule 1 exceptions: the `session` they name is session.defaultSession, passed by the only caller.
+const DEFAULT_SESSION_NAMED_REQUESTS = new Set([
+  // net.request with a proxy `login` listener; electron-http-client.ts hands it defaultSession.
+  'main/host/electron-proxy-login-fetch.ts'
+])
 const NET_REQUEST_CALL = /(?<![.\w$])net\.(?:fetch|request)\s*\(/g
 // Matches `{ session: x }` and the `{ url, session }` shorthand both `net.request` overloads take.
 const SESSION_SCOPED_OPTION = /(?:^|[{,\s])(?:session|partition)\s*[:,}]/
@@ -98,7 +114,7 @@ describe('proxy-guarded fetch call-site audit (main)', () => {
     for (const { file, content } of sources) {
       for (const match of content.matchAll(NET_REQUEST_CALL)) {
         const args = callArgumentText(content, match.index + match[0].length)
-        if (SESSION_SCOPED_OPTION.test(args)) {
+        if (SESSION_SCOPED_OPTION.test(args) && !DEFAULT_SESSION_NAMED_REQUESTS.has(file)) {
           offenders.push(`${file}:${content.slice(0, match.index).split('\n').length}`)
         }
       }

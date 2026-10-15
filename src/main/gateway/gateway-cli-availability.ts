@@ -5,7 +5,7 @@
 // gateway-cli-command.ts for why a bare name reports "not installed" on a machine where
 // the CLI works in a terminal.
 
-import { runProcess } from '../../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 import { buildGatewayCommandEnv, resolveGatewayCommand } from './gateway-cli-command'
 
 // Why 20s and not a couple of seconds: a cold start behind corporate endpoint protection

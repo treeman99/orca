@@ -1,8 +1,12 @@
+import type { RuntimeFileOpenPosition } from '../../shared/runtime-file-contracts'
+import type { JiraQuickFilterState } from '../../shared/jira-quick-filters'
+import type { JiraSavedFilterState, JiraSavedFilterMutation } from '../../shared/jira-saved-filters'
 import type { MarkdownDocument } from '../../shared/filesystem-entry-types'
 import type { PersistedUIState } from '../../shared/persisted-ui-state-types'
 import type { TuiAgent } from '../../shared/tui-agent'
 import type {
   AgentLaunchTabPublishReply,
+  AgentLaunchTabViewerRule,
   AgentLaunchTabPublishRequest
 } from '../../shared/agent-launch-tab-publication'
 import type { AgentLaunchPaneVerdictEvent } from '../../shared/agent-launch-pane-verdict'
@@ -49,6 +53,10 @@ import type {
 export type CloseActiveTabPayload = { sourceId: string }
 
 export type UiCommandEventApi = {
+  getJiraQuickFilters?: () => Promise<JiraQuickFilterState>
+  setJiraQuickFilters?: (state: JiraQuickFilterState) => Promise<JiraQuickFilterState>
+  getJiraSavedFilters?: () => Promise<JiraSavedFilterState>
+  mutateJiraSavedFilters?: (mutation: JiraSavedFilterMutation) => Promise<JiraSavedFilterState>
   get: () => Promise<PersistedUIState>
   set: (args: Partial<PersistedUIState>) => Promise<void>
   /** Like set, but REJECTS when the update did not reach the host (the web preload's set
@@ -169,6 +177,7 @@ export type UiCommandEventApi = {
       focus?: boolean
       presentation?: RuntimeTerminalPresentation
       surfaceOwner?: false
+      agentLaunchViewer?: AgentLaunchTabViewerRule
       tabId?: string
       leafId?: string
       splitFromLeafId?: string
@@ -231,8 +240,9 @@ export type UiCommandEventApi = {
       worktreeId: string
       filePath: string
       relativePath: string
-      runtimeEnvironmentId?: string
+      runtimeEnvironmentId?: string | null
       navigation?: RuntimeNavigationTarget
+      position?: RuntimeFileOpenPosition
     }) => void
   ) => () => void
   onOpenDiffFromMobile: (
@@ -241,7 +251,7 @@ export type UiCommandEventApi = {
       filePath: string
       relativePath: string
       staged: boolean
-      runtimeEnvironmentId?: string
+      runtimeEnvironmentId?: string | null
       navigation?: RuntimeNavigationTarget
     }) => void
   ) => () => void

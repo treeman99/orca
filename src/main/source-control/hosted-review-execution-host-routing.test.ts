@@ -11,7 +11,6 @@ import type { Repo } from '../../shared/repo-types'
  */
 
 const {
-  getSshGitProviderMock,
   gitExecFileAsyncMock,
   ghExecFileAsyncMock,
   glabExecFileAsyncMock,
@@ -28,7 +27,6 @@ const {
   probeAnyExactRefMock,
   assertRemoteUrlReadableMock
 } = vi.hoisted(() => ({
-  getSshGitProviderMock: vi.fn(),
   gitExecFileAsyncMock: vi.fn(),
   ghExecFileAsyncMock: vi.fn(),
   glabExecFileAsyncMock: vi.fn(),
@@ -44,11 +42,6 @@ const {
   resolveDefaultBaseRefViaExecMock: vi.fn(),
   probeAnyExactRefMock: vi.fn(),
   assertRemoteUrlReadableMock: vi.fn()
-}))
-
-vi.mock('../providers/ssh-git-dispatch', () => ({
-  getSshGitProvider: getSshGitProviderMock,
-  SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE: 'SSH git provider unavailable'
 }))
 
 vi.mock('../github/gh-utils', () => ({
@@ -116,6 +109,7 @@ import {
   hostedReviewSshConnectionId
 } from './hosted-review-execution-host'
 import { RuntimeHostedReviewCommands } from '../runtime/runtime-hosted-review-commands'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 
 const REPO_PATH = '/remote/workspace/repo'
 
@@ -180,7 +174,6 @@ beforeEach(() => {
   sshProviders.clear()
   sshProviders.set('ssh-a', makeSshProvider())
   sshProviders.set('ssh-b', makeSshProvider())
-  getSshGitProviderMock.mockImplementation((id: string) => sshProviders.get(id) ?? null)
 
   gitExecFileAsyncMock.mockImplementation(async (argv: string[]) => ({
     stdout: argv[0] === 'status' ? '' : 'feature\n',
@@ -252,7 +245,6 @@ describe('hosted-review lookups route on the resolved execution host', () => {
     await commands.getHostedReviewForBranch({ repoSelector: 'repo-1', branch: 'feature' })
 
     expect(getRepoSlugMock).toHaveBeenCalledWith(REPO_PATH, null)
-    expect(getSshGitProviderMock).not.toHaveBeenCalledWith('ssh-b')
   })
 
   it('keeps a runtime row with no nested target on this process (self-addressed stamp)', async () => {
@@ -297,43 +289,17 @@ describe('hosted-review lookups route on the resolved execution host', () => {
 })
 
 describe('hosted-review creation routes on the resolved execution host', () => {
-  it('runs the GitLab preflight and create on the executionHostId-only SSH host', async () => {
+  it('refuses GitLab preflight on an executionHostId-only SSH host without running git here', async () => {
     getProjectSlugMock.mockResolvedValue({ host: 'gitlab.com', path: 'acme/widgets' })
     const commands = makeCommands(makeRepo({ executionHostId: 'ssh:ssh-a' }))
 
-    const result = await commands.createHostedReview({
-      repoSelector: 'repo-1',
-      provider: 'gitlab',
-      ...CREATE_INPUT
-    })
+    await expect(
+      commands.createHostedReview({ repoSelector: 'repo-1', provider: 'gitlab', ...CREATE_INPUT })
+    ).rejects.toThrow(SshHostNotServedError)
 
-    expect(result.ok).toBe(true)
-    expect(sshTargetThatRanGit()).toBe('ssh-a')
+    expect(sshTargetThatRanGit()).toBeNull()
     expect(gitExecFileAsyncMock).not.toHaveBeenCalled()
-    expect(createGitLabMergeRequestMock).toHaveBeenCalledWith(
-      REPO_PATH,
-      expect.objectContaining({ provider: 'gitlab' }),
-      'ssh:ssh-a'
-    )
-  })
-
-  it('runs the GitHub preflight on the executionHostId host, not the connectionId one', async () => {
-    getRepoSlugMock.mockResolvedValue({ host: 'github.com', owner: 'a', repo: 'b' })
-    const commands = makeCommands(makeRepo({ connectionId: 'ssh-b', executionHostId: 'ssh:ssh-a' }))
-
-    const result = await commands.createHostedReview({
-      repoSelector: 'repo-1',
-      provider: 'github',
-      ...CREATE_INPUT
-    })
-
-    expect(result.ok).toBe(true)
-    expect(sshTargetThatRanGit()).toBe('ssh-a')
-    expect(createGitHubPullRequestMock).toHaveBeenCalledWith(
-      REPO_PATH,
-      expect.objectContaining({ provider: 'github' }),
-      'ssh:ssh-a'
-    )
+    expect(createGitLabMergeRequestMock).not.toHaveBeenCalled()
   })
 
   it('creates a review locally for a runtime row rather than dialing its nested target', async () => {
@@ -371,7 +337,7 @@ describe('hosted-review creation routes on the resolved execution host', () => {
     })
 
     expect(getRepoSlugMock).toHaveBeenCalledWith(REPO_PATH, 'ssh-a')
-    expect(sshTargetThatRanGit()).toBe('ssh-a')
+    expect(sshTargetThatRanGit()).toBeNull()
   })
 
   it('resolves the GitHub slug for a repo listing on the row it is asked about', async () => {

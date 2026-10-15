@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as LocalCommandResolver from './command-path-resolver'
-import type { ProcessSpec } from '../../shared/child-process/process-spec'
+import type { ProcessSpec } from '@orca/process-host/process-spec'
 
 const {
   handleMock,
@@ -9,7 +9,6 @@ const {
   runWslProcessMock,
   hydrateShellPathMock,
   mergePathSegmentsMock,
-  getActiveMultiplexerMock,
   resolveCliCommandsMock,
   isCommandOnLocalPathMock,
   listLocalCommandPathsMock,
@@ -22,7 +21,6 @@ const {
   runWslProcessMock: vi.fn(),
   hydrateShellPathMock: vi.fn(),
   mergePathSegmentsMock: vi.fn(),
-  getActiveMultiplexerMock: vi.fn(),
   resolveCliCommandsMock: vi.fn(),
   isCommandOnLocalPathMock: vi.fn(),
   listLocalCommandPathsMock: vi.fn(),
@@ -46,7 +44,7 @@ vi.mock('child_process', () => {
   }
 })
 
-vi.mock('../../shared/child-process/run-process', () => ({
+vi.mock('@orca/process-host', () => ({
   runProcess: async (spec: ProcessSpec) => ({
     ...(await execFileAsyncMock(spec.program, spec.args, {
       encoding: 'utf-8',
@@ -85,10 +83,6 @@ vi.mock('../pty/windows-environment-path', () => ({
   mergePersistedWindowsPath: mergePersistedWindowsPathMock
 }))
 
-vi.mock('./ssh', () => ({
-  getActiveMultiplexer: getActiveMultiplexerMock
-}))
-
 import { _resetPreflightCache, registerPreflightHandlers, runPreflightCheck } from './preflight'
 import { resetPreflightMocks, type HandlerMap } from './preflight-test-harness'
 
@@ -104,7 +98,6 @@ describe('preflight', () => {
         runWslProcessMock,
         hydrateShellPathMock,
         mergePathSegmentsMock,
-        getActiveMultiplexerMock,
         resolveCliCommandsMock,
         isCommandOnLocalPathMock,
         listLocalCommandPathsMock,

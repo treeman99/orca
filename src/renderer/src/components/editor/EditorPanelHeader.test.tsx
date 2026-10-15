@@ -112,23 +112,30 @@ describe('EditorPanelHeader', () => {
     expect(html).toContain('aria-label="Next change"')
   })
 
-  // The surface that would otherwise offer it — a non-diff Markdown file — is the one that has
-  // to stay clean, since this build removes artifact sharing entirely.
-  it('never offers artifact sharing, including on non-diff Markdown surfaces', () => {
+  // Fork: this build removes artifact sharing entirely, so no surface may offer it — including the
+  // non-diff document surface that upstream offers it on.
+  it('never offers artifact sharing, including on non-diff surfaces given a shareable document', () => {
     const createRequest = vi.fn()
 
     expect(
       renderHeader({
         isDiffSurface: false,
+        isMarkdown: false,
+        createArtifactRequest: createRequest
+      })
+    ).not.toContain('data-artifact-publish')
+    expect(
+      renderHeader({
+        isDiffSurface: false,
         isMarkdown: true,
-        createMarkdownArtifactRequest: createRequest
+        createArtifactRequest: createRequest
       })
     ).not.toContain('data-artifact-publish')
     expect(
       renderHeader({
         isDiffSurface: true,
         isMarkdown: true,
-        createMarkdownArtifactRequest: createRequest
+        createArtifactRequest: createRequest
       })
     ).not.toContain('data-artifact-publish')
   })

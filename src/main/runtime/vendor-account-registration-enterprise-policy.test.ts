@@ -19,38 +19,44 @@ vi.mock('../antigravity/native-account-host', () => ({
 
 import { OrcaRuntimeService } from './orca-runtime'
 import { eraseRpcMethods, isStreamingMethod } from './rpc/core'
+import { RuntimeAccountController } from './runtime-account-controller'
 
-// v1.4.163 opened `accounts.addClaudeFromConfigDir` / `accounts.addCodexFromHome` so the
-// `orca account add` CLI can register a vendor account on a headless host. That lane never
-// passes the ipcMain handlers `assertVendorAccountRegistrationAllowed()` used to sit on, so
-// the gate lives on the runtime methods both lanes share.
+// v1.4.163 opened `orca account add` so the CLI can register a vendor account on a headless
+// host, and v1.4.226 replaced its Claude half with a sign-in RPC (`claude auth login`). Those
+// lanes never pass the ipcMain handlers, so the gate lives on the controller methods they share.
+const REGISTRATION_CALLS = [
+  ['beginClaudeSignIn', (accounts: RuntimeAccountController) => accounts.beginClaudeSignIn({})],
+  [
+    'finishClaudeSignIn',
+    (accounts: RuntimeAccountController) => accounts.finishClaudeSignIn({ accountId: 'account-1' })
+  ],
+  [
+    'addCodexFromHome',
+    (accounts: RuntimeAccountController) => accounts.addCodexFromHome('/tmp/codex-login')
+  ]
+] as const
+
 describe('vendor account registration under the enterprise policy', () => {
   beforeEach(() => {
     getEnterprisePolicyMock.mockReset().mockReturnValue(makeEnterprisePolicy())
   })
 
-  it.each([
-    ['addClaudeAccountFromConfigDir', '/tmp/claude-login'],
-    ['addCodexAccountFromHome', '/tmp/codex-login']
-  ] as const)('refuses %s when the policy disables vendor accounts', (name, source) => {
+  it.each(REGISTRATION_CALLS)('refuses %s when the policy disables vendor accounts', (_, call) => {
     getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
-    const runtime = new OrcaRuntimeService()
 
-    expect(() => runtime[name](source)).toThrow(VENDOR_ACCOUNTS_DISABLED_BY_POLICY)
+    expect(() => call(new RuntimeAccountController())).toThrow(VENDOR_ACCOUNTS_DISABLED_BY_POLICY)
   })
 
-  it.each([
-    ['addClaudeAccountFromConfigDir', '/tmp/claude-login'],
-    ['addCodexAccountFromHome', '/tmp/codex-login']
-  ] as const)('lets an explicit opt-back-in reach %s', (name, source) => {
+  it.each(REGISTRATION_CALLS)('lets an explicit opt-back-in reach %s', (_, call) => {
     getEnterprisePolicyMock.mockReturnValue(
       makeLockdownPolicy({ disableVendorProviderAccounts: false })
     )
-    const runtime = new OrcaRuntimeService()
 
     // Why not a success assertion: account services are not wired up in this harness, so
-    // getting past the gate surfaces as requireAccountServices() failing instead.
-    expect(() => runtime[name](source)).toThrow(/Account services are not configured/)
+    // getting past the gate surfaces as requireServices() failing instead.
+    expect(() => call(new RuntimeAccountController())).toThrow(
+      /Account services are not configured/
+    )
   })
 })
 

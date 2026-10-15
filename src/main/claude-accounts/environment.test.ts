@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { applyClaudeEnvPatch, hasClaudeAuthEnvConflict } from './environment'
+import { applyClaudeEnvPatch } from './environment'
 import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
 
 const getEnterprisePolicyMock = vi.fn(() => makeEnterprisePolicy())
@@ -60,15 +60,5 @@ describe('applyClaudeEnvPatch', () => {
     const env = applyClaudeEnvPatch(bedrockEnv(), {}, { stripAuthEnv: true })
 
     expect(env.AWS_BEARER_TOKEN_BEDROCK).toBeUndefined()
-  })
-})
-
-describe('hasClaudeAuthEnvConflict', () => {
-  it('reports the inherited Bedrock bearer token as a conflict', () => {
-    expect(hasClaudeAuthEnvConflict({ AWS_BEARER_TOKEN_BEDROCK: 'x' })).toBe(true)
-  })
-
-  it('ignores non-auth AWS variables', () => {
-    expect(hasClaudeAuthEnvConflict({ AWS_PROFILE: 'sso', AWS_REGION: 'us-east-1' })).toBe(false)
   })
 })

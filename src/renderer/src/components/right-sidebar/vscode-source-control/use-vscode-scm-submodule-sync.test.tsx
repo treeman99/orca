@@ -17,7 +17,7 @@ const pullMock = vi.hoisted(() => vi.fn())
 const pushMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/connection-context', () => ({ getConnectionId: () => null }))
-vi.mock('@/runtime/runtime-git-client', () => ({
+vi.mock('@/runtime/runtime-git-submodule-client', () => ({
   pullRuntimeGitSubmodule: async (...args: unknown[]) => {
     calls.order.push('pull')
     return pullMock(...args)
@@ -40,7 +40,7 @@ function scmContext(): VscodeScmContext {
   return {
     worktreeId: 'worktree-1',
     worktreePath: '/work/orca',
-    repoSettings: null,
+    repoTarget: { kind: 'local' },
     refresh: vi.fn()
   } as unknown as VscodeScmContext
 }

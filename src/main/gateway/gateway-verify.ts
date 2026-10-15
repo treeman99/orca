@@ -4,7 +4,7 @@
 // to read and no environment variable to inspect. Its output format is not documented
 // yet, which is why every judgement lives in the defensive parser rather than here.
 
-import { runProcess } from '../../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 import { parseGatewayVerifyOutput, type GatewayVerification } from '../../shared/gateway-cli-output'
 import { buildGatewayCommandEnv, resolveGatewayCommand } from './gateway-cli-command'
 

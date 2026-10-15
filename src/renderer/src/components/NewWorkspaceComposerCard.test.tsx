@@ -20,6 +20,8 @@ const apiMocks = vi.hoisted(() => ({
   sshConnect: vi.fn()
 }))
 
+// Fork: this build removes SSH hosts; these upstream cases test the dormant host code.
+vi.mock('../../../shared/ssh-remote-hosts-removal', () => ({ SSH_REMOTE_HOSTS_REMOVED: false }))
 vi.mock('@/store', () => ({
   useAppStore: Object.assign(
     (selector: (state: unknown) => unknown) =>
@@ -899,7 +901,7 @@ describe('NewWorkspaceComposerCard folder task source mode', () => {
     expect(builderItem).toBeTruthy()
     act(() => builderItem?.click())
 
-    expect(hostChanges).toEqual(['setup-builder'])
+    expect(hostChanges).toEqual(['["setup-builder","ssh:builder"]'])
     expect(recipeChanges).toEqual([null])
   })
 })

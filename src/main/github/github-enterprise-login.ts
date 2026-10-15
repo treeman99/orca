@@ -6,7 +6,7 @@
 // polling, and let gh open the browser itself (its cross-platform default). The
 // credential lands in gh's own keyring — the app stores nothing here.
 
-import { runProcess } from '../../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 import type * as NodePty from 'node-pty'
 import type {
   GithubEnterpriseLoginProgress,

@@ -32,22 +32,24 @@ function isNotFound(result: { error: string; notFound?: true } | object): boolea
 export async function readOpenCodeNativeChatTranscriptFullWithLegacyFallback(
   sessionId: string,
   deps: OpenCodeTranscriptDeps = {},
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  agent?: 'zcode'
 ): Promise<ReadTranscriptResult> {
-  const result = await readOpenCodeNativeChatTranscriptFull(sessionId, deps, signal)
-  if (!isNotFound(result) || !hasLegacyOpenCodeSession(sessionId)) {
+  const result = await readOpenCodeNativeChatTranscriptFull(sessionId, deps, signal, agent)
+  // Why opencode only: the pre-SQLite tree is opencode's own; ZCode never wrote one.
+  if (agent || !isNotFound(result) || !hasLegacyOpenCodeSession(sessionId)) {
     return result
   }
   return readOpenCodeTranscript({ sessionId, ...(signal ? { signal } : {}) })
 }
 
 export async function readOpenCodeNativeChatTranscriptTailWithLegacyFallback(
-  args: { sessionId: string; limit: number; beforeOffset?: number },
+  args: { sessionId: string; limit: number; beforeOffset?: number; agent?: 'zcode' },
   deps: OpenCodeTranscriptDeps = {},
   signal?: AbortSignal
 ): Promise<OpenCodeTailResult> {
   const result = await readOpenCodeNativeChatTranscriptTail(args, deps, signal)
-  if (!isNotFound(result) || !hasLegacyOpenCodeSession(args.sessionId)) {
+  if (args.agent || !isNotFound(result) || !hasLegacyOpenCodeSession(args.sessionId)) {
     return result
   }
   const legacy = await readOpenCodeTranscript({
@@ -62,10 +64,11 @@ export async function readOpenCodeNativeChatTranscriptTailWithLegacyFallback(
 export function subscribeOpenCodeNativeChatTranscriptWithLegacyFallback(
   args: SubscribeNativeChatTranscriptArgs,
   setupSignal?: AbortSignal,
-  deps: OpenCodeTranscriptDeps = {}
+  deps: OpenCodeTranscriptDeps = {},
+  agent?: 'zcode'
 ): NativeChatTranscriptSubscription {
-  if (!hasLegacyOpenCodeSession(args.sessionId)) {
-    return subscribeOpenCodeNativeChatTranscript(args, setupSignal, deps)
+  if (agent || !hasLegacyOpenCodeSession(args.sessionId)) {
+    return subscribeOpenCodeNativeChatTranscript(args, setupSignal, deps, agent)
   }
   let inner: NativeChatTranscriptSubscription | null = null
   let closed = false

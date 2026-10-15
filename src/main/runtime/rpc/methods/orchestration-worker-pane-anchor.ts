@@ -3,6 +3,7 @@
 // Lifted out of orchestration-workers.ts because that file sits at the max-lines cap and this
 // decision needs a comparison the inline ternary got wrong for a release.
 
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
 import { runtimeWorktreeIdsEqual } from '../../runtime-worktree-path-identity'
 import type { WorkerEffect } from './orchestration/worker/worker-topology'
@@ -46,10 +47,23 @@ export type WorkerStartCoordinator = {
   coordinatorWorktreeId: string
 }
 
+// Why a context and not a prop: local-worker-start.ts sits exactly at upstream's max-lines cap, so
+// the fork's one forwarding line no longer fits there. worker-start-pane-anchor.ts opens the scope
+// around upstream's startLocalWorker and placement reads it here.
+const workerStartCoordinatorScope = new AsyncLocalStorage<WorkerStartCoordinator>()
+
+export function runWithWorkerStartCoordinator<T>(
+  coordinator: WorkerStartCoordinator,
+  start: () => Promise<T>
+): Promise<T> {
+  return workerStartCoordinatorScope.run(coordinator, start)
+}
+
 export function workerPaneAnchorForStart(
-  start: WorkerStartCoordinator | undefined,
+  explicit: WorkerStartCoordinator | undefined,
   worker: { id: string }
 ): WorkerPaneAnchor | Record<string, never> {
+  const start = explicit ?? workerStartCoordinatorScope.getStore()
   // Why optional: upstream placement tests build the args without the fork's coordinator prop.
   if (!start) {
     return {}

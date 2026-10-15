@@ -7,6 +7,7 @@ import { app, ipcMain } from 'electron'
 import { listEnvironments } from '../../shared/runtime-environment-store'
 import { isRemoteOrcaServerDisabled } from '../enterprise/remote-orca-server-guard'
 import type { Store } from '../persistence'
+import { recordRemoteLayoutFrame } from '../remote-layout-snapshot'
 import {
   isRuntimeEnvironmentManuallyDisconnected,
   registerRuntimeEnvironmentConnectivityHandlers,
@@ -31,7 +32,9 @@ import { registerRuntimeSshAccessHandlers } from './runtime-ssh-access-handlers'
 import { retirePairedRuntimeBrowserClientHostEnvironment } from '../browser/paired-runtime-browser-client-host-runtime'
 import { registerRuntimeEnvironmentBrowserClientHostHandler } from './runtime-environment-browser-client-host-handler'
 import { advanceRuntimeEnvironmentCapabilityIncarnation } from './runtime-environment-capability-evidence'
+import { retireMobileDesktopRelayEnvironment } from './runtime-environment-mobile-relay-hosts'
 import { watchRuntimeEnvironmentPreference } from './runtime-environment-preference'
+import { isGatedOffWslHost } from '../wsl/wsl-host-gate'
 
 const remoteRuntimeSubscriptions = new Map<string, RetainedRemoteRuntimeSubscription>()
 const getUserDataPath = (): string => app.getPath('userData')
@@ -73,6 +76,7 @@ export function invalidateRuntimeEnvironmentTransport(environmentId: string): Pr
   advanceRuntimeEnvironmentTransportGeneration(environmentId)
   closeRemoteRuntimeRequestConnection(environmentId)
   closeSubscriptionsForEnvironment(environmentId)
+  retireMobileDesktopRelayEnvironment(environmentId)
   reactivateRuntimeEnvironmentStatus(environmentId)
   return retirePairedRuntimeBrowserClientHostEnvironment(
     environmentId,
@@ -93,7 +97,9 @@ function reactivateRuntimeEnvironmentStatus(environmentId: string): void {
   const userDataPath = getUserDataPath()
   if (
     isRuntimeEnvironmentManuallyDisconnected(environmentId) ||
-    !listEnvironments(userDataPath).some((environment) => environment.id === environmentId)
+    !listEnvironments(userDataPath).some(
+      (environment) => environment.id === environmentId && !isGatedOffWslHost(environment)
+    )
   ) {
     return
   }
@@ -135,7 +141,10 @@ export function registerRuntimeEnvironmentHandlers(store: Store): void {
     ? []
     : listEnvironments(getUserDataPath())
   for (const environment of bootProbeEnvironments) {
-    if (!isRuntimeEnvironmentManuallyDisconnected(environment.id)) {
+    if (
+      !isRuntimeEnvironmentManuallyDisconnected(environment.id) &&
+      !isGatedOffWslHost(environment)
+    ) {
       getRuntimeEnvironmentStatusOwner(getUserDataPath(), environment.id).activate()
     }
   }
@@ -152,11 +161,13 @@ export function registerRuntimeEnvironmentHandlers(store: Store): void {
     invalidateTransport: invalidateRuntimeEnvironmentTransport,
     clearHostServerStatus: clearPublishedManagedServer,
     clearHostServerNotes: clearManagedServerNotes,
-    forgetHostSession: (hostId) => store.removeWorkspaceSessionHost(hostId)
+    store
   })
   registerRuntimeEnvironmentSubscriptionHandlers({
     getUserDataPath,
     remoteRuntimeSubscriptions,
-    pendingSubscriptions
+    pendingSubscriptions,
+    recordLayoutFrame: (environmentId, method, response) =>
+      recordRemoteLayoutFrame(store, environmentId, method, response)
   })
 }

@@ -549,7 +549,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.224`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.226`** 이 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -828,6 +828,34 @@ upstream #22933 이 `openAgentTabsInChatByDefault`(새 탭을 채팅으로 열�
 `.gitignore` 허용목록·`CLAUDE.md`·이 README 의 링크를 정리했습니다. 지워진 upstream 문서는
 `git show v1.4.223:docs/reference/<이름>.md` 로 읽을 수 있고, `AGENTS.md` 도 그 링크를 뺀 판으로 들어왔습니다.
 
+#### SSH 호스트를 빌드에서 뺐다 — upstream 이 relay 를 지웠다 (v1.4.226)
+
+upstream 이 SSH relay 서버·클라이언트를 지웠습니다(#27214·#27215, `src/relay/` 는 WSL 게스트 전용
+`src/wsl-guest/` 로 이동). 이제 SSH 호스트는 **원격에 관리형 Orca 서버(orcad)를 설치해야만** 돕니다.
+이 빌드는 그 템플릿을 싣지 않고(`build:orcad-template` 없음), 첫 배포는 원격용 Node 를 nodejs.org 에서
+받으며, 원격 서버는 이 데스크톱의 정책 파일을 읽지 않습니다 — **정책을 지키면서 SSH 가 동작하는
+구성이 없어** 2026-10-15 에 SSH 호스트 기능 전체를 막기로 했습니다.
+
+- **구현은 정책 스위치가 아니라 컴파일 상수입니다** — `src/shared/ssh-remote-hosts-removal.ts` 의
+  `SSH_REMOTE_HOSTS_REMOVED`(타입을 `boolean` 으로 적어 둔 덕에 가려진 upstream 본문도 계속 컴파일됩니다).
+  main 의 초크포인트가 거부합니다: 모든 연결이 지나는 `connectTarget`(`ssh-connect-flow.ts`)과
+  추가·편집·`~/.ssh/config` 가져오기(`ssh-target-crud-handlers.ts`). 렌더러는 설정의 SSH 섹션과
+  "SSH 호스트 추가" 진입점(`AddRepoHostSelectorSlot.tsx`, `NewWorkspaceComposerProjectSection.tsx`)을
+  감춥니다. **목록과 삭제는 남겼습니다** — 이전 빌드에서 저장한 호스트의 프로젝트를 지울 수 있게, 연결을
+  누르면 "이 빌드는 SSH 호스트를 지원하지 않는다"는 메시지가 뜹니다.
+- **WSL 배포판 호스트**(배포판 안에 orcad 를 띄워 붙는 레인)는 `disableRemoteOrcaServer` 에 묶었습니다
+  (`wsl-host-gate.ts`). `deployOrcad` 진입에도 같은 거부를 넣어, SSH 를 되살리는 빌드에서도 정책 아래
+  원격 배포는 일어나지 않습니다.
+
+**다음 동기화에서 손으로 볼 것.** 원장 기능 `ssh-remote-hosts-removed` 가 알려진 진입점을 잡지만,
+upstream 이 **SSH 호스트를 추가하는 새 진입점**(새 `onAddSshHost` 호출지점, 새 `ssh:*` 쓰기 IPC/RPC)을
+만들면 충돌 없이 들어옵니다. `git diff <옛태그> <새태그> -- src | grep -n "onAddSshHost\|'ssh:"` 로 새로 생긴
+줄을 확인하고 같은 상수로 막으십시오.
+
+**되살리려면** 상수를 `false` 로 바꾸는 것만으로는 부족합니다 — orcad 템플릿을 싣고, orcad 엔트리가
+설치본 번들 정책을 읽고 허용목록 fetch 가드를 갖게 하고(감사 #41), `disableRemoteOrcaServer` 의 범위
+(관리형 SSH orcad 를 면제할지)를 다시 정해야 합니다(감사 #39).
+
 #### 벤더가 원격으로 바꾸는 설정 — 에이전트 상태 규칙 다운로드 (v1.4.221에서 제거)
 
 v1.4.221 이 `src/main/runtime/agent-state-rules/agent-state-rules-live-update.ts` 를 들여왔습니다.
@@ -938,6 +966,17 @@ forward-ref 타입 하나로 캐스팅하십시오(`orca-runtime-agent-prompt-re
 ④ **배럴 재수출로 인자를 흡수**(`ownerSurfacingWithPaneGroup as ownerSurfacing`: 포크 전개 한 줄을
 upstream 호출 한 줄에 접어 넣는다). 넷 다 **원장에 앵커를 새로 등재해야 합니다** — 호출부가
 upstream 과 같아진 만큼 사라져도 티가 안 나기 때문입니다.
+
+**upstream 이 파일을 상한에 정확히 맞춰 두면 포크 한 줄도 들어갈 자리가 없습니다(v1.4.226).**
+`local-worker-start.ts` 가 그랬습니다 — 워커 패널 앵커를 넘기는 포크 한 줄이 상한을 1줄 넘겼고, 인라인
+spread 는 `no-useless-spread` 가, 도우미 함수는 그 임포트 한 줄이 다시 막았습니다. 해법은 **값을 prop 이
+아니라 비동기 컨텍스트로 운반**하는 것이었습니다: 호출자(`workers.ts`)가 별칭 임포트로 upstream 함수를
+포크 래퍼(`worker-start-pane-anchor.ts`)로 바꾸고, 래퍼가 `AsyncLocalStorage` 범위 안에서 upstream 함수를
+부르며, 소비 지점(`workerPaneAnchorForStart`)이 그 범위를 읽습니다. 두 upstream 파일의 호출부가 모두 바이트
+동일해집니다. 대가는 **값의 흐름이 코드에서 안 보인다**는 것이라, 끝에서 끝까지 도는 테스트
+(`composed-workers.test.ts`)가 뮤테이션으로 잡는지 반드시 확인하십시오. 테스트 파일이 상한에 닿으면
+포크 시드를 포크 모듈로 빼거나(`packaged-enterprise-resources-test-fixture.mjs`) 포크 케이스를 포크 소유
+테스트 파일로 옮깁니다.
 
 **`tests/e2e/.cross-version-checkouts/` 는 메인 워크트리에서만 테스트를 깨뜨립니다.** gitignore 된
 구버전 체크아웃이라 새 워크트리에는 없습니다. v1.4.206 의 신규 `e2e-worker-env-isolation.unit.test.ts`

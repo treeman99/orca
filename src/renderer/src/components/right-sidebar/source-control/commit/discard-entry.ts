@@ -1,14 +1,14 @@
 import { getConnectionId } from '@/lib/connection-context'
 import {
   discardRuntimeGitSubmodulePath,
-  restoreRuntimeGitSubmodulePointer,
-  type RuntimeGitContext
-} from '@/runtime/runtime-git-client'
+  restoreRuntimeGitSubmodulePointer
+} from '@/runtime/runtime-git-submodule-client'
+import type { RuntimeClientTarget } from '../../../../../../shared/runtime-client-target'
+import { requireGitOwnerTarget } from '../../worktree-git-owner-target'
 import {
   notifyEditorExternalFileChange,
   requestEditorSaveQuiesce
 } from '@/components/editor/editor-autosave'
-import { useAppStore } from '@/store'
 import type { GitStatusEntry } from '../../../../../../shared/git-status-types'
 import { isSubmoduleGitlinkRow } from '../../source-control-submodule-gitlink-row'
 import { resolveSubmoduleDiscardTarget } from '../../source-control-submodule-discard-target'
@@ -24,14 +24,14 @@ import { resolveSubmoduleDiscardTarget } from '../../source-control-submodule-di
  */
 export async function discardSourceControlEntry({
   entry,
-  activeRepoSettings,
+  activeRepoTarget,
   activeWorktreeId,
   worktreePath,
   discardSingle,
   refreshSubmodule
 }: {
   entry: GitStatusEntry
-  activeRepoSettings: RuntimeGitContext['settings']
+  activeRepoTarget: RuntimeClientTarget | null
   activeWorktreeId: string | null
   worktreePath: string | null
   discardSingle: (path: string) => Promise<void>
@@ -45,8 +45,9 @@ export async function discardSourceControlEntry({
     await discardSingle(entry.path)
     return
   }
+  // Why the owner's id: the editor holds the file under the host that owns the repo, not the focused one.
   const runtimeEnvironmentId =
-    useAppStore.getState().settings?.activeRuntimeEnvironmentId?.trim() || null
+    activeRepoTarget?.kind === 'environment' ? activeRepoTarget.environmentId : null
   await requestEditorSaveQuiesce({
     worktreeId: activeWorktreeId,
     worktreePath,
@@ -55,7 +56,7 @@ export async function discardSourceControlEntry({
   })
   const context = {
     // Why: route by the repo OWNER host, not the focused runtime.
-    settings: activeRepoSettings,
+    target: requireGitOwnerTarget(activeRepoTarget),
     worktreeId: activeWorktreeId,
     worktreePath,
     connectionId: getConnectionId(activeWorktreeId) ?? undefined

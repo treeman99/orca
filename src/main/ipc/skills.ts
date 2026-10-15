@@ -18,7 +18,6 @@ import type {
 import { inventorySkillFreshness } from '../skills/skill-freshness-inventory'
 import { SkillUpdateRunner } from '../skills/skill-update-run'
 import { skillUpdateFailedNames } from '../skills/skill-update-outcome'
-import { readGloballyUpdatableSkillLocks } from '../skills/skill-update-registration'
 import {
   clearSkillDiscoveryCaches,
   discoverSkillsOnTarget,
@@ -62,10 +61,7 @@ export function registerSkillsHandlers(store: Store, runtime?: OrcaRuntimeServic
   const scanInventory = (): Promise<SkillFreshnessInventory> =>
     // Why: the update command targets this machine's global homes. WSL and SSH
     // inventories stay out until their installer rail has an equivalent proof.
-    inventorySkillFreshness({
-      currentAppVersion: app.getVersion(),
-      repos: store.getRepos()
-    })
+    inventorySkillFreshness({ repos: store.getRepos() })
 
   const runner = new SkillUpdateRunner({
     resolveCliInvocation: resolveSkillUpdateCliInvocation,
@@ -75,13 +71,7 @@ export function registerSkillsHandlers(store: Store, runtime?: OrcaRuntimeServic
       // Why: the run just rewrote skill packages on this host. Clients that never
       // send `refresh` (older builds) would otherwise read a pre-run scan.
       clearSkillDiscoveryCaches()
-      // The lock read is fresh on purpose: the run just rewrote it, and the
-      // verdict accepts unrecognized content only when disk matches that record.
-      const [inventory, globalSkillLocks] = await Promise.all([
-        scanInventory(),
-        readGloballyUpdatableSkillLocks()
-      ])
-      return skillUpdateFailedNames(names, inventory.installations, globalSkillLocks)
+      return skillUpdateFailedNames(names, (await scanInventory()).installations)
     },
     onState: (run: SkillUpdateRun) => {
       for (const window of BrowserWindow.getAllWindows()) {

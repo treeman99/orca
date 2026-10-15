@@ -2,16 +2,17 @@ import { useCallback, useMemo, useState } from 'react'
 import { useAppStore } from '@/store'
 import { useActiveWorktree, useRepoById } from '@/store/selectors'
 import { getConnectionId } from '@/lib/connection-context'
-import { getRepoOwnerRoutedSettings } from '@/lib/repo-runtime-owner'
+import { useWorktreeGitOwnerTarget } from '../worktree-git-owner-target'
+import type { RuntimeClientTarget } from '../../../../../shared/runtime-client-target'
 import {
   bulkStageRuntimeGitPaths,
   bulkUnstageRuntimeGitPaths,
-  commitRuntimeGit,
   discardRuntimeGitPath,
   stageRuntimeGitPath,
-  unstageRuntimeGitPath,
-  type RuntimeGitContext
-} from '@/runtime/runtime-git-client'
+  unstageRuntimeGitPath
+} from '@/runtime/runtime-git-working-tree-client'
+import { commitRuntimeGit } from '@/runtime/runtime-git-sync-client'
+import type { RuntimeGitContext } from '@/runtime/runtime-git-client-context'
 import { useVscodeScmDiffOpen } from './use-vscode-scm-diff-open'
 import { refreshGitStatusForWorktree } from '../git-status-refresh'
 import { isFolderRepo } from '../../../../../shared/repo-kind'
@@ -29,8 +30,8 @@ export type VscodeScmContext = {
   ready: boolean
   worktreeId: string | null
   worktreePath: string | null
-  /** Repo OWNER-routed settings, so submodule status reads reach the right host. */
-  repoSettings: RuntimeGitContext['settings']
+  /** The repo OWNER's transport, so submodule status reads reach the right host. */
+  repoTarget: RuntimeClientTarget | null
   entries: GitStatusEntry[]
   branch: string | null
   upstreamStatus: GitUpstreamStatus | null
@@ -70,7 +71,6 @@ export function useVscodeScmContext(): VscodeScmContext {
   const activeWorktreeId = useAppStore((s) => s.activeWorktreeId)
   const activeWorktree = useActiveWorktree()
   const activeRepo = useRepoById(activeWorktree?.repoId ?? null)
-  const settings = useAppStore((s) => s.settings)
   const setGitStatus = useAppStore((s) => s.setGitStatus)
   const setUpstreamStatus = useAppStore((s) => s.setUpstreamStatus)
   const fetchUpstreamStatus = useAppStore((s) => s.fetchUpstreamStatus)
@@ -95,39 +95,26 @@ export function useVscodeScmContext(): VscodeScmContext {
 
   const worktreePath = activeWorktree?.path ?? null
   const isFolder = activeRepo ? isFolderRepo(activeRepo) : false
-  const repoSettings = useMemo(
-    () =>
-      getRepoOwnerRoutedSettings(
-        settings,
-        activeRepo
-          ? {
-              id: activeRepo.id,
-              connectionId: activeRepo.connectionId ?? null,
-              executionHostId: activeRepo.executionHostId ?? null
-            }
-          : null
-      ),
-    [activeRepo, settings]
-  )
+  const repoTarget = useWorktreeGitOwnerTarget(activeWorktreeId)
 
   const gitContext = useMemo<RuntimeGitContext | null>(() => {
-    if (!activeWorktreeId || !worktreePath || isFolder) {
+    if (!activeWorktreeId || !worktreePath || isFolder || !repoTarget) {
       return null
     }
     return {
-      settings: repoSettings,
+      target: repoTarget,
       worktreeId: activeWorktreeId,
       worktreePath,
       connectionId: getConnectionId(activeWorktreeId) ?? undefined
     }
-  }, [activeWorktreeId, isFolder, repoSettings, worktreePath])
+  }, [activeWorktreeId, isFolder, repoTarget, worktreePath])
 
   const refresh = useCallback(async (): Promise<void> => {
     if (!gitContext || !activeWorktreeId || !worktreePath) {
       return
     }
     await refreshGitStatusForWorktree({
-      settings: repoSettings,
+      target: gitContext.target,
       worktreeId: activeWorktreeId,
       worktreePath,
       connectionId: gitContext.connectionId,
@@ -139,7 +126,6 @@ export function useVscodeScmContext(): VscodeScmContext {
     activeWorktreeId,
     fetchUpstreamStatus,
     gitContext,
-    repoSettings,
     setGitStatus,
     setUpstreamStatus,
     updateWorktreeGitIdentity,
@@ -243,10 +229,10 @@ export function useVscodeScmContext(): VscodeScmContext {
     }
     await run('Failed to publish branch', () =>
       pushBranch(activeWorktreeId, worktreePath, true, gitContext.connectionId, undefined, {
-        runtimeTargetSettings: repoSettings
+        runtimeTarget: repoTarget
       })
     )
-  }, [activeWorktreeId, gitContext, pushBranch, repoSettings, run, worktreePath])
+  }, [activeWorktreeId, gitContext, pushBranch, repoTarget, run, worktreePath])
 
   const sync = useCallback(async (): Promise<void> => {
     if (!gitContext || !activeWorktreeId || !worktreePath) {
@@ -254,10 +240,10 @@ export function useVscodeScmContext(): VscodeScmContext {
     }
     await run('Failed to sync branch', () =>
       syncBranch(activeWorktreeId, worktreePath, gitContext.connectionId, undefined, {
-        runtimeTargetSettings: repoSettings
+        runtimeTarget: repoTarget
       })
     )
-  }, [activeWorktreeId, gitContext, repoSettings, run, syncBranch, worktreePath])
+  }, [activeWorktreeId, gitContext, repoTarget, run, syncBranch, worktreePath])
 
   const diffOpeners = useVscodeScmDiffOpen(activeWorktreeId, worktreePath)
 
@@ -265,7 +251,7 @@ export function useVscodeScmContext(): VscodeScmContext {
     ready: gitContext !== null,
     worktreeId: activeWorktreeId,
     worktreePath,
-    repoSettings,
+    repoTarget,
     entries,
     branch: shortBranchName(activeWorktree?.branch),
     upstreamStatus,

@@ -6,9 +6,9 @@ import {
   GitSubmoduleFilePath,
   GitSubmodulePaths,
   GitSubmodulePointer,
-  GitSubmodulePush,
-  WorktreeSelector
-} from './git-params'
+  GitSubmodulePush
+} from '../../../../shared/rpc-contract/git-submodule-params'
+import { WorktreeSelector } from '../../../../shared/rpc-contract/git-params'
 
 export const GIT_SUBMODULE_METHODS = [
   defineMethod({

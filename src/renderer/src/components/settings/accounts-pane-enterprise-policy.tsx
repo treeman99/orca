@@ -2,7 +2,12 @@ import { Children, isValidElement, type ComponentProps, type ReactNode } from 'r
 import { isAgentAllowedByPolicy } from '../../../../shared/corporate-agent-access'
 import type { EnterprisePolicyView } from '../../../../shared/enterprise-policy-view'
 import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
-import { ManagedDataAccountsSection } from './ManagedDataAccountsSection'
+import { useAppStore } from '@/store'
+import { ManagedDataAccountsSection as UpstreamManagedDataAccountsSection } from './ManagedDataAccountsSection'
+import { SettingsSectionStack as UpstreamSettingsSectionStack } from './SettingsSectionStack'
+import { GatewaySection } from './GatewaySection'
+import { getGatewaySearchEntries } from './gateway-search'
+import { matchesSettingsSearch } from './settings-search'
 
 type VendorAccountPolicy = Pick<
   EnterprisePolicyView,
@@ -68,10 +73,31 @@ function accountSectionAgents(section: ReactNode): readonly string[] | null {
 
 /** Upstream's managed-data section, rendered only for a provider the policy allows. */
 export function PolicyGatedManagedDataAccountsSection(
-  props: ComponentProps<typeof ManagedDataAccountsSection>
+  props: ComponentProps<typeof UpstreamManagedDataAccountsSection>
 ): React.JSX.Element | null {
   const policy = useEnterprisePolicyView()
   return isVendorAccountAllowed(props.provider, policy) ? (
-    <ManagedDataAccountsSection {...props} />
+    <UpstreamManagedDataAccountsSection {...props} />
   ) : null
+}
+
+/** The Accounts pane's section stack: adds the corporate gateway login, drops forbidden vendors. */
+export function PolicyGatedAccountSectionStack(
+  props: ComponentProps<typeof UpstreamSettingsSectionStack>
+): React.JSX.Element {
+  const policy = useEnterprisePolicyView()
+  const searchQuery = useAppStore((s) => s.settingsSearchQuery)
+  const sections = [
+    ...props.sections,
+    matchesSettingsSearch(searchQuery, getGatewaySearchEntries()) ? (
+      <GatewaySection key="gateway" />
+    ) : null
+  ].filter((section) => isAccountSectionAllowedByPolicy(section, policy))
+  return <UpstreamSettingsSectionStack {...props} sections={sections} />
+}
+
+// Upstream's names, so AccountsPane swaps one import and keeps every call site byte-identical.
+export {
+  PolicyGatedManagedDataAccountsSection as ManagedDataAccountsSection,
+  PolicyGatedAccountSectionStack as SettingsSectionStack
 }

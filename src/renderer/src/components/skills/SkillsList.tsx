@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
+import type { ExecutionHostId } from '../../../../shared/execution-host'
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import { SkillRow } from './SkillRow'
 import { SkillDetailDialog } from './SkillDetailDialog'
@@ -18,14 +20,26 @@ function focusEdgeOption(listbox: HTMLElement | null, edge: 'first' | 'last'): v
 
 export function SkillsList({
   skills,
+  ownerHostId,
   agentByRootPath
 }: {
   skills: readonly DiscoveredSkill[]
+  /** Host the listed skill files live on. */
+  ownerHostId: ExecutionHostId
   agentByRootPath: ReadonlyMap<string, string>
 }): React.JSX.Element {
   const listRef = useRef<HTMLDivElement>(null)
   const [detailSkill, setDetailSkill] = useState<DiscoveredSkill | null>(null)
   const [focusedId, setFocusedId] = useState<string | null>(null)
+
+  const revealSkill = async (skill: DiscoveredSkill): Promise<void> => {
+    const result = await window.api.shell.openInFileManager(skill.skillFilePath, ownerHostId)
+    if (!result.ok) {
+      toast.error(
+        translate('auto.components.skills.SkillsPage.995fde8337', 'Could not reveal skill file')
+      )
+    }
+  }
   const focusTargetId = skills.some((skill) => skill.id === focusedId) ? focusedId : skills[0]?.id
 
   const onListKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
@@ -55,6 +69,11 @@ export function SkillsList({
             setDetailSkill(null)
           }
         }}
+        onReveal={() => {
+          if (detailSkill) {
+            void revealSkill(detailSkill)
+          }
+        }}
       />
       <div
         ref={listRef}
@@ -69,6 +88,7 @@ export function SkillsList({
             focusable={focusTargetId === skill.id}
             onFocus={() => setFocusedId(skill.id)}
             onOpenDetail={() => setDetailSkill(skill)}
+            onReveal={() => void revealSkill(skill)}
             onKeyDown={onListKeyDown}
           />
         ))}

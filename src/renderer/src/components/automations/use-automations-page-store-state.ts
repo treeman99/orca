@@ -9,6 +9,7 @@ import { useEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import { useAppStore } from '@/store'
 import { useRepoMap, useWorktreeMap } from '@/store/selectors'
 import {
+  automationFolderWorktreeForRow,
   automationRepoForRow,
   automationWorktreeForRow,
   type AutomationListRow
@@ -25,6 +26,7 @@ export function useAutomationsPageStoreState() {
   const repos = useAppStore((s) => s.repos)
   const projectHostSetups = useAppStore((s) => s.projectHostSetups)
   const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
+  const folderWorkspaces = useAppStore((s) => s.folderWorkspaces)
   const unifiedTabsByWorktree = useAppStore((s) => s.unifiedTabsByWorktree)
   const terminalLayoutsByTabId = useAppStore((s) => s.terminalLayoutsByTabId)
   const ptyIdsByTabId = useAppStore((s) => s.ptyIdsByTabId)
@@ -59,8 +61,9 @@ export function useAutomationsPageStoreState() {
       repo: Repo | undefined,
       workspaceId: string | null | undefined = row.automation.workspaceId
     ): Worktree | undefined =>
+      automationFolderWorktreeForRow(row, folderWorkspaces, workspaceId) ??
       automationWorktreeForRow(row, worktreesByRepo, repo, worktreeMap, workspaceId),
-    [worktreeMap, worktreesByRepo]
+    [folderWorkspaces, worktreeMap, worktreesByRepo]
   )
   const { allowedAgents } = useEnterprisePolicyView()
   const agentIds = getAutomationAgentIds()

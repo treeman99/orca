@@ -10,6 +10,7 @@ const EXPECTED_DIRECT_CALLBACK_METHODS = [
   'agentStatus.onSet',
   'automations.onChanged',
   'browser.onActivateView',
+  'browser.onAgentInputFocusGuard',
   'browser.onCapturePaintHold',
   'browser.onCertificateFailureChanged',
   'browser.onGuestLoadFailed',
@@ -23,7 +24,6 @@ const EXPECTED_DIRECT_CALLBACK_METHODS = [
   'orcaProfiles.onAuthStatusChanged',
   'pty.onExit',
   'rateLimits.onUpdate',
-  'remoteWorkspace.onChanged',
   'repos.onChanged',
   'runtime.onBrowserDriverChanged',
   'runtime.onBrowserRemoteViewersChanged',
@@ -32,6 +32,7 @@ const EXPECTED_DIRECT_CALLBACK_METHODS = [
   'runtime.onTerminalDriverChanged',
   'runtime.onTerminalFitOverrideChanged',
   'runtimeEnvironments.onStatusChanged',
+  'runtimeEnvironments.onWslAccountNotApplied',
   'settings.onChanged',
   'ssh.onCredentialRequest',
   'ssh.onCredentialResolved',
@@ -137,6 +138,7 @@ const EXPECTED_CALLBACK_REGISTRATION_SEQUENCE = [
   'ui.onWorktreeHistoryNavigate',
   'ui.onToggleStatusBar',
   'ui.onOpenMarkdownFiles',
+  'runtimeEnvironments.onWslAccountNotApplied',
   'ui.onActivateWorktree',
   'ui.onCreateTerminal',
   'ui.onRequestTerminalTabMount',
@@ -163,6 +165,7 @@ const EXPECTED_CALLBACK_REGISTRATION_SEQUENCE = [
   'browser.onNavigationUpdate',
   'browser.onActivateView',
   'browser.onCapturePaintHold',
+  'browser.onAgentInputFocusGuard',
   'browser.onPaneFocus',
   'browser.onOpenLinkInOrcaTab',
   'ui.onNewBrowserTab',
@@ -191,7 +194,6 @@ const EXPECTED_CALLBACK_REGISTRATION_SEQUENCE = [
   'ssh.onDetectedPortsChanged',
   'ssh.onStateChanged',
   'ui.onSystemResumed',
-  'remoteWorkspace.onChanged',
   'ui.onTerminalZoom',
   'agentStatus.onSet',
   'agentStatus.onClear',
@@ -245,6 +247,9 @@ describe('useIpcEvents App-lifetime lifecycle', () => {
     const cleanupOrder: string[] = []
     const listeners = new Map<string, ListenerRecord[]>()
     const storeSubscriptions: { active: boolean; cleanup: Mock }[] = []
+    const documentEvents = new EventTarget()
+    const addDocumentListener = vi.spyOn(documentEvents, 'addEventListener')
+    const removeDocumentListener = vi.spyOn(documentEvents, 'removeEventListener')
     const setUpdateStatus = vi.fn()
     const storeState = new Proxy(
       createHarnessStoreState({
@@ -355,6 +360,7 @@ describe('useIpcEvents App-lifetime lifecycle', () => {
     })
 
     const { installAppLifetimeIpcEvents } = await import('./ipc-events/app-lifetime-ipc-bridge')
+    vi.stubGlobal('document', documentEvents)
     const recordCleanupPhase = (phase: string): void => {
       cleanupOrder.push(phase)
     }
@@ -443,7 +449,8 @@ describe('useIpcEvents App-lifetime lifecycle', () => {
     expect(
       [...listeners.values()].every((records) => records.filter((item) => item.active).length === 1)
     ).toBe(true)
-    expect(storeSubscriptions.filter((item) => item.active)).toHaveLength(3)
+    expect(storeSubscriptions.filter((item) => item.active)).toHaveLength(4)
+    expect(addDocumentListener.mock.calls.map(([type]) => type)).toEqual(['focusin', 'pointerdown'])
 
     firstCleanup()
     const ipcCleanupOrder = cleanupOrder
@@ -455,11 +462,12 @@ describe('useIpcEvents App-lifetime lifecycle', () => {
       'mobile.disposeHydration',
       'store.unsubscribe.0',
       'runtimeStore.unsubscribe',
-      'store.unsubscribe.2',
+      'store.unsubscribe.3',
       'agentStore.unsubscribe'
     ])
     // The background-removal bridge's row subscription, released with the rest of `unsubs`.
     expect(cleanupOrder).toContain('store.unsubscribe.1')
+    expect(cleanupOrder).toContain('store.unsubscribe.2')
     expect(cleanupOrder.indexOf('runtimeEnvironment.unsubscribe')).toBeGreaterThan(
       cleanupOrder.indexOf('ipc.ui.onMobileMarkdownRequest')
     )
@@ -474,6 +482,8 @@ describe('useIpcEvents App-lifetime lifecycle', () => {
       true
     )
     expect(storeSubscriptions.filter((item) => item.active)).toHaveLength(0)
+    expect(storeSubscriptions.every((item) => item.cleanup.mock.calls.length === 1)).toBe(true)
+    expect(removeDocumentListener.mock.calls).toEqual(addDocumentListener.mock.calls)
     expect(
       [...listeners.values()].every((records) =>
         records.every((item) => item.cleanup.mock.calls.length === 1)
@@ -492,13 +502,21 @@ describe('useIpcEvents App-lifetime lifecycle', () => {
     expect(
       [...listeners.values()].every((records) => records.filter((item) => item.active).length === 1)
     ).toBe(true)
-    expect(storeSubscriptions.filter((item) => item.active)).toHaveLength(3)
+    expect(storeSubscriptions.filter((item) => item.active)).toHaveLength(4)
+    expect(addDocumentListener.mock.calls.map(([type]) => type)).toEqual([
+      'focusin',
+      'pointerdown',
+      'focusin',
+      'pointerdown'
+    ])
 
     secondCleanup()
     expect([...listeners.values()].every((records) => records.every((item) => !item.active))).toBe(
       true
     )
     expect(storeSubscriptions.filter((item) => item.active)).toHaveLength(0)
+    expect(storeSubscriptions.every((item) => item.cleanup.mock.calls.length === 1)).toBe(true)
+    expect(removeDocumentListener.mock.calls).toEqual(addDocumentListener.mock.calls)
     expect(
       [...listeners.values()].every((records) =>
         records.every((item) => item.cleanup.mock.calls.length === 1)

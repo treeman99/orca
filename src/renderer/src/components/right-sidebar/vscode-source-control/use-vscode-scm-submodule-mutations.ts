@@ -7,9 +7,9 @@ import {
   pullRuntimeGitSubmodule,
   pushRuntimeGitSubmodule,
   stageRuntimeGitSubmodulePaths,
-  unstageRuntimeGitSubmodulePaths,
-  type RuntimeGitContext
-} from '@/runtime/runtime-git-client'
+  unstageRuntimeGitSubmodulePaths
+} from '@/runtime/runtime-git-submodule-client'
+import type { RuntimeGitContext } from '@/runtime/runtime-git-client-context'
 import { isSubmoduleWriteUnsupportedError } from '@/runtime/runtime-git-submodule-write-support'
 import type { VscodeScmContext } from './use-vscode-scm-context'
 import { resolveVscodeScmSubmoduleInnerPaths } from './vscode-scm-submodule-paths'
@@ -56,21 +56,21 @@ export function useVscodeScmSubmoduleMutations(
   scm: VscodeScmContext,
   refreshSubmodule: (submodulePath: string) => void
 ): VscodeScmSubmoduleMutations {
-  const { repoSettings, worktreeId, worktreePath } = scm
+  const { repoTarget, worktreeId, worktreePath } = scm
   const [busyPath, setBusyPath] = useState<string | null>(null)
   const [errorByPath, setErrorByPath] = useState<Record<string, string>>({})
 
   const contextFor = useCallback((): RuntimeGitContext | null => {
-    if (!worktreeId || !worktreePath) {
+    if (!worktreeId || !worktreePath || !repoTarget) {
       return null
     }
     return {
-      settings: repoSettings,
+      target: repoTarget,
       worktreeId,
       worktreePath,
       connectionId: getConnectionId(worktreeId) ?? undefined
     }
-  }, [repoSettings, worktreeId, worktreePath])
+  }, [repoTarget, worktreeId, worktreePath])
 
   const run = useCallback(
     async <T>(

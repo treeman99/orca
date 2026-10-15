@@ -1,7 +1,7 @@
 import { useAppStore } from '@/store'
 import { getLocalFileManagerLabel } from '@/lib/local-file-manager-label'
 import { NO_OPEN_IN_APPLICATIONS } from '@/lib/open-in-application-selection'
-import { settingsForRuntimeOwner } from '@/runtime/runtime-client-target'
+import { parseExecutionHostId, type ExecutionHostId } from '../../../../shared/execution-host'
 import {
   getOpenInEntryAvailability,
   getWorktreeOpenInEntries,
@@ -26,23 +26,44 @@ type UseOpenInPathEntriesArgs = {
   connectionId?: string | null
   /** Runtime that owns `path`, when it is not the active one. */
   runtimeEnvironmentId?: string | null
+  /** The owner the caller already resolved (its reveal owner); wins over `runtimeEnvironmentId`. */
+  owner?: ExecutionHostId | 'unresolved'
+}
+
+function ownerRoute(
+  owner: ExecutionHostId | 'unresolved' | undefined,
+  runtimeEnvironmentId: string | null | undefined
+): { runtimeEnvironmentId: string | null | undefined; ownerUnresolved: boolean } {
+  if (owner === undefined) {
+    return { runtimeEnvironmentId, ownerUnresolved: false }
+  }
+  const parsed = owner === 'unresolved' ? null : parseExecutionHostId(owner)
+  return {
+    runtimeEnvironmentId: parsed?.kind === 'runtime' ? parsed.environmentId : null,
+    ownerUnresolved: owner === 'unresolved'
+  }
 }
 
 export function useOpenInPathEntries({
   path,
   connectionId,
-  runtimeEnvironmentId
+  runtimeEnvironmentId: requestedEnvironmentId,
+  owner
 }: UseOpenInPathEntriesArgs): OpenInPathEntries {
   const openInApplications = useAppStore(
     (s) => s.settings?.openInApplications ?? NO_OPEN_IN_APPLICATIONS
   )
-  const settings = useAppStore((s) => s.settings)
+  const { runtimeEnvironmentId, ownerUnresolved } = ownerRoute(owner, requestedEnvironmentId)
   const hasPath = Boolean(path)
   // Availability must resolve the same owner openWorktreePath will re-check on click.
-  const guardSettings = settingsForRuntimeOwner(settings, runtimeEnvironmentId)
   const entries = getWorktreeOpenInEntries(openInApplications, getLocalFileManagerLabel()).map(
     (entry) => {
-      const availability = getOpenInEntryAvailability(entry, guardSettings, connectionId)
+      const availability = getOpenInEntryAvailability(
+        entry,
+        connectionId,
+        runtimeEnvironmentId,
+        ownerUnresolved
+      )
       return {
         ...entry,
         disabled: !hasPath || availability.disabled,

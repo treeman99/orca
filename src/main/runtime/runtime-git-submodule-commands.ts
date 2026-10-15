@@ -11,7 +11,7 @@ import type { GitSubmoduleListResult } from '../../shared/git-submodule-list'
 import {
   localGitOptionsForTarget,
   normalizeRuntimeGitRelativePath,
-  requireRuntimeGitProvider,
+  requireLocalRuntimeGitRoute,
   type RuntimeGitCommandHost
 } from './runtime-git-command-target'
 
@@ -33,15 +33,8 @@ export class RuntimeGitSubmoduleCommands {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativePath = normalizeRuntimeGitRelativePath(filePath)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
-    const provider = requireRuntimeGitProvider(target)
-    if (provider) {
-      await provider.discardSubmoduleChanges(
-        target.worktree.path,
-        relativeSubmodulePath,
-        relativePath
-      )
-      return { ok: true }
-    }
+    // An `ssh:` worktree is not served here (requireLocalRuntimeGitRoute throws).
+    requireLocalRuntimeGitRoute(target)
     await discardSubmoduleChanges(
       target.worktree.path,
       relativeSubmodulePath,
@@ -54,10 +47,8 @@ export class RuntimeGitSubmoduleCommands {
   /** Configured submodules of the parent worktree (capped; see MAX_DETECTED_SUBMODULES). */
   async listRuntimeGitSubmodules(worktreeSelector: string): Promise<GitSubmoduleListResult> {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
-    const provider = requireRuntimeGitProvider(target)
-    if (provider) {
-      return provider.listSubmodules(target.worktree.path)
-    }
+    // An `ssh:` worktree is not served here (requireLocalRuntimeGitRoute throws).
+    requireLocalRuntimeGitRoute(target)
     return listSubmodules(target.worktree.path, localGitOptionsForTarget(target))
   }
 
@@ -70,11 +61,8 @@ export class RuntimeGitSubmoduleCommands {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
     const relativePaths = filePaths.map((filePath) => normalizeRuntimeGitRelativePath(filePath))
-    const provider = requireRuntimeGitProvider(target)
-    if (provider) {
-      await provider.stageSubmoduleFiles(target.worktree.path, relativeSubmodulePath, relativePaths)
-      return { ok: true }
-    }
+    // An `ssh:` worktree is not served here (requireLocalRuntimeGitRoute throws).
+    requireLocalRuntimeGitRoute(target)
     await stageSubmoduleFiles(
       target.worktree.path,
       relativeSubmodulePath,
@@ -93,15 +81,8 @@ export class RuntimeGitSubmoduleCommands {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
     const relativePaths = filePaths.map((filePath) => normalizeRuntimeGitRelativePath(filePath))
-    const provider = requireRuntimeGitProvider(target)
-    if (provider) {
-      await provider.unstageSubmoduleFiles(
-        target.worktree.path,
-        relativeSubmodulePath,
-        relativePaths
-      )
-      return { ok: true }
-    }
+    // An `ssh:` worktree is not served here (requireLocalRuntimeGitRoute throws).
+    requireLocalRuntimeGitRoute(target)
     await unstageSubmoduleFiles(
       target.worktree.path,
       relativeSubmodulePath,
@@ -118,10 +99,8 @@ export class RuntimeGitSubmoduleCommands {
   ): Promise<{ success: boolean; error?: string }> {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
-    const provider = requireRuntimeGitProvider(target)
-    if (provider) {
-      return provider.commitSubmodule(target.worktree.path, relativeSubmodulePath, message)
-    }
+    // An `ssh:` worktree is not served here (requireLocalRuntimeGitRoute throws).
+    requireLocalRuntimeGitRoute(target)
     return commitSubmoduleChanges(
       target.worktree.path,
       relativeSubmodulePath,
@@ -137,11 +116,8 @@ export class RuntimeGitSubmoduleCommands {
   ): Promise<{ ok: true }> {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
-    const provider = requireRuntimeGitProvider(target)
-    if (provider) {
-      await provider.pushSubmodule(target.worktree.path, relativeSubmodulePath, publish)
-      return { ok: true }
-    }
+    // An `ssh:` worktree is not served here (requireLocalRuntimeGitRoute throws).
+    requireLocalRuntimeGitRoute(target)
     await pushSubmodule(
       target.worktree.path,
       relativeSubmodulePath,
@@ -158,11 +134,8 @@ export class RuntimeGitSubmoduleCommands {
   ): Promise<{ ok: true }> {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
-    const provider = requireRuntimeGitProvider(target)
-    if (provider) {
-      await provider.pullSubmodule(target.worktree.path, relativeSubmodulePath)
-      return { ok: true }
-    }
+    // An `ssh:` worktree is not served here (requireLocalRuntimeGitRoute throws).
+    requireLocalRuntimeGitRoute(target)
     await pullSubmodule(
       target.worktree.path,
       relativeSubmodulePath,
@@ -178,11 +151,8 @@ export class RuntimeGitSubmoduleCommands {
   ): Promise<{ ok: true }> {
     const target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
     const relativeSubmodulePath = normalizeRuntimeGitRelativePath(submodulePath)
-    const provider = requireRuntimeGitProvider(target)
-    if (provider) {
-      await provider.restoreSubmodulePointer(target.worktree.path, relativeSubmodulePath)
-      return { ok: true }
-    }
+    // An `ssh:` worktree is not served here (requireLocalRuntimeGitRoute throws).
+    requireLocalRuntimeGitRoute(target)
     await restoreSubmodulePointer(
       target.worktree.path,
       relativeSubmodulePath,

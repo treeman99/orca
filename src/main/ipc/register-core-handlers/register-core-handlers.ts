@@ -15,13 +15,18 @@ import { registerGitLabHandlers } from '../gitlab'
 import { registerHostedReviewHandlers } from '../hosted-review'
 import { registerLinearHandlers } from '../linear'
 import { registerJiraHandlers } from '../jira'
+import { registerJiraIssueSummaryGenerationHandlers } from '../jira-issue-summary-generation'
 import { registerCrashReportingHandlers } from '../crash-reporting'
 import { registerExportHandlers } from '../export'
 import { registerStatsHandlers } from '../stats'
 import { registerMemoryHandlers } from '../memory'
 import { registerRateLimitHandlers } from '../rate-limits'
 import { registerRuntimeHandlers } from '../runtime'
-import { registerRuntimeEnvironmentHandlers } from '../runtime-environments'
+import {
+  invalidateRuntimeEnvironmentTransport,
+  registerRuntimeEnvironmentHandlers
+} from '../runtime-environments'
+import { registerWslHostHandlers } from '../wsl-host-handlers'
 import { registerEphemeralVmHandlers } from '../ephemeral-vm'
 import { registerAiVaultHandlers } from '../ai-vault'
 import { registerAiVaultSearchHandlers } from '../ai-vault-search'
@@ -66,7 +71,7 @@ import { registerOrcaProfileHandlers } from '../orca-profiles'
 import { registerCodexAccountHandlers } from '../codex-accounts'
 import { registerAgentHookHandlers } from '../agent-hooks'
 import { registerCodexConfigSyncHandlers } from '../codex-config-sync'
-import { getPtyIdForPaneKey } from '../pty'
+import { getPtyIdForPaneKey } from '../pty/pane/key-state'
 import { registerClaudeAccountHandlers } from '../claude-accounts'
 import { registerOpenCodeGoCredentialsHandlers } from '../opencode-go-credentials'
 import { registerMiniMaxCredentialsHandlers } from '../minimax-credentials'
@@ -103,8 +108,23 @@ import { callRuntimeSessionSearch } from '../../ai-vault/runtime-session-search-
 import { ensureStructuredAgentSessionHostUnlessRefused } from '../../runtime/structured-agent-session-host-refusal'
 import type { PluginService } from '../../plugins/plugin-service'
 import type { PluginMarketplaceHandlerServices } from '../plugin-marketplaces'
+import { settleWithinMs } from '../../quit-teardown-deadline'
 
 let registered = false
+// Same cap as the restart path's auth preservation: bookkeeping must not hold Restart on a stalled disk.
+const RELAUNCH_DISMISSAL_CLOSE_TIMEOUT_MS = 2_000
+
+async function closeNotificationDismissalsBeforeRelaunch(
+  runtime: OrcaRuntimeService
+): Promise<void> {
+  const result = await settleWithinMs(
+    runtime.closeNotificationDismissals(),
+    RELAUNCH_DISMISSAL_CLOSE_TIMEOUT_MS
+  )
+  if (result.outcome === 'timed-out') {
+    console.warn('[notifications] Relaunching before dismissal recovery state finished saving')
+  }
+}
 
 type CoreHandlerLifecycleOptions = {
   onBeforeRelaunch?: () => void | Promise<void>
@@ -150,7 +170,11 @@ export function registerCoreHandlers(
   }
   registered = true
 
-  registerAppHandlers(store, { onBeforeRelaunch: lifecycleOptions.onBeforeRelaunch })
+  registerAppHandlers(store, {
+    onBeforeRelaunch: lifecycleOptions.onBeforeRelaunch,
+    // Why here, not onBeforeRelaunch: restart and profile switches quit through will-quit, which closes it.
+    onBeforeRelaunchExit: () => closeNotificationDismissalsBeforeRelaunch(runtime)
+  })
   registerAppVersionHandler()
   registerCliHandlers()
   registerPreflightHandlers()
@@ -170,6 +194,7 @@ export function registerCoreHandlers(
   registerHostedReviewHandlers(store, stats)
   registerLinearHandlers()
   registerJiraHandlers()
+  registerJiraIssueSummaryGenerationHandlers(store, commitMessageAgentEnv)
   // 포크: 벤더 피드백 제출(registerFeedbackHandlers)과 Bitbucket 연결(registerBitbucketHandlers)은
   // 자격증명을 저장하고 외부로 나가는 표면이라 제외한다. 모듈 자체를 제거했다.
   if (crashReports) {
@@ -247,6 +272,11 @@ export function registerCoreHandlers(
   registerFilesystemWatcherHandlers()
   registerRuntimeHandlers(runtime)
   registerRuntimeEnvironmentHandlers(store)
+  registerWslHostHandlers({
+    store,
+    getUserDataPath: () => app.getPath('userData'),
+    invalidateTransport: invalidateRuntimeEnvironmentTransport
+  })
   registerEphemeralVmHandlers(store, pluginService)
   // Session history and terminal resume are not chats; a refused host leaves nothing to check.
   const ensureStructuredSessionOwnership = () =>

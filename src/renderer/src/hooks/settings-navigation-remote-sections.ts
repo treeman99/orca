@@ -6,6 +6,7 @@ import { getPrivacyPaneSearchEntries } from '@/components/settings/privacy-searc
 import { getRepositoryPaneSearchEntries } from '@/components/settings/repository-search'
 import { buildSettingsProjectList } from '@/components/settings/settings-project-list'
 import { getSshPaneSearchEntries } from '@/components/settings/ssh-search'
+import { SSH_REMOTE_HOSTS_REMOVED } from '../../../shared/ssh-remote-hosts-removal'
 import { translate } from '@/i18n/i18n'
 import type { SettingsNavSection } from '@/lib/settings-navigation-types'
 import { getRepoKindLabel } from '../../../shared/repo-kind'
@@ -38,7 +39,8 @@ export function buildRemoteSettingsSections(
 ): SettingsNavSection[] {
   const showDesktopOnlySettings = !isWebClient
   return [
-    ...(showDesktopOnlySettings
+    // Fork: SSH hosts are removed from this build (ssh-remote-hosts-removal.ts).
+    ...(showDesktopOnlySettings && !SSH_REMOTE_HOSTS_REMOVED
       ? [
           {
             id: 'ssh',

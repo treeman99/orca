@@ -360,7 +360,7 @@ describe('LinearAgentSkillSetupPrompt', () => {
     expect(mocks.panelProps.at(-1)).toEqual(
       expect.objectContaining({
         installedCommand:
-          "wsl.exe -d 'Fedora' --exec bash -lc 'orca skills update --skill orca-linear'",
+          "wsl.exe -d 'Fedora' --exec bash -lc 'orca skills install --skill orca-linear'",
         terminalShellOverride: 'powershell.exe',
         terminalRuntime: expect.objectContaining({ runtime: 'wsl', wslDistro: 'Fedora' })
       })

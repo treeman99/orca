@@ -8,6 +8,11 @@ import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
 import { getVisibleRightSidebarActivityItems } from './right-sidebar-activity-visibility'
 import { getPluginPanelActivityItems } from './plugin-panel-activity-items'
 import {
+  getPortsPanelOwnerKey,
+  portsPanelHostForOwnerKey,
+  portsPanelReachesSshHost
+} from './ports-panel-host'
+import {
   collectInstalledPluginTabKeys,
   usePluginPanels,
   usePluginPanelsStore,
@@ -45,7 +50,13 @@ export function useRightSidebarActivityItems({
   const activeWorkspaceScope = parseWorkspaceKey(activeWorktreeId ?? '')
   const isFolderWorkspace = activeWorkspaceScope?.type === 'folder'
   const isFolder = isFolderWorkspace || (activeRepo ? isFolderRepo(activeRepo) : false)
-  const isSshRepo = Boolean(activeRepo?.connectionId)
+  // Why the owner: a managed server's workspace names its server, not an SSH connection.
+  const hasSshHost = useAppStore((s) =>
+    portsPanelReachesSshHost(
+      portsPanelHostForOwnerKey(getPortsPanelOwnerKey(s, activeWorktreeId)),
+      s.runtimeEnvironments
+    )
+  )
   // Why the policy is read here too: a machine that enabled plugins before the policy
   // landed keeps `pluginSystemEnabled: true` in its settings file, and main no longer
   // registers the plugin IPC — so without this the sidebar would render tabs whose reads
@@ -147,9 +158,9 @@ export function useRightSidebarActivityItems({
       getVisibleRightSidebarActivityItems(activityItems, {
         isFolder,
         isFolderWorkspace,
-        isSshRepo
+        hasSshHost
       }),
-    [activityItems, isFolder, isFolderWorkspace, isSshRepo]
+    [activityItems, isFolder, isFolderWorkspace, hasSshHost]
   )
 
   const activeFolderWorkspaceKey = isFolderWorkspace ? (activeWorktreeId ?? null) : null

@@ -27,8 +27,12 @@ vi.mock('../enterprise/enterprise-policy-file', async (importOriginal) => ({
   getEnterprisePolicy: mocks.getEnterprisePolicy
 }))
 
-import { createClaudeStructuredLaunchResolver } from '../claude/claude-structured-launch-resolution'
-import { createCodexStructuredLaunchResolver } from '../codex/codex-structured-launch-resolution'
+// v1.4.226: every agent's launch is composed through admittedRecord(), where the relaunch gate now
+// lives; the test-support builds each resolver the way its registration does.
+import {
+  createClaudeStructuredLaunchResolver,
+  createCodexStructuredLaunchResolver
+} from './structured-agent-launch-composition.test-support'
 import {
   attachStructuredAgentSession,
   attachStructuredAgentSessionUnderSerialize

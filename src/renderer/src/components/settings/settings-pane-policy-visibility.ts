@@ -14,6 +14,7 @@ import { getEnterprisePolicyView } from '@/enterprise/enterprise-policy-access'
 import type { EnterprisePolicyView } from '../../../../shared/enterprise-policy-view'
 import { ARTIFACT_SHARING_REMOVED } from '../../../../shared/artifact-sharing-removal'
 import { SKILL_SHARING_REMOVED } from '../../../../shared/skill-sharing-removal'
+import { SSH_REMOTE_HOSTS_REMOVED } from '../../../../shared/ssh-remote-hosts-removal'
 
 const PANE_POLICY_KEYS: Readonly<Record<string, keyof EnterprisePolicyView>> = {
   stats: 'disableUsagePolling',
@@ -35,7 +36,9 @@ const PANE_POLICY_KEYS: Readonly<Record<string, keyof EnterprisePolicyView>> = {
 // settings row.
 const REMOVED_PANE_IDS: ReadonlySet<string> = new Set([
   ...(ARTIFACT_SHARING_REMOVED ? ['artifacts'] : []),
-  ...(SKILL_SHARING_REMOVED ? ['share-skills'] : [])
+  ...(SKILL_SHARING_REMOVED ? ['share-skills'] : []),
+  // No orcad template ships and a remote orcad reads none of this desktop's policy (README §6).
+  ...(SSH_REMOTE_HOSTS_REMOVED ? ['ssh'] : [])
 ])
 
 export function isSettingsPaneHiddenByPolicy(

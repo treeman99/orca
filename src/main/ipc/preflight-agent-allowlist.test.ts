@@ -10,7 +10,6 @@ const {
   execFileAsyncMock,
   hydrateShellPathMock,
   mergePathSegmentsMock,
-  getActiveMultiplexerMock,
   resolveCliCommandsMock,
   isCommandOnLocalPathMock,
   listLocalCommandPathsMock,
@@ -24,7 +23,6 @@ const {
   execFileAsyncMock: vi.fn(),
   hydrateShellPathMock: vi.fn(),
   mergePathSegmentsMock: vi.fn(),
-  getActiveMultiplexerMock: vi.fn(),
   resolveCliCommandsMock: vi.fn(),
   isCommandOnLocalPathMock: vi.fn(),
   listLocalCommandPathsMock: vi.fn(),
@@ -56,7 +54,6 @@ vi.mock('../pty/windows-environment-path', () => ({
   mergePersistedWindowsPathAsync: mergePersistedWindowsPathAsyncMock,
   mergePersistedWindowsPath: mergePersistedWindowsPathMock
 }))
-vi.mock('./ssh', () => ({ getActiveMultiplexer: getActiveMultiplexerMock }))
 vi.mock('../zcode/interactive-capability', () => ({
   readZCodeInteractiveCapability: readZCodeCapabilityMock
 }))
@@ -91,7 +88,6 @@ describe('agent detection under an enterprise allowlist', () => {
         execFileAsyncMock,
         hydrateShellPathMock,
         mergePathSegmentsMock,
-        getActiveMultiplexerMock,
         resolveCliCommandsMock,
         isCommandOnLocalPathMock,
         listLocalCommandPathsMock,

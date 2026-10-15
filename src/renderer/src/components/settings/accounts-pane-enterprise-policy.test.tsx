@@ -1,12 +1,29 @@
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
+
+const mocks = vi.hoisted(() => ({
+  policy: { allowedAgents: null as string[] | null, disableVendorProviderAccounts: false }
+}))
 
 vi.mock('./ManagedDataAccountsSection', () => ({
   ManagedDataAccountsSection: () => null
 }))
+vi.mock('./SettingsSectionStack', () => ({
+  SettingsSectionStack: ({ sections }: { sections: React.ReactNode[] }) => <>{sections}</>
+}))
+vi.mock('./GatewaySection', () => ({ GatewaySection: () => <i data-section="gateway" /> }))
+vi.mock('@/enterprise/enterprise-policy-access', () => ({
+  useEnterprisePolicyView: () => mocks.policy
+}))
+vi.mock('@/store', () => ({
+  useAppStore: (selector: (state: { settingsSearchQuery: string }) => unknown) =>
+    selector({ settingsSearchQuery: '' })
+}))
 
 import {
   isAccountSectionAllowedByPolicy,
-  PolicyGatedManagedDataAccountsSection
+  PolicyGatedManagedDataAccountsSection,
+  SettingsSectionStack
 } from './accounts-pane-enterprise-policy'
 
 const OPEN = { allowedAgents: null, disableVendorProviderAccounts: false }
@@ -62,5 +79,29 @@ describe('Accounts pane sections under the enterprise policy', () => {
     expect(isAccountSectionAllowedByPolicy(section('gateway'), NO_VENDOR_ACCOUNTS)).toBe(true)
     expect(isAccountSectionAllowedByPolicy(section('location'), CLAUDE_ONLY)).toBe(true)
     expect(isAccountSectionAllowedByPolicy(null, NO_VENDOR_ACCOUNTS)).toBe(true)
+  })
+})
+
+// AccountsPane renders through this stand-in, so it is where the filter actually runs.
+describe('the Accounts pane section stack under the enterprise policy', () => {
+  function rendered(): string {
+    return renderToStaticMarkup(
+      <SettingsSectionStack
+        sections={[<b key="claude-accounts" data-section="claude" />, <b key="location" />]}
+        spacing="group"
+      />
+    )
+  }
+
+  it('drops vendor sections and keeps the gateway login when vendor accounts are disabled', () => {
+    mocks.policy = NO_VENDOR_ACCOUNTS
+    expect(rendered()).not.toContain('data-section="claude"')
+    expect(rendered()).toContain('data-section="gateway"')
+  })
+
+  it('keeps every section when the policy allows vendor accounts', () => {
+    mocks.policy = OPEN
+    expect(rendered()).toContain('data-section="claude"')
+    expect(rendered()).toContain('data-section="gateway"')
   })
 })

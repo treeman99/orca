@@ -81,7 +81,7 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
 
   // Why: the transport's own exit handler (pty-transport.ts) normally makes
   // onExit run-at-most-once by clearing connected/ptyId + unregistering BEFORE
-  // calling it. reconcileIfSessionDead drives onExit directly (bypassing that),
+  // calling it. reconcileIfSessionMissing drives onExit directly (bypassing that),
   // so this guards the body so reconcile and any racing real/synthetic pty:exit
   // for the same id close the pane exactly once. Scoped to the exiting ptyId
   // (not a bare boolean): an intentional suppressed restart keeps the pane
@@ -292,7 +292,6 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
     }
     session.manager.setPaneGpuRendering(session.pane.id, true)
     const failedLocalStartup =
-      !session.connectionId &&
       session.runtimeEnvironmentId === null &&
       exitCode !== 0 &&
       session.spawnedFreshPtyId === ptyId &&

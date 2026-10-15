@@ -71,7 +71,7 @@ Orca is an Electron app that runs many CLI coding agents in parallel git worktre
 | Main     | `src/main/index.ts`                                     | Electron main; owns all state that must survive a renderer reload |
 | Preload  | `src/preload/index.ts`                                  | the single audited `contextBridge` IPC contract                   |
 | Renderer | `src/renderer/index.html` → `src/renderer/src/main.tsx` | React 19 + Zustand + Tailwind v4/shadcn                           |
-| Relay    | `src/relay/relay.ts`                                    | standalone daemon shipped to remote hosts over SCP                |
+| WSL guest | `src/wsl-guest/` (`build:wsl-guest`)                   | bundle run inside a WSL distro: agent hooks, PTY dispatcher       |
 | CLI      | `src/cli/index.ts`                                      | `orca` binary; drives a running app over a local socket           |
 
 Plus `mobile/` (Expo companion that pairs to the desktop runtime) and `native/` (per-OS binaries for Computer Use and macOS notification status).
@@ -97,12 +97,12 @@ Rules when you touch this:
 
 ### OrcaRuntimeService is the seam
 
-`src/main/runtime/orca-runtime.ts` is the façade for every PTY, filesystem, git, and browser operation. It dispatches to a provider — local PTY, the local daemon, WSL, or an SSH relay — so nothing above it knows where execution actually happens. **New capabilities belong behind this service, not wired straight to a provider**, otherwise they silently work locally and break over SSH. Which runtime a project resolves to is modeled in `src/shared/project-execution-runtime.ts` (`local-host` / `windows-host` / `wsl`); SSH connection and relay lifecycle live in `src/main/ssh/`.
+`src/main/runtime/orca-runtime.ts` is the façade for every PTY, filesystem, git, and browser operation. It dispatches to a provider — local PTY, the local daemon, WSL, or a remote Orca server (orcad) — so nothing above it knows where execution actually happens. **New capabilities belong behind this service, not wired straight to a provider**, otherwise they silently work locally and break over SSH. Which runtime a project resolves to is modeled in `src/shared/project-execution-runtime.ts` (`local-host` / `windows-host` / `wsl`); SSH connection and the managed orcad lifecycle live in `src/main/ssh/` — **but this fork removes SSH hosts outright** (`src/shared/ssh-remote-hosts-removal.ts`, README §6): upstream v1.4.226 deleted the SSH relay, so an SSH host now runs only through an orcad this build does not ship.
 
-### Two out-of-process daemons
+### Out-of-process daemons
 
 - **Local PTY daemon** (`src/main/daemon/`, forked as `daemon-entry.js`, unix socket + token file) keeps terminals alive across app restarts and crashes.
-- **Relay** (`src/relay/`) is an esbuild CJS bundle per platform, deployed over SCP and launched through an SSH exec channel. It speaks framed JSON-RPC over stdio; handlers are split by domain (`fs-handler`, `git-handler`, `pty-handler`, `agent-exec-handler`, …). On disconnect it holds PTYs on a unix socket through a grace period so a reconnecting session re-attaches instead of restarting agents. Native addons are external — the relay degrades gracefully when the remote lacks them.
+- **SSH relay — gone since v1.4.226.** Upstream deleted it (#27214/#27215); `src/relay/` became the WSL-only `src/wsl-guest/` bundle. A remote host now runs a managed Orca server (orcad, `src/main/orcad/`, deployed by `src/main/ssh/orcad-remote-deploy.ts`), which this build neither ships nor allows under `disableRemoteOrcaServer`.
 
 ### Terminal state is main-owned
 
@@ -209,11 +209,11 @@ _upstream 이 이 파일을 쪼개면 내 변경이 사라지는가?_ 그렇다�
 **사내 잠금(정책 파일)** — 시작 시 무장(Secure DNS·네트워크 허용목록·정책 트레이스), 플러그인
 3중 차단, 에이전트 허용목록(실행 문 8곳), 벤더 자체 호출 차단(텔레메트리·star-nag·클라우드
 릴레이·음성·관리형 Claude 계정·벤더 계정 등록), 사용량 폴링 잠금, 모바일 페어링/에뮬레이터,
-맞춤법 검사, GHES 호스트, 채팅 인라인 비주얼의 공개 CDN(`disableChatVisuals`), 관리형 orcad SSH
-배포(`disableRemoteOrcaServer`), 제거한 상위 뷰(Mobile/Artifacts)의 디스크 복원 차단, 스위트 전체의
+맞춤법 검사, GHES 호스트, 채팅 인라인 비주얼의 공개 CDN(`disableChatVisuals`), 관리형 orcad 배포와
+WSL 배포판 호스트(`disableRemoteOrcaServer`), 제거한 상위 뷰(Mobile/Artifacts)의 디스크 복원 차단, 스위트 전체의
 정책 파일 격리.
 
-**빌드에서 제거한 표면** — 인앱 자동 업데이트(+`electron-updater`), artifact 공유, 스킬 공유,
+**빌드에서 제거한 표면** — 인앱 자동 업데이트(+`electron-updater`), SSH 호스트(v1.4.226, relay 소멸), artifact 공유, 스킬 공유,
 Orca 클라우드, Bitbucket·Azure DevOps·Gitea, `docs/site` 배포 레인, 피드백·크래시 리포트 제출,
 사내 자체 호스팅 모델 레인.
 

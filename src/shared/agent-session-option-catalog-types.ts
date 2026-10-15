@@ -56,6 +56,8 @@ export type CatalogModel = {
   isDefault?: boolean
   /** Tokens the model's context window holds, where the host's listing states it. */
   contextWindowTokens?: number
+  /** The listing says the model runs Approve for me; absent is unknown, which offers it nowhere. */
+  supportsAutoMode?: boolean
   options: CatalogOption[]
   /** Replaces `catalog.modelApply` for this model — a backend the agent's model
    * flag cannot name. Absent for every model the CLI selects by name. */

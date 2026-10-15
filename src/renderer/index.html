@@ -2,6 +2,10 @@
 <html class="native-shell">
   <head>
     <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="img-src 'self' data: blob: http: https: file: orca-media: orca-preview: orca-jira-image:"
+    />
     <title>Orca</title>
     <!-- No CSP is injected at any stage; egress is gated in main by src/main/enterprise/enterprise-network-guard.ts -->
   </head>

@@ -138,9 +138,8 @@ describe('CliSection project runtime defaults', () => {
     expect(capturedPanel.props?.command).toMatch(
       /^& \{ \$PSNativeCommandArgumentPassing = 'Legacy'; wsl\.exe -d 'Ubuntu' --exec sh -c 'sh -c \\"\$\(printf %s [A-Za-z0-9+/=]+ \| base64 -d\)\\"'/
     )
-    expect(capturedPanel.props?.installedCommand).toMatch(
-      /^& \{ \$PSNativeCommandArgumentPassing = 'Legacy'; wsl\.exe -d 'Ubuntu' --exec sh -c 'sh -c \\"\$\(printf %s [A-Za-z0-9+/=]+ \| base64 -d\)\\"'/
-    )
+    // The install re-copies Orca's bundled skill, so the panel reuses it as its update.
+    expect(capturedPanel.props?.installedCommand).toBeUndefined()
     expect(capturedPanel.props?.terminalRuntime).toEqual({
       runtime: 'wsl',
       wslDistro: 'Ubuntu',

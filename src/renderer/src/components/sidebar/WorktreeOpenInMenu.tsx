@@ -8,17 +8,19 @@ import {
   DropdownMenuSubTrigger
 } from '@/components/ui/dropdown-menu'
 import { useAppStore } from '@/store'
-import { isLocalPathOpenBlocked, showLocalPathOpenBlockedToast } from '@/lib/local-path-open-guard'
+import {
+  getLocalPathOpenOwnerForRoute,
+  isRevealOrEditorOpenBlocked,
+  showLocalPathOpenBlockedToast
+} from '@/lib/local-path-open-guard'
 import { getLocalFileManagerLabel } from '@/lib/local-file-manager-label'
 import { getExternalEditorOpenCapability } from '@/lib/external-editor-open-capability'
 import { NO_OPEN_IN_APPLICATIONS } from '@/lib/open-in-application-selection'
-import { settingsForRuntimeOwner } from '@/runtime/runtime-client-target'
 import {
   getOpenInPathEntryIcon,
   OpenInPathEntryLabel
 } from '@/components/open-in-path/open-in-path-entry-row'
 import { showOpenFailureToast } from './worktree-open-failure-toast'
-import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { OpenInApplication } from '../../../../shared/ui-chrome-types'
 import { translate } from '@/i18n/i18n'
 
@@ -57,17 +59,14 @@ export function getWorktreeOpenInEntries(
 
 export function getOpenInEntryAvailability(
   entry: OpenInMenuEntry,
-  settings: Pick<GlobalSettings, 'activeRuntimeEnvironmentId'> | null | undefined,
   connectionId?: string | null,
   runtimeEnvironmentId?: string | null,
   ownerUnresolved?: boolean
 ): { disabled: boolean; metadata?: string } {
   if (entry.target === 'file-manager') {
-    const disabled = isLocalPathOpenBlocked(settings, {
-      connectionId,
-      runtimeEnvironmentId,
-      ownerUnresolved
-    })
+    const disabled = isRevealOrEditorOpenBlocked(
+      getLocalPathOpenOwnerForRoute({ connectionId, runtimeEnvironmentId, ownerUnresolved })
+    )
     return disabled
       ? {
           disabled: true,
@@ -75,7 +74,7 @@ export function getOpenInEntryAvailability(
         }
       : { disabled: false }
   }
-  const capability = getExternalEditorOpenCapability(settings, {
+  const capability = getExternalEditorOpenCapability({
     connectionId,
     command: entry.command,
     runtimeEnvironmentId,
@@ -85,6 +84,12 @@ export function getOpenInEntryAvailability(
     return {
       disabled: true,
       metadata: translate('auto.components.sidebar.WorktreeOpenInMenu.localOnly', 'Local only')
+    }
+  }
+  if (capability.wsl) {
+    return {
+      disabled: false,
+      metadata: translate('auto.components.sidebar.WorktreeOpenInMenu.wsl', 'WSL')
     }
   }
   return capability.remote
@@ -117,23 +122,18 @@ export async function openWorktreePath(args: {
   ownerUnresolved?: boolean
   command?: string
 }): Promise<void> {
-  const settings = settingsForRuntimeOwner(
-    useAppStore.getState().settings,
-    args.runtimeEnvironmentId
-  )
+  const owner = getLocalPathOpenOwnerForRoute({
+    connectionId: args.connectionId,
+    runtimeEnvironmentId: args.runtimeEnvironmentId,
+    ownerUnresolved: args.ownerUnresolved
+  })
   if (args.target === 'file-manager') {
-    if (
-      isLocalPathOpenBlocked(settings, {
-        connectionId: args.connectionId ?? null,
-        runtimeEnvironmentId: args.runtimeEnvironmentId,
-        ownerUnresolved: args.ownerUnresolved
-      })
-    ) {
+    if (isRevealOrEditorOpenBlocked(owner)) {
       showLocalPathOpenBlockedToast()
       return
     }
   } else {
-    const capability = getExternalEditorOpenCapability(settings, {
+    const capability = getExternalEditorOpenCapability({
       connectionId: args.connectionId,
       command: args.command,
       runtimeEnvironmentId: args.runtimeEnvironmentId,
@@ -148,14 +148,19 @@ export async function openWorktreePath(args: {
       return
     }
   }
+  // Why: both checks above refuse an unresolved owner, so this is only a narrowing guard.
+  if (owner === 'unresolved') {
+    return
+  }
 
   const result =
     args.target === 'file-manager'
-      ? await window.api.shell.openInFileManager(args.worktreePath)
+      ? await window.api.shell.openInFileManager(args.worktreePath, owner)
       : await window.api.shell.openInExternalEditor({
           path: args.worktreePath,
           command: args.command,
-          connectionId: args.connectionId
+          connectionId: args.connectionId,
+          ownerHostId: owner
         })
   if (!result.ok) {
     showOpenFailureToast(result, Boolean(args.connectionId?.trim()))
@@ -203,7 +208,6 @@ export function WorktreeOpenInMenuItems({
   const openInApplications = useAppStore(
     (s) => s.settings?.openInApplications ?? NO_OPEN_IN_APPLICATIONS
   )
-  const settings = useAppStore((s) => s.settings)
   const fileManagerLabel = getLocalFileManagerLabel()
   const entries = getWorktreeOpenInEntries(openInApplications, fileManagerLabel)
 
@@ -212,7 +216,6 @@ export function WorktreeOpenInMenuItems({
       {entries.map((entry) => {
         const availability = getOpenInEntryAvailability(
           entry,
-          settings,
           connectionId,
           runtimeEnvironmentId,
           ownerUnresolved

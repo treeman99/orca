@@ -33,7 +33,7 @@ const runProcessMock = vi.hoisted(() =>
 )
 
 vi.mock('child_process', () => ({ execFile: execFileMock }))
-vi.mock('../../shared/child-process/run-process', () => ({ runProcess: runProcessMock }))
+vi.mock('@orca/process-host', () => ({ runProcess: runProcessMock }))
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof Fs>('fs')
   return { ...actual, existsSync: existsSyncMock }

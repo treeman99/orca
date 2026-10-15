@@ -7,7 +7,6 @@ const {
   execFileAsyncMock,
   hydrateShellPathMock,
   mergePathSegmentsMock,
-  getActiveMultiplexerMock,
   resolveCliCommandsMock,
   isCommandOnLocalPathMock,
   listLocalCommandPathsMock,
@@ -19,7 +18,6 @@ const {
   execFileAsyncMock: vi.fn(),
   hydrateShellPathMock: vi.fn(),
   mergePathSegmentsMock: vi.fn(),
-  getActiveMultiplexerMock: vi.fn(),
   resolveCliCommandsMock: vi.fn(),
   isCommandOnLocalPathMock: vi.fn(),
   listLocalCommandPathsMock: vi.fn(),
@@ -71,10 +69,6 @@ vi.mock('../pty/windows-environment-path', () => ({
   mergePersistedWindowsPath: mergePersistedWindowsPathMock
 }))
 
-vi.mock('./ssh', () => ({
-  getActiveMultiplexer: getActiveMultiplexerMock
-}))
-
 import { registerPreflightHandlers } from './preflight'
 import { resetPreflightMocks, type HandlerMap } from './preflight-test-harness'
 
@@ -90,7 +84,6 @@ describe('preflight', () => {
         execFileAsyncMock,
         hydrateShellPathMock,
         mergePathSegmentsMock,
-        getActiveMultiplexerMock,
         resolveCliCommandsMock,
         isCommandOnLocalPathMock,
         listLocalCommandPathsMock,

@@ -21,6 +21,9 @@ declare const ORCA_POSTHOG_WRITE_KEY: string | null
 // release pipeline.
 declare const ORCA_DIAGNOSTICS_TOKEN_URL: string | null
 
+// Full commit the build was made from (`git rev-parse HEAD`); official skill installs pin to it.
+declare const ORCA_BUILD_COMMIT: string
+
 // True only in a bundle produced by electron-vite (packaged builds and `pnpm dev`).
 // The built-in agent allowlist floor keys off this rather than `app.isPackaged`,
 // because 19 test files mock that flag as `true` for unrelated reasons and the floor

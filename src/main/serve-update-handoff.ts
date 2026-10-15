@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { BROWSER_SIDECAR_OWNER_ENV } from '../shared/browser-sidecar-lifetime'
 import { app } from 'electron'
 import { quitProcess } from './startup/process-quit-request'
 import {
@@ -44,14 +45,20 @@ export function notifyServeSupervisorReady(runtimeId: string): void {
 export function installServeSupervisorDisconnectQuit(
   isServeMode: boolean,
   parent: {
+    connected?: boolean
     once(event: 'disconnect', listener: () => void): unknown
     off(event: 'disconnect', listener: () => void): unknown
   } = process
 ): () => void {
-  if (!isServeMode || !hasServeUpdateSupervisor()) {
+  const isBrowserSidecar = process.env[BROWSER_SIDECAR_OWNER_ENV] === '1'
+  delete process.env[BROWSER_SIDECAR_OWNER_ENV]
+  if (!isServeMode || (!isBrowserSidecar && !hasServeUpdateSupervisor())) {
     return () => undefined
   }
   const quit = (): void => quitProcess()
   parent.once('disconnect', quit)
+  if (isBrowserSidecar && parent.connected !== true) {
+    quit()
+  }
   return () => parent.off('disconnect', quit)
 }

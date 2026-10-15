@@ -24,6 +24,14 @@ export const appApi = {
   getIdentity: (): Promise<AppIdentity> => ipcRenderer.invoke('app:getIdentity'),
   // Fork surface: upstream serves the app version off the updater bridge this build removed.
   getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
+  getWindowsAdministratorStatus: (): Promise<boolean | null> =>
+    ipcRenderer.invoke('app:getWindowsAdministratorStatus'),
+  restartAsAdministrator: (): Promise<void> =>
+    prepareAndInvokeAppRestart(
+      window,
+      () => ipcRenderer.invoke('app:restartAsAdministrator'),
+      awaitBeforeUnloadCheckpoint
+    ),
   getFeatureWallAssetBaseUrl: (): Promise<string> =>
     ipcRenderer.invoke('app:getFeatureWallAssetBaseUrl'),
   relaunch: (): Promise<void> =>

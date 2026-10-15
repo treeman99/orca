@@ -12,6 +12,7 @@ import type {
   NewWorkspaceComposerCardProps
 } from './new-workspace-composer-card-props'
 import { EMPTY_PROJECT_OPTIONS } from './new-workspace-composer-card-props'
+import { SSH_REMOTE_HOSTS_REMOVED } from '../../../../shared/ssh-remote-hosts-removal'
 
 type NewWorkspaceComposerProjectSectionProps = Pick<
   NewWorkspaceComposerCardProps,
@@ -28,6 +29,7 @@ type NewWorkspaceComposerProjectSectionProps = Pick<
   | 'selectedRepoConnectInProgress'
   | 'onConnectSelectedRepo'
   | 'selectedProjectHostSetupId'
+  | 'selectedRepoExecutionHostId'
   | 'onEphemeralVmRecipeChange'
   | 'selectedEphemeralVmRecipeId'
   | 'ephemeralVmRecipeError'
@@ -65,6 +67,7 @@ export function NewWorkspaceComposerProjectSection({
   shouldShowRunTargetPicker,
   projectHostSetupOptions,
   selectedProjectHostSetupId,
+  selectedRepoExecutionHostId,
   handleProjectHostSetupChange,
   ephemeralVmRecipes,
   selectedEphemeralVmRecipeId = null,
@@ -152,11 +155,12 @@ export function NewWorkspaceComposerProjectSection({
           <RunTargetCombobox
             hostOptions={projectHostSetupOptions ?? []}
             hostValue={selectedProjectHostSetupId ?? null}
+            hostExecutionHostId={selectedRepoExecutionHostId}
             onHostChange={handleProjectHostSetupChange}
             recipes={ephemeralVmRecipes}
             recipeValue={selectedEphemeralVmRecipeId}
             onRecipeChange={onEphemeralVmRecipeChange}
-            onAddSshHost={handleAddSshHost}
+            onAddSshHost={SSH_REMOTE_HOSTS_REMOVED ? undefined : handleAddSshHost}
             // Why: upstream now renders the row only when the handler is passed, so
             // withholding it is the whole gate — the extracted combobox needs no policy import.
             onAddRemoteServer={disableRemoteOrcaServer ? undefined : handleAddRemoteServer}

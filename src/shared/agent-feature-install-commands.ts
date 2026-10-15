@@ -21,6 +21,14 @@ export const LINEAR_AGENT_SKILL_NAMES = [ORCA_LINEAR_SKILL_NAME, LINEAR_TICKETS_
 // projects. `agents` defaults empty so the CLI runs its own detection on the machine
 // that will actually hold the skill.
 export type AgentFeatureSkillCommandOptions = {
+  /**
+   * Accepted for upstream call sites and ignored: upstream pins `npx skills add` to the
+   * build's GitHub commit, while this build copies the packages it ships, so there is no
+   * remote source to pin (README §6, offline skill install).
+   */
+  sourceCommit?: string
+  /** Accepted and ignored for the same reason: Orca's own CLI never prompts. */
+  yes?: boolean
   global?: boolean
   agents?: readonly string[]
   /** Registered Orca command for the host that will run this. Defaults to `orca`. */

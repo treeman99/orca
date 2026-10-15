@@ -20,7 +20,7 @@ import {
   GitSubmoduleStatus,
   GitTargetedRemote,
   WorktreeSelector
-} from './git-params'
+} from '../../../../shared/rpc-contract/git-params'
 import { GIT_SUBMODULE_METHODS } from './git-submodule-methods'
 
 export const GIT_METHODS = [

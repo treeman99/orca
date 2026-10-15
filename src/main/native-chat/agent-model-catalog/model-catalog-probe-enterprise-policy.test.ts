@@ -53,7 +53,7 @@ function claudeProbe(runListing: NonNullable<ClaudeProbeDeps['runListing']>) {
   return createClaudeModelCatalogProbe({
     resolveCommand: () => '/bin/claude',
     resolveInheritedEnv: async () => ({ PATH: '/bin', HOME: '/home/user' }),
-    resolveAuthPolicy: () => ({ stripAuthEnv: false }),
+    resolveAuthPolicy: () => ({ account: 'system' }),
     runListing
   })
 }
@@ -113,8 +113,8 @@ function catalogContext(): StructuredAgentModelCatalogContext {
     deps: { stateDirectory: '/state' } as StructuredAgentModelCatalogContext['deps'],
     environment: {
       resolveBaseEnvironment: unused,
-      resolveCodexEnvironment: unused,
-      resolveClaudeInheritedEnv: unused
+      resolveAgentEnvironment: unused,
+      refreshAfterMissingProgram: unused
     }
   }
 }

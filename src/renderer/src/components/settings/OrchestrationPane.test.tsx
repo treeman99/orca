@@ -13,7 +13,6 @@ import { getOrchestrationPaneSearchEntries } from './orchestration-search'
 import { matchesSettingsSearch } from './settings-search'
 
 const INSTALL_COMMAND = 'orca skills install --skill orchestration'
-const UPDATE_COMMAND = 'orca skills update --skill orchestration'
 // Why: the install runs Orca's own CLI against bundled bytes, so Windows needs no
 // npx preflight and the command is identical on every host.
 const WINDOWS_INSTALL_COMMAND = INSTALL_COMMAND
@@ -255,15 +254,13 @@ describe('OrchestrationPane', () => {
     ).toBe(false)
   })
 
-  it('passes update commands to the main panel without an installed manual-copy path', async () => {
+  it('passes the install command, which also updates, without a manual-copy path', async () => {
     const rendered = await renderPane()
 
     expect(mocks.panelProps.at(-1)).toEqual(
-      expect.objectContaining({
-        command: WINDOWS_INSTALL_COMMAND,
-        installedCommand: UPDATE_COMMAND
-      })
+      expect.objectContaining({ command: WINDOWS_INSTALL_COMMAND })
     )
+    expect(mocks.panelProps.at(-1)?.installedCommand).toBeUndefined()
 
     expect(rendered.textContent).not.toContain('Prefer your own terminal?')
     expect(rendered.textContent).not.toContain('Copy update command')
@@ -271,7 +268,7 @@ describe('OrchestrationPane', () => {
     expect(mocks.dialogProps).not.toContainEqual(expect.objectContaining({ mode: 'update' }))
     expect(mocks.dialogProps).not.toContainEqual(
       expect.objectContaining({
-        command: UPDATE_COMMAND,
+        command: INSTALL_COMMAND,
         open: true
       })
     )

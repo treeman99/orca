@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getConnectionId } from '@/lib/connection-context'
 import { installWindowVisibilityInterval } from '@/lib/window-visibility-interval'
-import { listRuntimeGitSubmodules } from '@/runtime/runtime-git-client'
+import { listRuntimeGitSubmodules } from '@/runtime/runtime-git-submodule-client'
 import type { VscodeScmContext } from './use-vscode-scm-context'
 import { collectDirtySubmodulePaths, selectDetectedSubmodulePaths } from './vscode-scm-repository'
 
@@ -34,7 +34,7 @@ export type VscodeScmSubmoduleList = {
  * otherwise open full of error banners.
  */
 export function useVscodeScmSubmoduleList(scm: VscodeScmContext): VscodeScmSubmoduleList {
-  const { entries, ready, repoSettings, worktreeId, worktreePath } = scm
+  const { entries, ready, repoTarget, worktreeId, worktreePath } = scm
   const [state, setState] = useState<{
     paths: readonly string[]
     didHitLimit: boolean
@@ -48,7 +48,7 @@ export function useVscodeScmSubmoduleList(scm: VscodeScmContext): VscodeScmSubmo
     [entries, state.writeSupported]
   )
 
-  const runtimeRouteKey = repoSettings?.activeRuntimeEnvironmentId?.trim() ?? ''
+  const runtimeRouteKey = repoTarget?.kind === 'environment' ? repoTarget.environmentId : ''
   const connectionRouteKey = getConnectionId(worktreeId ?? null) ?? ''
 
   // Why a generation: a slow reply from a previous worktree or SSH route must never
@@ -67,7 +67,7 @@ export function useVscodeScmSubmoduleList(scm: VscodeScmContext): VscodeScmSubmo
   }, [connectionRouteKey, runtimeRouteKey, worktreeId, worktreePath])
 
   const fetchList = useCallback(async (): Promise<void> => {
-    if (!ready || !worktreePath || inFlightRef.current) {
+    if (!ready || !worktreePath || !repoTarget || inFlightRef.current) {
       return
     }
     const generation = generationRef.current
@@ -75,7 +75,7 @@ export function useVscodeScmSubmoduleList(scm: VscodeScmContext): VscodeScmSubmo
     try {
       const result = await listRuntimeGitSubmodules({
         // Why: route by the repo OWNER host, matching the rest of this panel.
-        settings: repoSettings,
+        target: repoTarget,
         worktreeId,
         worktreePath,
         connectionId: getConnectionId(worktreeId ?? null) ?? undefined
@@ -107,7 +107,7 @@ export function useVscodeScmSubmoduleList(scm: VscodeScmContext): VscodeScmSubmo
     } finally {
       inFlightRef.current = false
     }
-  }, [ready, repoSettings, worktreeId, worktreePath])
+  }, [ready, repoTarget, worktreeId, worktreePath])
 
   // Why a ref: the interval must reach the newest fetch without listing `entries` as a
   // dependency, which would tear the timer down on every parent status poll.

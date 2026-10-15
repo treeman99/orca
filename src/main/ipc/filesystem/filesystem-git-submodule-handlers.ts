@@ -12,10 +12,7 @@ import {
   stageSubmoduleFiles,
   unstageSubmoduleFiles
 } from '../../git/submodule-write-ops'
-import {
-  getSshGitProvider,
-  SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE
-} from '../../providers/ssh-git-dispatch'
+import { SshHostNotServedError } from '../../providers/ssh-host-not-served-error'
 import { resolveRegisteredWorktreePath } from '../registered-worktree-roots-cache'
 import { getLocalGitOptionsForRegisteredWorktree } from '../local-worktree-runtime-options'
 import { validateGitRelativeFilePath } from '../filesystem-path-containment'
@@ -41,15 +38,8 @@ export function registerFilesystemGitSubmoduleHandlers(context: FilesystemHandle
       }
     ): Promise<void> => {
       if (args.connectionId) {
-        const provider = getSshGitProvider(args.connectionId)
-        if (!provider) {
-          throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-        }
-        return provider.discardSubmoduleChanges(
-          args.worktreePath,
-          args.submodulePath,
-          args.filePath
-        )
+        // An `ssh:` worktree is not served by this process; its owner host answers over runtime RPC.
+        throw new SshHostNotServedError(args.connectionId)
       }
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
@@ -74,11 +64,8 @@ export function registerFilesystemGitSubmoduleHandlers(context: FilesystemHandle
       args: { worktreePath: string; connectionId?: string }
     ): Promise<GitSubmoduleListResult> => {
       if (args.connectionId) {
-        const provider = getSshGitProvider(args.connectionId)
-        if (!provider) {
-          throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-        }
-        return provider.listSubmodules(args.worktreePath)
+        // An `ssh:` worktree is not served by this process; its owner host answers over runtime RPC.
+        throw new SshHostNotServedError(args.connectionId)
       }
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
@@ -94,11 +81,8 @@ export function registerFilesystemGitSubmoduleHandlers(context: FilesystemHandle
     'git:submoduleStage',
     async (_event, args: SubmodulePathsIpcArgs): Promise<void> => {
       if (args.connectionId) {
-        const provider = getSshGitProvider(args.connectionId)
-        if (!provider) {
-          throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-        }
-        return provider.stageSubmoduleFiles(args.worktreePath, args.submodulePath, args.filePaths)
+        // An `ssh:` worktree is not served by this process; its owner host answers over runtime RPC.
+        throw new SshHostNotServedError(args.connectionId)
       }
       const resolved = await resolveSubmoduleStagingIpcTarget(args, store)
       await stageSubmoduleFiles(
@@ -114,11 +98,8 @@ export function registerFilesystemGitSubmoduleHandlers(context: FilesystemHandle
     'git:submoduleUnstage',
     async (_event, args: SubmodulePathsIpcArgs): Promise<void> => {
       if (args.connectionId) {
-        const provider = getSshGitProvider(args.connectionId)
-        if (!provider) {
-          throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-        }
-        return provider.unstageSubmoduleFiles(args.worktreePath, args.submodulePath, args.filePaths)
+        // An `ssh:` worktree is not served by this process; its owner host answers over runtime RPC.
+        throw new SshHostNotServedError(args.connectionId)
       }
       const resolved = await resolveSubmoduleStagingIpcTarget(args, store)
       await unstageSubmoduleFiles(
@@ -142,11 +123,8 @@ export function registerFilesystemGitSubmoduleHandlers(context: FilesystemHandle
       }
     ): Promise<{ success: boolean; error?: string }> => {
       if (args.connectionId) {
-        const provider = getSshGitProvider(args.connectionId)
-        if (!provider) {
-          throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-        }
-        return provider.commitSubmodule(args.worktreePath, args.submodulePath, args.message)
+        // An `ssh:` worktree is not served by this process; its owner host answers over runtime RPC.
+        throw new SshHostNotServedError(args.connectionId)
       }
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
@@ -170,11 +148,8 @@ export function registerFilesystemGitSubmoduleHandlers(context: FilesystemHandle
       }
     ): Promise<void> => {
       if (args.connectionId) {
-        const provider = getSshGitProvider(args.connectionId)
-        if (!provider) {
-          throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-        }
-        return provider.pushSubmodule(args.worktreePath, args.submodulePath, args.publish)
+        // An `ssh:` worktree is not served by this process; its owner host answers over runtime RPC.
+        throw new SshHostNotServedError(args.connectionId)
       }
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
@@ -193,11 +168,8 @@ export function registerFilesystemGitSubmoduleHandlers(context: FilesystemHandle
       args: { worktreePath: string; submodulePath: string; connectionId?: string }
     ): Promise<void> => {
       if (args.connectionId) {
-        const provider = getSshGitProvider(args.connectionId)
-        if (!provider) {
-          throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-        }
-        return provider.pullSubmodule(args.worktreePath, args.submodulePath)
+        // An `ssh:` worktree is not served by this process; its owner host answers over runtime RPC.
+        throw new SshHostNotServedError(args.connectionId)
       }
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
@@ -216,11 +188,8 @@ export function registerFilesystemGitSubmoduleHandlers(context: FilesystemHandle
       args: { worktreePath: string; submodulePath: string; connectionId?: string }
     ): Promise<void> => {
       if (args.connectionId) {
-        const provider = getSshGitProvider(args.connectionId)
-        if (!provider) {
-          throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-        }
-        return provider.restoreSubmodulePointer(args.worktreePath, args.submodulePath)
+        // An `ssh:` worktree is not served by this process; its owner host answers over runtime RPC.
+        throw new SshHostNotServedError(args.connectionId)
       }
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(

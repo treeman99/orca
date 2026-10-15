@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getConnectionId } from '@/lib/connection-context'
 import { installWindowVisibilityInterval } from '@/lib/window-visibility-interval'
-import { getRuntimeGitSubmoduleStatus } from '@/runtime/runtime-git-client'
+import { getRuntimeGitSubmoduleStatus } from '@/runtime/runtime-git-status-client'
 import type { VscodeScmContext } from './use-vscode-scm-context'
 import {
   useVscodeScmSubmoduleList,
@@ -32,7 +32,7 @@ export type VscodeScmRepositoryList = {
  * section per initialized submodule, each carrying that submodule's OWN `git status`.
  */
 export function useVscodeScmRepositories(scm: VscodeScmContext): VscodeScmRepositoryList {
-  const { entries, repoSettings, worktreeId, worktreePath } = scm
+  const { entries, repoTarget, worktreeId, worktreePath } = scm
   const [statusByPath, setStatusByPath] = useState<Record<string, VscodeScmSubmoduleStatusState>>(
     {}
   )
@@ -43,7 +43,7 @@ export function useVscodeScmRepositories(scm: VscodeScmContext): VscodeScmReposi
   // reinstall the refresh interval (and fire its immediate run) each time.
   const submodulePathKey = submodulePaths.join('\n')
 
-  const runtimeRouteKey = repoSettings?.activeRuntimeEnvironmentId?.trim() ?? ''
+  const runtimeRouteKey = repoTarget?.kind === 'environment' ? repoTarget.environmentId : ''
   const connectionRouteKey = getConnectionId(worktreeId ?? null) ?? ''
 
   // Why: a monotonic generation drops in-flight responses when the worktree,
@@ -66,7 +66,7 @@ export function useVscodeScmRepositories(scm: VscodeScmContext): VscodeScmReposi
 
   const fetchSubmoduleStatus = useCallback(
     async (submodulePath: string): Promise<void> => {
-      if (!worktreePath) {
+      if (!worktreePath || !repoTarget) {
         return
       }
       if (inFlightRef.current.has(submodulePath)) {
@@ -84,7 +84,7 @@ export function useVscodeScmRepositories(scm: VscodeScmContext): VscodeScmReposi
         const result = await getRuntimeGitSubmoduleStatus(
           {
             // Why: route by the repo OWNER host, matching the rest of this panel.
-            settings: repoSettings,
+            target: repoTarget,
             worktreeId,
             worktreePath,
             connectionId: getConnectionId(worktreeId ?? null) ?? undefined
@@ -126,7 +126,7 @@ export function useVscodeScmRepositories(scm: VscodeScmContext): VscodeScmReposi
         }
       }
     },
-    [repoSettings, worktreeId, worktreePath]
+    [repoTarget, worktreeId, worktreePath]
   )
   // Why a ref: the finally block above re-enters this same callback, which cannot
   // reference itself before its own definition completes.

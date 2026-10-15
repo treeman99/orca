@@ -4,7 +4,6 @@ import {
   withSubmoduleWriteSupport
 } from './runtime-git-submodule-write-support'
 import { callRuntimeRpc } from './runtime-rpc-client'
-import { getActiveRuntimeTarget } from './runtime-client-target'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
 import { resolveLocalWorktreePath, type RuntimeGitContext } from './runtime-git-client-context'
 
@@ -14,7 +13,7 @@ export async function discardRuntimeGitSubmodulePath(
   submodulePath: string,
   filePath: string
 ): Promise<void> {
-  const target = getActiveRuntimeTarget(context.settings)
+  const target = context.target
   if (target.kind === 'local' || !context.worktreeId) {
     await window.api.git.submoduleDiscard({
       worktreePath: resolveLocalWorktreePath(context),
@@ -37,7 +36,7 @@ export async function restoreRuntimeGitSubmodulePointer(
   context: RuntimeGitContext,
   submodulePath: string
 ): Promise<void> {
-  const target = getActiveRuntimeTarget(context.settings)
+  const target = context.target
   if (target.kind === 'local' || !context.worktreeId) {
     await window.api.git.submoduleRestorePointer({
       worktreePath: resolveLocalWorktreePath(context),
@@ -65,7 +64,7 @@ export type RuntimeGitSubmoduleListResult = GitSubmoduleListResult & { unsupport
 export async function listRuntimeGitSubmodules(
   context: RuntimeGitContext
 ): Promise<RuntimeGitSubmoduleListResult> {
-  const target = getActiveRuntimeTarget(context.settings)
+  const target = context.target
   try {
     return await withSubmoduleWriteSupport(async () => {
       if (target.kind === 'local' || !context.worktreeId) {
@@ -119,7 +118,7 @@ export async function commitRuntimeGitSubmodule(
   submodulePath: string,
   message: string
 ): Promise<{ success: boolean; error?: string }> {
-  const target = getActiveRuntimeTarget(context.settings)
+  const target = context.target
   return withSubmoduleWriteSupport(async () => {
     if (target.kind === 'local' || !context.worktreeId) {
       return window.api.git.submoduleCommit({
@@ -144,7 +143,7 @@ export async function pushRuntimeGitSubmodule(
   submodulePath: string,
   publish = false
 ): Promise<void> {
-  const target = getActiveRuntimeTarget(context.settings)
+  const target = context.target
   await withSubmoduleWriteSupport(async () => {
     if (target.kind === 'local' || !context.worktreeId) {
       await window.api.git.submodulePush({
@@ -170,7 +169,7 @@ export async function pullRuntimeGitSubmodule(
   context: RuntimeGitContext,
   submodulePath: string
 ): Promise<void> {
-  const target = getActiveRuntimeTarget(context.settings)
+  const target = context.target
   await withSubmoduleWriteSupport(async () => {
     if (target.kind === 'local' || !context.worktreeId) {
       await window.api.git.submodulePull({
@@ -195,7 +194,7 @@ async function runRuntimeGitSubmoduleWrite(
   method: 'git.submoduleStage' | 'git.submoduleUnstage',
   args: { submodulePath: string; filePaths: string[] }
 ): Promise<void> {
-  const target = getActiveRuntimeTarget(context.settings)
+  const target = context.target
   await withSubmoduleWriteSupport(async () => {
     if (target.kind === 'local' || !context.worktreeId) {
       const invoke =

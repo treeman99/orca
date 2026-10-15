@@ -225,17 +225,18 @@ describe('new-workspace run target under the corporate policy', () => {
     current = renderCard()
     openRunTargetPicker(current.container)
     act(() => findRunTargetItem('Add host')?.click())
-    expect(findRunTargetItem('Add SSH host')).toBeTruthy()
+    // SSH hosts are removed from this build (ssh-remote-hosts-removal.ts), policy or not.
+    expect(findRunTargetItem('Add SSH host')).toBeUndefined()
     expect(findRunTargetItem('Add Remote Orca Server')).toBeTruthy()
   })
 
-  it('hides Add Remote Orca Server under disableRemoteOrcaServer, keeping SSH hosts', () => {
+  it('hides Add Remote Orca Server under disableRemoteOrcaServer', () => {
     policyState.current = { ...UNRESTRICTED, disableRemoteOrcaServer: true }
     current = renderCard()
     openRunTargetPicker(current.container)
+    // With SSH removed too there is no host to add, so the submenu itself may be gone.
     act(() => findRunTargetItem('Add host')?.click())
-    // SSH stays — the switch is about pairing another Orca, not about remote development.
-    expect(findRunTargetItem('Add SSH host')).toBeTruthy()
+    expect(findRunTargetItem('Add SSH host')).toBeUndefined()
     expect(findRunTargetItem('Add Remote Orca Server')).toBeUndefined()
   })
 })

@@ -25,7 +25,6 @@ const AUDITED_GLOBAL_FETCH_LINES = new Map<string, number>([
   ['main/opencode/opencode-launch-model-context.ts', 1],
   ['main/orca-profiles/profile-cloud-client.ts', 1],
   ['main/orca-profiles/profile-cloud-org-members-client.ts', 1],
-  ['main/rate-limits/codex-fetcher.ts', 3],
   ['main/rate-limits/zcode-usage-fetcher.ts', 1],
   ['main/runtime/push/push-gateway-client.ts', 1],
   ['main/runtime/relay/relay-http-client.ts', 2],
@@ -54,9 +53,8 @@ const AUDITED_GLOBAL_FETCH_LINES = new Map<string, number>([
   ['main/browser/browser-session-ua-wire-probe-server.ts', 10],
   ['main/opencode/status-plugin-post-source.ts', 1],
   ['main/pi/agent-status-extension-source.ts', 1],
-  // local identifiers named `fetch` (git fetch), not HTTP
-  ['main/ipc/worktree-remote.ts', 2],
-  ['relay/git-handler-fetch-operations.ts', 1]
+  // Jira auth test fixture: loopback to an in-process HTTP server, never a remote host.
+  ['main/jira/auth-http-fixture.ts', 1]
 ])
 
 // A line is a hit when it calls bare `fetch(` or touches `globalThis.fetch` /
@@ -64,7 +62,7 @@ const AUDITED_GLOBAL_FETCH_LINES = new Map<string, number>([
 // globalThis.fetch`). `typeof globalThis.fetch` type annotations are exempt.
 const GLOBAL_FETCH_LINE = /(^|[^.\w])fetch\(|(?<!typeof )\bglobal(This)?\.fetch\b/
 
-const SCANNED_ROOTS = ['main', 'cli', 'relay']
+const SCANNED_ROOTS = ['main', 'cli']
 
 function globalFetchLineCounts(srcRoot: string): Map<string, number> {
   const counts = new Map<string, number>()
@@ -97,7 +95,7 @@ function globalFetchLineCounts(srcRoot: string): Map<string, number> {
   return counts
 }
 
-describe('global fetch call-site audit (main, cli, relay)', () => {
+describe('global fetch call-site audit (main, cli)', () => {
   it('keeps every global-fetch line audited with its expected count', () => {
     const found = globalFetchLineCounts(join(__dirname, '..'))
 

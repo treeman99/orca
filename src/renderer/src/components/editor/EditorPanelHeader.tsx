@@ -20,7 +20,7 @@ import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
 import type { ArtifactWriteRequest } from '../../../../shared/artifacts'
 import { ArtifactPublishButton } from '@/components/artifacts/ArtifactPublishButton'
 import { ARTIFACT_SHARING_REMOVED } from '../../../../shared/artifact-sharing-removal'
-import { markdownArtifactSourceKey } from './markdown-artifact-upload'
+import { editorArtifactSourceKey } from './editor-artifact-upload'
 
 type EditorPanelHeaderProps = {
   activeFile: OpenFile
@@ -53,7 +53,7 @@ type EditorPanelHeaderProps = {
   onToggleMarkdownTableOfContents: () => void
   onToggleMarkdownFrontmatter: () => void
   onExportMarkdownToPdf: () => void
-  createMarkdownArtifactRequest?: () => Promise<ArtifactWriteRequest>
+  createArtifactRequest?: () => Promise<ArtifactWriteRequest>
 }
 
 export function EditorPanelHeader({
@@ -87,7 +87,7 @@ export function EditorPanelHeader({
   onToggleMarkdownTableOfContents,
   onToggleMarkdownFrontmatter,
   onExportMarkdownToPdf,
-  createMarkdownArtifactRequest
+  createArtifactRequest
 }: EditorPanelHeaderProps): React.JSX.Element {
   const { comments: diffComments } = useVisibleWorktreeDiffComments(activeFile.worktreeId)
   const activeGroupId = useAppStore((s) => s.activeGroupIdByWorktree[activeFile.worktreeId])
@@ -313,14 +313,11 @@ export function EditorPanelHeader({
           </Tooltip>
         </TooltipProvider>
       )}
-      {!ARTIFACT_SHARING_REMOVED &&
-      isMarkdown &&
-      !isDiffSurface &&
-      createMarkdownArtifactRequest ? (
+      {!ARTIFACT_SHARING_REMOVED && !isDiffSurface && createArtifactRequest ? (
         <ArtifactPublishButton
-          sourceKey={markdownArtifactSourceKey(activeFile)}
+          sourceKey={editorArtifactSourceKey(activeFile)}
           className="size-6 [&_svg]:size-3.5!"
-          createRequest={createMarkdownArtifactRequest}
+          createRequest={createArtifactRequest}
         />
       ) : null}
       <EditorPanelMarkdownActionsMenu

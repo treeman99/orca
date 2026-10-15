@@ -73,10 +73,12 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
     this.rememberClaudeAuthSnapshot(claudeAuthPreparation, claudeGeneration, claudeTarget)
     const claudeProvenance = claudeAuthPreparation?.provenance ?? 'system'
     const codexTarget = this.codexFetchTarget
+    // Why: capture before the resolver await; a reset during it bumps the generation and this cycle's result is stale.
+    const codexGeneration = this.codexFetchGeneration
     const previousState = this.state
     // Why: a skipped Codex poll must not stop the other providers' cycle, so gate
     // only the Codex slot instead of returning early (#STA-4422).
-    const codexHome = this.resolveCodexHome(codexTarget)
+    const codexHome = await this.resolveCodexHome(codexTarget)
     const codexFetchGated = codexHome.skip
     const codexHomePath = codexHome.homePath
     const codexStateBeforeFetch =
@@ -84,7 +86,6 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
     const codexProvenance = codexFetchGated
       ? null
       : this.getCodexProvenance(codexTarget, codexHomePath)
-    const codexGeneration = this.codexFetchGeneration
     const openCodeGoConfig = this.resolveOpenCodeGoConfig()
     const cookie = openCodeGoConfig.sessionCookie
     const workspaceIdOverride = openCodeGoConfig.workspaceIdOverride
@@ -237,10 +238,13 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
           ? Promise.resolve(unavailableSnapshot('codex'))
           : codexFetchGated
             ? Promise.resolve(previousState.codex as ProviderRateLimits)
-            : (missingWslCodexHome ?? fetchCodexRateLimits({ codexHomePath, signal })),
-        this.isUsageProviderAllowed('gemini')
-          ? fetchGeminiRateLimits(geminiCliOAuthEnabled)
-          : Promise.resolve(unavailableSnapshot('gemini')),
+            : (missingWslCodexHome ??
+              fetchCodexRateLimits({
+                codexHomePath,
+                networkProxySettings: this.networkProxySettingsResolver?.(),
+                signal
+              })),
+        this.fetchUsageIfAllowed('gemini', () => fetchGeminiRateLimits(geminiCliOAuthEnabled)),
         this.isUsageProviderAllowed('opencode-go')
           ? fetchOpenCodeGoUsage({
               settingsApiKey: openCodeGoApiKey,
@@ -263,9 +267,7 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
               signal
             })
           : Promise.resolve(unavailableSnapshot('opencode-go')),
-        this.isUsageProviderAllowed('kimi')
-          ? this.fetchKimiWithResolvedHome()
-          : Promise.resolve(unavailableSnapshot('kimi')),
+        this.fetchUsageIfAllowed('kimi', () => this.fetchKimiWithResolvedHome()),
         !this.isUsageProviderAllowed('minimax')
           ? Promise.resolve(unavailableSnapshot('minimax'))
           : miniMaxConfigResult.error

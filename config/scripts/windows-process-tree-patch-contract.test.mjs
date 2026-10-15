@@ -1,3 +1,5 @@
+// Fork-owned since v1.4.226, when upstream dropped this check (#27704). CLAUDE.md's patch rules rely on
+// it: pnpm applies a malformed or stale patch silently, and only the hash pin in the lockfile shows it.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'

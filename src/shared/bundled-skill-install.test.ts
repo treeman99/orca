@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -153,10 +154,12 @@ describe('installBundledSkills', () => {
   // The decisive check for the offline lane: the lock hash has to equal the
   // gitTreeSha the freshness manifest recorded for the same package, or every
   // install reports itself as unrecognized content the moment it lands.
-  it('installs bytes whose tree sha matches the shipped freshness manifest', async () => {
+  // Why per-file hashes: v1.4.226 dropped gitTreeSha from the manifest, and its package digest
+  // lives in main, out of reach of this shared suite.
+  it('installs bytes that match every file the shipped freshness manifest lists', async () => {
     const manifest = JSON.parse(
       await readFile(join(REPO_ROOT, 'resources', 'skills', 'current-manifest.json'), 'utf8')
-    ) as { skills: { name: string; gitTreeSha: string }[] }
+    ) as { skills: { name: string; files: { path: string; exactSha256: string }[] }[] }
     expect(manifest.skills.length).toBeGreaterThan(0)
     const homeDir = await makeTempDir()
 
@@ -170,7 +173,14 @@ describe('installBundledSkills', () => {
     expect(result.errors).toEqual([])
     for (const skill of manifest.skills) {
       const installed = result.installed.find((entry) => entry.name === skill.name)
-      expect(installed?.gitTreeSha).toBe(skill.gitTreeSha)
+      if (!installed) {
+        throw new Error(`${skill.name} was not installed`)
+      }
+      for (const file of skill.files) {
+        const bytes = await readFile(join(installed.installedPaths[0], file.path))
+        const sha = createHash('sha256').update(bytes).digest('hex')
+        expect(sha, `${skill.name}/${file.path}`).toBe(file.exactSha256)
+      }
     }
   })
 

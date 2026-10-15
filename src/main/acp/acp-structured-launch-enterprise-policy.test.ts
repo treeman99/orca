@@ -15,7 +15,7 @@ vi.mock('../enterprise/enterprise-policy-file', async (importOriginal) => ({
 }))
 
 import { acpLaunchSpecFor } from './acp-launch-specs'
-import { createAcpStructuredLaunchResolver } from './acp-structured-launch-resolution'
+import { createAcpStructuredLaunchResolver } from '../runtime/structured-agent-launch-composition.test-support'
 
 const GROK = acpLaunchSpecFor('grok')!
 const BLOCKED = /agent_blocked_by_enterprise_policy/
@@ -31,7 +31,7 @@ function grokRecord(): AgentSessionRecord {
 
 function launch(): Promise<unknown> {
   return createAcpStructuredLaunchResolver(GROK, {
-    store: { getRecord: () => grokRecord() },
+    store: { getRecord: () => grokRecord(), pinLaunchDirectory: vi.fn() },
     readJournal: () => null,
     resolveWorkspacePath: async () => '/repo/worktree',
     resolveEnvironment: async () => ({ PATH: '/usr/bin', HOME: '/home/user' }),

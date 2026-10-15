@@ -2,6 +2,7 @@ import { getPtyIpc } from '../../pty-host-bindings'
 import { runPtyIpcSpawn } from './spawn-run'
 import type { PtySpawnIpcArgs, PtySpawnIpcDeps } from './spawn-types'
 import { assertAgentAllowedByEnterprisePolicy } from '../../../enterprise/agent-allowlist-guard'
+import { getConnectionExecutionHostId } from '../../../../shared/execution-host'
 
 export function installPtySpawnIpcHandler(deps: PtySpawnIpcDeps): void {
   const ipcMain = getPtyIpc()
@@ -14,7 +15,9 @@ export function installPtySpawnIpcHandler(deps: PtySpawnIpcDeps): void {
     if (args.launchAgent) {
       assertAgentAllowedByEnterprisePolicy(args.launchAgent)
     }
-    const startupPromise = getLocalPtyStartupPromise(args.connectionId)
+    const startupPromise = getLocalPtyStartupPromise(
+      getConnectionExecutionHostId(args.connectionId)
+    )
     if (startupPromise) {
       await startupPromise
     }

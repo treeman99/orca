@@ -335,7 +335,8 @@ describe('EditorFileTabContextMenu open-in submenu', () => {
     expect(openInExternalEditorMock).toHaveBeenCalledWith({
       path: '/repo/foo.ts',
       command: 'code',
-      connectionId: null
+      connectionId: null,
+      ownerHostId: 'local'
     })
   })
 
@@ -351,7 +352,8 @@ describe('EditorFileTabContextMenu open-in submenu', () => {
     expect(openInExternalEditorMock).toHaveBeenCalledWith({
       path: '/repo/foo.ts',
       command: 'code',
-      connectionId: 'ssh-1'
+      connectionId: 'ssh-1',
+      ownerHostId: 'ssh:ssh-1'
     })
   })
 
@@ -410,7 +412,8 @@ describe('EditorFileTabContextMenu open-in runtime owner', () => {
     expect(openInExternalEditorMock).toHaveBeenCalledWith({
       path: '/repo/foo.ts',
       command: 'code',
-      connectionId: null
+      connectionId: null,
+      ownerHostId: 'local'
     })
   })
 

@@ -1,4 +1,4 @@
-import type { PtyConnectResult } from '../pty-transport'
+import type { PtyConnectResult } from '../pty-transport-types'
 import type { ReattachPayloadSession } from './reattach-payload-session'
 
 // Fork-owned: the `terminal-restore` diagnostic lines for the reattach paths, kept out of

@@ -68,6 +68,7 @@ import { orderTabLaunchAgents } from '@/components/tab-bar/tab-agent-launch-opti
 import { buildDashboardWorktreeLaunchOptions } from '@/components/dashboard/dashboard-worktree-launch-options'
 import { launchDashboardAgent } from '@/components/dashboard/launch-dashboard-agent'
 import { useAppStore } from '@/store'
+import { LOCAL_SETTINGS_HOST_SCOPE } from '@/components/settings/settings-host-scope'
 
 const CORPORATE_VIEW: EnterprisePolicyView = toEnterprisePolicyView(
   makeLockdownPolicy({ allowedAgents: [...ALLOWED] })
@@ -198,7 +199,11 @@ describe('Settings → Agents under allowedAgents', () => {
   it('lists only the allowed agents once the policy arrives', async () => {
     const view = render(
       <TooltipProvider>
-        <AgentsPane settings={getDefaultSettings('/tmp')} updateSettings={vi.fn()} />
+        <AgentsPane
+          settings={getDefaultSettings('/tmp')}
+          updateSettings={vi.fn()}
+          hostScope={LOCAL_SETTINGS_HOST_SCOPE}
+        />
       </TooltipProvider>
     )
     expect(view.container.textContent).toContain('Codex')
@@ -206,7 +211,11 @@ describe('Settings → Agents under allowedAgents', () => {
     await deliverCorporatePolicy()
     view.rerender(
       <TooltipProvider>
-        <AgentsPane settings={getDefaultSettings('/tmp')} updateSettings={vi.fn()} />
+        <AgentsPane
+          settings={getDefaultSettings('/tmp')}
+          updateSettings={vi.fn()}
+          hostScope={LOCAL_SETTINGS_HOST_SCOPE}
+        />
       </TooltipProvider>
     )
     expectNoBlockedAgent([view.container.textContent ?? ''])

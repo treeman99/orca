@@ -9,7 +9,7 @@
  * treat the failure as a completed write.
  */
 import { isSubmoduleWriteUnsupportedMessage } from '../../../shared/git-submodule-write-support'
-import { RuntimeRpcCallError } from './runtime-rpc-client'
+import { RuntimeRpcCallError } from './runtime-rpc-result'
 
 export class SubmoduleWriteUnsupportedError extends Error {
   readonly code = 'submodule-write-unsupported' as const
