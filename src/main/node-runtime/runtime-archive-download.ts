@@ -66,7 +66,13 @@ export class ReleaseMismatchError extends Error {}
 
 /** What the person can do about a failed download. Only a proven mismatch blames the release;
  *  every other failure (proxy, DNS, TLS, a dropped connection) is one the network can fix. */
+const RUNTIME_DOWNLOAD_POLICY_REFUSAL = 'runtime download is disabled by enterprise policy'
+
 export function downloadFailureMessage(label: string, error: unknown): string {
+  // Fork: a policy refusal is not a network fault, so it must not send the person to their proxy.
+  if (error instanceof Error && error.message.endsWith(RUNTIME_DOWNLOAD_POLICY_REFUSAL)) {
+    return error.message
+  }
   return error instanceof ReleaseMismatchError
     ? `The ${label} download didn't match the release Orca expects, so nothing was installed. Updating Orca may fix this.`
     : `Couldn't download ${label}. Check your network connection or proxy, then try again.`
@@ -113,7 +119,7 @@ async function downloadVerifiedArchiveOnce(
   // Why here: every pinned-runtime fetch (SSH relay, WSL, OpenCode) funnels into this download;
   // a verified cache hit never reaches it and stays allowed.
   if (getEnterprisePolicy().disableRuntimeDownloads) {
-    throw new Error(`${label} runtime download is disabled by enterprise policy`)
+    throw new Error(`${label} ${RUNTIME_DOWNLOAD_POLICY_REFUSAL}`)
   }
   const maxBytes = archive.maxArchiveBytes ?? MAX_RUNTIME_ARCHIVE_BYTES
   const stall = new AbortController()

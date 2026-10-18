@@ -55,6 +55,15 @@
       "summary": "allowedAgents — 에이전트를 실제로 띄우는 모든 문. 하나라도 빠지면 우회로가 된다.",
       "present": [
         {
+          "file": "electron.vite.config.ts",
+          "contains": "ORCA_BUILD_IDENTITY: ORCA_BUILD_IDENTITY_LITERAL,",
+          "why": "내장 에이전트 하한의 번들 표식. v1.4.229 부터 포크 define 대신 upstream 이 모든 main 번들에 치환하는 이 상수의 존재로 판단한다(electron.vite.config.ts 가 max-lines 에 정확히 닿음). upstream 이 이 define 을 지우면 하한이 조용히 꺼진다."
+        },
+        {
+          "file": "src/main/enterprise/enterprise-policy-file.ts",
+          "contains": "const bundledMainBuild = typeof ORCA_BUILD_IDENTITY !== 'undefined'"
+        },
+        {
           "file": "src/main/agent-hooks/managed-agent-hook-startup.ts",
           "contains": "import { installManagedAgentHooksUnderEnterprisePolicy as installManagedAgentHooks } from './enterprise-agent-hook-policy'",
           "why": "v1.4.226 이 시작 시 관리형 훅 설치를 이 모듈로 뺐다. 별칭 임포트라 본문은 upstream 과 바이트 동일하고, 이 한 줄이 빠지면 허용목록 밖 에이전트의 벤더 설정 파일에 훅이 써진다."
@@ -311,7 +320,7 @@
         {
           "file": "src/main/node-runtime/runtime-archive-download.ts",
           "contains": "if (getEnterprisePolicy().disableRuntimeDownloads) {",
-          "why": "v1.4.215 신설 스위치의 유일한 게이트. v1.4.220 이 bun 을 고정 Node 런타임으로 바꾸고 다운로드를 downloadVerifiedArchive 한 곳으로 모았다 — SSH 릴레이 배포·WSL·OpenCode 준비가 사용자 조작 없이 런타임 아카이브를 받는 레인이다."
+          "why": "v1.4.215 신설 스위치의 유일한 게이트. v1.4.220 이 bun 을 고정 Node 런타임으로 바꾸고 다운로드를 downloadVerifiedArchive 한 곳으로 모았다 — SSH 릴레이 배포·WSL·OpenCode 준비가 사용자 조작 없이 런타임 아카이브를 받는 레인이다. v1.4.229 의 관리형 에이전트 런타임 설치(managedRuntime.install)도 여기로 수렴한다(행동 테스트 managed-runtime-install-enterprise-policy.test.ts)."
         },
         {
           "file": "src/main/ipc/zcode-plan-credentials.ts",
@@ -923,7 +932,13 @@
         },
         {
           "file": "src/main/runtime/orca-runtime.ts",
-          "contains": "OrcaRuntimeForkSurface"
+          "contains": "class OrcaRuntimeService extends OrcaRuntimeForkSurface {",
+          "why": "포크 계층 말단의 접합점. 예전 앵커(\"OrcaRuntimeForkSurface\")는 import 줄만 남아도 통과해, upstream 판 extends 로 풀리면 포크 override(허용목록·워커 패널 등)가 체인에서 통째로 빠지는 것을 못 잡았다(v1.4.229 표면 워커 지적)."
+        },
+        {
+          "file": "src/main/runtime/terminal/wait/terminal-wait-permission.ts",
+          "contains": "extends OrcaRuntimeWithAgentPromptRescue {",
+          "why": "Enter 재전송 구제 계층을 upstream 체인에 끼우는 유일한 접합점. upstream 은 여기서 OrcaRuntimeWithAgentPromptRequestCorrelation 을 extends 하므로 --theirs 로 풀리면 구제 override 가 타입 오류 없이 체인에서 사라진다."
         },
         {
           "file": "src/renderer/src/store/terminals/terminal-tab-close.ts",

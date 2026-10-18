@@ -549,7 +549,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.226`** 이 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.229`** 이 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -977,6 +977,25 @@ spread 는 `no-useless-spread` 가, 도우미 함수는 그 임포트 한 줄이
 (`composed-workers.test.ts`)가 뮤테이션으로 잡는지 반드시 확인하십시오. 테스트 파일이 상한에 닿으면
 포크 시드를 포크 모듈로 빼거나(`packaged-enterprise-resources-test-fixture.mjs`) 포크 케이스를 포크 소유
 테스트 파일로 옮깁니다.
+
+**upstream 이 `@ts-nocheck` 를 걷어내면 그 파일의 포크 줄이 처음으로 타입체크를 받습니다(v1.4.229).**
+v1.4.229 가 `config/ts-nocheck-baseline.txt` 를 80 → 0 으로 비웠고, 포크 줄이 든 파일이 8개였습니다. 가장 큰
+것은 Enter 재전송 구제였습니다 — `terminal-input-dispatch.ts`(옛 `orca-runtime-controller-knows-pty-is-live.ts`)의
+포크 줄이 아래 계층 메서드를 `this` 로 부르고 있어 타입 오류 8건이 났고, 파일도 316줄로 상한을 넘겼습니다.
+`@ts-nocheck` 를 되살리지 말고(래칫이 거부합니다) **포크 계층에서 upstream 메서드를 `override` 로 감싸십시오** —
+`orca-runtime-agent-prompt-rescue.ts` 의 `sendTerminalAgentPrompt` 가 `super` 를 부르고, upstream 이 버리는 값
+(쓰기 결과의 `stalled`)은 직렬화 계층 override 가 `AsyncLocalStorage`(`agent-prompt-stall-scope.ts`)로 운반합니다.
+upstream 파일은 바이트 동일해져 다음 머지에서 충돌하지 않고, upstream 이 메서드 이름을 바꾸면 `override` 가
+타입 오류로 알려 줍니다. 같은 판에서 `validateOrchestrationAgentLauncher`·`getStructuredAgentSessionCreateSupport`
+의 허용목록 게이트도 `OrcaRuntimeForkSurface` 의 override 로 옮겼습니다. 포크 계층이 체인에 끼는 접합점
+(`extends OrcaRuntimeWithAgentPromptRescue`, `extends OrcaRuntimeForkSurface`)은 원장 앵커가 지킵니다 —
+`--theirs` 로 풀리면 override 가 타입 오류 없이 통째로 빠지기 때문입니다.
+
+**빌드 설정 파일에 포크 define 을 둘 자리가 없을 때는 upstream 상수를 빌립니다(v1.4.229).** 내장 에이전트
+하한은 "electron-vite 번들인가"를 포크 define(`ORCA_BUNDLED_MAIN_BUILD`)으로 판단했는데 `electron.vite.config.ts` 가
+상한에 정확히 닿았습니다. upstream 이 모든 main 번들에 치환하고 vitest 는 정의하지 않는 `ORCA_BUILD_IDENTITY` 의
+**존재 여부**로 바꿨습니다(`enterprise-policy-file.ts`). upstream 이 그 define 을 지우면 하한이 조용히 꺼지므로
+원장이 `electron.vite.config.ts` 의 그 줄을 지켜야 합니다.
 
 **`tests/e2e/.cross-version-checkouts/` 는 메인 워크트리에서만 테스트를 깨뜨립니다.** gitignore 된
 구버전 체크아웃이라 새 워크트리에는 없습니다. v1.4.206 의 신규 `e2e-worker-env-isolation.unit.test.ts`
