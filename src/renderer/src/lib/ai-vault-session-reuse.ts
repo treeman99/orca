@@ -10,7 +10,8 @@ export function markAiVaultSessionReused(session: {
   filePath: string
   executionHostId?: string | null
 }): void {
-  const mark = window.api?.aiVault?.markSessionReused
+  // Why the typeof: shared preparation code also runs where no renderer window exists.
+  const mark = typeof window === 'undefined' ? undefined : window.api?.aiVault?.markSessionReused
   const filePath = session.filePath?.trim()
   if (typeof mark !== 'function' || !filePath) {
     return

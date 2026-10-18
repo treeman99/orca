@@ -54,7 +54,11 @@ export const AGENT_SKILL_INSTALL_ROOTS: readonly AgentSkillInstallRoot[] = [
   { rootId: 'home-hermes', segments: ['.hermes', 'skills'], agentKey: 'hermes-agent' },
   // The skills CLI has no Muse key, and discovery reads ~/.config/muse without XDG_CONFIG_HOME.
   { rootId: 'home-muse', segments: ['.config', 'muse', 'skills'], agentKey: null },
-  { rootId: 'home-zcode', segments: ['.zcode', 'skills'], agentKey: 'zcode' }
+  { rootId: 'home-zcode', segments: ['.zcode', 'skills'], agentKey: 'zcode' },
+  // v1.4.229 added these three to discovery (skill-install-providers.ts).
+  { rootId: 'home-codebuddy', segments: ['.codebuddy', 'skills'], agentKey: 'codebuddy' },
+  { rootId: 'home-qoder', segments: ['.qoder', 'skills'], agentKey: 'qoder' },
+  { rootId: 'home-kiro', segments: ['.kiro', 'skills'], agentKey: 'kiro-cli' }
 ]
 
 export function agentSkillInstallRootPath(homeDir: string, root: AgentSkillInstallRoot): string {

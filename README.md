@@ -639,6 +639,7 @@ PR 트리거이며, 사내 보안 리뷰어가 우리 저장소에서 벤더 배
 | `desktop-relay.region-correction-idle-cutover` 게이트 항목 (v1.4.201)                                                               | `config/reliability-gates.jsonc`                | 위 테스트만 가리키므로 `check:reliability-gates` 가 없는 파일로 빨개집니다                                |
 | `Install relay integration dependencies` 스텝 (v1.4.201)                                                                            | `.github/workflows/unit-tests.yml`              | `working-directory: cloud` 에서 `@orca-cloud/relay` 를 설치합니다                                         |
 | `relay.control-activation-ownership` 게이트 항목 (v1.4.215)                                                                         | `config/reliability-gates.jsonc`                | `cloud/apps/relay` 테스트 4개만 가리킵니다. 원장 `absentSymbols` 의 `cloud/apps/` 가 다음 항목을 잡습니다 |
+| `Cancel obsolete PR checks` 목록의 `cloud-verify.yml` 행 (v1.4.229)                                                                 | `.github/workflows/ci-closed-pr-caches.yml`     | `ci-pr-concurrency-keys.test.mjs` 가 없는 워크플로의 동시성 키로 빨개집니다                               |
 
 **다음 동기화에서 할 일 — 매번 반복됩니다.**
 
@@ -674,6 +675,7 @@ upstream v1.4.195가 **Next.js 문서 사이트**(`docs/site/`, 115파일 + 자�
 | `docs.yml#{check,production,release_gate}` 3행 + `release-cut.yml#docs-production-dispatch` 1행 | `config/scripts/release-cut-token-permissions.test.mjs`의 `EXPECTED_MATRIX` | 이 게이트는 워크플로 잡 목록을 리터럴로 못 박습니다. 남겨 두면 "존재하지 않는 잡"으로 빨개집니다                                                                                                        |
 | `.gitignore`의 `!docs/site/` · `!docs/site/**` 2행                                              | `.gitignore`                                                                | upstream이 추가한 허용목록 예외. 지워야 `docs/**` 무시가 다시 이 트리를 덮습니다                                                                                                                        |
 | 번역 README 6개의 `../site/public/docs/*` 미디어 4종 (v1.4.203)                                 | `docs/readme/README.*.md`                                                   | `check:readme-local-links`가 추적 안 된 경로로 빨개집니다. 같은 파일의 사본인 `resources/onboarding/feature-wall/tile-{01,05,08}`(`*.recorded-at.json`의 `sourceGif`가 원본을 적어 둡니다)로 바꿨습니다 |
+| `Cancel obsolete PR checks` 목록의 `docs.yml` 행 (v1.4.229)                                     | `.github/workflows/ci-closed-pr-caches.yml`                                 | `ci-pr-concurrency-keys.test.mjs` 가 없는 워크플로의 동시성 키로 빨개집니다. 목록이 자동 병합되므로 다음 동기화에서도 이 행과 `cloud-verify.yml` 행이 되살아났는지 보세요                               |
 
 **다음 동기화에서 할 일 — 매번 반복됩니다.**
 

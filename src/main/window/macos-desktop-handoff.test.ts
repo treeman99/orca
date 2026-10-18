@@ -168,7 +168,8 @@ describe('desktopHandoffArguments', () => {
     })
 
     expect(args).toEqual(['orca://skills/share/abc_123', '/Users/me/notes.md'])
-    expect(skillShareIdFromArguments(args)).toBe('abc_123')
+    // Fork: skill sharing is removed (skill-share-link.ts), so the desktop app reads no id back.
+    expect(skillShareIdFromArguments(args)).toBeNull()
   })
 
   it('is empty for a plain app open', () => {

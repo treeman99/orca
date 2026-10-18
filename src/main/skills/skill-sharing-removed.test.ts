@@ -71,10 +71,11 @@ describe('skill sharing removal', () => {
       service.listOwnedShares(options),
       service.revokeShare('share_1', options),
       service.deleteVersion('package_1', 'version_1', options),
-      service.deletePackage('package_1', options)
+      service.deletePackage('package_1', options),
+      service.findOwnedPackageId('skill-name', options)
     ])
 
-    expect(settled).toHaveLength(11)
+    expect(settled).toHaveLength(12)
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 

@@ -50,7 +50,10 @@ function makeAccountService(): Record<string, ReturnType<typeof vi.fn>> {
     reauthenticateAccount: vi.fn(),
     removeAccount: vi.fn(),
     selectAccount: vi.fn(),
-    selectAccountForTarget: vi.fn()
+    selectAccountForTarget: vi.fn(),
+    // v1.4.229: registration wires the WSL sign-in link opener first.
+    setWslSignInLinkOpener: vi.fn(),
+    setWslLoginUrlOpener: vi.fn()
   }
 }
 
