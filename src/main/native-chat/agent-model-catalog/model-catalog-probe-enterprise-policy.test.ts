@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeEnterprisePolicy, makeLockdownPolicy } from '../../../shared/enterprise-policy-fixture'
 import { createClaudeModelCatalogProbe } from '../../claude/claude-model-catalog-probe'
+import { createClaudeCommandCatalogProbe } from '../../claude/claude-command-catalog-probe'
 import { createCodexModelCatalogProbe } from '../../codex/codex-model-catalog-probe'
 import { acpLaunchSpecFor } from '../../acp/acp-launch-specs'
 import { resolveAcpLaunchInvocation } from '../../acp/acp-structured-launch-resolution'
@@ -101,6 +102,21 @@ describe('model catalog probes under the corporate agent allowlist', () => {
       'listing stubbed out'
     )
     expect(runListing).toHaveBeenCalledTimes(1)
+  })
+
+  // v1.4.229: the at-rest `/` menu of a Claude chat lists through the same session-less spawn.
+  it('never starts claude for the at-rest `/` command list when the policy does not allow it', async () => {
+    mocks.getEnterprisePolicy.mockReturnValue(makeLockdownPolicy({ allowedAgents: ['codex'] }))
+    const runListing = vi.fn<NonNullable<ClaudeProbeDeps['runListing']>>()
+    const probe = createClaudeCommandCatalogProbe({
+      resolveCommand: () => '/bin/claude',
+      resolveInheritedEnv: async () => ({ PATH: '/bin', HOME: '/home/user' }),
+      resolveAuthPolicy: () => ({ account: 'system' }),
+      runListing
+    })
+
+    await expect(probe({ cwd: '/work', accountHomePath: '/homes/claude' })).rejects.toThrow()
+    expect(runListing).not.toHaveBeenCalled()
   })
 })
 
