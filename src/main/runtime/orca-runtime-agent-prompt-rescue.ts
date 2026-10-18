@@ -13,9 +13,11 @@ import { writeDiagnosticLine } from '../observability/diagnostic-log'
 import type { AgentPromptActivity } from './agent-prompt-submission-verification'
 import type { RuntimeAgentPromptWriteOptions } from './runtime-terminal-contracts'
 import {
+  assertAgentPromptRescuedIfStalled,
   classifyAgentPromptSubmitEvidence,
   type AgentPromptSubmitVerdict
 } from './agent-prompt-submit-evidence'
+import { captureAgentPromptStall, recordAgentPromptStall } from './agent-prompt-stall-scope'
 import { OrcaRuntimeWithAgentPromptRequestCorrelation } from './orca-runtime-agent-prompt-request-correlation'
 
 export type AgentPromptSubmitOutcome = 'verified' | 'unverified' | 'resent'
@@ -50,9 +52,68 @@ export abstract class OrcaRuntimeWithAgentPromptRescue extends OrcaRuntimeWithAg
     return this as unknown as AgentPromptRescueForwardRefs
   }
 
-  // Why here and not at the callers: every Orca-written prompt reaches a pane through
-  // sendTerminalAgentPrompt — worker dispatch, coordinator follow-ups, `terminal send
-  // --agent-prompt` — and an agent that cannot read a paste frame cannot read one from any.
+  // Why an override: upstream's send (terminal-input-dispatch.ts) stays byte-identical, and
+  // `override` fails typecheck if upstream renames it rather than silently dropping the rescue.
+  override async sendTerminalAgentPrompt(
+    handle: string,
+    prompt: string,
+    options: RuntimeAgentPromptWriteOptions
+  ): Promise<RuntimeTerminalSend> {
+    // Why here and not at the callers: every Orca-written prompt reaches a pane through this
+    // method — worker dispatch, coordinator follow-ups, `terminal send --agent-prompt` — and an
+    // agent that cannot read a paste frame cannot read one from any of them.
+    if (this.usesPlainTextPromptDelivery(handle)) {
+      return this.sendPlainTextAgentPrompt(handle, prompt, options)
+    }
+    // Why gated: upstream's queued lane answers a swallowed Enter by returning an
+    // input_accepted receipt the caller settles later, and it must never be resent into
+    // ("--wait-submit ... never resends"). The rescue keeps the lane upstream still leaves
+    // silent — a plain `terminal send` or coordinator follow-up with no request id.
+    if (options.acceptQueued && options.requestId) {
+      return super.sendTerminalAgentPrompt(handle, prompt, options)
+    }
+    const ptyId =
+      this.forward.getLivePtyForHandle(handle)?.pty.ptyId ?? this.tryGetLeafPtyId(handle)
+    const activityBaseline = this.readAgentPromptBaseline(handle, ptyId)
+    const { result: send, stalled } = await captureAgentPromptStall(() =>
+      super.sendTerminalAgentPrompt(handle, prompt, options)
+    )
+    if (!ptyId) {
+      return send
+    }
+    const { outcome: submit, statusObserved } = await this.resubmitAgentPromptIfStillUnsubmitted(
+      handle,
+      ptyId,
+      activityBaseline,
+      options.inputKind
+    )
+    assertAgentPromptRescuedIfStalled(stalled, submit, statusObserved)
+    return { ...send, submit }
+  }
+
+  private readAgentPromptBaseline(
+    handle: string,
+    ptyId: string | null
+  ): AgentPromptActivity | undefined {
+    try {
+      return ptyId ? this.getAgentPromptActivity(handle, ptyId) : undefined
+    } catch {
+      // Why: read before upstream's writability checks, so an exited pane must still fail with
+      // upstream's own error; no baseline only narrows the rescue to "cannot tell", never Enter.
+      return undefined
+    }
+  }
+
+  protected override async serializeAgentPromptSubmission<T>(
+    ptyId: string,
+    generation: number,
+    submit: () => Promise<T>
+  ): Promise<T> {
+    const delivery = await super.serializeAgentPromptSubmission(ptyId, generation, submit)
+    recordAgentPromptStall(delivery)
+    return delivery
+  }
+
   protected usesPlainTextPromptDelivery(handle: string): boolean {
     const ptyId =
       this.forward.getLivePtyForHandle(handle)?.pty.ptyId ?? this.tryGetLeafPtyId(handle)

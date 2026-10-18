@@ -12,6 +12,7 @@ import { tabPopoutApi } from './api/tab-popout-bridge'
 import { orcaProfilesApi } from './api/orca-profiles-bridge'
 import { platformApi } from './api/platform-bridge'
 import { wslApi } from './api/wsl-bridge'
+import { wslMoveApi } from './api/wsl-move-bridge'
 import { pwshApi } from './api/pwsh-bridge'
 import { gitBashApi } from './api/git-bash-bridge'
 import { pluginsApi } from './api/plugins-bridge'
@@ -112,6 +113,7 @@ const api = {
   orcaProfiles: orcaProfilesApi,
   platform: platformApi,
   wsl: wslApi,
+  wslMove: wslMoveApi,
   pwsh: pwshApi,
   gitBash: gitBashApi,
   plugins: pluginsApi,

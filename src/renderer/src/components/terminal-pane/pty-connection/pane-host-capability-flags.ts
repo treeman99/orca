@@ -30,6 +30,10 @@ import {
 
 import { resolveLatestAgentDoneStartedAt } from './agent-done-started-at'
 import { rendererAgentStatusObservations } from '@/lib/renderer-agent-status-observations'
+import {
+  createTerminalInputEchoDelay,
+  noteTerminalInputAwaitingEcho
+} from './terminal-input-echo-delay'
 
 import type { ConnectPanePtySession } from './connect-pane-pty-session'
 
@@ -221,6 +225,7 @@ export function installPaneHostCapabilityFlags(session: ConnectPanePtySession): 
   session.terminalInputGeneration = 0
   session.lastTerminalInputGeneration = null
   session.lastInteractiveRedrawInputAt = Number.NEGATIVE_INFINITY
+  session.inputEchoDelay = createTerminalInputEchoDelay()
   session.hasReceivedPtyOutput = false
   session.deferredReattachLiveData = null
   session.reattachLiveDataDeferralDepth = 0
@@ -240,6 +245,7 @@ export function installPaneHostCapabilityFlags(session: ConnectPanePtySession): 
   }
   session.markInteractiveRedrawInput = (): void => {
     session.lastInteractiveRedrawInputAt = performance.now()
+    noteTerminalInputAwaitingEcho(session.inputEchoDelay, session.lastInteractiveRedrawInputAt)
     if (session.synchronizedForegroundOutputActive) {
       session.synchronizedForegroundFrameInteractive = true
       session.synchronizedForegroundInteractivePresentPending = true

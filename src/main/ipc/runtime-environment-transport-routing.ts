@@ -13,6 +13,7 @@ import {
   type RemoteRuntimeSubscription
 } from '../../shared/remote-runtime-client'
 import { withRuntimeUnreachableHint } from './runtime-environment-unreachable-hint'
+import { decodeSessionTabsDeltaEvents } from './runtime-environment-session-tabs-delta-decoding'
 import { enqueueRuntimeCall } from './runtime-environment-call-queue'
 import {
   sendRemoteRuntimeConnectionRequestAbortable,
@@ -115,7 +116,7 @@ export async function callRuntimeEnvironment(
           markEnvironmentUsedFromResponse(userDataPath, currentEnvironment.id, response)
           return response
         }
-        if (shouldRouteCallBySupport(method)) {
+        if (shouldRouteCallBySupport(method, currentEnvironment.id)) {
           return executeSupportRoutedCall({
             userDataPath,
             environment: currentEnvironment,
@@ -157,7 +158,7 @@ export async function subscribeRuntimeEnvironment(
   method: string,
   params: unknown,
   timeoutMs: number | undefined,
-  callbacks: {
+  rawCallbacks: {
     onEvent: (
       payload:
         | { type: 'response'; response: RuntimeRpcResponse<unknown> }
@@ -171,6 +172,10 @@ export async function subscribeRuntimeEnvironment(
   signal?: AbortSignal
 ): Promise<RemoteRuntimeSubscription> {
   assertRemoteOrcaServerAllowed()
+  const callbacks = {
+    ...rawCallbacks,
+    onEvent: decodeSessionTabsDeltaEvents(method, rawCallbacks.onEvent)
+  }
   const environment = await resolveManagedRuntimeEnvironment(userDataPath, selector)
   const pairedConnection = getPreferredPairedRuntimeConnection(environment)
   const effectiveTimeoutMs = timeoutMs ?? DEFAULT_REMOTE_RUNTIME_TIMEOUT_MS

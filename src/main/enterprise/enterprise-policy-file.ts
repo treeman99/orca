@@ -343,10 +343,12 @@ export function getEnterprisePolicy(): EnterprisePolicy {
   const baselined = applyBundledBaseline(loaded, bundledPath)
   // Why a build constant instead of `allowEnvOverride`/`isPackaged()`: 19 test files mock
   // `isPackaged: true` for unrelated reasons, and the floor would then block `codex` in the
-  // upstream PTY cases. `ORCA_BUNDLED_MAIN_BUILD` only exists in an electron-vite bundle, so
-  // it is true for packaged builds and `pnpm dev` and absent under vitest — and unlike an
-  // env var, a shell export cannot spoof it.
-  const bundledMainBuild = typeof ORCA_BUNDLED_MAIN_BUILD !== 'undefined' && ORCA_BUNDLED_MAIN_BUILD
+  // upstream PTY cases. electron-vite substitutes `ORCA_BUILD_IDENTITY` into every main bundle
+  // (null outside official releases) and vitest never defines it, so its presence is true for
+  // packaged builds and `pnpm dev` and absent under vitest — and unlike an env var, a shell
+  // export cannot spoof it. Upstream's own constant, not a fork define: electron.vite.config.ts
+  // sits exactly at its max-lines cap (v1.4.229).
+  const bundledMainBuild = typeof ORCA_BUILD_IDENTITY !== 'undefined'
   const effectiveDocument = bundledMainBuild ? applyBuiltInAgentFloor(baselined) : baselined
   // Why read gh's config at all: a GUI-launched app never inherits a shell rc, so `GH_HOST`
   // is routinely absent on exactly the machines that DID run `gh auth login --hostname`.

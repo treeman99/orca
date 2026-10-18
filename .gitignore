@@ -70,6 +70,8 @@ desktop.ini
 
 # Lint/cache
 .oxlintcache
+/.cache/vite/
+/.cache/vite.lock/
 
 # Logs
 *.log
@@ -195,5 +197,6 @@ ci-shards/
 
 # Paired CI timing reports and temporary baseline plugin.
 .build/preflight-benchmark/
+/.build/windows-native-benchmark/
 
 .local/static-analysis-research/

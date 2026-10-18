@@ -153,7 +153,8 @@ describe('the catalog probe roster under the corporate agent allowlist', () => {
 
     await expect(
       resolveAcpLaunchInvocation(acpLaunchSpecFor('grok')!, home('/homes/grok'), {
-        resolveEnvironment
+        resolveEnvironment,
+        dataDirectory: '/tmp/orca-data'
       })
     ).rejects.toThrow('agent_blocked_by_enterprise_policy')
     expect(resolveEnvironment).not.toHaveBeenCalled()
@@ -167,7 +168,8 @@ describe('the catalog probe roster under the corporate agent allowlist', () => {
 
     await expect(
       resolveAcpLaunchInvocation(acpLaunchSpecFor('grok')!, home('/homes/grok'), {
-        resolveEnvironment
+        resolveEnvironment,
+        dataDirectory: '/tmp/orca-data'
       })
     ).rejects.toThrow('environment stubbed out')
     expect(resolveEnvironment).toHaveBeenCalledTimes(1)

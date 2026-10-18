@@ -27,6 +27,7 @@ import {
   registerRuntimeEnvironmentHandlers
 } from '../runtime-environments'
 import { registerWslHostHandlers } from '../wsl-host-handlers'
+import { registerWslMoveHandlers } from '../wsl-move-handlers'
 import { registerEphemeralVmHandlers } from '../ephemeral-vm'
 import { registerAiVaultHandlers } from '../ai-vault'
 import { registerAiVaultSearchHandlers } from '../ai-vault-search'
@@ -41,6 +42,7 @@ import { registerGithubEnterpriseHandlers } from '../github-enterprise'
 import { registerConfluenceHandlers } from '../confluence'
 import { registerAppUpdateHandlers } from '../app-update'
 import { registerDiagnosticLogHandlers } from '../diagnostic-log'
+import { registerWorkspaceSpaceWindowHandlers } from '../workspace-space-window'
 import { registerTerminalPreviewHandlers } from '../terminal-preview'
 import { registerDeveloperPermissionHandlers } from '../developer-permissions'
 import { registerComputerUsePermissionHandlers } from '../computer-use-permissions'
@@ -218,6 +220,7 @@ export function registerCoreHandlers(
   // The only registrar here that reaches the network. Turning it off is the policy
   // file's `disableAutoUpdate`, gated in the service's `check()` — not this call.
   registerAppUpdateHandlers()
+  registerWorkspaceSpaceWindowHandlers(store)
   registerTerminalPreviewHandlers(runtime)
   registerDeveloperPermissionHandlers()
   // Why: diagnostics handlers are wired alongside telemetry but the two
@@ -277,6 +280,7 @@ export function registerCoreHandlers(
     getUserDataPath: () => app.getPath('userData'),
     invalidateTransport: invalidateRuntimeEnvironmentTransport
   })
+  registerWslMoveHandlers(() => app.getPath('userData'))
   registerEphemeralVmHandlers(store, pluginService)
   // Session history and terminal resume are not chats; a refused host leaves nothing to check.
   const ensureStructuredSessionOwnership = () =>

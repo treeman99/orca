@@ -9,6 +9,11 @@ export const ORCA_CLI_COMMAND_NAME = 'orca'
 /** Linux and WSL registration name — `/usr/bin/orca` there is GNOME's screen reader. */
 export const LINUX_ORCA_CLI_COMMAND_NAME = 'orca-ide'
 
+// Why: for a commit ref the skills CLI tries `clone --branch <sha>` first and falls back to
+// fetching the commit only when git's error is in English, so a translated git fails every
+// install (#28914, vercel-labs/skills#2505). Spread over the env of every spawned run.
+export const SKILLS_CLI_ENV_OVERRIDES = { LC_ALL: 'C' } as const
+
 export const ORCA_CLI_SKILL_NAME = 'orca-cli'
 export const COMPUTER_USE_SKILL_NAME = 'computer-use'
 export const ORCHESTRATION_SKILL_NAME = 'orchestration'

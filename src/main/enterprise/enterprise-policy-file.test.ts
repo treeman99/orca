@@ -382,11 +382,11 @@ describe('getEnterprisePolicy', () => {
   // The compiled-in agent floor. `resources/enterprise-policy.json` lives in the install
   // directory, which a per-user NSIS install lets the standard user own, so these pin the
   // case the file baseline cannot reach: the file that was supposed to name the agents is gone.
-  // The floor keys off ORCA_BUNDLED_MAIN_BUILD (see src/types/build-constants.d.ts), which
-  // only an electron-vite bundle defines — vitest must opt in explicitly.
+  // The floor keys off the presence of ORCA_BUILD_IDENTITY, which only an electron-vite bundle
+  // defines — vitest must opt in explicitly.
   describe('built-in agent allowlist floor', () => {
     beforeEach(() => {
-      vi.stubGlobal('ORCA_BUNDLED_MAIN_BUILD', true)
+      vi.stubGlobal('ORCA_BUILD_IDENTITY', null)
       hostEnvironment.isPackaged = true
       stubResourcesPath(RESOURCES_DIR)
     })

@@ -13,6 +13,7 @@ import type { Store } from '../persistence'
 import { closeDashboardPopout } from './dashboard-popout-window'
 import { closeAllTabPopoutWindows } from './tab-popout-window'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
+import { closeWorkspaceSpaceWindow } from './workspace-space-window'
 import {
   installMainWindowCloseLifecycle,
   WINDOW_QUIT_RENDERER_ACK_TIMEOUT_MS
@@ -215,6 +216,7 @@ export function createMainWindow(
     closeDashboardPopout()
     // Why: same for detached tab windows — their store owner is this renderer.
     closeAllTabPopoutWindows()
+    closeWorkspaceSpaceWindow()
     state.clearInitialRevealFallbackTimer()
     closeLifecycle.dispose()
     focus.dispose()

@@ -66,6 +66,22 @@ export function registerTerminalRequestIpcBridge(unsubs: (() => void)[]): void {
                 recordInteraction: false,
                 ...(data.cwd ? { startupCwd: data.cwd } : {})
               }
+        const pendingStartup = data.command
+          ? {
+              command: data.command,
+              ...(data.env ? { env: data.env } : {}),
+              ...(data.envToDelete ? { envToDelete: data.envToDelete } : {}),
+              ...(data.launchConfig ? { launchConfig: data.launchConfig } : {}),
+              ...(data.resumeProviderSession
+                ? { resumeProviderSession: data.resumeProviderSession }
+                : {}),
+              ...(data.launchToken ? { launchToken: data.launchToken } : {}),
+              ...(data.launchAgent ? { launchAgent: data.launchAgent } : {}),
+              ...(data.startupCommandDelivery
+                ? { startupCommandDelivery: data.startupCommandDelivery }
+                : {})
+            }
+          : undefined
         // Why: a worker dispatched through the renderer-backed create path owes the same
         // column as one spawned in the background. An explicit target group outranks it, and
         // must short-circuit the claim so no empty worker pane is split off for nothing.
@@ -80,7 +96,7 @@ export function registerTerminalRequestIpcBridge(unsubs: (() => void)[]): void {
           worktreeId,
           data.targetGroupId ?? workerPaneGroupId,
           data.shellOverride,
-          tabOptions
+          pendingStartup ? { ...tabOptions, pendingStartup } : tabOptions
         )
         if (workerPaneGroupId && data.paneGroupPlacement) {
           recordOrchestrationWorkerTab(data.paneGroupPlacement.coordinatorTabId, tab.id)
@@ -110,22 +126,6 @@ export function registerTerminalRequestIpcBridge(unsubs: (() => void)[]): void {
         }
         if (data.title) {
           store.setTabCustomTitle(tab.id, data.title, { recordInteraction: false })
-        }
-        if (data.command) {
-          store.queueTabStartupCommand(tab.id, {
-            command: data.command,
-            ...(data.env ? { env: data.env } : {}),
-            ...(data.envToDelete ? { envToDelete: data.envToDelete } : {}),
-            ...(data.launchConfig ? { launchConfig: data.launchConfig } : {}),
-            ...(data.resumeProviderSession
-              ? { resumeProviderSession: data.resumeProviderSession }
-              : {}),
-            ...(data.launchToken ? { launchToken: data.launchToken } : {}),
-            ...(data.launchAgent ? { launchAgent: data.launchAgent } : {}),
-            ...(data.startupCommandDelivery
-              ? { startupCommandDelivery: data.startupCommandDelivery }
-              : {})
-          })
         }
         window.api.ui.replyTerminalCreate({
           requestId: data.requestId,

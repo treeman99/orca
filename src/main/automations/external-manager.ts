@@ -1,15 +1,7 @@
 import type {
-  ExternalAutomationCreateInput,
-  ExternalAutomationRunsPage
-} from '../../shared/automations-types'
-import type {
   ScopedExternalAutomationRequest,
   ScopedExternalManagerActionRequest,
-  ScopedExternalManagerCreateRequest,
-  ScopedExternalManagerListRequest,
-  ScopedExternalManagerMutationFields,
-  ScopedExternalManagerRunsRequest,
-  ScopedExternalManagerUpdateRequest
+  ScopedExternalManagerListRequest
 } from '../../shared/external-automation-scope'
 import {
   resolveExternalAutomationScope,
@@ -25,19 +17,9 @@ import type { ExternalAutomationProbeScheduler } from './external-automation-pro
 import { isExternalAutomationProviderAllowed } from './external-automation-policy-gate'
 import { listLocalManager } from './external-manager-discovery'
 import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
-import {
-  createExternalAutomation,
-  runExternalAutomationAction,
-  updateExternalAutomation
-} from './external-manager-mutations'
-import { listExternalAutomationRuns } from './external-manager-runs'
+import { runExternalAutomationAction } from './external-manager-mutations'
 
-export {
-  createExternalAutomation,
-  listExternalAutomationRuns,
-  runExternalAutomationAction,
-  updateExternalAutomation
-}
+export { runExternalAutomationAction }
 
 export type ScopedExternalAutomationDeps = {
   registry: DesktopSshTargetRegistry
@@ -49,9 +31,6 @@ export type ScopedExternalAutomations = {
   listManager: (
     request: ScopedExternalManagerListRequest
   ) => Promise<ExternalAutomationManagerCacheEntry>
-  listRuns: (request: ScopedExternalManagerRunsRequest) => Promise<ExternalAutomationRunsPage>
-  create: (request: ScopedExternalManagerCreateRequest) => Promise<void>
-  update: (request: ScopedExternalManagerUpdateRequest) => Promise<void>
   runAction: (request: ScopedExternalManagerActionRequest) => Promise<void>
 }
 
@@ -65,19 +44,6 @@ export function createScopedExternalAutomations(
 ): ScopedExternalAutomations {
   const resolve = (request: ScopedExternalAutomationRequest): ResolvedExternalAutomationScope =>
     resolveExternalAutomationScope(request, deps.registry)
-  const mutationInput = (
-    scope: ResolvedExternalAutomationScope,
-    fields: ScopedExternalManagerMutationFields
-  ): ExternalAutomationCreateInput => ({
-    managerId: scope.managerId,
-    provider: scope.provider,
-    target: scope.target,
-    name: fields.name,
-    prompt: fields.prompt,
-    schedule: fields.schedule,
-    workdir: fields.workdir
-  })
-
   return {
     async listManager(request) {
       const scope = resolve(request)
@@ -97,27 +63,6 @@ export function createScopedExternalAutomations(
           }),
         { refresh: request.refresh }
       )
-    },
-    async listRuns(request) {
-      const scope = resolve(request)
-      return await listExternalAutomationRuns({
-        managerId: scope.managerId,
-        provider: scope.provider,
-        target: scope.target,
-        jobId: request.jobId,
-        page: request.page,
-        pageSize: request.pageSize
-      })
-    },
-    async create(request) {
-      const scope = resolve(request)
-      await createExternalAutomation(mutationInput(scope, request))
-      deps.cache.invalidateOwner(scope.ownerKey)
-    },
-    async update(request) {
-      const scope = resolve(request)
-      await updateExternalAutomation({ ...mutationInput(scope, request), jobId: request.jobId })
-      deps.cache.invalidateOwner(scope.ownerKey)
     },
     async runAction(request) {
       const scope = resolve(request)

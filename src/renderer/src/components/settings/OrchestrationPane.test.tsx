@@ -68,7 +68,7 @@ vi.mock('@/hooks/useInstalledAgentSkills', () => ({
         description: null,
         providers: ['claude'],
         sourceKind: 'home',
-        sourceLabel: 'Claude home',
+        sourceLabel: 'Claude Code home',
         rootPath: '/Users/test/.claude/skills',
         directoryPath: '/Users/test/.claude/skills/orchestration',
         skillFilePath: '/Users/test/.claude/skills/orchestration/SKILL.md',
@@ -79,7 +79,7 @@ vi.mock('@/hooks/useInstalledAgentSkills', () => ({
     sources: [
       {
         id: 'home-claude',
-        label: 'Claude home',
+        label: 'Claude Code home',
         path: '/Users/test/.claude/skills',
         sourceKind: 'home',
         providers: ['claude'],

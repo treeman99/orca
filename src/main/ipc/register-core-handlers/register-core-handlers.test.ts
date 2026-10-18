@@ -65,6 +65,7 @@ const {
   registerConfluenceHandlersMock,
   registerDiagnosticLogHandlersMock,
   registerAppUpdateHandlersMock,
+  registerWorkspaceSpaceWindowHandlersMock,
   isDashboardPopoutRendererMock,
   registerTerminalPreviewHandlersMock,
   registerSpeechHandlersMock,
@@ -141,6 +142,7 @@ const {
   registerConfluenceHandlersMock: vi.fn(),
   registerDiagnosticLogHandlersMock: vi.fn(),
   registerAppUpdateHandlersMock: vi.fn(),
+  registerWorkspaceSpaceWindowHandlersMock: vi.fn(),
   isDashboardPopoutRendererMock: vi.fn(),
   registerTerminalPreviewHandlersMock: vi.fn(),
   registerSpeechHandlersMock: vi.fn(),
@@ -219,6 +221,10 @@ vi.mock('../diagnostic-log', () => ({
 
 vi.mock('../app-update', () => ({
   registerAppUpdateHandlers: registerAppUpdateHandlersMock
+}))
+
+vi.mock('../workspace-space-window', () => ({
+  registerWorkspaceSpaceWindowHandlers: registerWorkspaceSpaceWindowHandlersMock
 }))
 
 vi.mock('../../window/dashboard-popout-window', () => ({
@@ -367,6 +373,10 @@ vi.mock('../wsl-host-handlers', () => ({
   registerWslHostHandlers: vi.fn()
 }))
 
+vi.mock('../wsl-move-handlers', () => ({
+  registerWslMoveHandlers: vi.fn()
+}))
+
 vi.mock('../ephemeral-vm', () => ({
   registerEphemeralVmHandlers: registerEphemeralVmHandlersMock
 }))
@@ -471,6 +481,15 @@ vi.mock('../native-chat', () => ({
 
 import { agentSessionRefusalError } from '../../../shared/agent-session-wire-refusals'
 import { recordStructuredAgentSessionHostInstallRefusal } from '../../runtime/structured-agent-session-host-refusal'
+const FORK_REGISTRARS = {
+  tabPopout: registerTabPopoutHandlersMock,
+  gateway: registerGatewayHandlersMock,
+  githubEnterprise: registerGithubEnterpriseHandlersMock,
+  confluence: registerConfluenceHandlersMock,
+  diagnosticLog: registerDiagnosticLogHandlersMock,
+  appUpdate: registerAppUpdateHandlersMock
+}
+
 // Fork: these three registrars are gated on the corporate policy at the registration site,
 // because each one bypasses the RPC dispatcher and reaches the network or a device directly.
 vi.mock('../../enterprise/enterprise-policy-file', () => ({
@@ -551,12 +570,10 @@ describe('registerCoreHandlers', () => {
     registerHostedReviewHandlersMock.mockReset()
     registerExportHandlersMock.mockReset()
     registerDashboardPopoutHandlersMock.mockReset()
-    registerTabPopoutHandlersMock.mockReset()
-    registerGatewayHandlersMock.mockReset()
-    registerGithubEnterpriseHandlersMock.mockReset()
-    registerConfluenceHandlersMock.mockReset()
-    registerDiagnosticLogHandlersMock.mockReset()
-    registerAppUpdateHandlersMock.mockReset()
+    for (const mock of Object.values(FORK_REGISTRARS)) {
+      mock.mockReset()
+    }
+    registerWorkspaceSpaceWindowHandlersMock.mockReset()
     registerTerminalPreviewHandlersMock.mockReset()
     registerSpeechHandlersMock.mockReset()
     registerSkillsHandlersMock.mockReset()
@@ -671,27 +688,14 @@ describe('registerCoreHandlers', () => {
     expect(registerDeveloperPermissionHandlersMock).toHaveBeenCalled()
     expect(registerComputerUsePermissionHandlersMock).toHaveBeenCalled()
     expect(registerDashboardPopoutHandlersMock).toHaveBeenCalledWith(store, undefined)
-    // Why one object rather than five assertions: an upstream refactor of this
-    // file dropped every fork-only registrar at once, and asserting them one by
-    // one reports only the first while the rest stay hidden behind it.
-    expect({
-      tabPopout: registerTabPopoutHandlersMock.mock.calls.length,
-      gateway: registerGatewayHandlersMock.mock.calls.length,
-      githubEnterprise: registerGithubEnterpriseHandlersMock.mock.calls.length,
-      confluence: registerConfluenceHandlersMock.mock.calls.length,
-      diagnosticLog: registerDiagnosticLogHandlersMock.mock.calls.length,
-      appUpdate: registerAppUpdateHandlersMock.mock.calls.length
-    }).toEqual({
-      tabPopout: 1,
-      gateway: 1,
-      githubEnterprise: 1,
-      confluence: 1,
-      diagnosticLog: 1,
-      appUpdate: 1
-    })
+    // Why one list rather than six assertions: an upstream refactor of this file dropped every
+    // fork-only registrar at once, and one-by-one asserts report only the first that is missing.
+    const missing = Object.entries(FORK_REGISTRARS).filter(([, m]) => m.mock.calls.length !== 1)
+    expect(missing.map(([name]) => name)).toEqual([])
     expect(registerTabPopoutHandlersMock).toHaveBeenCalledWith(store)
     expect(registerConfluenceHandlersMock).toHaveBeenCalledWith(store)
     expect(registerDiagnosticLogHandlersMock).toHaveBeenCalledWith(store)
+    expect(registerWorkspaceSpaceWindowHandlersMock).toHaveBeenCalledWith(store)
     expect(registerTerminalPreviewHandlersMock).toHaveBeenCalledWith(runtime)
     expect(registerSettingsHandlersMock).toHaveBeenCalledWith(store, agentAwakeService)
     expect(registerSkillsHandlersMock).toHaveBeenCalledWith(store, runtime)

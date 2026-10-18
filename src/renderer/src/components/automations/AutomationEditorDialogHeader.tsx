@@ -2,24 +2,14 @@ import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import type { AutomationCreateTarget } from './AutomationEditorDialog'
 import type { AutomationTemplate } from './automation-templates'
 import { translate } from '@/i18n/i18n'
 
 type AutomationEditorDialogHeaderProps = {
   isEditing: boolean
-  isEditingExternal: boolean
-  isHermesCreate: boolean
   isCreateMode: boolean
-  createTarget: AutomationCreateTarget
-  /** Targets the corporate policy leaves selectable; the toggle disappears below two. */
-  createTargets: readonly AutomationCreateTarget[]
   templateOpen: boolean
   templates: AutomationTemplate[]
-  segmentedGroupClassName: string
-  segmentedItemClassName: string
-  onCreateTargetChange: (target: AutomationCreateTarget) => void
   onTemplateOpenChange: (open: boolean) => void
   onApplyTemplate: (template: AutomationTemplate) => void
 }
@@ -46,27 +36,11 @@ function AutomationTemplateCard({
   )
 }
 
-function getEditorTitle(args: {
-  isEditing: boolean
-  isEditingExternal: boolean
-  isHermesCreate: boolean
-}): string {
+function getEditorTitle(args: { isEditing: boolean }): string {
   if (args.isEditing) {
     return translate(
       'auto.components.automations.AutomationEditorDialogHeader.17086b48ee',
       'Edit automation'
-    )
-  }
-  if (args.isEditingExternal) {
-    return translate(
-      'auto.components.automations.AutomationEditorDialogHeader.03142e7721',
-      'Edit Hermes automation'
-    )
-  }
-  if (args.isHermesCreate) {
-    return translate(
-      'auto.components.automations.AutomationEditorDialogHeader.0a75e5e2fa',
-      'Create Hermes automation'
     )
   }
   return translate(
@@ -77,55 +51,19 @@ function getEditorTitle(args: {
 
 export function AutomationEditorDialogHeader({
   isEditing,
-  isEditingExternal,
-  isHermesCreate,
   isCreateMode,
-  createTarget,
-  createTargets,
   templateOpen,
   templates,
-  segmentedGroupClassName,
-  segmentedItemClassName,
-  onCreateTargetChange,
   onTemplateOpenChange,
   onApplyTemplate
 }: AutomationEditorDialogHeaderProps): React.JSX.Element {
-  const title = getEditorTitle({ isEditing, isEditingExternal, isHermesCreate })
+  const title = getEditorTitle({ isEditing })
 
   return (
     <DialogHeader className="flex-row items-center justify-between gap-3 border-b border-border/50 px-5 py-2.5 pr-12 text-left">
       <DialogTitle className="min-w-0 truncate text-sm font-medium">{title}</DialogTitle>
       {isCreateMode ? (
         <div className="flex shrink-0 items-center gap-2">
-          {/* Why a length check and not just hiding one item: this toggle renders from
-              isCreateMode alone, so it offered Hermes on machines with no Hermes at all.
-              With a single target left there is nothing to choose between. */}
-          {createTargets.length > 1 ? (
-            <ToggleGroup
-              type="single"
-              spacing={1}
-              value={createTarget}
-              onValueChange={(value) =>
-                value && onCreateTargetChange(value as AutomationCreateTarget)
-              }
-              size="sm"
-              className={segmentedGroupClassName}
-            >
-              {createTargets.map((target) => (
-                <ToggleGroupItem key={target} value={target} className={segmentedItemClassName}>
-                  {target === 'orca'
-                    ? translate(
-                        'auto.components.automations.AutomationEditorDialogHeader.6f309eef8d',
-                        'Orca'
-                      )
-                    : translate(
-                        'auto.components.automations.AutomationEditorDialogHeader.7e35393632',
-                        'Hermes'
-                      )}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          ) : null}
           <Popover open={templateOpen} onOpenChange={onTemplateOpenChange}>
             <PopoverTrigger asChild>
               <Button type="button" variant="ghost" size="sm">

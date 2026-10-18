@@ -8,6 +8,11 @@ import { normalizeDisabledTuiAgents, pickTuiAgent } from '../../../shared/tui-ag
 import { isAgentAllowedByPolicy } from '../../../shared/corporate-agent-access'
 import { getPolicyAllowedAgents } from '../enterprise/enterprise-policy-access'
 import type { TuiAgent } from '../../../shared/tui-agent'
+import type { AppState } from '@/store/types'
+import {
+  loadDetectedAgentsForWorktree,
+  type WorktreeAgentInventoryState
+} from '@/lib/agent-detection-target-inventory'
 
 export type BoundAgentTabAction = {
   agent: TuiAgent
@@ -66,4 +71,19 @@ export function resolveDefaultAgentForNewTab(args: {
     isAgentAllowedByPolicy(agent, allowedAgents)
   )
   return pickTuiAgent(preferred, detected, args.disabledTuiAgents)
+}
+
+/** The new-tab default agent for a workspace, from the agents its own host reports. */
+export async function resolveDefaultAgentForWorktreeNewTab(
+  getState: () => WorktreeAgentInventoryState & Pick<AppState, 'settings'>,
+  worktreeId: string
+): Promise<TuiAgent | null> {
+  const detectedAgentIds = await loadDetectedAgentsForWorktree(getState(), worktreeId)
+  // Why: settings may change while the host answers; pick with the current ones.
+  const state = getState()
+  return resolveDefaultAgentForNewTab({
+    defaultTuiAgent: state.settings?.defaultTuiAgent,
+    detectedAgentIds,
+    disabledTuiAgents: state.settings?.disabledTuiAgents
+  })
 }

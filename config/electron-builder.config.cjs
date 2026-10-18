@@ -54,6 +54,7 @@ const {
 } = require('./scripts/packaged-orcad-template.cjs')
 const { verifySkillsCliRuntime } = require('./scripts/verify-skills-cli-runtime.cjs')
 const { verifyPackagedSkillPackages } = require('./scripts/verify-packaged-skill-packages.cjs')
+const { assertNotLayoutOwnerBuild } = require('./layout-owner-build.cjs')
 const { verifyStaticAppImagePackage } = require('./scripts/static-appimage-package-contract.cjs')
 const {
   appImageNodeRuntimeFpmArgs,
@@ -279,6 +280,8 @@ module.exports = {
     '!config{,/**/*}',
     // Release archives and other build staging are not runtime resources.
     '!.build{,/**/*}',
+    // Worktree-local Vite dependency caches are development inputs.
+    '!.cache/vite{,.lock}{,/**/*}',
     '!docs{,/**/*}',
     '!mobile{,/**/*}',
     '!native{,/**/*}',
@@ -369,6 +372,8 @@ module.exports = {
   // entries reached solely from the Electron main process stay packed, since
   // asar redirects their app.asar paths.
   // Why: `orca serve` runs the orcad selection entry under ELECTRON_RUN_AS_NODE too (#27307).
+  // Why out/web and out/mobile-web: their assets are opened by path, and opening a packed file
+  // reads a /tmp extract Electron makes once and never remakes, so a /tmp sweep broke them (#27976).
   asarUnpack: [
     'out/package.json',
     'out/cli/**',
@@ -397,6 +402,8 @@ module.exports = {
     'out/main/parcel-watcher-process-entry.js',
     'out/main/orcad/orcad-local-serve-selection-entry.js',
     'out/main/chunks/**',
+    'out/web/**',
+    'out/mobile-web/**',
     'resources/**',
     'node_modules/ws/**',
     'node_modules/tweetnacl/**',
@@ -411,7 +418,12 @@ module.exports = {
   // Fork: no mobile web bundle guard — the corporate build drops the bundle lane (mobile pairing is
   // policy-locked and the Expo/RN deps are not on the internal mirror); the runtime treats a missing
   // bundle as "none". See README §6. The unused second slot keeps upstream's positional test seams.
-  beforePack: (context, _mobileWebBundleDir, ensureWaylandClipboard = ensureBundledWaylandClipboard) => {
+  beforePack: (
+    context,
+    _mobileWebBundleDir,
+    ensureWaylandClipboard = ensureBundledWaylandClipboard
+  ) => {
+    assertNotLayoutOwnerBuild([join(__dirname, '..', 'out', 'main')])
     assertPackagedNativeVariantsInstalled(context.electronPlatformName, context.arch)
     assertBundledRipgrepInstalled()
     assertProcessHostOutputBuilt()

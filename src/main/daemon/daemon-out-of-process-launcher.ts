@@ -184,6 +184,7 @@ export function createOutOfProcessLauncher(
         {
           entryPath,
           userDataPath,
+          runtimeDir,
           socketPath,
           tokenPath,
           pidPath,

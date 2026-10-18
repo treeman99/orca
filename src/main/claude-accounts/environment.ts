@@ -25,7 +25,17 @@ export function applyClaudeEnvPatch(
   baseEnv: Record<string, string>,
   patch: ClaudeEnvPatch,
   options?: { stripAuthEnv?: boolean; platform?: NodeJS.Platform }
-): Record<string, string> {
+): Record<string, string>
+export function applyClaudeEnvPatch(
+  baseEnv: Record<string, string | undefined>,
+  patch: ClaudeEnvPatch,
+  options?: { stripAuthEnv?: boolean; platform?: NodeJS.Platform }
+): Record<string, string | undefined>
+export function applyClaudeEnvPatch(
+  baseEnv: Record<string, string | undefined>,
+  patch: ClaudeEnvPatch,
+  options?: { stripAuthEnv?: boolean; platform?: NodeJS.Platform }
+): Record<string, string | undefined> {
   // Why: last line of defense for callers that hardcode stripAuthEnv — under the
   // switch AWS_BEARER_TOKEN_BEDROCK must survive into the agent's environment.
   if (options?.stripAuthEnv && !getEnterprisePolicy().disableManagedClaudeAccounts) {

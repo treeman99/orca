@@ -60,8 +60,9 @@
           "why": "v1.4.226 이 시작 시 관리형 훅 설치를 이 모듈로 뺐다. 별칭 임포트라 본문은 upstream 과 바이트 동일하고, 이 한 줄이 빠지면 허용목록 밖 에이전트의 벤더 설정 파일에 훅이 써진다."
         },
         {
-          "file": "src/main/runtime/terminal/wait/terminal-interactive-wait.ts",
-          "contains": "isAgentAllowedByEnterprisePolicy(agent)"
+          "file": "src/main/runtime/orca-runtime-fork-surface.ts",
+          "contains": "override validateOrchestrationAgentLauncher(agent: TuiAgent): void {",
+          "why": "v1.4.229 이 terminal-interactive-wait.ts 를 max-lines 한도에 맞춰 포크 게이트가 들어갈 자리가 없다. 클래스 체인 말단 override 로 옮겼다 — 빠지면 허용목록 밖 에이전트로 워커가 뜬다."
         },
         {
           "file": "src/main/runtime/orca-runtime-fork-surface.ts",
@@ -77,7 +78,7 @@
           "contains": "assertAgentAllowedByEnterprisePolicy(request.agent)"
         },
         {
-          "file": "src/main/runtime/orca-runtime-get-agent-session-execution-namespace.ts",
+          "file": "src/main/runtime/session-construction/agent-session/get-agent-session-execution-namespace.ts",
           "contains": "assertAgentAllowedByEnterprisePolicy(request.agent)"
         },
         {
@@ -118,8 +119,8 @@
           "why": "허용목록 필터를 가진 포크판 뷰 메뉴. upstream 판(AiVaultPanelControls)으로 import 가 돌아가면 필터 없이 전 에이전트가 보인다."
         },
         {
-          "file": "src/main/runtime/orca-runtime-get-structured-agent-session-create-support.ts",
-          "contains": "if (!isAgentAllowedByEnterprisePolicy(agent)) {",
+          "file": "src/main/runtime/orca-runtime-fork-surface.ts",
+          "contains": "override async getStructuredAgentSessionCreateSupport(",
           "why": "structured 챗 생성 가능 여부 프로브의 허용목록 게이트. v1.4.215 가 orca-runtime-resolve-recovered-structured-tui-transcript.ts 를 이 파일로 rename 하며 충돌했다. 빠지면 막힌 에이전트의 structured host 가 질의만으로 생긴다."
         },
         {
@@ -159,7 +160,7 @@
         },
         {
           "file": "src/main/acp/acp-structured-launch-resolution.ts",
-          "contains": "assertAgentAllowedByEnterprisePolicy(spec.agent)",
+          "contains": "assertAcpAgentAllowed(spec.agent)",
           "why": "v1.4.223 이 structured 세션의 세 번째 provider(Grok/ACP)를 들였다. 생성·attach 는 provider 무관 퍼널이 막지만 저장된 레코드는 wake·재시작 복원에서 이 resolver 로 바로 재기동된다 — codex·claude resolver 와 같은 마지막 거부."
         },
         {
@@ -189,7 +190,7 @@
         },
         {
           "file": "src/main/acp/acp-structured-launch-resolution.ts",
-          "contains": "assertAgentAllowedByEnterprisePolicy(spec.agent)",
+          "contains": "assertAcpAgentAllowed(spec.agent)",
           "why": "v1.4.224 가 resolveAcpLaunchInvocation 을 export 하고 카탈로그 프로브가 직접 부른다(실패 모드 V 재발)."
         },
         {
@@ -479,7 +480,7 @@
           "contains": "getEnterprisePolicy().disableMobileEmulator"
         },
         {
-          "file": "src/main/runtime/orca-runtime-terminal-drivers.ts",
+          "file": "src/main/runtime/terminal/driver/terminal-driver-resources.ts",
           "contains": "assertMobileEmulatorAllowedByPolicy()"
         },
         {
@@ -645,7 +646,7 @@
         },
         {
           "file": "src/renderer/src/hooks/ipc-events/terminal-presentation-ipc-bridge.ts",
-          "contains": "store.createTab(worktreeId, workerPane.groupId, undefined, {"
+          "contains": "store.createTab(worktreeId, targetGroupId ?? workerPane.groupId, shellOverride, {"
         },
         {
           "file": "src/renderer/src/hooks/ipc-events/terminal-presentation-ipc-bridge.ts",
@@ -874,15 +875,21 @@
       "summary": "opencode 평문 프롬프트 배달과 Enter 재전송 구제. upstream 은 stall 을 던지고 끝내지만 이 포크는 한 번 더 살린다.",
       "present": [
         {
-          "file": "src/main/runtime/orca-runtime-controller-knows-pty-is-live.ts",
-          "contains": "usesPlainTextPromptDelivery(handle)"
+          "file": "src/main/runtime/orca-runtime-agent-prompt-rescue.ts",
+          "contains": "override async sendTerminalAgentPrompt(",
+          "why": "v1.4.229 이 terminal-input-dispatch.ts 의 @ts-nocheck 를 걷어내 포크 구제 줄이 타입·max-lines 에 걸렸다. 구제는 이제 upstream 송신을 감싸는 포크 계층 override 이고 upstream 파일은 바이트 동일하다 — 이 override 가 빠지면 평문 배달과 Enter 재전송이 함께 사라진다."
         },
         {
-          "file": "src/main/runtime/orca-runtime-controller-knows-pty-is-live.ts",
-          "contains": "assertAgentPromptRescuedIfStalled"
+          "file": "src/main/runtime/orca-runtime-agent-prompt-rescue.ts",
+          "contains": "assertAgentPromptRescuedIfStalled(stalled, submit, statusObserved)"
         },
         {
-          "file": "src/main/runtime/orca-runtime-write-terminal-agent-prompt.ts",
+          "file": "src/main/runtime/orca-runtime-agent-prompt-rescue.ts",
+          "contains": "recordAgentPromptStall(delivery)",
+          "why": "upstream 송신이 쓰기 결과의 stalled 를 버리므로 직렬화 계층 override 가 비동기 범위(agent-prompt-stall-scope.ts)로 실어 나른다. 빠지면 구제가 stall 을 못 보고 agent_prompt_stalled 를 삼킨다."
+        },
+        {
+          "file": "src/main/runtime/terminal/input/terminal-agent-prompt.ts",
           "contains": "stalled: true"
         },
         {
@@ -1143,7 +1150,7 @@
         },
         {
           "file": "src/main/ipc/settings.ts",
-          "contains": "requestedId === null || isRemoteOrcaServerDisabled()",
+          "contains": "const requestedId = (!isRemoteOrcaServerDisabled() && requestedEnvironmentId?.trim()) || null",
           "why": "activeRuntimeEnvironmentId 를 저장하는 입구. 정책이 켜지면 던지지 않고 local 로 되돌린다 — 정책 이전에 원격을 저장한 기기도 부팅해야 하고 hydration 이 이 값을 재생한다."
         },
         {
@@ -1494,8 +1501,8 @@
       "summary": "disableChatVisuals(lockdown 상속, v1.4.224 신설) — 구조화 채팅 인라인 비주얼의 공개 CDN 로드를 끈다.",
       "present": [
         {
-          "file": "src/main/runtime/orca-runtime-get-worktree-ps.ts",
-          "contains": "isEnabled: () => nativeChatVisualsAllowed(this.requireStore().getSettings()),",
+          "file": "src/main/runtime/workspaces/workspace-process-listing.ts",
+          "contains": "isEnabled: () => nativeChatVisualsAllowed(this.requireStore().getSettings())",
           "why": "실행 시 비주얼 폴더·스킬 전달의 단일 초크포인트(nativeChatVisuals.isEnabled)."
         },
         {
@@ -1615,6 +1622,8 @@
     "src/main/update-install-exit-watchdog.ts",
     "src/renderer/src/components/sidebar/use-feedback-image-drop.ts",
     "src/main/ipc/feedback-request-ownership.test.ts",
+    "src/renderer/src/components/sidebar/SidebarFeedback*",
+    "src/renderer/src/components/sidebar/sidebar-feedback*",
     "src/main/skills/skill-package-download-response-lifetime.test.ts",
     "src/main/update-restart-preservation.ts",
     "src/main/updater-handler-context.ts",

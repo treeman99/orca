@@ -1,5 +1,6 @@
 import { useAppStore } from '@/store'
-import { makePaneKey, type PaneKey } from '../../../shared/stable-pane-id'
+import { makePaneKey, parsePaneKey, type PaneKey } from '../../../shared/stable-pane-id'
+import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../shared/layout-owner-switch'
 import type { AgentType } from '../../../shared/agent-status-types'
 import { bindAutomationTerminal } from '@/lib/automation-terminal-ownership'
 import { createBrowserUuid } from '@/lib/browser-uuid'
@@ -105,7 +106,9 @@ export async function adoptAgentBackgroundSessionTab(args: {
     // native-chat route reads that gap as "not an agent pane" — a bot pane opened in chat
     // gets kicked back to terminal seconds after it opens. The registration is the identity
     // this same module minted for the launch, so the caller has nothing to pass.
-    ...(isTuiAgent(launchAgentType) ? { launchAgent: launchAgentType } : {})
+    ...(isTuiAgent(launchAgentType) ? { launchAgent: launchAgentType } : {}),
+    // Switch point: main records the tab under the pane id its terminal already runs as.
+    ...(ORCA_LAYOUT_OWNER_IS_MAIN ? { initialLeafId: parsePaneKey(args.paneKey)?.leafId } : {})
   })
   const paneKey = args.paneKey
   store.registerAgentLaunchConfig(paneKey, args.launchConfig, launchRegistration)

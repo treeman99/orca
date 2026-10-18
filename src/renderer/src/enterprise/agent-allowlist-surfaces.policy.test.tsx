@@ -115,10 +115,8 @@ function renderAutomationEditor(draft = makeDraft()): void {
       <AutomationEditorDialog
         open
         isEditing={false}
-        isEditingExternal={false}
         isSaving={false}
         canSave={false}
-        createTarget="orca"
         repos={[]}
         projectHostSetups={[]}
         automationYamlHooksByRepoKey={{}}
@@ -128,7 +126,6 @@ function renderAutomationEditor(draft = makeDraft()): void {
         settings={getDefaultSettings('/tmp')}
         draft={draft}
         onProjectChange={vi.fn()}
-        onCreateTargetChange={vi.fn()}
         onOpenChange={vi.fn()}
         onDraftChange={vi.fn()}
         onSetupDecisionTouched={vi.fn()}

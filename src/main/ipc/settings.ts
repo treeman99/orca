@@ -208,7 +208,8 @@ export function registerSettingsHandlers(
       originWebContentsId: event.sender.id
     }
     const result =
-      'alwaysForceDeleteWorktrees' in sanitizedArgs
+      'alwaysForceDeleteWorktrees' in sanitizedArgs ||
+      'alwaysForceDeletePreservedBranches' in sanitizedArgs
         ? await store.updateSettingsAndFlush(sanitizedArgs, updateOptions)
         : store.updateSettings(sanitizedArgs, updateOptions)
     const proxySettingsChanged =
@@ -317,13 +318,11 @@ export function registerSettingsHandlers(
       if (requestedEnvironmentId !== null && typeof requestedEnvironmentId !== 'string') {
         throw new Error('Invalid default host for new projects')
       }
-      const requestedId = requestedEnvironmentId?.trim() || null
       // Forced back to local rather than throwing: a machine that saved a remote before
       // the policy landed must still boot, and hydration replays this preference.
+      const requestedId = (!isRemoteOrcaServerDisabled() && requestedEnvironmentId?.trim()) || null
       const environmentId =
-        requestedId === null || isRemoteOrcaServerDisabled()
-          ? null
-          : resolveEnvironment(app.getPath('userData'), requestedId).id
+        requestedId === null ? null : resolveEnvironment(app.getPath('userData'), requestedId).id
       return store.updateSettings(
         { activeRuntimeEnvironmentId: environmentId },
         { notifyListeners: true, originWebContentsId: event.sender.id }

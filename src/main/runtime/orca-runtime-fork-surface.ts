@@ -7,13 +7,16 @@ import type { LegacyWorkerRecoveryCandidate } from './runtime-legacy-worker-term
 import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
 import type { RuntimeManagedWorktreeCreateArgs } from './runtime-managed-worktree-create-types'
 import { assertManagedWorktreeAgentsAllowed } from './runtime-managed-worktree-agent-policy'
+import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
+import { isAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
+import { OrchestrationError } from './orchestration/orchestration-error'
 
 /**
  * Runtime members this fork owns. Kept at the tail of the class chain so an upstream
  * split of any layer below cannot silently drop them — a rebase that loses this file
  * fails typecheck at the RPC methods that call these.
  */
-export class OrcaRuntimeForkSurface extends OrcaRuntimeWithMigrationCatalog {
+export abstract class OrcaRuntimeForkSurface extends OrcaRuntimeWithMigrationCatalog {
   /**
    * allowedAgents gate for managed worktree creation. Here rather than in the layer that defines
    * it: upstream fills orca-runtime-create-managed-worktree.ts to its max-lines cap (v1.4.221).
@@ -23,6 +26,31 @@ export class OrcaRuntimeForkSurface extends OrcaRuntimeWithMigrationCatalog {
   ): Promise<CreateWorktreeResult> {
     assertManagedWorktreeAgentsAllowed(args)
     return super.createManagedWorktree(args)
+  }
+
+  // Why first: a blocked agent must not make the structured host exist, which is an
+  // observable side effect of merely asking. `reason: 'agent'` is an existing value, so a
+  // remote client that probes gets a plain "not here" with no new wire vocabulary. Here rather
+  // than in the layer that defines it: upstream fills that file to its max-lines cap (v1.4.229).
+  override async getStructuredAgentSessionCreateSupport(
+    worktreeSelector: string,
+    agent: StructuredAgentId
+  ): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' }> {
+    if (!isAgentAllowedByEnterprisePolicy(agent)) {
+      return { supported: false, reason: 'agent' }
+    }
+    return super.getStructuredAgentSessionCreateSupport(worktreeSelector, agent)
+  }
+
+  /** allowedAgents gate for an orchestration worker's launcher (worker-start validation). */
+  override validateOrchestrationAgentLauncher(agent: TuiAgent): void {
+    if (!isAgentAllowedByEnterprisePolicy(agent)) {
+      throw new OrchestrationError(
+        'agent_unconfigured',
+        `Agent launcher ${agent} is not permitted by your organization's Orca policy.`
+      )
+    }
+    super.validateOrchestrationAgentLauncher(agent)
   }
 
   /** Settings gate for closing a worker tab once its dispatch settles. */

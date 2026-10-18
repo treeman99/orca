@@ -2,7 +2,7 @@
 //
 // A resolver test would only prove the policy object is right. What matters here is that a
 // blocked provider produces no manager, issues no relay request, and — above all — never
-// reaches execFile('hermes', …): these providers run an agent on a schedule with nobody at
+// reaches the provider CLI: these providers run an agent on a schedule with nobody at
 // the keyboard, and an upstream rebase resolved the wrong way would drop that with a green
 // suite.
 
@@ -38,6 +38,10 @@ vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof Fs>('fs')
   return { ...actual, existsSync: existsSyncMock }
 })
+vi.mock('node:fs', async () => {
+  const actual = await vi.importActual<typeof Fs>('node:fs')
+  return { ...actual, existsSync: existsSyncMock }
+})
 vi.mock('node:fs/promises', async () => {
   const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
   return { ...actual, readFile: vi.fn(async () => JSON.stringify({ jobs: [] })) }
@@ -54,13 +58,7 @@ vi.mock('../ssh/ssh-target-registry', async () => {
   }
 })
 
-import {
-  createExternalAutomation,
-  createScopedExternalAutomations,
-  listExternalAutomationRuns,
-  runExternalAutomationAction,
-  updateExternalAutomation
-} from './external-manager'
+import { createScopedExternalAutomations, runExternalAutomationAction } from './external-manager'
 import { ExternalAutomationManagerCache } from './external-automation-manager-cache'
 import { ExternalAutomationProbeScheduler } from './external-automation-probe-scheduler'
 import type { ExternalAutomationProvider } from '../../shared/automations-types'
@@ -80,7 +78,7 @@ const registry = {
 } as unknown as DesktopSshTargetRegistry
 
 async function discoveredProviders(
-  providers: readonly ExternalAutomationProvider[] = ['hermes', 'openclaw']
+  providers: readonly ExternalAutomationProvider[] = ['openclaw']
 ): Promise<ExternalAutomationProvider[]> {
   const scoped = createScopedExternalAutomations({
     registry,
@@ -114,7 +112,7 @@ describe('external automations under enterprise policy', () => {
   it('discovers no provider under a bare lockdown, and probes nothing', async () => {
     getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
     await expect(discoveredProviders()).resolves.toEqual([])
-    // The PATH probe and the ~/.hermes read are both refused, not merely ignored.
+    // The PATH probe and the ~/.openclaw read are both refused, not merely ignored.
     expect(runProcessMock).not.toHaveBeenCalled()
     expect(execFileMock).not.toHaveBeenCalled()
     expect(requestMock).not.toHaveBeenCalled()
@@ -132,71 +130,26 @@ describe('external automations under enterprise policy', () => {
   // still refuse to let it run unattended on a schedule.
   it('keeps a provider whose agent id the allowlist permits', async () => {
     getEnterprisePolicyMock.mockReturnValue(
-      makeEnterprisePolicy({ allowedAgents: ['claude', 'hermes'] })
+      makeEnterprisePolicy({ allowedAgents: ['claude', 'openclaw'] })
     )
-    const providers = await discoveredProviders()
-    expect(providers).toContain('hermes')
-    expect(providers).not.toContain('openclaw')
+    await expect(discoveredProviders()).resolves.toEqual(['openclaw'])
   })
 
-  it.each([
-    [
-      'create',
-      () =>
-        createExternalAutomation({
-          managerId: 'hermes:local',
-          provider: 'hermes',
-          target: localTarget,
-          name: 'nightly',
-          prompt: 'do the thing',
-          schedule: '0 3 * * *'
-        } as Parameters<typeof createExternalAutomation>[0])
-    ],
-    [
-      'update',
-      () =>
-        updateExternalAutomation({
-          managerId: 'hermes:local',
-          provider: 'hermes',
-          target: localTarget,
-          jobId: 'job-1',
-          name: 'nightly',
-          prompt: 'do the thing',
-          schedule: '0 3 * * *'
-        } as Parameters<typeof updateExternalAutomation>[0])
-    ],
-    [
-      'act',
-      () =>
-        runExternalAutomationAction({
-          managerId: 'hermes:local',
-          provider: 'hermes',
-          target: localTarget,
-          jobId: 'job-1',
-          action: 'run'
-        } as Parameters<typeof runExternalAutomationAction>[0])
-    ],
-    [
-      'runs',
-      () =>
-        listExternalAutomationRuns({
-          managerId: 'hermes:local',
-          provider: 'hermes',
-          target: localTarget,
-          jobId: 'job-1',
-          page: 1,
-          pageSize: 25
-        } as Parameters<typeof listExternalAutomationRuns>[0])
-    ]
-  ])(
-    // These four take the provider from renderer-supplied input, so they are reachable over
-    // IPC even when discovery returned nothing.
-    'refuses %s outright rather than silently succeeding',
-    async (_name, call) => {
-      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
-      await expect(call()).rejects.toThrow(/disabled by an enterprise policy/)
-      expect(runProcessMock).not.toHaveBeenCalled()
-      expect(execFileMock).not.toHaveBeenCalled()
-    }
-  )
+  // Upstream v1.4.229 removed Hermes and with it create/update/runs; the job action is the one
+  // path left that takes the provider from renderer-supplied input, so it is reachable over IPC
+  // even when discovery returned nothing.
+  it('refuses a job action outright rather than silently succeeding', async () => {
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+    await expect(
+      runExternalAutomationAction({
+        managerId: 'openclaw:local',
+        provider: 'openclaw',
+        target: localTarget,
+        jobId: 'job-1',
+        action: 'run'
+      } as Parameters<typeof runExternalAutomationAction>[0])
+    ).rejects.toThrow(/disabled by an enterprise policy/)
+    expect(runProcessMock).not.toHaveBeenCalled()
+    expect(execFileMock).not.toHaveBeenCalled()
+  })
 })

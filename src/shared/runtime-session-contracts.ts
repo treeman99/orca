@@ -1,3 +1,4 @@
+import type { MobileProjectSectionCatalog } from './mobile-project-sections-contract'
 import type { AgentStatusOrchestrationContext } from './agent-status-types'
 import type { RemoteRuntimeSharedConnectionDiagnostics } from './remote-runtime-shared-control-types'
 import type { RuntimeHostConnectionState } from './runtime-host-connection-state'
@@ -15,6 +16,7 @@ import type {
 } from './runtime-mobile-session-tab-contracts'
 import type { CliStatusCaller } from './orchestration-caller-status'
 import type { RuntimeHostDescriptor } from './runtime-host-descriptor'
+import type { TuiAgent } from './tui-agent'
 
 export type * from './runtime-mobile-session-tab-contracts'
 
@@ -163,6 +165,8 @@ export type RuntimeSyncWindowGraph = {
   terminalGroupGridSizes?: Record<string, { cols: number; rows: number }>
   /** The grid a workspace with a single tab group gets, for one the window is not showing. */
   singleGroupWorkspaceGridSize?: { cols: number; rows: number }
+  /** The sidebar's Project grouping inputs for paired phones; sent only when they changed. */
+  projectSectionCatalog?: MobileProjectSectionCatalog
 }
 
 export type RuntimeRendererSyncWindowGraph = RuntimeSyncWindowGraph & {
@@ -256,6 +260,8 @@ export type RuntimeMobileSessionRetiredTerminalSurface = {
 
 export type RuntimeMobileSessionTabsResult = {
   worktree: string
+  /** Query-only truth about an executing launch that owns this workspace's first surface. */
+  initialSurfaceLaunch?: { launchId: string; agent: TuiAgent }
   publicationEpoch: string
   snapshotVersion: number
   navigationIntent?: 'follow'
@@ -291,6 +297,7 @@ export type RuntimeMobileSessionCreateTerminalResult = {
   tab: RuntimeMobileSessionTerminalClientTab
   publicationEpoch: string
   snapshotVersion: number
+  warning?: 'desktop-tab-not-shown'
 }
 
 export type RuntimeMobileSessionTabsRemovedResult = RuntimeMobileSessionTabsResult & {
