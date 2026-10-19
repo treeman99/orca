@@ -151,10 +151,11 @@ export type EnterprisePolicy = {
    */
   requireComputerUseApproval: boolean
   /**
-   * Refuse to download executables Orca fetches on its own at runtime. Today that is the pinned
-   * Node runtime (nodejs.org) an SSH relay or a WSL distro gets when its node lacks
-   * `node:sqlite` — pulled with no user action. Refusing costs only reading past OpenCode
-   * sessions on that host; the download is skipped, not the connection.
+   * Refuse to download executables Orca fetches on its own at runtime: the pinned Node runtime
+   * (nodejs.org) a WSL distro gets when its node lacks `node:sqlite`, pulled with no user action,
+   * and since v1.4.230 an agent's managed chat server (Antigravity's, from dl.google.com) a user
+   * installs from Settings. Refusing Node costs only reading past OpenCode sessions on that host;
+   * refusing a managed server leaves that agent's chats unavailable.
    */
   disableRuntimeDownloads: boolean
   /**

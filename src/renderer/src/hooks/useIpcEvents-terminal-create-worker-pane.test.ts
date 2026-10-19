@@ -158,4 +158,28 @@ describe('useIpcEvents orchestration worker pane placement', () => {
     expect(createEmptySplitGroup).not.toHaveBeenCalled()
     expect(createTab).toHaveBeenCalledWith('wt-1', undefined, undefined, expect.anything())
   })
+
+  it('lets an explicit target group outrank the worker column', async () => {
+    _resetOrchestrationWorkerPaneColumnForTests()
+    const scenario = await setupTerminalCreateSurfacing(() => false)
+    const { createTab, createEmptySplitGroup, storeState, createTerminalListenerRef } = scenario
+    if (!createTerminalListenerRef.current) {
+      throw new Error('Expected create-terminal listener to be registered')
+    }
+    storeState.settings.autoSplitOrchestrationWorkerPanes = true
+    storeState.groupsByWorktree['wt-1'] = [{ id: 'g-coord', tabOrder: [COORDINATOR_TAB_ID] }]
+    storeState.unifiedTabsByWorktree['wt-1'] = [
+      {
+        id: COORDINATOR_TAB_ID,
+        entityId: COORDINATOR_TAB_ID,
+        groupId: 'g-coord',
+        contentType: 'terminal'
+      }
+    ]
+
+    createTerminalListenerRef.current(workerCreate({ targetGroupId: 'g-explicit' }))
+
+    expect(createEmptySplitGroup).not.toHaveBeenCalled()
+    expect(createTab).toHaveBeenCalledWith('wt-1', 'g-explicit', undefined, expect.anything())
+  })
 })

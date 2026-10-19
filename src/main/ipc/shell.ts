@@ -16,7 +16,7 @@ import {
   resolveExternalEditorLaunchSpec,
   resolveVsCodeRemoteSshLaunchSpec
 } from '../external-editor-launch'
-import { resolveVsCodeSshAuthority } from '../ssh/vscode-ssh-authority'
+import { resolveVsCodeSshAuthority } from '../ssh/config/vscode-ssh-authority'
 import { openExternalUrlUnderPolicy } from './shell-open-url'
 import { toSshExecutionHostId } from '../../shared/execution-host'
 import {

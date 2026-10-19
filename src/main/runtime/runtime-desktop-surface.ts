@@ -34,6 +34,10 @@ export type RuntimeDesktopSurface = {
    * implementation so the runtime graph stays free of `electron`.
    */
   confirmComputerUseAction(detail: string): Promise<'allowed' | 'denied' | 'no-window'>
+  /** Re-encodes as a PNG fitting `maxEdge`; null if undecodable. Absent on Node hosts. */
+  encodeRepoIconPng?(bytes: Uint8Array, maxEdge: number): Uint8Array | null
+  /** A GET answering redirects with the 3xx, without proxy login; absent where fetch already does. */
+  fetchRepoIcon?(url: string, init: RequestInit): Promise<Response>
 }
 
 const inertDesktopSurface: RuntimeDesktopSurface = {

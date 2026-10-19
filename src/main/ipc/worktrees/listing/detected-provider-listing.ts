@@ -42,6 +42,7 @@ import {
 import { readAllWorktreeMetaForRepo } from '../../../persistence/host-qualified-worktree-meta'
 import { classifyWorktreeScanFailure } from '../../../../shared/worktree-scan-failure'
 import { scanUntilNotOvertaken } from './overtaken-scan-rerun'
+import { withoutInFlightWorktreeCreates } from '../../../worktree-create-in-flight'
 
 export async function listDetectedWorktreesForCapturedRepo(
   store: Store,
@@ -131,7 +132,10 @@ export async function listDetectedWorktreesForCapturedRepo(
       metadataPrune,
       hygieneDue
     } = scan
-    const localRows = await withUnregisteredRemovalCheckouts(repo.id, gitWorktrees)
+    const localRows = await withUnregisteredRemovalCheckouts(
+      repo.id,
+      withoutInFlightWorktreeCreates(repo.id, gitWorktrees)
+    )
     const aborted = abortedResult()
     if (aborted) {
       return aborted

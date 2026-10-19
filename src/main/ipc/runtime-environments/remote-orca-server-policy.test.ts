@@ -1,0 +1,104 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeEnterprisePolicy, makeLockdownPolicy } from '../../../shared/enterprise-policy-fixture'
+import type * as RuntimeEnvironmentStore from '../../../shared/runtime-environment-store'
+
+const getEnterprisePolicyMock = vi.hoisted(() => vi.fn())
+vi.mock('../../enterprise/enterprise-policy-file', () => ({
+  getEnterprisePolicy: getEnterprisePolicyMock
+}))
+
+const remote = vi.hoisted(() => ({
+  sendRemoteRuntimeRequest: vi.fn(),
+  subscribeRemoteRuntimeRequest: vi.fn()
+}))
+vi.mock('../../../shared/remote-runtime-client', () => remote)
+
+// v1.4.201 routes the status probe through the host status owner, which publishes to windows.
+vi.mock('electron', () => ({ BrowserWindow: { getAllWindows: () => [] } }))
+
+const store = vi.hoisted(() => ({
+  resolveEnvironment: vi.fn(() => ({
+    id: 'env-1',
+    name: 'Remote',
+    runtimeId: 'rt-1',
+    createdAt: 1,
+    // v1.4.226 reads the connection off the environment's endpoints, not a pairing offer.
+    preferredEndpointId: 'ep-1',
+    endpoints: [{ id: 'ep-1', endpoint: 'ws://10.0.0.5:6768', deviceToken: 't', publicKeyB64: 'k' }]
+  })),
+  markEnvironmentUsed: vi.fn()
+}))
+vi.mock('../../../shared/runtime-environment-store', async (importOriginal) => ({
+  ...(await importOriginal<typeof RuntimeEnvironmentStore>()),
+  ...store
+}))
+
+import {
+  callRuntimeEnvironment,
+  subscribeRuntimeEnvironment
+} from './runtime-environment-transport-routing'
+import { getRuntimeEnvironmentStatus } from './runtime-environment-status-probe'
+import { REMOTE_ORCA_SERVER_DISABLED_BY_POLICY } from '../../enterprise/remote-orca-server-guard'
+
+const callbacks = { onEvent: () => {}, onClose: () => {} }
+
+describe('remote Orca runtimes under the enterprise policy', () => {
+  beforeEach(() => {
+    getEnterprisePolicyMock.mockReset().mockReturnValue(makeEnterprisePolicy())
+    remote.sendRemoteRuntimeRequest.mockReset().mockResolvedValue({
+      ok: true,
+      result: { capabilities: [] },
+      _meta: { runtimeId: 'rt-1' }
+    })
+    remote.subscribeRemoteRuntimeRequest
+      .mockReset()
+      .mockResolvedValue({ requestId: 'r', close() {} })
+  })
+
+  describe('when the policy disables remote Orca servers', () => {
+    beforeEach(() => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+    })
+
+    // These three are the only ways an outbound socket to another Orca is opened.
+    it('opens no socket for a status probe', async () => {
+      await expect(getRuntimeEnvironmentStatus('/data', 'env-1')).resolves.toMatchObject({
+        ok: false,
+        error: { code: REMOTE_ORCA_SERVER_DISABLED_BY_POLICY }
+      })
+      expect(remote.sendRemoteRuntimeRequest).not.toHaveBeenCalled()
+    })
+
+    it('opens no socket for a call', async () => {
+      await expect(
+        callRuntimeEnvironment('/data', 'env-1', 'files.read', {})
+      ).resolves.toMatchObject({
+        ok: false,
+        error: { code: REMOTE_ORCA_SERVER_DISABLED_BY_POLICY }
+      })
+      expect(remote.sendRemoteRuntimeRequest).not.toHaveBeenCalled()
+    })
+
+    it('opens no socket for a subscription', async () => {
+      await expect(
+        subscribeRuntimeEnvironment('/data', 'env-1', 'files.watch', {}, undefined, callbacks)
+      ).rejects.toThrow(REMOTE_ORCA_SERVER_DISABLED_BY_POLICY)
+      expect(remote.subscribeRemoteRuntimeRequest).not.toHaveBeenCalled()
+    })
+  })
+
+  it('reaches the remote runtime when no policy applies', async () => {
+    await getRuntimeEnvironmentStatus('/data', 'env-1')
+    expect(remote.sendRemoteRuntimeRequest).toHaveBeenCalled()
+  })
+
+  // The switch is scoped to the outbound Orca-to-Orca lane; the inbound `orca serve` listener
+  // is a separate feature and must not be collateral damage.
+  it('is not implied by the other lockdown switches on their own', async () => {
+    getEnterprisePolicyMock.mockReturnValue(
+      makeEnterprisePolicy({ disableCloudRelay: true, disableMobilePairing: true })
+    )
+    await getRuntimeEnvironmentStatus('/data', 'env-1')
+    expect(remote.sendRemoteRuntimeRequest).toHaveBeenCalled()
+  })
+})

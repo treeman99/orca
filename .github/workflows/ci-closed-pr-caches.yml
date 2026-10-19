@@ -32,7 +32,6 @@ jobs:
               ['pr-test-loc', 'pr-test-loc.yml'],
               ['preflight-critical-path', 'preflight-critical-path-benchmark.yml'],
               ['preflight-cli', 'preflight-cli-platforms.yml'],
-              ['macos-updater', 'macos-updater-tests.yml'],
               ['preflight-comparison', 'preflight-benchmark.yml'],
               ['windows-typecheck-parity', 'windows-typecheck-parity.yml'],
               ['zcode-transcript-contract', 'zcode-transcript-contract.yml'],

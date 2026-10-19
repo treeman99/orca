@@ -4,7 +4,8 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { Button } from '../ui/button'
 import type { RuntimeHostDetails } from './runtime-environment-host-details'
-import { RuntimeHostAccessForm, type RuntimeHostAccessFailure } from './RuntimeHostAccessForm'
+import { RuntimeHostAccessForm } from './RuntimeHostAccessForm'
+import type { RuntimeHostAccessFailure } from './RuntimeHostAccessFailureAlert'
 import { RuntimeServerRow } from './runtime-server-row'
 
 type RuntimeServersConnectSectionProps = {

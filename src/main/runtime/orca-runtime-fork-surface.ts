@@ -2,6 +2,8 @@ import type { TuiAgent } from '../../shared/tui-agent'
 import { TUI_AGENT_CONFIG } from '../../shared/tui-agent-config'
 import { worktreeIdsEqual } from '../../shared/worktree/id'
 import { OrcaRuntimeWithMigrationCatalog } from './orca-runtime-migration-catalog'
+import { OrcaRuntimeWithSidebarTemporal } from './sidebar-inputs/orca-runtime-sidebar-temporal'
+import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../shared/sidebar-inputs-switch'
 import { waitForWorktreeStartupDraft } from './runtime-worktree-startup-readiness'
 import type { LegacyWorkerRecoveryCandidate } from './runtime-legacy-worker-terminal-recovery-types'
 import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
@@ -11,12 +13,18 @@ import type { StructuredAgentId } from '../../shared/agent-session-provider-hand
 import { isAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 import { OrchestrationError } from './orchestration/orchestration-error'
 
+// Why here: upstream picks the chain's top layer by build switch in orca-runtime.ts (v1.4.230);
+// owning that pick keeps this layer above whichever top the build chooses.
+const ForkSurfaceBase: typeof OrcaRuntimeWithMigrationCatalog = ORCA_SIDEBAR_INPUTS_IS_MAIN
+  ? OrcaRuntimeWithSidebarTemporal
+  : OrcaRuntimeWithMigrationCatalog
+
 /**
  * Runtime members this fork owns. Kept at the tail of the class chain so an upstream
  * split of any layer below cannot silently drop them — a rebase that loses this file
  * fails typecheck at the RPC methods that call these.
  */
-export abstract class OrcaRuntimeForkSurface extends OrcaRuntimeWithMigrationCatalog {
+export abstract class OrcaRuntimeForkSurface extends ForkSurfaceBase {
   /**
    * allowedAgents gate for managed worktree creation. Here rather than in the layer that defines
    * it: upstream fills orca-runtime-create-managed-worktree.ts to its max-lines cap (v1.4.221).

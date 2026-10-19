@@ -108,12 +108,9 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
           if (frameDrawnTab) {
             reusedTab = frameDrawnTab
           }
-          // An explicit target group outranks the worker column, so it skips the claim.
           const workerPane = claimWorkerPane(
-            worktreeId,
-            targetGroupId ? undefined : paneGroupPlacement,
-            isSplitReveal,
-            reusedTab
+            { worktreeId, targetGroupId, paneGroupPlacement },
+            { isSplitReveal, reusedTab }
           )
           const tab =
             reusedTab ??
@@ -125,7 +122,8 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
                     agentLaunchViewer === 'focus-window' ||
                     agentLaunchViewer === 'focus-in-workspace',
                   ...(surfaceOwner === false && terminalPresentation === 'background'
-                    ? { recordInteraction: false } : {}),
+                    ? { recordInteraction: false }
+                    : {}),
                   ...(launchAgent
                     ? {
                         launchAgent,
@@ -158,7 +156,9 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
           if (afterTabId) {
             const unifiedTabs = useAppStore.getState().unifiedTabsByWorktree[worktreeId] ?? []
             const createdUnified = unifiedTabs.find((item) => item.entityId === tab.id)?.id
-            const anchorUnified = unifiedTabs.find((item) => item.id === afterTabId || item.entityId === afterTabId)?.id
+            const anchorUnified = unifiedTabs.find(
+              (item) => item.id === afterTabId || item.entityId === afterTabId
+            )?.id
             if (createdUnified && anchorUnified) {
               insertUnifiedTabAfterAnchor(worktreeId, createdUnified, anchorUnified)
             }
@@ -233,20 +233,22 @@ export function registerTerminalPresentationIpcBridge(unsubs: (() => void)[]): v
                 })
               )
             } else {
+              // Switch point: this title is the tab's name; main holds no pane title for it.
+              const paneTitle = ORCA_LAYOUT_OWNER_IS_MAIN ? undefined : title
               // Why: CLI/runtime PTYs emit hook events before the tab mounts, so the leaf must exist in layout for paneKey validation.
               const existingLayout = reusedTab
                 ? activateExistingLeafInLayout(
                     store.terminalLayoutsByTabId?.[tab.id],
                     leafId,
                     ptyId,
-                    title
+                    paneTitle
                   )
                 : null
               if (existingLayout) {
                 store.updateTabPtyId(tab.id, ptyId)
                 store.setTabLayout(tab.id, existingLayout)
               } else {
-                store.setTabLayout(tab.id, singlePaneLayoutSnapshot(leafId, ptyId, title))
+                store.setTabLayout(tab.id, singlePaneLayoutSnapshot(leafId, ptyId, paneTitle))
               }
             }
           }

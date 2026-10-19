@@ -144,3 +144,28 @@ it('keeps the machine under the label once the host is unreachable', () => {
   renderRow()
   expect(screen.queryByText('macOS · Studio')).not.toBeNull()
 })
+
+// A host that refused our token answered us, so the row must not also claim it is offline.
+it('tells one revoked story instead of a disconnected one', () => {
+  const status = { ...answeredStatus(), appVersion: '1.4.229' }
+  setEntry({
+    status: null,
+    checkedAt: 2,
+    snapshot: snapshot({
+      status,
+      verification: 'blocked',
+      blockedReason: 'access-revoked',
+      transport: 'disconnected'
+    })
+  })
+  // Fork: no remote-server update entry — this build removes remote server updates, so the
+  // row has no version footer ("Orca v… (last seen)") to assert.
+  renderRow()
+
+  expect(screen.queryByText('Access revoked')).not.toBeNull()
+  expect(screen.queryByText('Disconnected')).toBeNull()
+  expect(screen.queryByText('Status unavailable')).toBeNull()
+  expect(screen.queryByText('Offline')).toBeNull()
+  expect(screen.queryByRole('button', { name: /re-pair/i })).not.toBeNull()
+  expect(screen.queryByRole('button', { name: /^connect$/i })).toBeNull()
+})

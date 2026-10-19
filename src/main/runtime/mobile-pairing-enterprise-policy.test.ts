@@ -15,7 +15,12 @@ vi.mock('../git/worktree', () => ({
 }))
 
 import WebSocket from 'ws'
-import { deriveSharedKey, encrypt, generateKeyPair, publicKeyFromBase64 } from './rpc/e2ee-crypto'
+import {
+  deriveSharedKey,
+  encrypt,
+  generateKeyPair,
+  publicKeyFromBase64
+} from '../../shared/e2ee-crypto'
 import { OrcaRuntimeService } from './orca-runtime'
 import { OrcaRuntimeRpcServer } from './runtime-rpc'
 

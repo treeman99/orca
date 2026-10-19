@@ -5,7 +5,7 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
-import { runtimeWorktreeIdsEqual } from '../../runtime-worktree-path-identity'
+import { worktreeIdsEqual } from '../../../../shared/worktree/id'
 import type { WorkerEffect } from './orchestration/worker/worker-topology'
 
 export type WorkerPaneAnchor = { coordinatorWorktreeId: string } & (
@@ -34,7 +34,7 @@ export function resolveWorkerPaneAnchor(
   if (!coordinatorTabId) {
     return { paneAnchorSkipped: 'coordinator-pane-unresolved', coordinatorWorktreeId }
   }
-  if (!runtimeWorktreeIdsEqual(worker.id, coordinatorWorktreeId)) {
+  if (!worktreeIdsEqual(worker.id, coordinatorWorktreeId)) {
     return { paneAnchorSkipped: 'worker-worktree-differs', coordinatorWorktreeId }
   }
   return { coordinatorTabId, coordinatorWorktreeId }

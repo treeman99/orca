@@ -35,7 +35,7 @@ import {
   getTuiAgentDetectionProbeCommands,
   KNOWN_TUI_AGENT_DETECTION_COMMANDS,
   resolveDetectedTuiAgentIds
-} from '../ipc/tui-agent-detection-commands'
+} from '../../shared/tui-agent-detection-commands'
 import { invalidateWslGuestEnvironment } from '../wsl/wsl-guest-environment'
 import { filterAgentsByPolicy } from '../../shared/corporate-agent-access'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'

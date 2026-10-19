@@ -49,6 +49,7 @@ import {
 } from './tab-context-menu-sizing'
 import { CopyTabIdMenuItem } from './CopyTabIdMenuItem'
 import { isVirtualEditorFile } from '@/store/slices/editor/tabs/editor-tab-content-type'
+import { CloseSplitPaneMenuItem } from './CloseSplitPaneMenuItem'
 
 type EditorFileTabContextMenuProps = {
   open: boolean
@@ -75,6 +76,7 @@ type EditorFileTabContextMenuProps = {
   onCloseAll: () => void
   onCloseToRight: () => void
   onCloseToLeft: () => void
+  onCloseSplitPane?: () => void
   onOpenMarkdownPreview: (
     file: {
       filePath: string
@@ -112,6 +114,7 @@ export function EditorFileTabContextMenu({
   onCloseAll,
   onCloseToRight,
   onCloseToLeft,
+  onCloseSplitPane,
   onOpenMarkdownPreview
 }: EditorFileTabContextMenuProps): React.JSX.Element {
   const renameShortcut = useOptionalShortcutLabel('tab.rename')
@@ -214,6 +217,7 @@ export function EditorFileTabContextMenu({
             'Close Tabs To The Left'
           )}
         </DropdownMenuItem>
+        <CloseSplitPaneMenuItem onCloseSplitPane={onCloseSplitPane} />
         {isVirtualEditorFile(file) ? null : <DropdownMenuSeparator />}
         {canShowMarkdownPreview ? (
           <>

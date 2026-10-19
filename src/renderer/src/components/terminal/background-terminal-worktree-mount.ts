@@ -4,6 +4,7 @@ import {
 } from '@/constants/terminal'
 import { parseExecutionHostId } from '../../../../shared/execution-host'
 import { resolveColdActivationTabDeferThreshold } from './windows-cold-activation-threshold'
+import { requestSleepingAgentWakeOnMount } from '@/lib/sleeping-agent-wake-requests'
 
 const pendingMounts = new Map<string, BackgroundMountTerminalWorktreeDetail>()
 const requestListeners = new Set<() => void>()
@@ -38,6 +39,11 @@ export function requestBackgroundTerminalWorktreeMount(
 ): void {
   if (!detail.worktreeId) {
     return
+  }
+  // Why targeted only: a named tab is asked for live, while a whole-worktree mount
+  // (e.g. a browser lease) must not mark every sleeping agent for a later hidden remount.
+  if (detail.tabIds) {
+    requestSleepingAgentWakeOnMount(detail.worktreeId, detail.tabIds)
   }
   mergePendingMount(detail)
   if (!hasRequestedMount) {

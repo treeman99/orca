@@ -16,12 +16,22 @@ export type WorkerPaneClaim = {
   finish: (tab: { id: string }, launchAgent: string | undefined) => void
 }
 
+// Why two inline objects: the bridge sits at its max-lines cap, and this shape keeps the call at
+// four lines there (v1.4.230).
 export function claimWorkerPane(
-  worktreeId: string,
-  paneGroupPlacement: TerminalPaneGroupPlacement | undefined,
-  isSplitReveal: boolean,
-  reusedTab: { id: string } | null | undefined
+  target: {
+    worktreeId: string
+    targetGroupId: string | null | undefined
+    paneGroupPlacement: TerminalPaneGroupPlacement | undefined
+  },
+  {
+    isSplitReveal,
+    reusedTab
+  }: { isSplitReveal: boolean; reusedTab: { id: string } | null | undefined }
 ): WorkerPaneClaim {
+  const { worktreeId } = target
+  // An explicit target group outranks the worker column, so it skips the claim.
+  const paneGroupPlacement = target.targetGroupId ? undefined : target.paneGroupPlacement
   // Why: an orchestration worker opens beside its coordinator instead of in the active group.
   // Undefined (preference off, foreign worktree) keeps the old path. A reused tab still claims:
   // another path (host graph sweep, stable-pane reattach) may have minted it into the active

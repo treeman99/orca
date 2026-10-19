@@ -17,6 +17,15 @@ vi.mock('../antigravity/native-account-host', () => ({
   getAntigravityAccountService: getAntigravityAccountServiceMock
 }))
 
+const chatSignIn = vi.hoisted(() => ({
+  startAntigravityChatSignIn: vi.fn(() => ({ flowId: 'flow-1' })),
+  completeAntigravityChatSignIn: vi.fn(async () => null),
+  cancelAntigravityChatSignIn: vi.fn(),
+  readAntigravityChatSignInStatus: vi.fn(),
+  subscribeAntigravityChatSignIn: vi.fn(() => () => {})
+}))
+vi.mock('../antigravity/antigravity-chat-sign-in', () => chatSignIn)
+
 import { OrcaRuntimeService } from './orca-runtime'
 import { eraseRpcMethods, isStreamingMethod } from './rpc/core'
 import { RuntimeAccountController } from './runtime-account-controller'
@@ -90,5 +99,34 @@ describe('v1.4.221 vendor account registration lanes under the enterprise policy
       addCurrent.handler({ runtime: 'host' }, { runtime: new OrcaRuntimeService() })
     ).rejects.toThrow(VENDOR_ACCOUNTS_DISABLED_BY_POLICY)
     expect(getAntigravityAccountServiceMock).not.toHaveBeenCalled()
+  })
+
+  // v1.4.230: a Google sign-in for Antigravity chats is a second registration lane in this file.
+  it.each([
+    ['accounts.antigravityChatSignInStart', null, chatSignIn.startAntigravityChatSignIn],
+    [
+      'accounts.antigravityChatSignInComplete',
+      { flowId: 'flow-1', callbackUrl: 'http://127.0.0.1:1/cb' },
+      chatSignIn.completeAntigravityChatSignIn
+    ]
+  ] as const)('refuses %s before any sign-in flow runs', async (name, params, flow) => {
+    flow.mockClear()
+    const caller = { kind: 'desktop' } as const
+    const { ANTIGRAVITY_ACCOUNT_METHODS } = await import('./rpc/methods/antigravity-accounts')
+    const method = eraseRpcMethods(ANTIGRAVITY_ACCOUNT_METHODS).find((m) => m.name === name)
+    if (!method || isStreamingMethod(method)) {
+      throw new Error(`${name} must be a request method`)
+    }
+    const ctx = { runtime: new OrcaRuntimeService(), caller }
+
+    getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+    await expect(method.handler(params, ctx)).rejects.toThrow(VENDOR_ACCOUNTS_DISABLED_BY_POLICY)
+    expect(flow).not.toHaveBeenCalled()
+
+    getEnterprisePolicyMock.mockReturnValue(
+      makeLockdownPolicy({ disableVendorProviderAccounts: false })
+    )
+    await method.handler(params, ctx)
+    expect(flow).toHaveBeenCalledTimes(1)
   })
 })

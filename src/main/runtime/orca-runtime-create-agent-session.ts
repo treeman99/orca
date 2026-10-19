@@ -34,10 +34,8 @@ export abstract class OrcaRuntimeWithCreateAgentSession extends OrcaRuntimeWithG
   protected abstract buildTerminalWorkspaceEnv(
     scope: TerminalWorkspaceLaunchScope,
     baseEnv: Record<string, string>,
-    paneKey: string,
-    tabId: string,
     agentTeamsEnv?: Record<string, string>
-  ): Promise<Record<string, string>>
+  ): Record<string, string>
 
   abstract getAuthoritativeWindow(): BrowserWindow
 

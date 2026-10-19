@@ -1,6 +1,6 @@
 import type { DashboardAgentRow } from '@/components/dashboard/useDashboardData'
 import { translate } from '@/i18n/i18n'
-import { tabHasLivePty } from '@/lib/tab-has-live-pty'
+import { tabHasLivePty } from '../../../../shared/tab-has-live-pty'
 import type { RetainedAgentEntry } from '@/store/slices/agent-status'
 import type {
   AgentStatusEntry,

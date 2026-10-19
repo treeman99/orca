@@ -562,7 +562,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.229`** 이 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.230`** 이 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -826,6 +826,38 @@ Bun 이 없어 둘 다 시작조차 못 하므로 **포크는 Node 실행을 유
 `bun` 을 직접 띄워 두 런타임을 비교하므로 Bun 이 없는 PC 에서는 **순정 태그에서도** 빨갛습니다(환경성).
 Bun 을 사내 미러로 들이기로 하면 이 절을 지우고 두 줄을 upstream 판으로 되돌리면 됩니다.
 
+**v1.4.230 — upstream 이 `bun` 을 devDependency 로 들였습니다. 포크는 싣지 않습니다.** `"bun": "1.4.3"` 과
+`pnpm-workspace.yaml` 의 `allowBuilds: bun: true` 가 함께 왔고, `typecheck` 계열 스크립트의 기본 컴파일러가
+bun 으로 바뀌었습니다(`run-typecheck-projects-in-parallel.mjs` 의 `compiler: 'bun'`). bun npm 패키지의
+postinstall(`install.js`)은 플랫폼 패키지(`@oven/bun-*`)를 못 찾으면 **`registry.npmjs.org` 에서 직접** 받고, 그것도
+실패하면 `bun.sh` 설치 스크립트를 안내합니다 — 사내 미러를 우회하는 경로입니다. 그래서:
+
+| 무엇 | 어디 |
+| ---- | ---- |
+| `bun` devDependency, `allowBuilds: bun: true` | `package.json`, `pnpm-workspace.yaml` — 빼고 lockfile 재계산 |
+| 로컬 typecheck 4개 스크립트에 `--compiler=native` | `package.json` 의 `typecheck`·`typecheck:node`·`typecheck:cli`·`typecheck:web` — 없으면 `build:desktop`·`build:win`·`build:unpack` 이 "Bun … is missing" 으로 죽습니다(`build:release` 는 typecheck 를 부르지 않아 영향 없음) |
+| 업스트림 계약 케이스 1개를 포크 계약으로 | `run-typecheck-projects-in-parallel.test.mjs` 의 "pins the Bun devDependency" → "ships no Bun devDependency and pins local typecheck scripts to tsc" |
+
+`typecheck:ci`(`--compiler=bun`)는 꺼진 upstream CI 워크플로만 부르므로 그대로 둡니다. **다음 동기화에서**:
+`package.json` 은 늘 포크판 + upstream 델타로 풀므로 보통 돌아오지 않지만, 원장 `absentSymbols`
+(`package.json` 의 `"bun": "`, `pnpm-workspace.yaml` 의 `bun: true`)와 `present`(`--compiler=native"`)가 지킵니다.
+
+#### 경로 리터럴 래칫 — 포크 원장은 스캔에서 뺐다 (v1.4.230)
+
+upstream v1.4.230 이 `check:path-literal-ratchet` 를 들였습니다. `config/`·`.github/`·`tests/` 안의 `src/...` 경로
+리터럴이 추적 파일을 가리키지 않으면 실패하고, 예외는 `config/path-literal-baseline.txt` 에 적되 줄어들기만 합니다.
+실패 모드 D 그대로 **포크 파일에서 먼저 터졌습니다** — 처리한 방식:
+
+| 걸린 것 | 처리 |
+| ------- | ---- |
+| `config/fork-feature-ledger.json` 54건 — `absentPaths` 는 **일부러 없는 경로**를 적는 목록 | 래칫의 `EXCLUDED_FILES` 에 원장 한 줄(`check-path-literal-ratchet.mjs`). `present` 쪽 존재 검사는 원장 테스트가 따로 합니다. 이 줄이 빠지면 래칫이 소리 내어 빨개집니다 |
+| `.github/workflows/macos-updater-tests.yml` 9건 — 포크가 지운 업데이터 테스트만 도는 워크플로 | 워크플로 삭제 + `ci-closed-pr-caches.yml` 의 동시성 키 행 삭제 + 원장 `absentPaths` |
+| `config/scripts/vitest-node-runtime-files.mjs` 1건 — 지운 `main-window-updater-deferred-setup.test.ts` | 목록에서 줄 삭제 |
+| `ssh-{hostile,windows}-hosts.yml` 6건 | **순정 v1.4.230 에서도 실패**(릴리스 브랜치가 main 의 워크플로를 앞서 동기화 — 실패 모드 W). baseline 에 근거 주석과 함께 등재, upstream 트리가 따라오면 `--prune` |
+
+같은 정리에서 `ci-closed-pr-cancellation.test.mjs` 의 기대값도 고쳤습니다 — v1.4.229 에서 `docs.yml`·`cloud-verify.yml`
+행을 지우면서 이 테스트의 `docs-pr-123`·`cloud-verify-…` 기대를 남겨 둬 포크 tip 부터 빨갛던 것입니다.
+
 #### Chat UI 가 곧 구조화 채팅이 됐다 — 포크 기본값을 upstream 과 같은 꺼짐으로 (v1.4.224)
 
 upstream #22933 이 `openAgentTabsInChatByDefault`(새 탭을 채팅으로 열기)와 `experimentalStructuredNativeChat` 을
@@ -1005,6 +1037,12 @@ upstream 파일은 바이트 동일해져 다음 머지에서 충돌하지 않�
 의 허용목록 게이트도 `OrcaRuntimeForkSurface` 의 override 로 옮겼습니다. 포크 계층이 체인에 끼는 접합점
 (`extends OrcaRuntimeWithAgentPromptRescue`, `extends OrcaRuntimeForkSurface`)은 원장 앵커가 지킵니다 —
 `--theirs` 로 풀리면 override 가 타입 오류 없이 통째로 빠지기 때문입니다.
+
+**upstream 이 체인 최상단을 빌드 스위치로 고르면 그 선택을 포크 계층이 소유합니다(v1.4.230).** `orca-runtime.ts` 가
+`const OrcaRuntimeSidebarBase = ORCA_SIDEBAR_INPUTS_IS_MAIN ? OrcaRuntimeWithSidebarTemporal : OrcaRuntimeWithMigrationCatalog`
+를 두고 그것을 상속하기 시작했습니다. 포크 계층을 `MigrationCatalog` 위에 그대로 두면 스위치를 켠 빌드에서만 사이드바
+계층이 조용히 빠지므로, 같은 조건식을 `orca-runtime-fork-surface.ts` 의 `ForkSurfaceBase` 로 옮기고 `orca-runtime.ts`
+에서는 쓰이지 않게 된 const 를 지웠습니다. upstream 이 스위치를 없애면 그 import 가 깨져 tc 가 먼저 알려 줍니다.
 
 **빌드 설정 파일에 포크 define 을 둘 자리가 없을 때는 upstream 상수를 빌립니다(v1.4.229).** 내장 에이전트
 하한은 "electron-vite 번들인가"를 포크 define(`ORCA_BUNDLED_MAIN_BUILD`)으로 판단했는데 `electron.vite.config.ts` 가

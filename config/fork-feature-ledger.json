@@ -231,6 +231,21 @@
           "file": "src/main/ipc/pty/runtime/spawn.ts",
           "contains": "assertAgentAllowedByEnterprisePolicy(args.launchAgent)",
           "why": "런타임(RPC) 경로 PTY 스폰의 허용목록 게이트. 위와 같은 이유."
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/managed-runtime-install.ts",
+          "contains": "      assertAgentAllowedByEnterprisePolicy(agent)\n      const installation = installationFor(agent, runtime)",
+          "why": "v1.4.230 에 첫 목적지(dl.google.com Antigravity ACP 서버)가 생긴 관리형 런타임 설치. disableRuntimeDownloads 를 끈 플릿에서도 허용되지 않은 에이전트의 서버는 받지 않는다."
+        },
+        {
+          "file": "src/main/ipc/pty/ipc/claude-diff-panel-notice.ts",
+          "contains": "      if (!isAgentAllowedByEnterprisePolicy('claude')) {",
+          "why": "v1.4.230 의 pty:claudeDiffPanelMayAutoOpen 은 답하려고 claude --version 을 띄운다. Claude 를 허용하지 않는 플릿에서는 스폰하지 않는다(claude-diff-panel-notice-agent-policy.test.ts)."
+        },
+        {
+          "file": "src/renderer/src/components/settings/NativeChatProvidersSetting.tsx",
+          "contains": "  const visibleAgents = filterAgentsByPolicy(",
+          "why": "v1.4.230 의 채팅 Providers 설정 목록. 다른 피커처럼 허용목록으로 거른다(UI 위생 — 실행 게이트는 main 에 있다)."
         }
       ]
     },
@@ -376,6 +391,26 @@
           "file": "src/shared/task-providers.ts",
           "contains": "export const TASK_PROVIDERS: readonly TaskProvider[] = FORK_OFFERED_TASK_PROVIDERS",
           "why": "작업 공급자를 GitHub(사내 GHES) 하나로 좁히는 한 줄. upstream 이 이 상수를 네 개 목록으로 되돌리면 GitLab·Linear·Jira 로 작업 제목·본문이 나간다. v1.4.226 에서 포크 모듈로 빼, 숨긴 공급자의 upstream 스위트가 그 모듈만 모킹해 휴면 코드를 계속 검증한다."
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/antigravity-accounts.ts",
+          "contains": "      assertVendorAccountRegistrationAllowed()\n      return startAntigravityChatSignIn(",
+          "why": "v1.4.230 의 Antigravity 채팅용 Google 로그인 RPC. AddCurrent 와 같은 등록 게이트(disableVendorProviderAccounts)."
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/antigravity-accounts.ts",
+          "contains": "      assertVendorAccountRegistrationAllowed()\n      return completeAntigravityChatSignIn(",
+          "why": "같은 로그인 흐름의 콜백 완료 입구."
+        },
+        {
+          "file": "package.json",
+          "contains": "run-typecheck-projects-in-parallel.mjs --compiler=native\"",
+          "why": "v1.4.230 이 타입체크 기본 컴파일러를 bun 으로 바꿨다. 포크는 bun devDependency 를 싣지 않으므로(아래 absentSymbols) 로컬 typecheck 스크립트가 tsc 를 명시해야 build:desktop·build:win 이 산다."
+        },
+        {
+          "file": "src/renderer/src/components/settings/NativeChatProvidersSetting.tsx",
+          "contains": "  const homepageUrl = getEnterprisePolicyView().disableAgentInstallSuggestions",
+          "why": "같은 목록의 미설치 에이전트 \"Install\" 벤더 링크. Agents 창의 설치 제안과 같은 disableAgentInstallSuggestions 를 따른다."
         }
       ]
     },
@@ -513,6 +548,16 @@
           "file": "src/main/runtime/runtime-rpc/runtime-rpc-mobile-devices.ts",
           "contains": "getEnterprisePolicy().disableMobilePairing ? [] : phones",
           "why": "v1.4.226 의 위임 모바일 기기 동기화 — 페어링된 데스크톱이 자기 폰을 이 호스트에 넘기면 폰마다 토큰을 민팅한다. 정책 아래에서는 민팅하지 않고 기존 위임 폰을 회수한다."
+        },
+        {
+          "file": "src/renderer/src/lib/ensure-simulator-tab.ts",
+          "contains": "  if (!isMobileEmulatorAvailable(store.settings)) {",
+          "why": "에뮬레이터 탭 생성 입구의 정책+설정 검사. upstream 원문은 설정 단독(mobileEmulatorEnabled === false)이라 theirs 로 풀리면 disableMobileEmulator 가 빠진다(v1.4.182 실패 모드와 같은 꼴)."
+        },
+        {
+          "file": "src/main/runtime/runtime-rpc/runtime-rpc-pairing.ts",
+          "contains": "if (scope === 'mobile' && getEnterprisePolicy().disableMobilePairing) {",
+          "why": "모바일 페어링 RPC 의 정책 검사. upstream 이 자주 고치는 파일이다."
         }
       ]
     },
@@ -734,9 +779,9 @@
           "note": "The create path's ownerSurfacing is the fork's, which also spreads paneGroupPlacement; losing this re-export silently drops the worker-column anchor."
         },
         {
-          "file": "src/shared/global-settings-types.ts",
+          "file": "src/shared/global-settings-base.ts",
           "contains": "import type { NativeChatGlobalSettings } from './fork-global-settings'",
-          "note": "fork-global-settings.ts re-exports upstream's NativeChatGlobalSettings intersected with all fork-owned settings fields (worker panes, diagnostic log, Confluence) under upstream's name, so the GlobalSettings declaration stays byte-identical to upstream (v1.4.223). If this import goes back to native-chat-appearance-settings, every fork field drops at once."
+          "note": "fork-global-settings.ts re-exports upstream's NativeChatGlobalSettings intersected with all fork-owned settings fields (worker panes, diagnostic log, Confluence) under upstream's name, so the GlobalSettingsBase declaration stays byte-identical to upstream (v1.4.223; moved from global-settings-types.ts when v1.4.230 extracted GlobalSettingsBase). If this import goes back to native-chat-appearance-settings, every fork field drops at once."
         }
       ]
     },
@@ -948,6 +993,11 @@
         {
           "file": "src/main/ipc/session.ts",
           "contains": "'session:retireClosedTerminalTabs'"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-fork-surface.ts",
+          "contains": "export abstract class OrcaRuntimeForkSurface extends ForkSurfaceBase {",
+          "why": "v1.4.230 이 체인 최상단을 빌드 스위치(ORCA_SIDEBAR_INPUTS_IS_MAIN)로 고르게 바꿨다. 포크 계층이 그 선택을 소유해야 두 빌드 모두에서 override 가 맨 위에 선다. MigrationCatalog 로 되돌아가면 스위치 켠 빌드에서 사이드바 계층이 빠진다."
         }
       ]
     },
@@ -1142,24 +1192,24 @@
       "summary": "disableRemoteOrcaServer: 이 데스크톱이 다른 Orca 에 붙는 모든 아웃바운드 소켓을 막는다. v1.4.201 이 status 프로브를 상태 소유자로 옮기며 시작 시 저장된 환경을 모두 프로브하는 루프를 새로 열었다.",
       "present": [
         {
-          "file": "src/main/ipc/runtime-environment-status-probe.ts",
+          "file": "src/main/ipc/runtime-environments/runtime-environment-status-probe.ts",
           "contains": "const refusal = remoteOrcaServerRefusal<RuntimeStatus>()"
         },
         {
-          "file": "src/main/ipc/runtime-environment-transport-routing.ts",
+          "file": "src/main/ipc/runtime-environments/runtime-environment-transport-routing.ts",
           "contains": "const refusal = remoteOrcaServerRefusal<unknown>()"
         },
         {
-          "file": "src/main/ipc/runtime-environment-transport-routing.ts",
+          "file": "src/main/ipc/runtime-environments/runtime-environment-transport-routing.ts",
           "contains": "assertRemoteOrcaServerAllowed()"
         },
         {
-          "file": "src/main/ipc/runtime-environment-status-owner.ts",
+          "file": "src/main/ipc/runtime-environments/runtime-environment-status-owner.ts",
           "contains": "const refusal = remoteOrcaServerRefusal<RuntimeStatus>()",
           "why": "모든 status.get 프로브(시작 루프·재연결·refresh)가 지나는 초크포인트. 빠지면 저장된 원격 Orca 에 status.get 과 shared-control 연결이 나간다."
         },
         {
-          "file": "src/main/ipc/runtime-environments.ts",
+          "file": "src/main/ipc/runtime-environments/runtime-environments.ts",
           "contains": "const bootProbeEnvironments = isRemoteOrcaServerDisabled()",
           "why": "v1.4.201 이 추가한 시작 시 프로브 루프. 정책이 켜지면 상태 소유자 자체를 만들지 않는다."
         },
@@ -1169,7 +1219,7 @@
           "why": "activeRuntimeEnvironmentId 를 저장하는 입구. 정책이 켜지면 던지지 않고 local 로 되돌린다 — 정책 이전에 원격을 저장한 기기도 부팅해야 하고 hydration 이 이 값을 재생한다."
         },
         {
-          "file": "src/main/ipc/runtime-environment-connectivity-handlers.ts",
+          "file": "src/main/ipc/runtime-environments/runtime-environment-connectivity-handlers.ts",
           "contains": "assertRemoteOrcaServerAllowed()",
           "why": "원격 Orca 연결·재연결 IPC 의 게이트. v1.4.223 egress 감사에서 원장 미등재로 확인돼 등재했다."
         },
@@ -1194,14 +1244,19 @@
           "why": "같은 콤보박스의 새 워크스페이스 진입점."
         },
         {
-          "file": "src/main/ssh/orcad-runtime-deployment.ts",
+          "file": "src/main/managed-server/lifecycle/orcad-runtime-deployment.ts",
           "contains": "assertRemoteOrcaServerAllowed()",
           "why": "배포·생성·재개·전환이 모두 createManagedOrcadEnvironment 로 모인다."
         },
         {
-          "file": "src/main/ssh/orcad-runtime-conversion.ts",
+          "file": "src/main/managed-server/lifecycle/orcad-runtime-conversion.ts",
           "contains": "assertRemoteOrcaServerAllowed()",
           "why": "fenceOrResume 보다 앞 — 거부된 전환이 relay 호스트에 펜스를 남기지 않게."
+        },
+        {
+          "file": "src/main/ipc/runtime-environments/runtime-environment-pairing-verification.ts",
+          "contains": "  assertRemoteOrcaServerAllowed()\n  const parsed = parseHostAccessLink(pairingCode)",
+          "why": "v1.4.230 의 재페어링 채널(runtimeEnvironments:repairFromPairingCode)은 키 비교 전에 붙여 넣은 링크의 호스트로 Node ws 소켓을 연다. 페어링 코드 검증이 여는 유일한 소켓 앞의 게이트다(remote-orca-server-repair-policy.test.ts)."
         }
       ]
     },
@@ -1553,12 +1608,12 @@
       "summary": "SSH 호스트를 빌드에서 제거한다(src/shared/ssh-remote-hosts-removal.ts). v1.4.226 이 SSH relay 를 지워 SSH 호스트가 관리형 orcad 로만 도는데, 이 빌드는 orcad 템플릿을 싣지 않고 첫 배포가 nodejs.org 에서 Node 를 받으며 원격 서버는 이 데스크톱의 정책을 읽지 않는다(2026-10-15 사용자 결정: 전체 차단). 연결·추가·편집·가져오기를 main 에서 거부하고, 목록·삭제는 남긴다.",
       "present": [
         {
-          "file": "src/main/ipc/ssh-connect-flow.ts",
+          "file": "src/main/ipc/ssh/ssh-connect-flow.ts",
           "contains": "assertSshRemoteHostsSupported()",
           "why": "모든 연결(수동·자동 재연결)이 지나는 초크포인트."
         },
         {
-          "file": "src/main/ipc/ssh-target-crud-handlers.ts",
+          "file": "src/main/ipc/ssh/ssh-target-crud-handlers.ts",
           "contains": "assertSshRemoteHostsSupported()",
           "why": "추가·편집·ssh config 가져오기."
         },
@@ -1605,6 +1660,11 @@
         {
           "file": "src/renderer/src/components/settings/AppUpdateSettingsSection.tsx",
           "contains": "<CorporateSkillBundleSettingsSection />"
+        },
+        {
+          "file": "src/renderer/src/App.tsx",
+          "contains": "      <AppUpdateAvailableDialog />",
+          "why": "GHES 릴리스 업데이트 알림의 마운트 한 줄. v1.4.230 이 같은 자리에 ClaudeAccountSwitchDialog 를 넣어 충돌했고, theirs 로 풀면 아무것도 안 깨진 채 알림만 사라진다."
         }
       ]
     }
@@ -1676,7 +1736,11 @@
     "src/main/updater-*",
     "config/scripts/anti-slop-scope-regression.test.mjs",
     "src/main/orca-profiles/profile-cloud-auth-characterization.test.ts",
-    "config/scripts/verify-skill-update-roundtrip.test.mjs"
+    "config/scripts/verify-skill-update-roundtrip.test.mjs",
+    "src/main/ipc/feedback-image-attachments.ts",
+    "src/main/ipc/feedback-image-attachments.test.ts",
+    "src/main/ipc/feedback.test.ts",
+    ".github/workflows/macos-updater-tests.yml"
   ],
   "absentSymbols": [
     {
@@ -1828,6 +1892,31 @@
       "file": "src/renderer/src/components/terminal-pane/pty-connection/pane-host-capability-flags.ts",
       "symbol": "reportWorkerTerminalUserInput",
       "why": "v1.4.226 이 xterm user-input 신호를 워커 takeover 보고에 다시 이었다. 그 신호는 마우스 보고·휠에도 켜져 휠 한 번에 디스패치가 user_owned 로 뒤집힌다(orchestration-worker-pane 앵커와 짝)."
+    },
+    {
+      "file": "package.json",
+      "symbol": "\"bun\": \"",
+      "why": "v1.4.230 이 들인 bun devDependency. postinstall(install.js)이 선택 의존성을 못 찾으면 registry.npmjs.org 에서 직접 받고 bun.sh 설치 스크립트를 안내한다 — 사내 미러 우회. 포크는 Node 유지(README §6)."
+    },
+    {
+      "file": "pnpm-workspace.yaml",
+      "symbol": "bun: true",
+      "why": "위 bun 패키지의 설치 스크립트 허용(allowBuilds). 의존성과 함께 돌아오지 않게 지킨다."
+    },
+    {
+      "file": "src/renderer/src/components/settings/runtime-server-row-presentation.ts",
+      "symbol": "remote-server-update-coordinator",
+      "why": "v1.4.230 의 원격 서버 버전 푸터는 포크가 지운 원격 서버 업데이트 항목을 렌더링한다. 함수와 테스트를 덜어 냈다."
+    },
+    {
+      "file": "src/main/runtime/rpc/methods/index.ts",
+      "symbol": "UPDATER_METHODS",
+      "why": "인앱 업데이터 RPC. v1.4.230 이 바로 옆에 SIDEBAR_INPUT_METHODS 를 넣어 충돌했고 theirs 로 풀면 되살아난다."
+    },
+    {
+      "file": "src/shared/protocol-version.ts",
+      "symbol": "REMOTE_SERVER_UPDATE_CAPABILITY",
+      "why": "원격 서버 업데이트 capability(포크 삭제). v1.4.230 의 import 블록 충돌에서 theirs 로 풀면 돌아온다."
     }
   ],
   "policySwitchMinConsumers": {
