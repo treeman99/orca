@@ -6,6 +6,7 @@ import {
   type AppUpdateCheckStatus,
   type AppUpdateLookupTarget
 } from '../../shared/app-update-check'
+import { corporateSkillBundleApi } from './corporate-skill-bundle-bridge'
 
 export const appUpdateApi = {
   getStatus: (): Promise<AppUpdateCheckStatus> => ipcRenderer.invoke('appUpdate:getStatus'),
@@ -25,5 +26,6 @@ export const appUpdateApi = {
     const listener = (): void => callback()
     ipcRenderer.on(APP_UPDATE_CHECK_REQUESTED_EVENT, listener)
     return () => ipcRenderer.removeListener(APP_UPDATE_CHECK_REQUESTED_EVENT, listener)
-  }
+  },
+  skillBundle: corporateSkillBundleApi
 } satisfies PreloadApi['appUpdate']

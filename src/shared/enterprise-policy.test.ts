@@ -38,6 +38,7 @@ describe('resolveEnterprisePolicy', () => {
     expect([...LOCKDOWN_INHERITING_KEYS]).toEqual([
       'disableTelemetry',
       'disableAutoUpdate',
+      'disableSkillBundleUpdate',
       'disableStarNag',
       'disableCloudRelay',
       'disableUsagePolling',

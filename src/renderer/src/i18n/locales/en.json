@@ -11348,7 +11348,12 @@
             "command": "command",
             "confirm": "confirm",
             "close": "close",
-            "omp": "OMP"
+            "omp": "OMP",
+            "skillBundle": "Company skill bundle",
+            "skillBundleDescription": "Check the company skill repository for a newer revision of orchestration and the skills it uses, and replace them all in .agents and .claude.",
+            "skill": "skill",
+            "skills": "skills",
+            "orchestration": "orchestration"
           }
         },
         "git": {
@@ -12906,6 +12911,16 @@
           "confirm": "Restart",
           "terminalsUnknown": "Orca couldn’t confirm whether terminals are running on this host, so it didn’t restart the managed server.",
           "terminalsRunning": "{{count}} terminals are still running on this host. Close them, then restart the managed server."
+        },
+        "CorporateSkillBundleSettingsSection": {
+          "repository": "Skill repository",
+          "revision": "Latest revision",
+          "lastChecked": "Last checked",
+          "checkNow": "Check skills",
+          "install": "Install all skills",
+          "update": "Update all skills",
+          "placement": ".{{value0}}: {{value1}}",
+          "unknownValue": "Not yet known"
         }
       },
       "setup": {
@@ -16961,6 +16976,43 @@
           "upToDate": "Orca is up to date",
           "disabled": "Update checks are turned off",
           "noAnswer": "No update information"
+        },
+        "CorporateSkillBundleNudge": {
+          "title": "A newer company skill bundle is available",
+          "description": "{{value0}} changed. Updating replaces every skill of the bundle in .agents and .claude together.",
+          "update": "Update skills"
+        },
+        "skillBundle": {
+          "unavailable": {
+            "noEnterpriseHost": "No corporate GitHub Enterprise host is configured, so there is no skill repository to check.",
+            "lookupFailed": "The skill repository could not be read. Check that the gh CLI is signed in to the corporate host (gh auth status) and that your account can open the repository.",
+            "noBundle": "The repository has no develop branch, or that branch has no skills folder Orca can install."
+          },
+          "status": {
+            "disabled": "Your administrator turned the skill bundle update off for this machine.",
+            "unknown": "Not checked yet in this session.",
+            "notInstalled": "None of the bundle skills are installed yet. Installing writes every skill of the bundle.",
+            "upToDate": "Every installed copy matches the repository.",
+            "available": "A newer revision is available for {{value0}}. Updating replaces every skill of the bundle together."
+          },
+          "placement": {
+            "current": "up to date",
+            "outdated": "out of date",
+            "missing": "not installed",
+            "link": "link — left alone",
+            "blocked": "not a folder — left alone"
+          },
+          "failure": {
+            "busy": "An update is already running.",
+            "downloadFailed": "The bundle could not be downloaded, or a file did not match the repository. Nothing was changed.",
+            "writeFailed": "Some skill folders could not be replaced. Close agents that hold them open and try again."
+          },
+          "feedback": {
+            "updating": "Updating skills…",
+            "updated": "Skills updated",
+            "updatedDescription": "Installed {{value0}}. Agents that are already running keep the old copy until you restart them.",
+            "failed": "Skill update failed"
+          }
         }
       },
       "NativeChatResumeOnRestartModal": {

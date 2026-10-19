@@ -428,6 +428,7 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다(`enterprise-p
 | `disableTelemetry`             | `lockdown` 상속               | PostHog 텔레메트리(`telemetry/consent.ts:88`) + 진단 번들 **업로드 레인**(`observability/index.ts:103`, `:120-133`). **로컬 NDJSON 로그는 계속 기록됩니다** — 네트워크만 막습니다. 앱 내 피드백·크래시 리포트 전송은 정책이 아니라 **코드에서 제거**되었습니다                                                                                                                                                                                                       |
 | `disableAutoUpdate`            | `lockdown` 상속               | 사내 GHES(`githubEnterpriseHost`)의 `updateReleaseRepository`(기본 `daegun-kim/Orca_ds`) 릴리스 태그를 읽어 **"새 버전이 있습니다" 팝업**을 띄우는 레인을 끕니다. 게이트는 `app-update/app-update-check-service.ts`의 `check()` 한 곳. ⚠️ **벤더 인앱 업데이터는 여전히 코드에 없습니다** — 이 키를 `false`로 둬도 다운로드·설치·자가교체는 일어나지 않고 `electron-updater`도 의존성이 아닙니다. 팝업의 유일한 동작은 사내 릴리스 페이지를 브라우저로 여는 것입니다 |
 | `updateReleaseRepository`      | `null` → `daegun-kim/Orca_ds` | 위 릴리스 조회가 볼 저장소(`OWNER/REPO`). `lockdown`을 상속하지 않는 **값**입니다. URL은 받지 않습니다                                                                                                                                                                                                                                                                                                                                                               |
+| `disableSkillBundleUpdate`     | `lockdown` 상속               | 사내 GHES(`githubEnterpriseHost`)의 `daegun-kim/ORCA_skill` **`develop` 브랜치**를 읽어 "사내 스킬 번들 새 판" 알림을 띄우고, [업데이트] 시 번들 스킬 **전부**를 `~/.agents/skills`·`~/.claude/skills`에서 폴더째 교체하는 레인을 끕니다. 게이트는 `corporate-skills/corporate-skill-bundle-service.ts`의 `check()`·`update()`. `disableAutoUpdate`와 따로인 이유: 이 레인은 사용자 홈에 씁니다. ⚠️ **머신 전역 파일을 배포한다면 이 키를 `false`로 직접 적어야 켜집니다**(§5.2) |
 | `disableStarNag`               | `lockdown` 상속               | github.com SaaS로 가는 star 조회/쓰기 — `github/client.ts:341`(`checkOrcaStarred`), `:527`(`starOrca`). **게이트를 서비스가 아니라 클라이언트 함수에 뒀습니다** — 넛지 서비스(`star-nag/service.ts:121`) 말고도 `star-nag/direct-star-attempt.ts:9`, `star-nag/agent-value-moment.ts:46`, IPC 핸들러 `ipc/github.ts:1210`·`:1213`이 같은 함수로 들어옵니다                                                                                                           |
 | `disableCloudRelay`            | `lockdown` 상속               | `orca-profiles/profile-cloud-auth-config.ts:82`이 "미구성"으로 응답 → Orca Cloud 로그인, 조직 멤버 조회(`orca-profiles/profile-cloud-org-members-service.ts:119`), 그리고 **데스크톱↔모바일 페어링 릴레이**(`src/main/index.ts:3065-3068`이 `configured`일 때만 `DesktopRelayService`를 만듭니다)가 한꺼번에 꺼집니다. 단일 초크포인트임을 `:76-78` 주석이 명시                                                                                                      |
 | `disableUsagePolling`          | `lockdown` 상속               | AI 벤더 사용량/레이트리밋 폴링. 게이트는 `rate-limits/service/service-state.ts:32`, 진입점은 `start()`(`:353`), Codex 리셋 크레딧(`:478`), 계정 스위처 프리뷰 2종(`:572`, `:652`), `fetchAll`(`:998`), `fetchCodexOnly`(`:1063`), `fetchClaudeOnly`(`:1125`), `fetchGrokOnly`(`:1190`). 벤더 백엔드로 POST하는 경로는 예외를 던집니다                                                                                                                                |
@@ -487,6 +488,18 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다(`enterprise-p
 아래 배포는 **번들 기본값을 중앙에서 덮어써야 할 때**만 하세요 — 값을 바꿔야 하는데 재빌드·재배포를 하고 싶지 않을 때, 부서별로 값이 달라야 할 때, 또는 Intune 콘솔에서 준수 여부를 감시하고 싶을 때입니다.
 
 - 대상: **`%ProgramData%\Orca\enterprise-policy.json` — 기본 머신 전역 경로를 쓰세요.** 패키징 빌드에서 이 경로가 1순위이고 환경 변수도, 번들 정책도 이것을 밀어낼 수 없기 때문입니다(§4.1). **`ORCA_ENTERPRISE_POLICY`는 배포하지 마세요** — 필요하지 않고, 개발·검증용입니다.
+- ⚠️ **`%ProgramData%\Orca\enterprise-policy.json`을 배포한다면 `"disableSkillBundleUpdate": false`를 추가하세요.** 없으면 그 파일의 `lockdown: true`를 상속해 **사내 스킬 번들 갱신(알림·업데이트)이 꺼집니다.** 설치 프로그램에 내장된 정책은 이 키를 `false`로 싣고 있지만, 머신 전역 파일이 채택되면 그 파일이 이깁니다 — 내장 정책은 채택된 파일의 빈칸을 **조이는 방향(`true`)으로만** 채우므로 내장된 `false`가 대신 켜 주지 않습니다([엔터프라이즈 정책 파일 레퍼런스](docs/reference/enterprise-policy.md) §2-1). 같은 이유로 "새 버전이 있습니다" 알림을 쓰려면 `"disableAutoUpdate": false`도 함께 적으세요.
+
+  ```jsonc
+  // %ProgramData%\Orca\enterprise-policy.json
+  {
+    "lockdown": true,
+    "githubEnterpriseHost": "github.samsungds.net",
+    "disableAutoUpdate": false, // 사내 GHES 릴리스 태그 → 새 버전 알림
+    "disableSkillBundleUpdate": false // 사내 GHES daegun-kim/ORCA_skill develop → 스킬 번들 갱신
+  }
+  ```
+
 - ⚠️ **배포한 파일의 문법을 검증하세요.** 깨진 파일은 무시되고 **번들 정책으로 되돌아갑니다** — 잠금은 유지되지만 관리자가 의도한 예외가 조용히 사라집니다(§4.1).
 - **ACL을 함께 고정하세요 — 사용자가 쓸 수 있는 정책 파일은 정책이 아니라 기본값입니다.** 관리자가 넣어 둔 파일은 기본 ACL에서 표준 사용자가 수정·삭제할 수 없지만, `%ProgramData%` 루트는 표준 사용자도 새 폴더·파일을 만들 수 있으므로 **파일이 아직 없는 머신에서는 사용자가 자기 소유의 정책 파일을 먼저 만들 수 있습니다.** 배포 스크립트에서 폴더 상속을 끊고 `Users`를 읽기 전용으로 내리세요 — 구체적인 `icacls` 명령은 [엔터프라이즈 정책 파일 레퍼런스](docs/reference/enterprise-policy.md) §6-1에 있습니다. _(Windows ACL 동작이지 이 저장소 코드의 사실은 아닙니다.)_
 - 수단: GPO 파일 기본 설정, Intune 구성 프로필/스크립트, SCCM 패키지 등 기존 구성 관리 채널. _(운영 권고 — 코드가 강제하는 바가 아닙니다.)_

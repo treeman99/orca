@@ -27,6 +27,14 @@ export type EnterprisePolicy = {
    * be told to go fetch a build itself.
    */
   disableAutoUpdate: boolean
+  /**
+   * Suppress the corporate skill bundle lane: the `gh api` read of the skill repository on
+   * the corporate GitHub Enterprise host, its "a newer bundle exists" notice, and the update
+   * that downloads that repository and replaces the bundle's skills in `~/.agents/skills`
+   * and `~/.claude/skills`. A separate switch from `disableAutoUpdate` because this lane
+   * writes files and that one never does.
+   */
+  disableSkillBundleUpdate: boolean
   /** Suppress the "star stablyai/orca" check/write that hits github.com SaaS. */
   disableStarNag: boolean
   /** Suppress Orca Cloud sign-in and the vendor-hosted mobile pairing relay. */
@@ -205,6 +213,7 @@ export type PolicyEnv = Record<string, string | undefined>
 export const LOCKDOWN_INHERITING_KEYS = [
   'disableTelemetry',
   'disableAutoUpdate',
+  'disableSkillBundleUpdate',
   'disableStarNag',
   'disableCloudRelay',
   'disableUsagePolling',

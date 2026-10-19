@@ -13,6 +13,7 @@ import {
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { AppUpdateCheckResultDialog } from './app-update/AppUpdateCheckResultDialog'
+import { CorporateSkillBundleNudge } from './app-update/CorporateSkillBundleNudge'
 import {
   dismissAppUpdatePresentation,
   openAppUpdateReleasePage,
@@ -30,8 +31,20 @@ type AvailableStatus = Extract<AppUpdateCheckStatus, { state: 'available' }>
  * by IT, so the only action is opening the release page on the company host. Main owns
  * the check schedule and the "skip this version" memory; the store decides what may be
  * shown, and this component only renders it.
+ *
+ * The corporate skill bundle's notice rides along: it is the other corporate update lane,
+ * and mounting it here keeps both surfaces in this fork-owned file.
  */
-export default function AppUpdateAvailableDialog(): React.JSX.Element | null {
+export default function AppUpdateAvailableDialog(): React.JSX.Element {
+  return (
+    <>
+      <CorporateSkillBundleNudge />
+      <AppReleaseUpdateDialog />
+    </>
+  )
+}
+
+function AppReleaseUpdateDialog(): React.JSX.Element | null {
   const { pending, target } = useAppUpdateCheck()
   const activeModal = useAppStore((state) => state.activeModal)
 

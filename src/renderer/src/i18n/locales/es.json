@@ -9746,7 +9746,12 @@
             "release": "publicación",
             "upgrade": "actualizar",
             "newBuild": "compilación nueva",
-            "ghesUpdate": "ghes"
+            "ghesUpdate": "ghes",
+            "skillBundle": "Paquete de skills de la empresa",
+            "skillBundleDescription": "Comprueba si el repositorio de skills de la empresa tiene una revisión más reciente de orchestration y de los skills que usa, y los reemplaza todos en .agents y .claude.",
+            "skill": "skill",
+            "skills": "skills",
+            "orchestration": "orchestration"
           }
         },
         "git": {
@@ -12368,6 +12373,16 @@
           "checkNow": "Buscar actualizaciones",
           "openReleasePage": "Abrir página de versiones",
           "unknownValue": "Aún se desconoce"
+        },
+        "CorporateSkillBundleSettingsSection": {
+          "repository": "Repositorio de skills",
+          "revision": "Última revisión",
+          "lastChecked": "Última comprobación",
+          "checkNow": "Comprobar skills",
+          "install": "Instalar todos los skills",
+          "update": "Actualizar todos los skills",
+          "placement": ".{{value0}}: {{value1}}",
+          "unknownValue": "Aún no se sabe"
         }
       },
       "right": {
@@ -17673,6 +17688,43 @@
           "upToDate": "Orca está actualizado",
           "disabled": "La comprobación de actualizaciones está desactivada",
           "noAnswer": "Sin información de actualizaciones"
+        },
+        "CorporateSkillBundleNudge": {
+          "title": "Hay un paquete de skills de la empresa más reciente",
+          "description": "{{value0}} cambió. Al actualizar se reemplazan juntos todos los skills del paquete en .agents y .claude.",
+          "update": "Actualizar skills"
+        },
+        "skillBundle": {
+          "unavailable": {
+            "noEnterpriseHost": "No hay ningún host de GitHub Enterprise de la empresa configurado, así que no hay repositorio de skills que comprobar.",
+            "lookupFailed": "No se pudo leer el repositorio de skills. Comprueba que la CLI gh haya iniciado sesión en el host de la empresa (gh auth status) y que tu cuenta pueda abrir el repositorio.",
+            "noBundle": "El repositorio no tiene una rama develop, o esa rama no tiene una carpeta skills que Orca pueda instalar."
+          },
+          "status": {
+            "disabled": "Tu administrador desactivó la actualización del paquete de skills en este equipo.",
+            "unknown": "Todavía no se ha comprobado en esta sesión.",
+            "notInstalled": "Aún no hay ningún skill del paquete instalado. Al instalar se escriben todos los skills del paquete.",
+            "upToDate": "Todas las copias instaladas coinciden con el repositorio.",
+            "available": "Hay una revisión más reciente de {{value0}}. Al actualizar se reemplazan juntos todos los skills del paquete."
+          },
+          "placement": {
+            "current": "actualizado",
+            "outdated": "desactualizado",
+            "missing": "no instalado",
+            "link": "enlace — sin cambios",
+            "blocked": "no es una carpeta — sin cambios"
+          },
+          "failure": {
+            "busy": "Ya hay una actualización en curso.",
+            "downloadFailed": "No se pudo descargar el paquete o un archivo no coincidía con el repositorio. No se cambió nada.",
+            "writeFailed": "No se pudieron reemplazar algunas carpetas de skills. Cierra los agentes que las tengan abiertas e inténtalo de nuevo."
+          },
+          "feedback": {
+            "updating": "Actualizando skills…",
+            "updated": "Skills actualizados",
+            "updatedDescription": "Se instaló {{value0}}. Los agentes que ya están en ejecución usan la copia anterior hasta que los reinicies.",
+            "failed": "No se pudo actualizar los skills"
+          }
         }
       }
     },

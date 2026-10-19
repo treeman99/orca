@@ -220,7 +220,9 @@ Orca 클라우드, Bitbucket·Azure DevOps·Gitea, `docs/site` 배포 레인, �
 **포크가 더한 기능** — 오케스트레이션 워커 패널 자동 분할(+최대 개수 설정, 완료 탭 자동 닫기,
 워커 프롬프트 진단 로그), opencode 평문 프롬프트 배달과 Enter 재전송 구제, 탭 팝아웃 창,
 VS Code 소스 제어 패널과 서브모듈 취급, VS Code 로 열기, Confluence 연동, GHES 릴리스 태그
-업데이트 알림, 탭 닫기 시 세션 종료, 번들 스킬 오프라인 설치, 스택 PR 병합 옵트인,
+업데이트 알림, 사내 스킬 번들 갱신(GHES `daegun-kim/ORCA_skill` 의 `develop` 브랜치 → 번들 스킬 전부를
+`.agents`·`.claude` 에서 폴더째 교체, `disableSkillBundleUpdate`; 그 이름들은 빌드 내장 신선도 검사에서 빠진다),
+탭 닫기 시 세션 종료, 번들 스킬 오프라인 설치, 스택 PR 병합 옵트인,
 게이트웨이 CLI 로그인, 진단 로그, 세션 전문 검색 색인의 보존 규칙(최대 2주, 과거 세션을 다시 쓰면 그
 순간부터 2주 재시작, Windows 앱 제거 시 색인 파일 삭제 — 테스트는
 `config/vitest-session-search-retention-isolation.ts` 가 2주 상한을 풀고 돈다).

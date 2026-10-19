@@ -16,6 +16,7 @@ import { ipcMain } from 'electron'
 import { getAppUpdateCheckService } from '../app-update/app-update-check-service'
 import type { AppUpdateCheckStatus, AppUpdateLookupTarget } from '../../shared/app-update-check'
 import { openExternalUrlUnderPolicy } from './shell-open-url'
+import { registerCorporateSkillBundleHandlers } from './corporate-skill-bundle'
 
 function readVersionArg(raw: unknown): string {
   const args = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : null
@@ -44,4 +45,6 @@ export function registerAppUpdateHandlers(): void {
   })
 
   service.start()
+  // The second corporate GHES update lane: the skill bundle (corporate-skill-bundle.ts).
+  registerCorporateSkillBundleHandlers()
 }

@@ -9770,7 +9770,12 @@
             "release": "リリース",
             "upgrade": "アップグレード",
             "newBuild": "新しいビルド",
-            "ghesUpdate": "ghes"
+            "ghesUpdate": "ghes",
+            "skillBundle": "社内スキルバンドル",
+            "skillBundleDescription": "社内スキルリポジトリに orchestration とそれが使うスキルの新しいリビジョンがあるか確認し、.agents と .claude のスキルをまとめて置き換えます。",
+            "skill": "スキル",
+            "skills": "スキルバンドル",
+            "orchestration": "orchestration"
           }
         },
         "git": {
@@ -12370,6 +12375,16 @@
           "checkNow": "アップデートを確認",
           "openReleasePage": "リリースページを開く",
           "unknownValue": "未取得"
+        },
+        "CorporateSkillBundleSettingsSection": {
+          "repository": "スキルリポジトリ",
+          "revision": "最新リビジョン",
+          "lastChecked": "最終確認",
+          "checkNow": "スキルを確認",
+          "install": "すべてのスキルをインストール",
+          "update": "すべてのスキルを更新",
+          "placement": ".{{value0}}: {{value1}}",
+          "unknownValue": "まだ不明"
         }
       },
       "right": {
@@ -17675,6 +17690,43 @@
           "upToDate": "Orca は最新です",
           "disabled": "アップデート確認は無効になっています",
           "noAnswer": "アップデート情報がありません"
+        },
+        "CorporateSkillBundleNudge": {
+          "title": "社内スキルバンドルの新しいリビジョンがあります",
+          "description": "{{value0}} が変更されました。更新すると、バンドルのすべてのスキルを .agents と .claude でまとめて置き換えます。",
+          "update": "スキルを更新"
+        },
+        "skillBundle": {
+          "unavailable": {
+            "noEnterpriseHost": "社内 GitHub Enterprise ホストが設定されていないため、確認するスキルリポジトリがありません。",
+            "lookupFailed": "スキルリポジトリを読み取れませんでした。gh CLI が社内ホストにサインインしているか（gh auth status）、自分のアカウントでリポジトリを開けるか確認してください。",
+            "noBundle": "リポジトリに develop ブランチがないか、そのブランチに Orca がインストールできる skills フォルダーがありません。"
+          },
+          "status": {
+            "disabled": "管理者がこのマシンでスキルバンドルの更新を無効にしています。",
+            "unknown": "このセッションではまだ確認していません。",
+            "notInstalled": "バンドルのスキルはまだ何もインストールされていません。インストールするとバンドルのすべてのスキルを書き込みます。",
+            "upToDate": "インストール済みのコピーはすべてリポジトリと一致しています。",
+            "available": "{{value0}} の新しいリビジョンがあります。更新するとバンドルのすべてのスキルをまとめて置き換えます。"
+          },
+          "placement": {
+            "current": "最新",
+            "outdated": "古い",
+            "missing": "未インストール",
+            "link": "リンク — 変更しません",
+            "blocked": "フォルダーではありません — 変更しません"
+          },
+          "failure": {
+            "busy": "すでに更新を実行中です。",
+            "downloadFailed": "バンドルをダウンロードできなかったか、ファイルがリポジトリと一致しませんでした。何も変更していません。",
+            "writeFailed": "一部のスキルフォルダーを置き換えられませんでした。それらを開いている Agent を閉じてから再試行してください。"
+          },
+          "feedback": {
+            "updating": "スキルを更新しています…",
+            "updated": "スキルを更新しました",
+            "updatedDescription": "{{value0}} をインストールしました。すでに実行中の Agent は再起動するまで古いコピーを使います。",
+            "failed": "スキルの更新に失敗しました"
+          }
         }
       }
     },

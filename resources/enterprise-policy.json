@@ -19,7 +19,11 @@
   // ⚠️ lockdown: true 아래에서는 이 줄을 지우면 상속되어 다시 켜집니다(=레인 차단) — 명시적 false여야 합니다.
   // 조회 대상은 githubEnterpriseHost의 daegun-kim/Orca_ds. 다른 저장소를 보게 하려면 updateReleaseRepository를 적으세요.
   "disableAutoUpdate": false,
-  "disableStarNag": true, // github.com SaaS로 나가는 star 조회/쓰기
+  // 사내 GHES의 daegun-kim/ORCA_skill develop 브랜치를 읽어 스킬 번들 새 판을 알리고, [업데이트]를 누르면
+  // 그 커밋을 받아 번들의 스킬 전부를 ~/.agents/skills 와 ~/.claude/skills 에서 폴더째 교체합니다 (docs §3-2-1).
+  // ⚠️ 위 disableAutoUpdate 와 같은 이유로 lockdown 아래에서는 명시적 false여야 켜집니다.
+  "disableSkillBundleUpdate": false,
+  "disableStarNag": true, // github.com SaaS로 나가는 star 조회/쓰기 // github.com SaaS로 나가는 star 조회/쓰기
   "disableCloudRelay": true, // Orca Cloud 로그인 + 모바일 페어링 릴레이
   "disableUsagePolling": true, // AI 벤더 사용량/rate-limit 폴링
   "disableManagedClaudeAccounts": true, // platform.claude.com OAuth 회전 + Bedrock 자격증명 스트립

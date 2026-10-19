@@ -30,11 +30,36 @@ function buildGeneralAppUpdateSearchEntry(): SettingsSearchEntry {
   }
 }
 
+function buildCorporateSkillBundleSearchEntry(): SettingsSearchEntry {
+  return {
+    title: translate('auto.components.settings.general.search.skillBundle', 'Company skill bundle'),
+    description: translate(
+      'auto.components.settings.general.search.skillBundleDescription',
+      'Check the company skill repository for a newer revision of orchestration and the skills it uses, and replace them all in .agents and .claude.'
+    ),
+    keywords: [
+      ...translateSearchKeyword('auto.components.settings.general.search.skill', 'skill'),
+      ...translateSearchKeyword('auto.components.settings.general.search.skills', 'skills'),
+      ...translateSearchKeyword(
+        'auto.components.settings.general.search.orchestration',
+        'orchestration',
+        { englishOnly: true }
+      ),
+      ...translateSearchKeyword('auto.components.settings.general.search.update', 'update')
+    ]
+  }
+}
+
 export const getGeneralAppUpdateSearchEntries = createLocalizedCatalog(() => [
-  buildGeneralAppUpdateSearchEntry()
+  buildGeneralAppUpdateSearchEntry(),
+  buildCorporateSkillBundleSearchEntry()
 ])
 
 /** The same entry, for the row that renders it. */
 export const getGeneralAppUpdateSearchEntry = createLocalizedCatalog(
   buildGeneralAppUpdateSearchEntry
+)
+
+export const getCorporateSkillBundleSearchEntry = createLocalizedCatalog(
+  buildCorporateSkillBundleSearchEntry
 )

@@ -83,40 +83,59 @@ async function readLockDocument(lockPath: string): Promise<LockDocument> {
   }
 }
 
+export type SkillLockEntryUpdate = {
+  name: string
+  /** Fields to write over the previous entry; the previous entry is passed for carry-over. */
+  fields: (previous: Readonly<Record<string, unknown>>) => Record<string, unknown>
+}
+
 /**
- * Record the install so `skills update` eligibility sees it.
+ * Write entries into the global skills.sh lock.
  *
  * Unrelated entries and unknown fields are preserved: a machine that also ran the
  * community CLI keeps its own records.
  */
-async function recordInstallInLock(args: {
-  lockPath: string
-  entries: { name: string; skillPath: string; gitTreeSha: string }[]
-}): Promise<void> {
-  const document = await readLockDocument(args.lockPath)
+export async function updateSkillLockEntries(
+  lockPath: string,
+  updates: readonly SkillLockEntryUpdate[]
+): Promise<void> {
+  const document = await readLockDocument(lockPath)
   const existingSkills =
     document.skills && typeof document.skills === 'object' && !Array.isArray(document.skills)
       ? document.skills
       : {}
   const skills: Record<string, unknown> = { ...existingSkills }
-  for (const entry of args.entries) {
-    const previous = skills[entry.name]
-    const preserved =
-      previous && typeof previous === 'object' && !Array.isArray(previous) ? previous : {}
-    skills[entry.name] = {
-      ...preserved,
-      skillFolderHash: entry.gitTreeSha,
-      skillPath: entry.skillPath,
-      source: BUNDLED_SKILL_LOCK_SOURCE
-    }
+  for (const update of updates) {
+    const previous = skills[update.name]
+    const preserved: Record<string, unknown> =
+      previous && typeof previous === 'object' && !Array.isArray(previous) ? { ...previous } : {}
+    skills[update.name] = { ...preserved, ...update.fields(preserved) }
   }
   const version =
     typeof document.version === 'number' && document.version > GLOBAL_SKILL_LOCK_SCHEMA_VERSION
       ? document.version
       : GLOBAL_SKILL_LOCK_SCHEMA_VERSION
   await writeFileAtomically(
-    args.lockPath,
+    lockPath,
     `${JSON.stringify({ ...document, version, skills }, null, 2)}\n`
+  )
+}
+
+/** Record the install so `skills update` eligibility sees it. */
+async function recordInstallInLock(args: {
+  lockPath: string
+  entries: { name: string; skillPath: string; gitTreeSha: string }[]
+}): Promise<void> {
+  await updateSkillLockEntries(
+    args.lockPath,
+    args.entries.map((entry) => ({
+      name: entry.name,
+      fields: () => ({
+        skillFolderHash: entry.gitTreeSha,
+        skillPath: entry.skillPath,
+        source: BUNDLED_SKILL_LOCK_SOURCE
+      })
+    }))
   )
 }
 

@@ -18,6 +18,7 @@ import {
 } from './skill-freshness-placement-observation'
 import { scanKnownPluginSkillCandidates } from './skill-plugin-cache-scan'
 import { readSkillLockSources } from './skill-lock-sources'
+import { withoutCorporateBundleSkills } from '../corporate-skills/corporate-skill-bundle-managed-names'
 
 export const MAXIMUM_REPOSITORY_SKILL_ROOTS = 128
 
@@ -39,10 +40,12 @@ export async function inventorySkillFreshness(args: {
   candidateLstat?: CandidateLstat
   stateHome?: string | null
 }): Promise<SkillFreshnessInventory> {
-  const [manifest, lockSources] = await Promise.all([
+  const [loadedManifest, lockSources] = await Promise.all([
     loadSkillBundleManifest(args.resourceRoot),
     readSkillLockSources({ homeDir: args.homeDir, stateHome: args.stateHome })
   ])
+  // Fork: names the corporate skill bundle owns are judged against GHES, not this build.
+  const manifest = withoutCorporateBundleSkills(loadedManifest, lockSources)
   const currentByName = new Map(manifest.skills.map((skill) => [skill.name, skill]))
   const lockSourceOf = (name: string): string | null => lockSources.get(name) ?? null
   const discoveryArgs = {

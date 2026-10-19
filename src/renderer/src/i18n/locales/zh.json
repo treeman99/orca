@@ -9733,7 +9733,12 @@
             "release": "发布",
             "upgrade": "升级",
             "newBuild": "新版本",
-            "ghesUpdate": "ghes"
+            "ghesUpdate": "ghes",
+            "skillBundle": "公司技能包",
+            "skillBundleDescription": "检查公司技能仓库中是否有 orchestration 及其所用技能的新版本，并在 .agents 和 .claude 中一并替换。",
+            "skill": "技能",
+            "skills": "技能包",
+            "orchestration": "orchestration"
           }
         },
         "git": {
@@ -12370,6 +12375,16 @@
           "checkNow": "检查更新",
           "openReleasePage": "打开发布页面",
           "unknownValue": "尚未获知"
+        },
+        "CorporateSkillBundleSettingsSection": {
+          "repository": "技能仓库",
+          "revision": "最新版本",
+          "lastChecked": "上次检查",
+          "checkNow": "检查技能",
+          "install": "安装全部技能",
+          "update": "更新全部技能",
+          "placement": ".{{value0}}: {{value1}}",
+          "unknownValue": "尚不清楚"
         }
       },
       "right": {
@@ -17675,6 +17690,43 @@
           "upToDate": "Orca 已是最新版本",
           "disabled": "更新检查已关闭",
           "noAnswer": "没有更新信息"
+        },
+        "CorporateSkillBundleNudge": {
+          "title": "公司技能包有新版本",
+          "description": "{{value0}} 已更改。更新会在 .agents 和 .claude 中一并替换技能包中的所有技能。",
+          "update": "更新技能"
+        },
+        "skillBundle": {
+          "unavailable": {
+            "noEnterpriseHost": "未配置公司 GitHub Enterprise 主机，因此没有可检查的技能仓库。",
+            "lookupFailed": "无法读取技能仓库。请确认 gh CLI 已登录公司主机（gh auth status），且你的账号可以打开该仓库。",
+            "noBundle": "仓库中没有 develop 分支，或该分支中没有 Orca 可安装的 skills 文件夹。"
+          },
+          "status": {
+            "disabled": "管理员已在此计算机上关闭技能包更新。",
+            "unknown": "本次会话尚未检查。",
+            "notInstalled": "尚未安装技能包中的任何技能。安装会写入技能包中的所有技能。",
+            "upToDate": "所有已安装的副本都与仓库一致。",
+            "available": "{{value0}} 有新版本。更新会一并替换技能包中的所有技能。"
+          },
+          "placement": {
+            "current": "最新",
+            "outdated": "已过期",
+            "missing": "未安装",
+            "link": "链接 — 不做更改",
+            "blocked": "不是文件夹 — 不做更改"
+          },
+          "failure": {
+            "busy": "已有更新正在进行。",
+            "downloadFailed": "无法下载技能包，或有文件与仓库不一致。未做任何更改。",
+            "writeFailed": "部分技能文件夹无法替换。请关闭占用它们的代理后重试。"
+          },
+          "feedback": {
+            "updating": "正在更新技能…",
+            "updated": "技能已更新",
+            "updatedDescription": "已安装 {{value0}}。已在运行的代理在重启前仍使用旧副本。",
+            "failed": "技能更新失败"
+          }
         }
       }
     },

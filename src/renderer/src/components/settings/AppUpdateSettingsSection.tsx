@@ -17,6 +17,7 @@ import { Label } from '../ui/label'
 import { SearchableSetting } from './SearchableSetting'
 import { SettingsSubsectionHeader } from './SettingsFormControls'
 import { getGeneralAppUpdateSearchEntry } from './general-app-update-search'
+import { CorporateSkillBundleSettingsSection } from './CorporateSkillBundleSettingsSection'
 import {
   appUpdateCheckedAt,
   appUpdateLatestVersion,
@@ -67,6 +68,7 @@ export function AppUpdateSettingsSection(): React.JSX.Element | null {
           checking={checking}
         />
       )}
+      <CorporateSkillBundleSettingsSection />
     </section>
   )
 }
