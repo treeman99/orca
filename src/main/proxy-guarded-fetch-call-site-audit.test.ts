@@ -35,7 +35,12 @@ const AUDITED_NON_NET_FETCH_CALLS = new Map<string, number>([
   ['main/rate-limits/gemini-usage-fetcher.ts', 1],
   ['main/rate-limits/grok-fetcher.ts', 1],
   ['main/rate-limits/kimi-fetcher.ts', 1],
-  ['main/rate-limits/opencode-go-usage-api.ts', 1]
+  ['main/rate-limits/opencode-go-usage-api.ts', 1],
+  // v1.4.230, dark switch only: the repo-icon fallback when no desktop surface injects one — the
+  // main HttpClient (defaultSession net.fetch, or the global-fetch-audited Node fallback).
+  ['main/runtime/orca-runtime.ts', 1],
+  // v1.4.230: `this.fetch(hosts, entry)` is a method on the producer, not HTTP.
+  ['main/runtime/sidebar-inputs/paired-server-rows-producer.ts', 1]
   // Fork: agent-state-rules-live-update.ts (2) is removed with the vendor rules download.
 ])
 

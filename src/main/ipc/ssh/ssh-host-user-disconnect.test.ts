@@ -9,6 +9,11 @@ const runtime = vi.hoisted(() => {
   return { environments, activate: vi.fn(), getStatusOwner: vi.fn(), invalidate: vi.fn() }
 })
 
+// Fork: this build removes SSH hosts; these upstream cases test the dormant host code.
+vi.mock(
+  '../../../shared/ssh-remote-hosts-removal',
+  () => import('../../../shared/ssh-remote-hosts-enabled.test-fixture')
+)
 vi.mock('../../ssh/config/ssh-config-host-picker', () => mocks.sshConfigHostPicker)
 vi.mock('electron', () => mocks.electron)
 vi.mock('../../ssh/ssh-connection-store', () => mocks.sshConnectionStore)

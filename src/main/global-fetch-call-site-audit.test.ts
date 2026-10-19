@@ -27,11 +27,16 @@ const AUDITED_GLOBAL_FETCH_LINES = new Map<string, number>([
   ['main/orca-profiles/profile-cloud-org-members-client.ts', 1],
   ['main/rate-limits/zcode-usage-fetcher.ts', 1],
   ['main/runtime/push/push-gateway-client.ts', 1],
-  ['main/runtime/relay/relay-http-client.ts', 2],
-  ['main/runtime/relay/relay-region-catalog-fetch.ts', 1],
+  ['main/runtime/mobile-cloud-relay/relay-http-client.ts', 2],
+  ['main/runtime/mobile-cloud-relay/relay-region-catalog-fetch.ts', 1],
   // Measurement reuses the audited catalog/probe consumers, which consume or cancel every body.
-  ['main/runtime/relay/relay-region-preference.ts', 3],
-  ['main/runtime/relay/relay-region-probe.ts', 1],
+  ['main/runtime/mobile-cloud-relay/relay-region-preference.ts', 3],
+  ['main/runtime/mobile-cloud-relay/relay-region-probe.ts', 1],
+  // v1.4.230, dark switch (ORCA_SIDEBAR_INPUTS=main, which packaging refuses): https-only icon GET,
+  // injected fetch; discardBody on !ok and on every redirect, readCappedBody cancels past 64 KiB.
+  ['main/runtime/sidebar-inputs/repo-icon-remote-fetch.ts', 1],
+  // v1.4.230: a method named fetch (paired-server rows over the remote-runtime call), not HTTP.
+  ['main/runtime/sidebar-inputs/paired-server-rows-producer.ts', 1],
   ['main/source-control/hosted-review-api-request.ts', 1],
   ['main/speech/openai-transcription-client.ts', 1],
   // Main HTTP port: one type declaration plus the Node fallback call. The fallback
