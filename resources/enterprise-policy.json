@@ -5,6 +5,9 @@
   // ⚠️ %ProgramData%\Orca\enterprise-policy.json 이 있으면 **그쪽이 이깁니다.**
   //    중앙(GPO/Intune)에서 값을 바꾸고 싶을 때는 이 파일을 고치는 대신
   //    그 경로에 배포하세요. 탐색 순서는 docs/reference/enterprise-policy.md §2.
+  //    Windows 설치 프로그램은 그 파일이 없을 때만 config/nsis/enterprise-policy.machine-seed.json 으로 만듭니다.
+  //    ⚠️ 여기에 false 로 켜 두는 키를 새로 넣으면 그 시드에도 넣으세요 — 시드가 채택되면 이 파일의 false 는
+  //       끼어들지 못합니다(enterprise-policy-machine-seed.test.ts 가 빨개집니다).
   //
   // 이 파일을 바꾸려면 저장소에서 수정하고 다시 빌드해야 합니다 (README §4.1).
   // 형식은 JSONC — // 주석과 후행 쉼표를 허용합니다. 변경 시 앱 재시작 필요.

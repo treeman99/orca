@@ -4,6 +4,8 @@
 ; customUnInstall hook Orca needs lives here.
 
 !include "${__FILEDIR__}\orca-process-check.nsh"
+; Fork: seeds the machine-wide policy file when absent (enterprise-policy-machine-seed.nsh).
+!include "${__FILEDIR__}\enterprise-policy-machine-seed.nsh"
 
 ; ---------------------------------------------------------------------------
 ; Markdown and CSV/TSV "Open with Orca" (issues #10138, #23225)
@@ -53,6 +55,7 @@
   !insertmacro ORCA_REGISTER_DOCUMENT_OPEN_WITH ".tsv" "${TABULAR_PROGID}"
   ; Why: Explorer caches the association list until told otherwise.
   System::Call "shell32::SHChangeNotify(i,i,i,i) (0x08000000, 0x1000, 0, 0)"
+  !insertmacro ORCA_SEED_MACHINE_ENTERPRISE_POLICY
 !macroend
 
 ; ---------------------------------------------------------------------------

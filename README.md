@@ -395,6 +395,8 @@ Orca의 책임 경계는 AWS SSO 시절과 **동일합니다** — 로그인 명
 | 3    | `ORCA_ENTERPRISE_POLICY` 환경 변수                                     | 명시 경로가 **후보에 추가**될 뿐. `off`/`none`/`disabled`/`false`/`0`은 **무시됩니다**(`:41`, `:97`) |
 | 4    | 사용자별 — `<userData>\enterprise-policy.json`                         | 개인 테스트용                                                                                        |
 
+> 🧩 **1순위 파일은 Windows 설치 프로그램이 없을 때만 만듭니다**(§5.2). 그 파일이 생기면 2순위 번들은 그 파일 **밑의 바닥선**으로만 쓰입니다.
+
 **비패키징(`pnpm dev`·vitest)에서만** `ORCA_ENTERPRISE_POLICY`가 1순위를 가져가고, 무력화 값으로 탐색 전체를 끌 수 있습니다(`:99-106`; 테스트 스위트가 이 값을 씁니다). 번들 후보는 비패키징에서 **최후순위**로만 들어옵니다(`:110-111` — 후보는 `[머신 전역, 사용자별, 체크아웃의 resources/enterprise-policy.json]`, 경로 해석은 `:258-272` `devCheckoutPolicyPath`, 설계 의도는 `:80-87` 주석). 그래서 `pnpm dev`가 별도 설정 없이도 플릿 UI를 보여 주고([macOS dev UI 점검](docs/reference/macos-dev-ui-check.md)), 무력화 값을 쓰는 vitest·E2E 격리는 그대로 유지됩니다.
 
 > 📦 **빌드하는 사람에게: 정책을 바꾸는 1차 경로는 `resources/enterprise-policy.json`을 고치고 다시 빌드하는 것입니다.** 그 파일이 `config/electron-builder.config.cjs`의 `commonExtraResources`로 실려 위 2순위가 됩니다(3 OS 공통). 패키징 후 `afterPack`이 산출물에 실제로 들어갔는지, JSONC로 파싱되는지, `lockdown: true`인지 검사하고 아니면 빌드를 **실패시킵니다**(`config/scripts/verify-packaged-enterprise-policy.cjs`) — electron-builder는 `extraResources` 원본이 없어도 경고 한 줄만 남기고 넘어가기 때문입니다.
@@ -479,11 +481,18 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다(`enterprise-p
 - 무인 설치: `orca-windows-setup.exe /S` — NSIS 원클릭 설치 프로그램의 표준 동작입니다. _(electron-builder/NSIS의 계약이지 이 저장소 코드의 사실은 아닙니다. 배포 전 1대에서 검증하세요.)_
 - 관리자 권한이 필요 없으므로 사용자 단위 소프트웨어 배포 채널(Intune 사용자 대상 앱 등)로 밀 수 있습니다.
 - ⚠️ **그 대가**: 설치 폴더가 사용자 소유이므로, 여기에 내장한 번들 정책(§5.2)은 표준 사용자가 지울 수 있습니다. 이걸 막으려면 `%ProgramData%` 배치(ACL 포함) 또는 perMachine 설치가 필요합니다 — [외부 연동 감사](docs/reference/external-integrations-audit.md) §0.2 #21.
+- 설치·업데이트 때 `%ProgramData%\Orca\enterprise-policy.json`이 **없으면** 만듭니다(§5.2). 있으면 건드리지 않고, 제거해도 남깁니다.
 - 제거 시 `%LOCALAPPDATA%` 아래로 재배치된 터미널 데몬을 정리하는 NSIS 스크립트가 포함되어 있습니다(`:361-364`, 스크립트는 `config/nsis/daemon-host-uninstall.nsh`).
 
 ### 5.2 정책 파일 배포 — 이제 **선택**입니다
 
-**설치 프로그램이 기본 정책을 싣고 있습니다.** `resources/enterprise-policy.json`이 `extraResources`로 설치 폴더에 들어가고 앱이 `process.resourcesPath`에서 읽으므로, `.exe`만 설치한 PC도 §4.2의 잠금이 걸린 상태로 뜹니다. 예전 판의 "설치 프로그램은 정책 파일을 만들지 않습니다"는 더 이상 사실이 아닙니다. `nsis.include` 스크립트는 여전히 데몬 제거용 하나뿐이며, 정책은 NSIS가 아니라 리소스 복사로 실립니다.
+**설치 프로그램이 기본 정책을 싣고 있습니다.** `resources/enterprise-policy.json`이 `extraResources`로 설치 폴더에 들어가고 앱이 `process.resourcesPath`에서 읽으므로, `.exe`만 설치한 PC도 §4.2의 잠금이 걸린 상태로 뜹니다. 예전 판의 "설치 프로그램은 정책 파일을 만들지 않습니다"는 더 이상 사실이 아닙니다.
+
+**설치 프로그램은 1순위 머신 전역 파일도 만듭니다 — 그 경로에 파일이 없을 때만.** 설치·업데이트 때 `%ProgramData%\Orca\enterprise-policy.json`이 없으면 `config/nsis/enterprise-policy.machine-seed.json`(아래 예시와 같은 내용)으로 만들고, **이미 있으면 내용과 상관없이 그대로 둡니다** — 관리자나 사용자가 바꿨을 수 있기 때문입니다. 제거해도 지우지 않습니다. 훅은 `config/nsis/enterprise-policy-machine-seed.nsh`이고, `kernel32::CopyFileW`(`bFailIfExists=1`)로 "없을 때만"과 쓰기를 한 번에 하며 실패해도 대화상자를 띄우지 않습니다 — ProgramData 쓰기를 막아 둔 PC에서는 조용히 건너뛰고 번들 정책이 그대로 적용됩니다.
+
+- **시드 내용은 번들 정책과 결과가 같아야 합니다.** 머신 전역 파일이 생기면 그 파일이 이기고, 번들 정책은 그 파일의 빈칸을 **`true` 쪽으로만** 채웁니다. 그래서 번들 정책이 `false`로 켜 두는 키(`disableAutoUpdate`·`disableSkillBundleUpdate`·`disableUnattendedAgentRuns`)와 설정 키(`githubEnterpriseHost`)는 시드에 직접 적혀 있어야 합니다. `src/main/enterprise/enterprise-policy-machine-seed.test.ts`가 "시드 + 번들 바닥선 = 번들 단독"을 확인하므로, 번들 정책에 `false` 스위치를 새로 넣으면 시드에도 넣기 전까지 테스트가 빨갛습니다.
+- ⚠️ **이미 시드된 PC는 이후 판의 기본값을 받지 못합니다.** 설치 프로그램은 있는 파일을 고치지 않으므로, 뒤에 `false`로 들어오는 새 스위치는 그 PC에서 lockdown을 상속해 **꺼진 채로** 남습니다. 그런 판을 배포할 때는 릴리스 노트에 그 키를 적고 파일에 추가하게 하세요.
+- ⚠️ **per-user 설치 프로그램이 만든 파일은 그 사용자 소유입니다.** 그 사용자는 관리자 권한 없이 이 파일을 고치거나 지울 수 있고, 1순위라 번들 정책보다 우선합니다. 같은 PC의 다른 계정은 읽기만 됩니다. 파일이 없을 때도 사용자가 직접 만들 수 있었으므로 새로 생긴 구멍은 아니지만, 이 파일을 정책으로 삼으려면 아래 ACL 고정이 여전히 필요합니다 — §6-1의 스크립트는 `/setowner`로 소유권을 가져오므로 시드된 파일에도 그대로 쓸 수 있습니다.
 
 아래 배포는 **번들 기본값을 중앙에서 덮어써야 할 때**만 하세요 — 값을 바꿔야 하는데 재빌드·재배포를 하고 싶지 않을 때, 부서별로 값이 달라야 할 때, 또는 Intune 콘솔에서 준수 여부를 감시하고 싶을 때입니다.
 
@@ -496,7 +505,8 @@ JSONC입니다 — `//` 주석과 후행 쉼표를 허용합니다(`enterprise-p
     "lockdown": true,
     "githubEnterpriseHost": "github.samsungds.net",
     "disableAutoUpdate": false, // 사내 GHES 릴리스 태그 → 새 버전 알림
-    "disableSkillBundleUpdate": false // 사내 GHES daegun-kim/ORCA_skill main → 스킬 번들 갱신
+    "disableSkillBundleUpdate": false, // 사내 GHES daegun-kim/ORCA_skill main → 스킬 번들 갱신
+    "disableUnattendedAgentRuns": false // 예약 자동화 — 빼면 lockdown 을 상속해 꺼집니다
   }
   ```
 
@@ -526,7 +536,7 @@ Select-String -Path "$env:APPDATA\Orca\logs\main.trace.ndjson" -Pattern "enterpr
 
 실무 권고 _(운영 관례이지 코드가 보장하는 것이 아닙니다)_:
 
-1. **정책 파일 존재 여부를 자산 관리로 감시** — `%ProgramData%\Orca\enterprise-policy.json`이 없는 머신이 곧 안 잠긴 머신입니다. 실행 파일이 어느 빌드인지보다 이쪽이 실질적인 판정 기준입니다.
+1. **정책 파일 존재 여부를 자산 관리로 감시** — `%ProgramData%\Orca\enterprise-policy.json`이 없는 머신은 사내 설치 프로그램을 거치지 않았거나 쓰기가 막힌 머신입니다. 다만 사내 설치 프로그램이 그 파일을 만들기 시작했으므로(§5.2) **있다는 것만으로는 관리자 배포인지 알 수 없습니다** — 소유자(`icacls`)와 `lockdown` 값까지 보세요.
 2. **`ORCA_DISABLE_PUBLISH_TARGET=1`로 빌드** — `publish` 타깃이 `null`이 되어 업데이터 메타데이터가 아예 안 실립니다. 그러면 이 설치본은 upstream 릴리스 피드로 덮어써질 수 없습니다(`config/electron-builder.config.cjs:543-551`).
 3. **사내 인증서로 서명하고 `ORCA_WIN_PUBLISHER_NAME`을 그 주체로 지정** — 공개 배포본의 서명 주체와 달라지므로 공개 설치 프로그램이 사내 빌드를 갈아치우지 못합니다. 기본값을 그대로 두면(`SignPath Foundation`) 공개 빌드가 그대로 받아들여집니다(`:326-332`). (이 빌드 자체에는 인앱 업데이터가 없습니다.)
 4. 사내 자체 식별이 꼭 필요하면 릴리스 태그·파일명·설치 경로 규약을 사내에서 별도로 정하세요. 앱은 도와주지 않습니다.

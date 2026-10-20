@@ -1682,6 +1682,22 @@
           "why": "GHES 릴리스 업데이트 알림의 마운트 한 줄. v1.4.230 이 같은 자리에 ClaudeAccountSwitchDialog 를 넣어 충돌했고, theirs 로 풀면 아무것도 안 깨진 채 알림만 사라진다."
         }
       ]
+    },
+    {
+      "id": "installer-machine-policy-seed",
+      "summary": "Windows 설치 프로그램이 %ProgramData%\\Orca\\enterprise-policy.json 이 없을 때만 config/nsis/enterprise-policy.machine-seed.json 으로 만든다(있으면 설치·업데이트 모두 그대로, 제거해도 남김). 시드는 번들 바닥선을 거쳐 번들 정책 단독과 같은 정책으로 해석돼야 한다(enterprise-policy-machine-seed.test.ts).",
+      "present": [
+        {
+          "file": "config/nsis/orca-installer-hooks.nsh",
+          "contains": "!include \"${__FILEDIR__}\\enterprise-policy-machine-seed.nsh\"",
+          "why": "upstream 설치 훅 파일에 끼운 include. 빠지면 아래 insertmacro 가 정의되지 않아 makensis 가 실패하거나, 둘 다 빠지면 조용히 시드가 사라진다."
+        },
+        {
+          "file": "config/nsis/orca-installer-hooks.nsh",
+          "contains": "  !insertmacro ORCA_SEED_MACHINE_ENTERPRISE_POLICY",
+          "why": "customInstall 안의 호출 한 줄. upstream 이 customInstall 을 고치면 충돌 없이 빠질 수 있다 — nsis-enterprise-policy-seed.test.mjs 가 잡는다."
+        }
+      ]
     }
   ],
   "absentPaths": [

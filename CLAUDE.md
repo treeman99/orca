@@ -91,7 +91,7 @@ Rules when you touch this:
 
 - **Gate at the chokepoint, not the caller.** The first version gated `StarNagService.start()` and missed three other paths into the same `gh` call; the gate now sits in `src/main/github/client.ts`. Grep for every caller before choosing a spot.
 - **Never add a runtime environment variable.** `ORCA_ENTERPRISE_POLICY` (the file's location) is the only one, and in a packaged build it cannot switch a machine-wide policy off — on Windows a standard user can set their own env var, so an unconditional opt-out would be a one-command bypass.
-- **A new switch means four edits**: the type + `LOCKDOWN_INHERITING_KEYS` in `src/shared/enterprise-policy.ts`, `enterprise-policy-fixture.ts`, the gate, and `docs/reference/enterprise-policy.md`.
+- **A new switch means four edits**: the type + `LOCKDOWN_INHERITING_KEYS` in `src/shared/enterprise-policy.ts`, `enterprise-policy-fixture.ts`, the gate, and `docs/reference/enterprise-policy.md`. If `resources/enterprise-policy.json` ships it as `false`, add it to `config/nsis/enterprise-policy.machine-seed.json` too — the installer seeds that file into `%ProgramData%` when absent, where it outranks the bundled one and the bundled floor only adds `true` (`enterprise-policy-machine-seed.test.ts` fails until you do).
 - **Every gate needs a behavioural test.** A resolver test proves the policy object is right, not that anything consumes it — and an upstream rebase resolved the wrong way drops a gate with a green suite. Use `makeLockdownPolicy()` from `enterprise-policy-fixture.ts`.
 - `config/vitest-enterprise-policy-isolation.ts` neutralizes a machine-wide policy file for the whole suite, so building this fork on a locked-down machine does not turn the tests red. `tests/e2e/helpers/electron-home-isolation.ts` does the same for spawned Electron children.
 
@@ -227,7 +227,7 @@ VS Code 소스 제어 패널과 서브모듈 취급, VS Code 로 열기, Conflue
 순간부터 2주 재시작, Windows 앱 제거 시 색인 파일 삭제 — 테스트는
 `config/vitest-session-search-retention-isolation.ts` 가 2주 상한을 풀고 돈다).
 
-**Windows 빌드** — napi 헤더 스테이징, windows-process-tree 패치 무결성, Electron 추출
+**Windows 빌드** — `%ProgramData%\Orca\enterprise-policy.json` 시드(없을 때만, `config/nsis/enterprise-policy-machine-seed.nsh`), napi 헤더 스테이징, windows-process-tree 패치 무결성, Electron 추출
 스테이징과 copy 폴백, blockmap 재생성, pnpm 12 의 실행 전 재설치 차단
 (`verifyDepsBeforeRun: false`).
 

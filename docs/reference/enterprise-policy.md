@@ -62,6 +62,8 @@ ORCA_GITHUB_ENTERPRISE_HOST
 | 3    | `ORCA_ENTERPRISE_POLICY`가 가리키는 경로                    | 무력화 값(`off` 등)이면 후보에서 빠질 뿐, 위 1·2순위는 그대로 남습니다                                                                                                                                                |
 | 4    | **사용자별** — `%APPDATA%\Orca\enterprise-policy.json`      | `:107-109`                                                                                                                                                                                                            |
 
+> 🧩 **1순위 파일은 Windows 설치 프로그램이 없을 때만 만듭니다.** 설치·업데이트 때 그 경로가 비어 있으면 `config/nsis/enterprise-policy.machine-seed.json`을 복사하고(`config/nsis/enterprise-policy-machine-seed.nsh`, `CopyFileW` `bFailIfExists=1`), 있으면 내용과 상관없이 그대로 둡니다. 제거해도 남깁니다. 시드는 §2-1 바닥선을 거쳐 2순위 번들 단독과 **같은 정책**으로 해석되도록 맞춰져 있고(`src/main/enterprise/enterprise-policy-machine-seed.test.ts`), 그래서 번들 정책이 `false`로 켜 두는 키를 전부 직접 적습니다. ⚠️ 시드된 PC는 그 뒤 판에서 `false`로 들어오는 새 스위치를 받지 못하고(lockdown 상속으로 꺼짐), per-user 설치가 만든 파일은 **그 사용자 소유**라 그 사용자가 고칠 수 있습니다 — 정책으로 삼으려면 §6-1의 ACL 고정이 필요합니다.
+
 **비패키징(`pnpm dev`·vitest)** — 번들 후보가 **맨 아래**에 붙습니다.
 
 | 순위 | 위치                                                         | 비고                                                                       |
@@ -483,6 +485,8 @@ icacls $dir /inheritance:r `
 ```
 
 `*S-1-5-18`=SYSTEM, `*S-1-5-32-544`=Administrators, `*S-1-5-32-545`=Users. 한국어 Windows의 현지화된 그룹명 문제를 피하려고 SID로 씁니다.
+
+> ⚠️ **설치 프로그램이 이미 시드해 둔 파일이 있을 수 있습니다(§2).** 그 파일과 `Orca` 폴더는 설치한 사용자 소유입니다. 위 스크립트(`Copy-Item -Force` + `/setowner`)와 GPO **바꾸기**는 그 위에 그대로 덮어쓰고 소유권을 가져오지만, GPO **만들기(Create)** 는 파일이 이미 있으면 건너뛰므로 시드가 관리자 배포를 막습니다 — 쓰지 마세요.
 
 > ⚠️ **`/setowner`를 빼지 마세요.** `%ProgramData%` 루트는 표준 사용자도 새 폴더를 만들 수 있어, 배포 스크립트가 아직 돌지 않은 머신에서는 사용자가 `Orca` 폴더를 **먼저 만들어 자기가 소유자**가 될 수 있습니다. `/inheritance:r`은 상속된 ACE만 걷어내고 소유권은 건드리지 않는데, 소유자는 언제든 ACL을 되돌릴 수 있습니다. _(Windows ACL 동작이며 이 저장소 코드의 사실은 아닙니다.)_
 
