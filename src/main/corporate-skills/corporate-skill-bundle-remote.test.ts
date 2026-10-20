@@ -89,9 +89,9 @@ describe('lookupCorporateSkillBundle', () => {
   const HEAD = { commit: { sha: SHA('e'), commit: { tree: { sha: SHA('f') } } } }
   const TREE_PATH = `repos/daegun-kim/ORCA_skill/git/trees/${SHA('f')}?recursive=1`
 
-  it('reads the develop branch and its tree, nothing else', async () => {
+  it('reads the main branch and its tree, nothing else', async () => {
     const readApi = vi.fn(async (path: string, _host: string) => {
-      if (path === 'repos/daegun-kim/ORCA_skill/branches/develop') {
+      if (path === 'repos/daegun-kim/ORCA_skill/branches/main') {
         return HEAD
       }
       if (path === TREE_PATH) {
@@ -105,23 +105,23 @@ describe('lookupCorporateSkillBundle', () => {
     expect(result.outcome === 'found' && result.bundle).toMatchObject({
       host: TARGET.host,
       repository: TARGET.repository,
-      branch: 'develop',
+      branch: 'main',
       commitSha: SHA('e')
     })
     // Never "the default branch": that is where a mirror keeps the upstream originals.
     expect(readApi.mock.calls.map(([path]) => path)).toEqual([
-      'repos/daegun-kim/ORCA_skill/branches/develop',
+      'repos/daegun-kim/ORCA_skill/branches/main',
       TREE_PATH
     ])
     expect(readApi.mock.calls.every(([, host]) => host === TARGET.host)).toBe(true)
   })
 
-  it('reports a missing develop branch as no-bundle without trying another branch', async () => {
+  it('reports a missing main branch as no-bundle without trying another branch', async () => {
     const readApi = vi.fn(async (path: string) => {
-      if (path.endsWith('/branches/develop')) {
+      if (path.endsWith('/branches/main')) {
         throw new Error('gh: Branch not found (HTTP 404)')
       }
-      return { default_branch: 'main' }
+      return { default_branch: 'develop' }
     })
 
     await expect(lookupCorporateSkillBundle({ target: TARGET, readApi })).resolves.toMatchObject({

@@ -108,6 +108,33 @@ describe('disableSkillBundleUpdate gate', () => {
   })
 })
 
+describe('owned names without a fresh bundle', () => {
+  const remembered = () => ({
+    dismissedCommit: null,
+    bundleNames: ['orca-cli', 'orchestration']
+  })
+
+  it('keeps the last good names before the first check answers', () => {
+    const { service } = makeService({ readState: vi.fn(remembered) })
+    expect(service.getStatus()).toEqual({
+      state: 'unknown',
+      managedNames: ['orca-cli', 'orchestration']
+    })
+  })
+
+  it('keeps them through a failed check, so the build update cannot take those names back', async () => {
+    const { service } = makeService({
+      readState: vi.fn(remembered),
+      lookup: vi.fn().mockResolvedValue({ outcome: 'lookup-failed', target: TARGET })
+    })
+    await expect(service.check()).resolves.toMatchObject({
+      state: 'unavailable',
+      reason: 'lookup-failed',
+      managedNames: ['orca-cli', 'orchestration']
+    })
+  })
+})
+
 describe('update', () => {
   it('downloads, replaces the whole bundle, and re-observes', async () => {
     const { service, deps } = makeService({

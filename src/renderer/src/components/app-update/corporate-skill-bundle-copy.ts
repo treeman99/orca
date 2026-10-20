@@ -1,11 +1,12 @@
 // The words for the corporate skill bundle lane, shared by the notice and the settings
 // section so the two never describe the same state differently.
 
-import type {
-  CorporateSkillBundleStatus,
-  CorporateSkillBundleUnavailableReason,
-  CorporateSkillBundleUpdateFailure,
-  CorporateSkillPlacementState
+import {
+  CORPORATE_SKILL_BUNDLE_BRANCH,
+  type CorporateSkillBundleStatus,
+  type CorporateSkillBundleUnavailableReason,
+  type CorporateSkillBundleUpdateFailure,
+  type CorporateSkillPlacementState
 } from '../../../../shared/corporate-skill-bundle'
 import { translate } from '@/i18n/i18n'
 
@@ -26,7 +27,8 @@ export function describeCorporateSkillBundleUnavailable(
     case 'no-bundle':
       return translate(
         'auto.components.appUpdate.skillBundle.unavailable.noBundle',
-        'The repository has no develop branch, or that branch has no skills folder Orca can install.'
+        'The repository has no {{value0}} branch, or that branch has no skills folder Orca can install.',
+        { value0: CORPORATE_SKILL_BUNDLE_BRANCH }
       )
   }
 }

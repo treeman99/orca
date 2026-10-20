@@ -17735,7 +17735,7 @@
           "unavailable": {
             "noEnterpriseHost": "社内 GitHub Enterprise ホストが設定されていないため、確認するスキルリポジトリがありません。",
             "lookupFailed": "スキルリポジトリを読み取れませんでした。gh CLI が社内ホストにサインインしているか（gh auth status）、自分のアカウントでリポジトリを開けるか確認してください。",
-            "noBundle": "リポジトリに develop ブランチがないか、そのブランチに Orca がインストールできる skills フォルダーがありません。"
+            "noBundle": "リポジトリに {{value0}} ブランチがないか、そのブランチに Orca がインストールできる skills フォルダーがありません。"
           },
           "status": {
             "disabled": "管理者がこのマシンでスキルバンドルの更新を無効にしています。",
@@ -17761,6 +17761,15 @@
             "updated": "スキルを更新しました",
             "updatedDescription": "{{value0}} をインストールしました。すでに実行中の Agent は再起動するまで古いコピーを使います。",
             "failed": "スキルの更新に失敗しました"
+          },
+          "panel": {
+            "updating": "更新中…",
+            "checking": "確認中…",
+            "updateAvailable": "更新があります",
+            "upToDate": "最新",
+            "checkFailed": "チェックに失敗しました",
+            "installed": "インストール済み",
+            "scope": "社内スキルバンドル {{value0}}（{{value1}} ブランチ）から取得し、バンドルのスキルをすべてまとめて置き換えます: {{value2}}。"
           }
         }
       }

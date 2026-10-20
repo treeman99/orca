@@ -13,12 +13,11 @@ import type { AppUpdateLookupTarget } from './app-update-check'
 export const CORPORATE_SKILL_BUNDLE_REPOSITORY = 'daegun-kim/ORCA_skill'
 
 /**
- * The one branch the corporate repository carries (`docs/` + `skills/<name>/`). Read by name,
- * never via "the default branch": the bundle's public mirror keeps the untouched upstream
- * originals on its default `main`, and a repository reshaped that way must not get its
- * originals offered as an update over the fleet's customized skills.
+ * The corporate repository's bundle branch (`docs/` + `skills/<name>/`). Read by name, never
+ * via "the default branch": a default that moves to a branch of upstream originals must not
+ * get those offered as an update over the fleet's customized skills.
  */
-export const CORPORATE_SKILL_BUNDLE_BRANCH = 'develop'
+export const CORPORATE_SKILL_BUNDLE_BRANCH = 'main'
 
 /** The channel main pushes a fresh status on. */
 export const CORPORATE_SKILL_BUNDLE_STATUS_EVENT = 'corporateSkillBundle:status'
@@ -60,6 +59,14 @@ type CheckedFields = {
   checkedAt: number
 }
 
+type RememberedFields = {
+  /**
+   * The names the last successful check found in the bundle. A failed or pending check
+   * still owns them: falling back to the build's own update would overwrite them with stubs.
+   */
+  managedNames?: string[]
+}
+
 type ObservedFields = CheckedFields & {
   branch: string
   commitSha: string
@@ -70,8 +77,12 @@ export type CorporateSkillBundleStatus =
   /** The administrator's `disableSkillBundleUpdate` is on. */
   | { state: 'disabled' }
   /** Nothing has been checked yet in this session. */
-  | { state: 'unknown' }
-  | ({ state: 'unavailable'; reason: CorporateSkillBundleUnavailableReason } & CheckedFields)
+  | ({ state: 'unknown' } & RememberedFields)
+  | ({
+      state: 'unavailable'
+      reason: CorporateSkillBundleUnavailableReason
+    } & CheckedFields &
+      RememberedFields)
   /** No skill of the bundle is installed anywhere — offered, never nudged. */
   | ({ state: 'not-installed' } & ObservedFields)
   | ({ state: 'up-to-date' } & ObservedFields)
@@ -125,4 +136,12 @@ export function isCorporateSkillBundleSource(
     .replace(/\/+$/, '')
     .replace(/\.git$/, '')
   return normalized.endsWith(`/${repository.toLowerCase()}`)
+}
+
+/** The skill names the bundle owns, by its latest check or, failing that, its last good one. */
+export function corporateSkillBundleOwnedNames(status: CorporateSkillBundleStatus): string[] {
+  if ('skills' in status) {
+    return status.skills.map((skill) => skill.name)
+  }
+  return status.state === 'disabled' ? [] : (status.managedNames ?? [])
 }

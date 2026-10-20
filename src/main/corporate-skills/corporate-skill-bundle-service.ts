@@ -173,7 +173,10 @@ export class CorporateSkillBundleService {
   }
 
   getStatus(): CorporateSkillBundleStatus {
-    return this.deps.isDisabled() ? { state: 'disabled' } : this.status
+    if (this.deps.isDisabled()) {
+      return { state: 'disabled' }
+    }
+    return this.status.state === 'unknown' ? { ...this.status, ...this.remembered() } : this.status
   }
 
   /** Chokepoint for reads. Every path that would reach the corporate host comes through here. */
@@ -221,6 +224,11 @@ export class CorporateSkillBundleService {
     return { ok: false, reason, message, status }
   }
 
+  /** What a status without its own skill list still owns (see `managedNames`). */
+  private remembered(): { managedNames: string[] } {
+    return { managedNames: this.deps.readState().bundleNames }
+  }
+
   private publish(next: CorporateSkillBundleStatus): void {
     this.status = next
     this.deps.broadcast(next)
@@ -237,7 +245,13 @@ export class CorporateSkillBundleService {
   private async toStatus(result: CorporateBundleLookupResult): Promise<CorporateSkillBundleStatus> {
     const checkedAt = this.deps.now()
     if (result.outcome !== 'found') {
-      return { state: 'unavailable', reason: result.outcome, target: result.target, checkedAt }
+      return {
+        state: 'unavailable',
+        reason: result.outcome,
+        target: result.target,
+        checkedAt,
+        ...this.remembered()
+      }
     }
     const { bundle } = result
     this.deps.writeState({ bundleNames: bundle.skills.map((skill) => skill.name) })
@@ -259,7 +273,8 @@ export class CorporateSkillBundleService {
         state: 'unavailable',
         reason: 'lookup-failed',
         target: this.deps.resolveTarget(),
-        checkedAt: this.deps.now()
+        checkedAt: this.deps.now(),
+        ...this.remembered()
       }
     }
     this.publish(next)

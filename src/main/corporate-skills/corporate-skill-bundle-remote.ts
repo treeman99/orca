@@ -57,7 +57,8 @@ export function resolveCorporateSkillBundleTarget(): AppUpdateLookupTarget {
 
 async function readGhApi(path: string, host: string): Promise<unknown> {
   const { stdout } = await ghExecFileAsync(['api', path], { host, timeout: LOOKUP_TIMEOUT_MS })
-  return JSON.parse(stdout) as unknown
+  const parsed: unknown = JSON.parse(stdout)
+  return parsed
 }
 
 function field(value: unknown, key: string): unknown {

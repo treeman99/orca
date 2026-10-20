@@ -19,7 +19,8 @@ export type CorporateSkillBundleFiles = Map<string, Map<string, Buffer>>
 
 async function readGhBlobApi(path: string, host: string): Promise<unknown> {
   const { stdout } = await ghExecFileAsync(['api', path], { host, timeout: BLOB_TIMEOUT_MS })
-  return JSON.parse(stdout) as unknown
+  const parsed: unknown = JSON.parse(stdout)
+  return parsed
 }
 
 function decodeBlob(response: unknown): Buffer | undefined {

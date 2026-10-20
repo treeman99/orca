@@ -17022,7 +17022,7 @@
           "unavailable": {
             "noEnterpriseHost": "No corporate GitHub Enterprise host is configured, so there is no skill repository to check.",
             "lookupFailed": "The skill repository could not be read. Check that the gh CLI is signed in to the corporate host (gh auth status) and that your account can open the repository.",
-            "noBundle": "The repository has no develop branch, or that branch has no skills folder Orca can install."
+            "noBundle": "The repository has no {{value0}} branch, or that branch has no skills folder Orca can install."
           },
           "status": {
             "disabled": "Your administrator turned the skill bundle update off for this machine.",
@@ -17048,6 +17048,15 @@
             "updated": "Skills updated",
             "updatedDescription": "Installed {{value0}}. Agents that are already running keep the old copy until you restart them.",
             "failed": "Skill update failed"
+          },
+          "panel": {
+            "updating": "Updating...",
+            "checking": "Checking...",
+            "updateAvailable": "Update available",
+            "upToDate": "Up to date",
+            "checkFailed": "Check failed",
+            "installed": "Installed",
+            "scope": "Installs from the company skill bundle {{value0}} ({{value1}} branch), replacing all of its skills together: {{value2}}."
           }
         }
       },

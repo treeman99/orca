@@ -18085,7 +18085,7 @@
           "unavailable": {
             "noEnterpriseHost": "사내 GitHub Enterprise 호스트가 설정되어 있지 않아 확인할 스킬 저장소가 없습니다.",
             "lookupFailed": "스킬 저장소를 읽지 못했습니다. gh CLI가 사내 호스트에 로그인되어 있는지(gh auth status), 내 계정으로 저장소를 열 수 있는지 확인하세요.",
-            "noBundle": "저장소에 develop 브랜치가 없거나, 그 브랜치에 Orca가 설치할 수 있는 skills 폴더가 없습니다."
+            "noBundle": "저장소에 {{value0}} 브랜치가 없거나, 그 브랜치에 Orca가 설치할 수 있는 skills 폴더가 없습니다."
           },
           "status": {
             "disabled": "관리자가 이 컴퓨터에서 스킬 번들 업데이트를 꺼 두었습니다.",
@@ -18111,6 +18111,15 @@
             "updated": "스킬을 업데이트했습니다",
             "updatedDescription": "{{value0}}을(를) 설치했습니다. 이미 실행 중인 에이전트는 다시 시작해야 새 사본을 읽습니다.",
             "failed": "스킬 업데이트에 실패했습니다"
+          },
+          "panel": {
+            "updating": "업데이트 중...",
+            "checking": "확인 중...",
+            "updateAvailable": "업데이트 가능",
+            "upToDate": "최신 상태",
+            "checkFailed": "확인 실패",
+            "installed": "설치됨",
+            "scope": "사내 스킬 번들 {{value0}}({{value1}} 브랜치)에서 받아, 번들의 스킬 전부를 함께 교체합니다: {{value2}}."
           }
         }
       }

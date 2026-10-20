@@ -17,8 +17,9 @@ import {
 import { isOrcaCliAvailableOnPath } from '@/lib/agent-skill-cli-prerequisite'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
+import { withCorporateSkillBundle } from './corporate-skill-bundle-setup-panel'
 
-export function AgentSkillSetupPanel({
+function AgentSkillSetupPanelView({
   title,
   description,
   command,
@@ -50,7 +51,8 @@ export function AgentSkillSetupPanel({
   openingHint,
   footer,
   onRecheck,
-  freshnessSkillName
+  freshnessSkillName,
+  onInstallClick
 }: AgentSkillSetupPanelProps): React.JSX.Element {
   const resolvedInstallLabel =
     installLabel ??
@@ -207,7 +209,7 @@ export function AgentSkillSetupPanel({
           type="button"
           variant={installVariant}
           size="sm"
-          onClick={openSetupTerminal}
+          onClick={onInstallClick ?? openSetupTerminal}
           disabled={terminalOpen || installDisabled || terminalOpening}
         >
           {terminalOpening ? (
@@ -410,3 +412,6 @@ export function AgentSkillSetupPanel({
     </div>
   )
 }
+
+// Fork: names the corporate skill bundle owns install and update through that lane.
+export const AgentSkillSetupPanel = withCorporateSkillBundle(AgentSkillSetupPanelView)

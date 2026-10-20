@@ -10,6 +10,8 @@ import {
   type SkillFreshnessDisplayStatus
 } from '@/lib/skill-freshness-display-status'
 import { requestSkillFreshnessUpdateDialog } from './skill-freshness-update-dialog'
+import { useCorporateSkillBundleOwner } from '../app-update/corporate-skill-bundle-skill-owner'
+import { CorporateSkillBundleSkillPill } from '../app-update/CorporateSkillBundleSkillPill'
 
 function statusPill(status: SkillFreshnessDisplayStatus): React.JSX.Element {
   if (status === 'update-available') {
@@ -52,6 +54,11 @@ function statusPill(status: SkillFreshnessDisplayStatus): React.JSX.Element {
 // case, which is real drift the user would otherwise have no way to see.
 export function SkillFreshnessStatusPill({ skillName }: { skillName: string }): React.JSX.Element {
   const { inventory, loading, error } = useSkillFreshness()
+  // Fork: a name the corporate skill bundle owns is judged against its repository.
+  const corporateBundle = useCorporateSkillBundleOwner(skillName)
+  if (corporateBundle) {
+    return <CorporateSkillBundleSkillPill bundle={corporateBundle} />
+  }
   if (loading && !inventory) {
     return (
       <IntegrationStatusPill tone="neutral">

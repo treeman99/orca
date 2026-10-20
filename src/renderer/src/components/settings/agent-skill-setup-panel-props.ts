@@ -42,4 +42,6 @@ export type AgentSkillSetupPanelProps = {
   onRecheck: () => void | Promise<unknown>
   // Freshness inventory is local-host-only.
   freshnessSkillName?: string
+  // Fork: replaces the setup terminal (corporate-skill-bundle-setup-panel.tsx).
+  onInstallClick?: () => void
 }

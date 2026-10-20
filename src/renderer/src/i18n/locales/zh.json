@@ -17735,7 +17735,7 @@
           "unavailable": {
             "noEnterpriseHost": "未配置公司 GitHub Enterprise 主机，因此没有可检查的技能仓库。",
             "lookupFailed": "无法读取技能仓库。请确认 gh CLI 已登录公司主机（gh auth status），且你的账号可以打开该仓库。",
-            "noBundle": "仓库中没有 develop 分支，或该分支中没有 Orca 可安装的 skills 文件夹。"
+            "noBundle": "仓库中没有 {{value0}} 分支，或该分支中没有 Orca 可安装的 skills 文件夹。"
           },
           "status": {
             "disabled": "管理员已在此计算机上关闭技能包更新。",
@@ -17761,6 +17761,15 @@
             "updated": "技能已更新",
             "updatedDescription": "已安装 {{value0}}。已在运行的代理在重启前仍使用旧副本。",
             "failed": "技能更新失败"
+          },
+          "panel": {
+            "updating": "正在更新...",
+            "checking": "检查中...",
+            "updateAvailable": "有可用更新",
+            "upToDate": "已是最新",
+            "checkFailed": "检查失败",
+            "installed": "已安装",
+            "scope": "从公司技能包 {{value0}}（{{value1}} 分支）安装，并一并替换其中的全部技能：{{value2}}。"
           }
         }
       }

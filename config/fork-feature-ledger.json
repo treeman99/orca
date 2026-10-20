@@ -1637,7 +1637,7 @@
     },
     {
       "id": "corporate-skill-bundle-update",
-      "summary": "사내 스킬 번들(GHES daegun-kim/ORCA_skill 의 develop 브랜치 — 기본 브랜치로 넘어가지 않는다) 업데이트 레인 — 새 커밋 알림, [업데이트] 시 그 커밋을 받아 번들의 스킬 전부를 ~/.agents/skills 와 ~/.claude/skills 에서 폴더째 교체, lock 에 사내 출처 기록. 빌드 내장 스킬 신선도 검사는 번들이 소유한 이름에서 빠진다(그 검사의 업데이트는 커스터마이징을 빌드 stub 으로 덮는다).",
+      "summary": "사내 스킬 번들(GHES daegun-kim/ORCA_skill 의 main 브랜치 — 이름으로만 읽고 기본 브랜치로 넘어가지 않는다) 업데이트 레인 — 새 커밋 알림, [업데이트] 시 그 커밋을 받아 번들의 스킬 전부를 ~/.agents/skills 와 ~/.claude/skills 에서 폴더째 교체, lock 에 사내 출처 기록. 빌드 내장 스킬 신선도 검사는 번들이 소유한 이름에서 빠지고, 설정의 스킬 설치 패널(오케스트레이션·CLI 등)도 그 이름이면 배지와 [설치]/[업데이트]가 이 레인을 탄다(빌드의 orca skills install 은 커스터마이징을 stub 으로 덮는다).",
       "present": [
         {
           "file": "src/main/skills/skill-freshness-inventory.ts",
@@ -1660,6 +1660,21 @@
         {
           "file": "src/renderer/src/components/settings/AppUpdateSettingsSection.tsx",
           "contains": "<CorporateSkillBundleSettingsSection />"
+        },
+        {
+          "file": "src/renderer/src/components/settings/AgentSkillSetupPanel.tsx",
+          "contains": "export const AgentSkillSetupPanel = withCorporateSkillBundle(AgentSkillSetupPanelView)",
+          "why": "설정의 스킬 설치 패널 전부(오케스트레이션·CLI·피처월·에뮬레이터)가 지나는 초크포인트. 빠지면 번들이 소유한 orchestration/orca-cli 의 [업데이트]가 다시 빌드의 orca skills install 터미널을 열어 사내 스킬을 stub 으로 덮는다. 타입체크는 초록이다 — corporate-skill-bundle-setup-panel.test.tsx 가 잡는다."
+        },
+        {
+          "file": "src/renderer/src/components/settings/AgentSkillSetupPanel.tsx",
+          "contains": "onClick={onInstallClick ?? openSetupTerminal}",
+          "why": "위 래퍼가 버튼을 레인으로 돌리는 seam. 이 줄만 빠져도 래퍼는 남은 채 [업데이트]가 빌드 설치 터미널을 연다."
+        },
+        {
+          "file": "src/renderer/src/components/skills/SkillFreshnessStatusPill.tsx",
+          "contains": "return <CorporateSkillBundleSkillPill bundle={corporateBundle} />",
+          "why": "번들이 소유한 이름의 배지를 사내 저장소 기준으로 바꾸는 줄. 빠지면 빌드 내장판 기준 \"업데이트 가능\"이 되살아난다."
         },
         {
           "file": "src/renderer/src/App.tsx",

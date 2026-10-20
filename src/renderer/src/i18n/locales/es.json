@@ -17733,7 +17733,7 @@
           "unavailable": {
             "noEnterpriseHost": "No hay ningún host de GitHub Enterprise de la empresa configurado, así que no hay repositorio de skills que comprobar.",
             "lookupFailed": "No se pudo leer el repositorio de skills. Comprueba que la CLI gh haya iniciado sesión en el host de la empresa (gh auth status) y que tu cuenta pueda abrir el repositorio.",
-            "noBundle": "El repositorio no tiene una rama develop, o esa rama no tiene una carpeta skills que Orca pueda instalar."
+            "noBundle": "El repositorio no tiene una rama {{value0}}, o esa rama no tiene una carpeta skills que Orca pueda instalar."
           },
           "status": {
             "disabled": "Tu administrador desactivó la actualización del paquete de skills en este equipo.",
@@ -17759,6 +17759,15 @@
             "updated": "Skills actualizados",
             "updatedDescription": "Se instaló {{value0}}. Los agentes que ya están en ejecución usan la copia anterior hasta que los reinicies.",
             "failed": "No se pudo actualizar los skills"
+          },
+          "panel": {
+            "updating": "Actualizando...",
+            "checking": "Comprobando...",
+            "updateAvailable": "Actualización disponible",
+            "upToDate": "Actualizado",
+            "checkFailed": "Verificación fallida",
+            "installed": "Instalado",
+            "scope": "Instala desde el paquete de skills de la empresa {{value0}} (rama {{value1}}) y reemplaza todas sus skills a la vez: {{value2}}."
           }
         }
       }
