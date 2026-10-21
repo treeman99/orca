@@ -99,6 +99,7 @@ export const SQLITE_SCHEMA_FILE_DATABASES: Record<string, string> = {
   // Fork: the corporate two-week retention's reuse clock (session-search-reuse.ts).
   'src/main/ai-vault-search/session-search-reuse.ts': 'ai-vault-search',
   'src/main/ai-vault-search/session-search-schema.ts': 'ai-vault-search',
+  'src/main/ai-vault-search/session-search-write-buffer.ts': 'ai-vault-search-staging',
   'src/main/ai-vault/session-parse-cache-database.ts': 'ai-vault-parse-cache',
   'src/main/ai-vault/session-scope-cwds-table.ts': 'ai-vault-parse-cache',
   'src/main/browser/browser-cookie-staged-import.ts': 'browser-cookie-import',
@@ -224,6 +225,11 @@ export const SQLITE_TABLE_DISPOSITIONS: Record<string, WslMoveFieldDisposition> 
       'ai-vault-search',
       ['session_search_reuse'],
       notApplicableDisposition(57, 'Retention reuse stamps; losing one only ends that reuse early.')
+    ),
+    ...tables(
+      'ai-vault-search-staging',
+      ['messages'],
+      notApplicableDisposition(57, 'Read-local search staging; deleted when its connection closes.')
     ),
     ...tables(
       'ai-vault-parse-cache',

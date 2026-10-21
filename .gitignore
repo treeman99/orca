@@ -125,6 +125,10 @@ docs/**
 !docs/bug-reproductions/**
 !docs/STYLEGUIDE.md
 !docs/ai-vault-process-isolation-plan.md
+!docs/reference/
+!docs/reference/cross-platform-support.md
+!docs/reference/git-workflow.md
+!docs/reference/test-antipatterns.md
 
 !docs/audits/
 !docs/audits/crashpad-read-limit/

@@ -17,6 +17,7 @@ import {
 import { installAutomationHostDiagnostic } from './components/automations/automation-host-diagnostics'
 import { applyDocumentTheme } from './lib/document-theme'
 import { installTypingLatencyDiagnostic } from './lib/typing-latency/diagnostic'
+import { installAppKeyboardRouter } from './lib/app-keyboard-router'
 import { shouldEnableReactGrab } from './lib/react-grab-dev-gate'
 import { I18nProvider } from './i18n/I18nProvider'
 import { translate } from './i18n/i18n'
@@ -33,6 +34,7 @@ recordRendererCrashBreadcrumb('renderer_bootstrap_started', { dev: import.meta.e
 installRendererCrashDiagnostics()
 startEnterprisePolicySync()
 installTypingLatencyDiagnostic()
+installAppKeyboardRouter()
 installAutomationHostDiagnostic()
 // Fork: freeze evidence for the opt-in troubleshooting log; observes nothing while it is off.
 installRendererLongFrameDiagnostic()

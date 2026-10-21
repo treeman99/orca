@@ -40,7 +40,9 @@ function parseTabClosures(value: unknown): { worktreeId: string; tabId: string }
 
 // Why optional: the fork's tab-close tests register without a runtime.
 type SessionHandlerRuntime = ClosedTerminalTabSessionTerminator &
-  Partial<Pick<OrcaRuntimeService, 'closeTerminalSurfaceFromRenderer'>>
+  Partial<
+    Pick<OrcaRuntimeService, 'closeTerminalSurfaceFromRenderer' | 'shutdownReconnectFactsFor'>
+  >
 
 export function registerSessionHandlers(
   store: Store,
@@ -66,15 +68,17 @@ export function registerSessionHandlers(
 
   // Switch point: main keeps its own layout over the window's and takes the window's view and
   // facts; the drift check reports where the save's layout still differs from main's.
+  // Fork: without a runtime the window's own reconnect facts stand (the callback is optional upstream).
+  const reconnectFacts = runtime?.shutdownReconnectFactsFor?.bind(runtime)
   const sessionForMain = (args: WorkspaceSessionState, hostId: string | null | undefined) => {
     const stored = store.getWorkspaceSession(hostId)
     reportWindowSaveDrift(stored, args, hostId, 'session:set')
-    return windowViewSaveForMain(stored, args, hostId)
+    return windowViewSaveForMain(stored, args, hostId, reconnectFacts)
   }
   const patchForMain = (args: WorkspaceSessionPatch, hostId: string | null | undefined) => {
     const stored = store.getWorkspaceSession(hostId)
     reportWindowSaveDrift(stored, { ...stored, ...args }, hostId, 'session:patch')
-    return windowViewPatchForMain(stored, args, hostId)
+    return windowViewPatchForMain(stored, args, hostId, reconnectFacts)
   }
 
   ipcMain.handle('session:set', (_event, args: WorkspaceSessionState, hostId?: string | null) => {

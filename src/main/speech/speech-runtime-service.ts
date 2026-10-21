@@ -6,14 +6,9 @@ import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
 /**
  * Lazy accessors for the speech services.
  *
- * Why the construction is injected: `ModelManager` downloads models through Electron's
- * streaming `net.request` — byte-range resume, progress events, a manual idle timeout —
- * and `SttService` resolves paths inside the packaged app. Importing either for its
- * *type* is free; constructing one is what pulls Electron in.
- *
- * The desktop installs the factories. A host without them rejects per call rather than
- * returning a stub that silently does nothing: speech is a desktop feature, and a
- * headless host saying so is more useful than one that appears to transcribe.
+ * Why the construction is injected: each host picks how `ModelManager` downloads (Chromium's
+ * `net` on the desktop, Node's `https` on orcad). Both the desktop and orcad install factories;
+ * a host without them rejects per call rather than returning a stub that appears to transcribe.
  */
 
 type SpeechSettingsStore = {
@@ -49,7 +44,7 @@ export const VOICE_DISABLED_BY_POLICY = 'voice_disabled_by_policy'
 // Why both getters and not the IPC layer alone: the STT worker and the model downloader
 // are also reached from the mobile RPC lane in orca-runtime, and a phone can turn
 // dictation on remotely. These two lazy singletons are what every path has to go through.
-function assertVoiceAllowed(): void {
+export function assertVoiceAllowed(): void {
   if (getEnterprisePolicy().disableVoice) {
     throw new Error(VOICE_DISABLED_BY_POLICY)
   }

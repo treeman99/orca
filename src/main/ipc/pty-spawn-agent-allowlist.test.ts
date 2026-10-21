@@ -80,7 +80,9 @@ describe('PTY spawns under the corporate agent allowlist', () => {
     resetAgentLaunchPanesForTests()
   })
 
-  function register(plan: () => Promise<Record<string, unknown>> = async () => ({ command: 'claude' })) {
+  function register(
+    plan: () => Promise<Record<string, unknown>> = async () => ({ command: 'claude' })
+  ) {
     const providerSpawn = vi.fn(async () => ({ id: 'pty-allowlist' }))
     installDaemonTestProvider({ spawn: providerSpawn })
     const runtime = {
@@ -159,7 +161,10 @@ describe('PTY spawns under the corporate agent allowlist', () => {
   // caller's `launchAgent`, so the entry check alone would trust a claim the plan overrides.
   it("refuses a pane's own launch when the planned agent is blocked, whatever the caller claims", async () => {
     policyState.current = CODEX_BLOCKED()
-    const { runtime, providerSpawn } = register(async () => ({ command: 'codex', launchAgent: 'codex' }))
+    const { runtime, providerSpawn } = register(async () => ({
+      command: 'codex',
+      launchAgent: 'codex'
+    }))
     const codexButton: AgentPaneLaunchRequest = {
       launch: { agent: 'codex', target: { kind: 'existing', worktree: `id:${worktreeId}` } }
     }
@@ -182,7 +187,13 @@ describe('PTY spawns under the corporate agent allowlist', () => {
     expect(providerSpawn).not.toHaveBeenCalled()
   })
 
-  it('refuses a blocked agent on the runtime PTY controller too', async () => {
+  // v1.4.237 split the controller: a pane-addressed spawn adopts the stable pane first and only
+  // the others go straight to the fresh spawn, so the gate has to sit before that branch.
+  it.each([
+    ['an unaddressed spawn', {}],
+    ['a pane-addressed spawn (stable-pane adoption)', { tabId, leafId }],
+    ['a spawn already inside a pane operation', { tabId, leafId, paneSpawnOperation: {} }]
+  ])('refuses a blocked agent on the runtime PTY controller too: %s', async (_name, shape) => {
     policyState.current = CODEX_BLOCKED()
     const { runtime, providerSpawn } = register()
     const controller = runtime.setPtyController.mock.calls[0]?.[0] as {
@@ -195,7 +206,8 @@ describe('PTY spawns under the corporate agent allowlist', () => {
         cwd: '/tmp/allowlist',
         command: 'codex',
         launchAgent: 'codex',
-        worktreeId
+        worktreeId,
+        ...shape
       })
     ).rejects.toThrow(BLOCKED)
     expect(providerSpawn).not.toHaveBeenCalled()

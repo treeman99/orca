@@ -36,7 +36,7 @@ import {
 import {
   attachStructuredAgentSession,
   attachStructuredAgentSessionForStart
-} from '../native-chat/agent-session-wire/structured-agent-session-attach-orchestration'
+} from '../native-chat/agent-session-wire/structured-agent-session-attach-allowlist'
 import { OrcaRuntimeService } from './orca-runtime'
 
 const BLOCKED = /agent_blocked_by_enterprise_policy/
@@ -65,9 +65,10 @@ const ATTACH_REACHED = Symbol('attach reached')
 
 function attachContext(): Parameters<typeof attachStructuredAgentSession>[0] {
   // Stops at the first collaborator: reaching `serialize` already proves the gate let it past,
-  // and running the real attach would need a store, a journal and a lease.
+  // and running the real attach would need a store, a journal and a lease. The lane reads its
+  // `{ result }` back out (`{ flight }` would wait on another start's acquisition).
   return {
-    serialize: vi.fn(() => Promise.resolve(ATTACH_REACHED)),
+    serialize: vi.fn(() => Promise.resolve({ result: ATTACH_REACHED })),
     tasks: { trackAttach: (attaching: unknown) => attaching }
   } as unknown as Parameters<typeof attachStructuredAgentSession>[0]
 }

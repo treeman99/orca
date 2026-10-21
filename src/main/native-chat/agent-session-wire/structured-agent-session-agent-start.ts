@@ -25,7 +25,7 @@ import type {
 import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
 import { isQueuedAgentJournalSubmission } from '../../../shared/agent-session-queued-submission'
 import { randomUUID } from 'node:crypto'
-import { attachStructuredAgentSessionForStart } from './structured-agent-session-attach-orchestration'
+import { attachStructuredAgentSessionForStart } from './structured-agent-session-attach-allowlist'
 import type { StructuredAgentSessionAttachLock } from './structured-agent-session-attach-lock'
 import { structuredAgentSessionStartFlightLock } from './structured-agent-session-start-flight'
 import { isStructuredAgentSessionStartupExpired } from './structured-agent-session-startup-attempt-contract'

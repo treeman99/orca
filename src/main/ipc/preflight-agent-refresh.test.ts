@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as LocalCommandResolver from './command-path-resolver'
+import { resolveProfileLoadingShell } from '../startup/hydrate-shell-path'
 
 const {
   handleMock,
@@ -48,7 +49,9 @@ vi.mock('child_process', () => {
 
 vi.mock('../startup/hydrate-shell-path', () => ({
   hydrateShellPath: hydrateShellPathMock,
-  mergePathSegments: mergePathSegmentsMock
+  mergePathSegments: mergePathSegmentsMock,
+  resolveProfileLoadingShell: vi.fn(() => null),
+  resolveProfileLoadingFallbackShell: () => null
 }))
 
 vi.mock('../../shared/node-cli-command-resolution', () => ({
@@ -65,6 +68,7 @@ vi.mock('./command-path-resolver', async (importOriginal) => ({
 }))
 
 vi.mock('../pty/windows-environment-path', () => ({
+  readPersistedWindowsPathSegmentsAsync: async () => [],
   mergePersistedWindowsPathAsync: mergePersistedWindowsPathAsyncMock,
   mergePersistedWindowsPath: mergePersistedWindowsPathMock
 }))
@@ -77,6 +81,7 @@ describe('preflight', () => {
   const handlers: HandlerMap = {}
 
   beforeEach(() => {
+    vi.mocked(resolveProfileLoadingShell).mockClear()
     runWslProcessMock.mockReset()
     resetPreflightMocks(
       {
@@ -150,6 +155,7 @@ describe('preflight', () => {
     })
     expect(hydrateShellPathMock).not.toHaveBeenCalled()
     expect(mergePathSegmentsMock).not.toHaveBeenCalled()
+    expect(resolveProfileLoadingShell).not.toHaveBeenCalled()
   })
 
   it('refreshes via preflight:refreshAgents by re-hydrating PATH before re-detecting', async () => {

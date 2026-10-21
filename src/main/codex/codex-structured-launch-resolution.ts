@@ -14,7 +14,6 @@ import type { StructuredAgentLaunchPartResolver } from '../runtime/structured-ag
 import { assertAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 import type { CodexStructuredLaunch } from './codex-structured-session-adapter'
 import { codexStructuredPermissionPolicy } from './codex-structured-permission-policy'
-import { resolvePinnedCodexRolloutProof } from './codex-pinned-rollout-proof'
 import { codexStructuredLaunchArgs } from './codex-structured-launch-args'
 import {
   LEGACY_NATIVE_CHAT_VISUALS_DIR_ENV,
@@ -26,7 +25,6 @@ export type CodexStructuredLaunchPartDeps = {
   resolveLaunchArgs: () => Promise<string[]> | string[]
   /** Overridden in tests; production scans the boot-cached PATH and version-manager dirs. */
   resolveCommand?: (options?: { pathEnv?: string | null; homePath?: string }) => string
-  resolveRollout?: typeof resolvePinnedCodexRolloutProof
 }
 
 export type CodexStructuredInvocationDeps = Pick<
@@ -79,7 +77,7 @@ async function readCodexStructuredInvocation(
   return { command, environment }
 }
 
-/** Codex's part of a launch: its binary, thread arguments, account home, resume proof and visuals. */
+/** Codex's part of a launch: its binary, thread arguments, account home and visuals. */
 export function codexStructuredLaunchPart(
   deps: CodexStructuredLaunchPartDeps
 ): StructuredAgentLaunchPartResolver<CodexStructuredLaunch> {
@@ -100,7 +98,6 @@ export function codexStructuredLaunchPart(
     // The same saved options every turn sends, so the thread and its turns name one model.
     const model = record.options?.model
     const visuals = await basis.visuals()
-    // Before the rollout scan, so a missing floating folder is still the refusal that wins.
     await basis.launchDirectory()
     return {
       launch: {
@@ -116,15 +113,7 @@ export function codexStructuredLaunchPart(
         // States every posture outright: a resume inherits the last one for any field left absent.
         permissionPolicy: codexStructuredPermissionPolicy(basis.permissionMode ?? 'ask'),
         ...(model ? { model } : {}),
-        ...(visuals ? { visuals } : {}),
-        ...(resumeThreadId
-          ? {
-              resumePath: await (deps.resolveRollout ?? resolvePinnedCodexRolloutProof)(
-                accountHome.path,
-                resumeThreadId
-              )
-            }
-          : {})
+        ...(visuals ? { visuals } : {})
       },
       env: withNativeChatVisualsEnv(
         { ...environment, ...(accountHome.path ? { CODEX_HOME: accountHome.path } : {}) },

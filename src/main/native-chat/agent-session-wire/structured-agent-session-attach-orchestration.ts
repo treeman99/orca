@@ -29,7 +29,6 @@ import {
   pinnedAgentSessionLaunchEnv
 } from './structured-agent-session-launch-env'
 import { refuseAgentSessionMutation } from './structured-agent-session-mutation-admission'
-import { refuseDisallowedAgent } from '../../enterprise/agent-allowlist-guard'
 import { settleStaleStructuredAgentSessionState } from './structured-agent-session-dead-generation-settlement'
 import { structuredAgentSessionFailureWordsContext } from './structured-agent-session-send-preparation'
 import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
@@ -52,6 +51,8 @@ import {
 
 export type StructuredAgentSessionAttachOptions = {
   hostLaunchDirectory?: string
+  /** The saved list a new chat's options are admitted against, for the folder its picker read. */
+  catalogModels?: AttachFlowInput['models']
   recordPhase?: AgentSessionCreatePhaseRecorder
   onAcquisitionFailed?: AttachFlowInput['onAcquisitionFailed']
   /** The queued message a start is for; see `StructuredAgentSessionProviderChild.startedFor`. */
@@ -76,9 +77,7 @@ export function attachStructuredAgentSessionForStart(
   params: AgentSessionAttachParams,
   options: StructuredAgentSessionAttachOptions & { lock: StructuredAgentSessionAttachLock }
 ): Promise<AgentSessionMutationResult<AgentSessionAttachResult>> {
-  // Why repeated here: the delivery loop's resume reaches this export directly, so the gate in
-  // attachStructuredAgentSession alone would let a since-disallowed agent's child respawn.
-  return refuseDisallowedAgent(params.agent) ?? runAttach(context, callerKey, params, options)
+  return runAttach(context, callerKey, params, options)
 }
 
 export function attachStructuredAgentSession(
@@ -87,16 +86,6 @@ export function attachStructuredAgentSession(
   params: AgentSessionAttachParams,
   options: StructuredAgentSessionAttachOptions = {}
 ): Promise<AgentSessionMutationResult<AgentSessionAttachResult>> {
-  // Why here and not in the three RPC handlers: create-by-intent, create-by-attach-params,
-  // ensure and the surface-hold resume all funnel through this call. Refusing before the
-  // session is reserved leaves no record, no journal and no idempotency row behind — and
-  // nothing enters the attach queue, so `drainAttaches` has nothing to wait on.
-  // Why a rejection and not a throw: this returns a Promise but is not `async`, so a
-  // synchronous throw would escape a caller's `.catch`.
-  const refused = refuseDisallowedAgent(params.agent)
-  if (refused) {
-    return refused
-  }
   const sessionId = params.envelope.sessionId
   // Tracked from enqueue, not from its turn on the queue: a quit drains a queued attach before it
   // evicts, so no child is spawned behind the eviction and orphaned.
@@ -231,6 +220,7 @@ async function runAttachUnderAbort(
   const { startupAttempts } = context.runtimeState
   try {
     const attached = await performAttach({
+      models: priorRecord ? undefined : options.catalogModels,
       store: context.deps.store,
       adapter: context.deps.adapter,
       agents: context.deps.agents,

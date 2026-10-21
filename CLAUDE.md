@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
-The contribution rules above (design system, cross-platform, SSH, Git compatibility, naming, `max-lines`) are binding. This file adds the commands and the architecture map.
+The contribution rules above are binding, and so are the reference docs AGENTS.md links for them (`docs/reference/cross-platform-support.md`, `git-workflow.md`, `test-antipatterns.md` — upstream v1.4.237 moved the cross-platform, Git-compatibility and SSH detail there). AGENTS.md no longer states the `max-lines` rule, but the lint gate and ratchet still enforce it: never add a `max-lines` disable. This file adds the commands and the architecture map.
 
 ## Commands
 
@@ -233,6 +233,6 @@ VS Code 소스 제어 패널과 서브모듈 취급, VS Code 로 열기, Conflue
 
 ## Reference docs
 
-`docs/STYLEGUIDE.md` (mandatory for UI work), `.github/CONTRIBUTING.md` (PR expectations, maintainer release flow). Upstream deleted all of `docs/reference/` in v1.4.224 (git compatibility, glibc floor, headless server, the Windows notes AGENTS.md used to link) — read them at `v1.4.223` with `git show v1.4.223:docs/reference/<name>.md`; only the fork's own documents below remain in the tree. Loose `docs/*.md` files are per-feature design notes, not general guides.
+`docs/STYLEGUIDE.md` (mandatory for UI work), `.github/CONTRIBUTING.md` (PR expectations, maintainer release flow). Upstream deleted all of `docs/reference/` in v1.4.224 (glibc floor, headless server, the Windows notes AGENTS.md used to link) — read them at `v1.4.223` with `git show v1.4.223:docs/reference/<name>.md`. v1.4.237 brought back three upstream documents (`cross-platform-support.md`, `git-workflow.md`, `test-antipatterns.md`); everything else in `docs/reference/` is the fork's own, listed below. Loose `docs/*.md` files are per-feature design notes, not general guides.
 
 Fork-specific (Korean): `README.md` (build, GHES, Bedrock, fork sync), `docs/reference/enterprise-policy.md` (policy file schema, fleet deployment, verification), `docs/reference/external-integrations-audit.md` (what leaves the machine, what the lockdown covers, and the residual-risk register), `docs/reference/windows-corporate-build.md` (Windows installer build), `docs/reference/macos-dev-ui-check.md` (check the corporate UI from a macOS `pnpm dev` run, no installer), `docs/reference/local-dev-run.md` (Windows-side local verification: what `pnpm dev` vs `build:unpack` vs the installer each prove, and what none of them can), `docs/reference/pnpm-12-corepack-install.md` (why a locked-down Windows machine fails to install pnpm, and the three causes that are not pnpm itself — read it before blaming the pinned version). **README §6 is the fork-sync ledger**: it records what this fork deleted from upstream and, for each, the collateral edits that come back _without a conflict_ on the next merge — check those by hand, not by trusting a clean merge. Keep the audit document honest — it is what a corporate security reviewer reads, and overstating the lockdown there is worse than saying nothing.

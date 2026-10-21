@@ -69,8 +69,6 @@ export function connectPanePty(
   )
   session.connectFrame = null
   session.connectFallbackTimer = null
-  session.startupGridSettleHandle = null
-  session.startupGridSettledForConnect = false
   session.connectStarted = false
   session.unregisterBacklogRecovery = null
   session.unregisterDocumentVisibilityRecovery = null
@@ -87,6 +85,7 @@ export function connectPanePty(
   session.startupInjectTimer = null
   session.agentTaskCompleteNotificationGraceTimer = null
   session.agentTaskCompleteNotificationMaxTimer = null
+  session.hookOwnedIdleAbsorbsBell = false
   session.agentTaskCompleteStatusUnsubscribe = null
   session.agentTaskCompleteSettingsUnsubscribe = null
   session.agentTaskCompleteNotificationGeneration = 0

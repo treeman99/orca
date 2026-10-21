@@ -149,12 +149,12 @@
           "why": "v1.4.215 신규 zcode 프리플라이트가 zcode 바이너리를 인자 없이 실행한다. 빠지면 허용 안 된 에이전트가 기능 탐지만으로 실행된다."
         },
         {
-          "file": "src/main/native-chat/agent-session-wire/structured-agent-session-attach-orchestration.ts",
+          "file": "src/main/native-chat/agent-session-wire/structured-agent-session-attach-allowlist.ts",
           "contains": "// Why here and not in the three RPC handlers: create-by-intent, create-by-attach-params,",
           "why": "structured 레인의 attach 퍼널 게이트(185d2d39d8). 이 줄 바로 아래 agentBlockedByPolicyError 가 세션 예약 전에 거부한다. 지금까지 원장 미등재였다."
         },
         {
-          "file": "src/main/native-chat/agent-session-wire/structured-agent-session-attach-orchestration.ts",
+          "file": "src/main/native-chat/agent-session-wire/structured-agent-session-attach-allowlist.ts",
           "contains": "the delivery loop's resume reaches this export directly",
           "why": "v1.4.218 이 attachStructuredAgentSessionUnderSerialize 를 export 했고 큐 메시지 재개(structured-agent-session-agent-start.ts)가 그것을 직접 부른다(실패 모드 V). 퍼널 게이트만으로는 정책에서 빠진 에이전트의 child 가 재기동된다."
         },
@@ -254,9 +254,14 @@
           "why": "v1.4.232 가 새 탭 에이전트 메뉴(QuickLaunch·탭 바 + 메뉴)를 이 훅 하나로 모았다. 반응형 정책 읽기라 정책이 비동기로 늦게 와도 메뉴가 다시 그려진다."
         },
         {
-          "file": "src/main/native-chat/agent-session-wire/structured-agent-session-attach-orchestration.ts",
-          "contains": "return refuseDisallowedAgent(params.agent) ?? runAttach(context, callerKey, params, options)",
-          "why": "v1.4.232 에서 attachStructuredAgentSessionUnderSerialize 가 attachStructuredAgentSessionForStart 로 바뀌었다. 파일이 max-lines 에 닿아 게이트를 한 줄로 접었다."
+          "file": "src/main/native-chat/agent-session-wire/structured-agent-session-create.ts",
+          "contains": "import { attachStructuredAgentSession } from './structured-agent-session-attach-allowlist'",
+          "why": "v1.4.237: 게이트를 포크 래퍼(structured-agent-session-attach-allowlist.ts)로 옮기고 호출자는 upstream 이름 그대로 경로만 바꿨다(별칭 임포트 수법). upstream orchestration 파일이 max-lines 에 닿아 있다. 이 import 가 upstream 경로로 돌아가면 호출부는 그대로 컴파일되고 게이트만 빠진다."
+        },
+        {
+          "file": "src/main/native-chat/agent-session-wire/structured-agent-session-agent-start.ts",
+          "contains": "import { attachStructuredAgentSessionForStart } from './structured-agent-session-attach-allowlist'",
+          "why": "위와 같다 — 큐 메시지 재개(실패 모드 V) 레인. upstream 경로로 되돌아가면 정책에서 빠진 에이전트의 child 가 재기동된다."
         },
         {
           "file": "src/main/runtime/structured-agent-launch-support.ts",
@@ -438,6 +443,16 @@
           "file": "src/main/node-runtime/runtime-archive-download.ts",
           "contains": "code: 'ORCA_RUNTIME_DOWNLOAD_DISABLED_BY_POLICY'",
           "why": "문자열 code 가 있어야 v1.4.232 의 pinned materializer 가 정책 거부를 \"네트워크 불통\"으로 감싸지 않는다(감싸면 프록시 안내가 나오고 호스트 폴백이 돈다)."
+        },
+        {
+          "file": "package.json",
+          "contains": "\"build:cli\": \"pnpm run build:packages && tsc -p config/tsconfig.build.cli.json",
+          "why": "v1.4.237 이 build:cli 를 build-cli.mjs 로 바꿨다. 그 스크립트는 bun(포크 미탑재) 또는 tsrs(Windows 바이너리 없음)만 돌리므로, 받으면 사내 Windows 빌드의 build:release·build:desktop 이 build:cli 에서 죽는다. 충돌 없이 자동 병합되는 줄이다."
+        },
+        {
+          "file": "src/main/speech/openai-api-key-store.ts",
+          "contains": "import { assertVoiceAllowed } from './speech-runtime-service'",
+          "why": "v1.4.237 이 OpenAI 음성 키 저장에 런타임 RPC(speech.openAiKey.set)와 CLI(orca speech openai-key set)라는 두 번째 입구를 열었다. disableVoice 일 때 막혀 있던 것은 데스크톱 speech IPC 등록뿐이라, 저장 초크포인트의 첫 줄이 유일한 공통 게이트다. 호출 줄이 빠지면 oxlint 가 미사용 import 로 잡는다."
         }
       ]
     },
@@ -1294,6 +1309,16 @@
           "file": "src/main/ipc/runtime-environments/runtime-environment-pairing-verification.ts",
           "contains": "  assertRemoteOrcaServerAllowed()\n  const parsed = parseHostAccessLink(pairingCode)",
           "why": "v1.4.230 의 재페어링 채널(runtimeEnvironments:repairFromPairingCode)은 키 비교 전에 붙여 넣은 링크의 호스트로 Node ws 소켓을 연다. 페어링 코드 검증이 여는 유일한 소켓 앞의 게이트다(remote-orca-server-repair-policy.test.ts)."
+        },
+        {
+          "file": "src/renderer/src/components/settings/settings-remote-security-section-renderers.tsx",
+          "contains": "return getEnterprisePolicyView().disableRemoteOrcaServer ? null : (",
+          "why": "Remote Orca Servers 섹션 본문 게이트. v1.4.237 이 이 렌더러를 RuntimeServersPageProvider 로 감싸 다시 짰고(#31082) 충돌로 풀었다. 스위치 소비 하한(3)이 실제(16)보다 낮아 이 줄 하나가 빠져도 원장이 못 잡는다."
+        },
+        {
+          "file": "src/renderer/src/hooks/settings-navigation-remote-sections.ts",
+          "contains": "...(policy.disableRemoteOrcaServer",
+          "why": "설정 내비게이션의 servers 항목 게이트. v1.4.237 이 같은 항목의 설명·배지를 바꿔 충돌했다. 위와 같은 이유로 고유 앵커를 둔다."
         }
       ]
     },
@@ -1684,6 +1709,11 @@
           "file": "src/main/ipc/runtime-environments/runtime-environment-managed-pairing-refusal.ts",
           "contains": "if (SSH_REMOTE_HOSTS_REMOVED) {",
           "why": "v1.4.232 신규: 관리형 orcad 가 토큰을 거부하면 SSH 로 다시 접속해 재페어링한다. 이 빌드는 SSH 호스트를 지웠으므로 거부를 유지한다."
+        },
+        {
+          "file": "src/renderer/src/components/settings/runtime-servers-header-actions.tsx",
+          "contains": "const canInstall = !SSH_REMOTE_HOSTS_REMOVED && getManagedOrcadApi() !== undefined",
+          "why": "v1.4.237 이 관리형 서버 설치(\"Set up Orca on an SSH host\")를 Remote Orca Servers 헤더의 Add server 메뉴로 옮겼다. SSH 연결이 막힌 빌드에서 항상 실패하는 진입점이다."
         }
       ]
     },
@@ -1826,7 +1856,8 @@
     ".github/workflows/macos-updater-tests.yml",
     "native/macos-shipit-scheduling",
     "config/scripts/macos-shipit-scheduling*",
-    "src/main/updater/macos-shipit-scheduling*"
+    "src/main/updater/macos-shipit-scheduling*",
+    "src/main/orcad/orcad-browser-install-park.test.ts"
   ],
   "absentSymbols": [
     {
@@ -2008,6 +2039,41 @@
       "file": "config/electron-builder.config.cjs",
       "symbol": "buildMacShipItScheduling",
       "why": "v1.4.232 신규 Squirrel.Mac ShipIt 스케줄링 애드온(업데이터 전용). 포크는 인앱 업데이터를 지웠으므로 빌드하지도 서명하지도 않는다."
+    },
+    {
+      "file": "src/renderer/src/components/settings/runtime-server-row.tsx",
+      "symbol": "remote-server-update-coordinator",
+      "why": "v1.4.237 의 Remote Orca Servers 단일 목록(#31082)이 포크가 지운 원격 서버 업데이트 항목을 다시 렌더링한다. 포크가 덜어 냈다(README §6)."
+    },
+    {
+      "file": "src/renderer/src/components/settings/runtime-server-list.tsx",
+      "symbol": "remote-server-update-coordinator",
+      "why": "v1.4.237 의 Remote Orca Servers 단일 목록(#31082)이 포크가 지운 원격 서버 업데이트 항목을 다시 렌더링한다. 포크가 덜어 냈다(README §6)."
+    },
+    {
+      "file": "src/renderer/src/components/settings/runtime-server-row-details.tsx",
+      "symbol": "remote-server-update-coordinator",
+      "why": "v1.4.237 의 Remote Orca Servers 단일 목록(#31082)이 포크가 지운 원격 서버 업데이트 항목을 다시 렌더링한다. 포크가 덜어 냈다(README §6)."
+    },
+    {
+      "file": "src/renderer/src/components/settings/runtime-server-row-meta.ts",
+      "symbol": "remote-server-update-coordinator",
+      "why": "v1.4.237 의 Remote Orca Servers 단일 목록(#31082)이 포크가 지운 원격 서버 업데이트 항목을 다시 렌더링한다. 포크가 덜어 냈다(README §6)."
+    },
+    {
+      "file": "src/renderer/src/components/settings/runtime-servers-header-actions.tsx",
+      "symbol": "remoteServerUpdates",
+      "why": "v1.4.237 의 Remote Orca Servers 단일 목록(#31082)이 포크가 지운 원격 서버 업데이트 항목을 다시 렌더링한다. 포크가 덜어 냈다(README §6)."
+    },
+    {
+      "file": "src/renderer/src/components/settings/RuntimeEnvironmentsPane.tsx",
+      "symbol": "remoteServerUpdates",
+      "why": "v1.4.237 의 Remote Orca Servers 단일 목록(#31082)이 포크가 지운 원격 서버 업데이트 항목을 다시 렌더링한다. 포크가 덜어 냈다(README §6)."
+    },
+    {
+      "file": "src/shared/host-runtime-capabilities.ts",
+      "symbol": "REMOTE_SERVER_UPDATE_CAPABILITY",
+      "why": "원격 서버 업데이트 capability(포크 삭제). v1.4.237 이 protocol-version.ts 에서 이 모듈로 옮겼고, 이 파일은 충돌 없이 병합된다."
     }
   ],
   "policySwitchMinConsumers": {

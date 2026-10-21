@@ -572,7 +572,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.232`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.237`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -999,6 +999,30 @@ electron-builder 의 macOS afterPack 에서 그것을 빌드·서명하는 두 �
 `absentPaths`(`native/macos-shipit-scheduling`, `config/scripts/macos-shipit-scheduling*`)와
 `absentSymbols`(빌드 설정의 `buildMacShipItScheduling`)에 올렸습니다. **충돌 없이 들어오는 신규 파일**이므로
 다음 동기화에서도 원장이 먼저 말해 줍니다.
+
+#### CLI 빌드는 tsc 로 남긴다 — upstream 은 bun·tsrs 만 쓴다 (v1.4.237)
+
+v1.4.237 이 `build:cli` 를 `node config/scripts/build-cli.mjs` 로 바꿨습니다. 그 스크립트는 **bun**(포크 미탑재, 위
+"테스트·카탈로그 검증을 Bun 으로" 절)으로 검사하거나 새 devDependency **`tsrs`** 로 내보내는데, `tsrs` 의 플랫폼 패키지는
+darwin-arm64·linux 뿐이라 **Windows 바이너리가 없습니다.** 받으면 사내 Windows 빌드의 `build:release`·`build:desktop` 이
+`build:cli` 에서 죽으므로, 포크는 v1.4.232 의 tsc 명령을 유지합니다(`resolveProjectCompiler` 가 쓰는 것과 같은 `typescript` 의
+tsc 입니다). 같은 원칙으로 새 `typecheck:e2e`(`run-e2e-typecheck.mjs`, 기본 bun)에도 `--compiler=native` 를 붙였습니다.
+`tsrs` 의존성 자체는 npm 미러로 받는 일반 패키지(설치 스크립트 없음)라 그대로 둡니다.
+
+**다음 동기화에서 볼 것.** `build:cli` 줄은 포크가 손대지 않은 upstream 줄이었기 때문에 **충돌 없이 자동 병합으로**
+upstream 판이 들어왔습니다. 원장 `present`(`package.json` 의 `"build:cli": "pnpm run build:packages && tsc -p …`)와
+`run-typecheck-projects-in-parallel.test.mjs` 의 포크 계약 케이스가 지킵니다.
+
+#### Remote Orca Servers 단일 목록 — 원격 서버 업데이트를 다시 덜어 냈다 (v1.4.237)
+
+upstream #31082 가 Remote Orca Servers 를 "섹션 여섯 개 → 목록 하나"로 다시 짰습니다(`runtime-server-list.tsx`·
+`runtime-server-row*.ts(x)`·`runtime-servers-header-actions.tsx` 신설, `runtime-servers-connect-section.tsx` 삭제). 새 구조가
+행마다 원격 서버 업데이트 상태·Update 버튼·"Check for updates" 메뉴·헤더의 "Update all" 을 다시 렌더링하므로, 포크가 지운
+`remote-server-update-coordinator`/`RemoteServerUpdateStatus` 참조를 새 파일들에서 걷어 냈습니다. capability
+`REMOTE_SERVER_UPDATE_CAPABILITY` 는 `protocol-version.ts` 에서 `host-runtime-capabilities.ts` 로 옮겨 와 거기서도 뺐고,
+헤더 메뉴로 옮겨 온 "Set up Orca on an SSH host"(관리형 orcad 설치)는 SSH 호스트를 뺀 이 빌드에서 항상 실패하므로
+`SSH_REMOTE_HOSTS_REMOVED` 로 감췄습니다. 원장 `absentSymbols` 7건과 `present` 1건이 지킵니다 — 포크에 업데이트 코디네이터
+모듈이 없어 되살아나면 tc 도 깨지지만, 원장이 먼저 파일을 짚어 줍니다.
 
 #### pnpm 전역 가상 스토어 — upstream 이 로컬 설치의 기본값을 바꿨다 (v1.4.232)
 

@@ -36,6 +36,8 @@ import {
 } from '../ipc/worktree-base-directory-watcher'
 import { startFolderRepoGitUpgradeWatch } from '../ipc/folder-repo-git-upgrade'
 import { registerRuntimeWindowLifecycle } from './runtime-window-lifecycle'
+import { ensureStructuredAgentSessionHostUnlessRefused } from '../runtime/structured-agent-session-host-refusal'
+import { getAgentSessionAttachmentStore } from '../native-chat/agent-session-attachments/agent-session-attachment-store-registry'
 import { registerDroppedPathPreparation } from './dropped-path-preparation-ipc'
 
 let appReloadHandlerTokenCounter = 0
@@ -117,7 +119,12 @@ export function attachMainWindowServices(
     void hydrateLocalPtyRegistryAtBoot(store)
   }
   registerSshHandlers(store, () => mainWindow, runtime)
-  registerDroppedPathPreparation(mainWindow)
+  registerDroppedPathPreparation(mainWindow, async () => {
+    await ensureStructuredAgentSessionHostUnlessRefused(() =>
+      runtime.ensureStructuredAgentSessionHost()
+    )
+    return getAgentSessionAttachmentStore()
+  })
   registerTccPromptNoticeHandlers(mainWindow)
   registerRuntimeWindowLifecycle(mainWindow, runtime)
 

@@ -139,12 +139,21 @@ describe('CI compiler selection', () => {
 
   // Fork: no Bun devDependency — its postinstall falls back to registry.npmjs.org, past the
   // internal mirror (README §6). So every local typecheck script must ask for tsc.
-  it('ships no Bun devDependency and pins local typecheck scripts to tsc', () => {
+  it('ships no Bun devDependency and pins local typecheck and CLI build scripts to tsc', () => {
     const manifest = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'))
     expect(manifest.devDependencies.bun).toBeUndefined()
-    for (const name of ['typecheck', 'typecheck:node', 'typecheck:cli', 'typecheck:web']) {
+    for (const name of [
+      'typecheck',
+      'typecheck:node',
+      'typecheck:cli',
+      'typecheck:web',
+      'typecheck:e2e'
+    ]) {
       expect(manifest.scripts[name]).toContain('--compiler=native')
     }
+    // build-cli.mjs only runs Bun or tsrs, and tsrs ships no Windows binary.
+    expect(manifest.scripts['build:cli']).not.toContain('build-cli.mjs')
+    expect(manifest.scripts['build:cli']).toContain('tsc -p config/tsconfig.build.cli.json')
   })
 
   it('narrows to the requested projects and rejects unknown ones', () => {

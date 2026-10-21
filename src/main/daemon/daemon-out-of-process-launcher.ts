@@ -85,6 +85,8 @@ export type DaemonLaunchPolicy = {
   macosLoginSessionWatch?: boolean
   startupTimeoutMs?: number
   spawnAdmission?: 'observe' | 'enforce'
+  /** Replace a stale-version daemon once it drains on every platform, not only macOS. */
+  recycleStaleDaemonOnEveryPlatform?: boolean
 }
 
 export function createOutOfProcessLauncher(
