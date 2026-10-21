@@ -44,9 +44,9 @@
           "contains": "getEnterprisePolicy().disableVoice"
         },
         {
-          "file": "src/renderer/src/store/plugin-language-packs.ts",
+          "file": "src/renderer/src/store/plugin-content-list-store.ts",
           "contains": "getEnterprisePolicyView().disablePlugins ? undefined : window.api?.plugins",
-          "why": "잠금 정책에서는 plugins 채널이 없어 렌더러 로드마다 콘솔 에러가 난다. v1.4.217 충돌 때 미등재로 드러났다."
+          "why": "v1.4.232 가 언어팩 스토어를 플러그인 콘텐츠 계열 공용 팩토리로 추출했다. 게이트는 모든 계열이 지나는 그 팩토리의 fetch 에."
         }
       ]
     },
@@ -79,8 +79,9 @@
           "why": "관리형 워크트리 생성의 allowedAgents 게이트. v1.4.221 부터 upstream 이 그 파일을 300줄 상한까지 채워 클래스 체인 말단(포크 표면)의 override 로 옮겼다."
         },
         {
-          "file": "src/main/runtime/workspaces/workspace-activation.ts",
-          "contains": "assertAgentAllowedByEnterprisePolicy(agent)"
+          "file": "src/main/runtime/orca-runtime-fork-surface.ts",
+          "contains": "assertAgentAllowedByEnterprisePolicy(args[1])",
+          "why": "새 워크스페이스의 에이전트 시작(buildStartupForAgent). v1.4.232 가 workspace-activation.ts 를 max-lines 한도까지 채워 포크 표면 override 로 옮겼다."
         },
         {
           "file": "src/main/runtime/orca-runtime-create-agent-session.ts",
@@ -246,6 +247,21 @@
           "file": "src/renderer/src/components/settings/NativeChatProvidersSetting.tsx",
           "contains": "  const visibleAgents = filterAgentsByPolicy(",
           "why": "v1.4.230 의 채팅 Providers 설정 목록. 다른 피커처럼 허용목록으로 거른다(UI 위생 — 실행 게이트는 main 에 있다)."
+        },
+        {
+          "file": "src/renderer/src/components/tab-bar/use-new-tab-agent-menu-rows.ts",
+          "contains": "rows: filterAgentsByPolicy(rows, (row) => row.agent, allowedAgents),",
+          "why": "v1.4.232 가 새 탭 에이전트 메뉴(QuickLaunch·탭 바 + 메뉴)를 이 훅 하나로 모았다. 반응형 정책 읽기라 정책이 비동기로 늦게 와도 메뉴가 다시 그려진다."
+        },
+        {
+          "file": "src/main/native-chat/agent-session-wire/structured-agent-session-attach-orchestration.ts",
+          "contains": "return refuseDisallowedAgent(params.agent) ?? runAttach(context, callerKey, params, options)",
+          "why": "v1.4.232 에서 attachStructuredAgentSessionUnderSerialize 가 attachStructuredAgentSessionForStart 로 바뀌었다. 파일이 max-lines 에 닿아 게이트를 한 줄로 접었다."
+        },
+        {
+          "file": "src/main/runtime/structured-agent-launch-support.ts",
+          "contains": "if (!isAgentAllowedByEnterprisePolicy(agent)) {",
+          "why": "v1.4.232 가 export 한 observeStructuredAgentLaunch 를 에이전트 가용성 스냅샷이 시작·설정 변경·Refresh 마다 부른다. ACP 레인은 게이트된 리졸버를 거치지 않아 허용목록 밖 에이전트의 `--version` 을 띄우고 available 로 발행했다(실패 모드 V)."
         }
       ]
     },
@@ -284,8 +300,9 @@
           "contains": "assertVendorAccountRegistrationAllowed()"
         },
         {
-          "file": "src/main/ipc/minimax-credentials.ts",
-          "contains": "assertVendorAccountRegistrationAllowed()"
+          "file": "src/main/minimax/minimax-credential-commands.ts",
+          "contains": "assertVendorAccountRegistrationAllowed()",
+          "why": "v1.4.232 가 MiniMax 저장 로직을 IPC 와 런타임 RPC(accounts.minimaxSave*, 페어링 클라이언트용)가 함께 부르는 커맨드 모듈로 뺐다. IPC 에 두면 RPC 레인이 우회한다."
         },
         {
           "file": "src/main/runtime/push/push-gateway-origin.ts",
@@ -338,9 +355,9 @@
           "why": "v1.4.215 신설 스위치의 유일한 게이트. v1.4.220 이 bun 을 고정 Node 런타임으로 바꾸고 다운로드를 downloadVerifiedArchive 한 곳으로 모았다 — SSH 릴레이 배포·WSL·OpenCode 준비가 사용자 조작 없이 런타임 아카이브를 받는 레인이다. v1.4.229 의 관리형 에이전트 런타임 설치(managedRuntime.install)도 여기로 수렴한다(행동 테스트 managed-runtime-install-enterprise-policy.test.ts)."
         },
         {
-          "file": "src/main/ipc/zcode-plan-credentials.ts",
+          "file": "src/main/zcode/zcode-plan-credential-commands.ts",
           "contains": "assertVendorAccountRegistrationAllowed()",
-          "why": "v1.4.221 신규 GLM Coding Plan(Z.AI/Zhipu) API 키 저장 IPC. MiniMax 키 저장과 같은 벤더 계정 등록이다."
+          "why": "같은 이유 — accounts.zcodePlanSaveApiKey RPC 가 같은 커맨드를 부른다."
         },
         {
           "file": "src/main/ipc/opencode-go-credentials.ts",
@@ -411,6 +428,16 @@
           "file": "src/renderer/src/components/settings/NativeChatProvidersSetting.tsx",
           "contains": "  const homepageUrl = getEnterprisePolicyView().disableAgentInstallSuggestions",
           "why": "같은 목록의 미설치 에이전트 \"Install\" 벤더 링크. Agents 창의 설치 제안과 같은 disableAgentInstallSuggestions 를 따른다."
+        },
+        {
+          "file": "src/main/managed-server/install/remote-node-runtime-host-download.ts",
+          "contains": "if (getEnterprisePolicy().disableRuntimeDownloads) {",
+          "why": "v1.4.232 신규 폴백: 이 컴퓨터의 다운로드가 실패하면 SSH/WSL 호스트가 curl/wget 으로 nodejs.org 에서 직접 받는다. 정책 거부도 \"실패\"로 취급돼 우회가 됐다."
+        },
+        {
+          "file": "src/main/node-runtime/runtime-archive-download.ts",
+          "contains": "code: 'ORCA_RUNTIME_DOWNLOAD_DISABLED_BY_POLICY'",
+          "why": "문자열 code 가 있어야 v1.4.232 의 pinned materializer 가 정책 거부를 \"네트워크 불통\"으로 감싸지 않는다(감싸면 프록시 안내가 나오고 호스트 폴백이 돈다)."
         }
       ]
     },
@@ -1162,6 +1189,16 @@
         {
           "file": "pnpm-workspace.yaml",
           "contains": "verifyDepsBeforeRun"
+        },
+        {
+          "file": "config/scripts/build-windows-process-tree-addon.mjs",
+          "contains": "resolveFromDir: INSTALLED_PACKAGE_DIR",
+          "why": "v1.4.232 는 pnpm 전역 가상 스토어(로컬 설치 기본값)에서 공유 패키지를 비공개 사본으로 복사해 빌드한다. 포크의 소스 수리(Spectre·EDR·헤더 스테이징)를 그 사본에 걸어야 공유 스토어(하드링크)를 덮어쓰지 않는다."
+        },
+        {
+          "file": "config/electron-builder.config.cjs",
+          "contains": "mobileWebBundleDir = join(__dirname, '..', 'out', 'mobile-web'),",
+          "why": "v1.4.232 가 beforePack 의 다크 빌드 검사에 mobileWebBundleDir 를 넣었다. 포크는 번들 레인을 지워 그 인자를 쓰지 않았으므로, 이 기본값이 없으면 패키징이 ReferenceError 로 죽는다(충돌 없이 자동 병합된다)."
         }
       ]
     },
@@ -1465,6 +1502,11 @@
           "file": "src/renderer/src/components/dashboard-popout/AgentTerminalPreview.tsx",
           "contains": "scrollbackRows: scrollbackRowsRef.current",
           "why": "분리된 탭 창은 대시보드 미리보기보다 긴 스크롤백을 요청한다. v1.4.217 충돌 때 미등재로 드러났다."
+        },
+        {
+          "file": "src/main/window/clipboard-ipc-handlers.ts",
+          "contains": "isDashboardOrTabPopoutRenderer as isDashboardPopoutRenderer",
+          "why": "팝아웃 탭 창의 터미널 복사/붙여넣기 허용. v1.4.232 가 이 파일을 max-lines 한도까지 채워 별칭 임포트로 바꿨다 — 빠지면 팝아웃 창에서 클립보드가 조용히 거부된다."
         }
       ]
     },
@@ -1494,6 +1536,11 @@
           "file": "src/main/persistence/loading-store/state-serialization-secret-handling.ts",
           "contains": "PROTECTED_SECRET_SLOT.confluenceApiToken,",
           "why": "v1.4.215 가 설정 저장을 buildSettingsToSave 하나로 모으고 도메인 단위 저장 경로를 새로 열었다. 빠지면 토큰이 평문으로 디스크에 쓰인다."
+        },
+        {
+          "file": "src/main/persistence/loading-store/profile-preferences.ts",
+          "contains": "updateSettingsClearingConfluenceToken as updateSettingsOperation",
+          "why": "설정에서 토큰을 지우면 보관 blob 도 지운다. v1.4.232 가 settings-update.ts 를 max-lines 한도까지 채워 포크 래퍼로 옮기고 별칭 임포트로 끼웠다."
         }
       ]
     },
@@ -1632,6 +1679,11 @@
         {
           "file": "src/renderer/src/components/new-workspace/NewWorkspaceComposerProjectSection.tsx",
           "contains": "onAddSshHost={SSH_REMOTE_HOSTS_REMOVED ? undefined : handleAddSshHost}"
+        },
+        {
+          "file": "src/main/ipc/runtime-environments/runtime-environment-managed-pairing-refusal.ts",
+          "contains": "if (SSH_REMOTE_HOSTS_REMOVED) {",
+          "why": "v1.4.232 신규: 관리형 orcad 가 토큰을 거부하면 SSH 로 다시 접속해 재페어링한다. 이 빌드는 SSH 호스트를 지웠으므로 거부를 유지한다."
         }
       ]
     },
@@ -1771,7 +1823,10 @@
     "src/main/ipc/feedback-image-attachments.ts",
     "src/main/ipc/feedback-image-attachments.test.ts",
     "src/main/ipc/feedback.test.ts",
-    ".github/workflows/macos-updater-tests.yml"
+    ".github/workflows/macos-updater-tests.yml",
+    "native/macos-shipit-scheduling",
+    "config/scripts/macos-shipit-scheduling*",
+    "src/main/updater/macos-shipit-scheduling*"
   ],
   "absentSymbols": [
     {
@@ -1948,6 +2003,11 @@
       "file": "src/shared/protocol-version.ts",
       "symbol": "REMOTE_SERVER_UPDATE_CAPABILITY",
       "why": "원격 서버 업데이트 capability(포크 삭제). v1.4.230 의 import 블록 충돌에서 theirs 로 풀면 돌아온다."
+    },
+    {
+      "file": "config/electron-builder.config.cjs",
+      "symbol": "buildMacShipItScheduling",
+      "why": "v1.4.232 신규 Squirrel.Mac ShipIt 스케줄링 애드온(업데이터 전용). 포크는 인앱 업데이터를 지웠으므로 빌드하지도 서명하지도 않는다."
     }
   ],
   "policySwitchMinConsumers": {
@@ -1967,7 +2027,7 @@
     "disableCloudRelay": 2,
     "disableStarNag": 2,
     "disableTelemetry": 2,
-    "disableRuntimeDownloads": 1,
+    "disableRuntimeDownloads": 2,
     "disableChatVisuals": 5,
     "disableSkillBundleUpdate": 2
   }

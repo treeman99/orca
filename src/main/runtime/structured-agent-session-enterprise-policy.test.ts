@@ -35,7 +35,7 @@ import {
 } from './structured-agent-launch-composition.test-support'
 import {
   attachStructuredAgentSession,
-  attachStructuredAgentSessionUnderSerialize
+  attachStructuredAgentSessionForStart
 } from '../native-chat/agent-session-wire/structured-agent-session-attach-orchestration'
 import { OrcaRuntimeService } from './orca-runtime'
 
@@ -182,42 +182,54 @@ describe('structured agent-session enterprise policy gate', () => {
   })
 
   // v1.4.218 exported the serialized attach and a queued-message resume calls it directly, so it
-  // must refuse on its own — the funnel above never sees that path.
-  describe('serialized attach (delivery-loop resume)', () => {
-    function underSerializeContext(): {
-      context: Parameters<typeof attachStructuredAgentSessionUnderSerialize>[0]
-      trackAttach: ReturnType<typeof vi.fn>
+  // must refuse on its own — the funnel above never sees that path. v1.4.232 renamed it ForStart.
+  describe('agent-start attach (delivery-loop resume)', () => {
+    type ForStart = typeof attachStructuredAgentSessionForStart
+    const REACHED = new Error('attach reached')
+    function forStartContext(): {
+      context: Parameters<ForStart>[0]
+      sessionsHas: ReturnType<typeof vi.fn>
     } {
-      const trackAttach = vi.fn((attaching: Promise<unknown>) => {
-        // The real attach needs a store; reaching trackAttach already proves the gate let it past.
-        attaching.catch(() => {})
-        return Promise.resolve(ATTACH_REACHED)
+      // The real attach needs a store; reaching its first session read proves the gate let it past.
+      const sessionsHas = vi.fn(() => {
+        throw REACHED
       })
       return {
-        context: { tasks: { trackAttach } } as unknown as Parameters<
-          typeof attachStructuredAgentSessionUnderSerialize
-        >[0],
-        trackAttach
+        context: { sessions: { has: sessionsHas } } as unknown as Parameters<ForStart>[0],
+        sessionsHas
       }
     }
+    const startOptions = {
+      lock: { signal: new AbortController().signal }
+    } as unknown as Parameters<ForStart>[3]
 
     it('refuses a resume for an agent the policy no longer lists', async () => {
       codexNotAllowed()
-      const { context, trackAttach } = underSerializeContext()
+      const { context, sessionsHas } = forStartContext()
 
       await expect(
-        attachStructuredAgentSessionUnderSerialize(context, 'caller-1', attachParams('codex'))
+        attachStructuredAgentSessionForStart(
+          context,
+          'caller-1',
+          attachParams('codex'),
+          startOptions
+        )
       ).rejects.toThrow(BLOCKED)
-      expect(trackAttach).not.toHaveBeenCalled()
+      expect(sessionsHas).not.toHaveBeenCalled()
     })
 
     it('admits a resume on an upstream build with no policy file', async () => {
       upstreamBuild()
-      const { context } = underSerializeContext()
+      const { context } = forStartContext()
 
       await expect(
-        attachStructuredAgentSessionUnderSerialize(context, 'caller-1', attachParams('codex'))
-      ).resolves.toBe(ATTACH_REACHED)
+        attachStructuredAgentSessionForStart(
+          context,
+          'caller-1',
+          attachParams('codex'),
+          startOptions
+        )
+      ).rejects.toBe(REACHED)
     })
   })
 

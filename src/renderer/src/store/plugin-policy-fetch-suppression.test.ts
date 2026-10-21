@@ -35,14 +35,14 @@ beforeEach(() => {
 
 afterEach(() => {
   usePluginPanelsStore.setState({ plugins: [], panelErrors: {}, fetchStatus: 'idle' })
-  usePluginLanguagePackStore.setState({ packs: [], loaded: false })
+  usePluginLanguagePackStore.setState({ entries: [], loaded: false })
   vi.unstubAllGlobals()
 })
 
 describe('plugin stores under disablePlugins', () => {
   it('calls the bridge when the policy permits plugins', async () => {
     await usePluginPanelsStore.getState().fetchPlugins()
-    await usePluginLanguagePackStore.getState().fetchPacks()
+    await usePluginLanguagePackStore.getState().fetchEntries()
     expect(list).toHaveBeenCalled()
     expect(listLanguagePacks).toHaveBeenCalled()
   })
@@ -51,7 +51,7 @@ describe('plugin stores under disablePlugins', () => {
     policyState.disablePlugins = true
 
     await usePluginPanelsStore.getState().fetchPlugins()
-    await usePluginLanguagePackStore.getState().fetchPacks()
+    await usePluginLanguagePackStore.getState().fetchEntries()
 
     expect(list).not.toHaveBeenCalled()
     expect(listLanguagePacks).not.toHaveBeenCalled()
@@ -65,6 +65,6 @@ describe('plugin stores under disablePlugins', () => {
     // what "there are no plugins here" must look like.
     expect(usePluginPanelsStore.getState().fetchStatus).toBe('ready')
     expect(usePluginPanelsStore.getState().plugins).toEqual([])
-    expect(usePluginLanguagePackStore.getState().packs).toEqual([])
+    expect(usePluginLanguagePackStore.getState().entries).toEqual([])
   })
 })

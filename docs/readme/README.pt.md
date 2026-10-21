@@ -54,7 +54,7 @@ Envie um mesmo prompt para cinco agentes, cada um em seu próprio worktree git i
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/model/worktrees"><picture><source srcset="../../resources/onboarding/feature-wall/tile-01.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-01.poster.jpg" alt="Orquestração de worktrees paralelos" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/model/worktrees"><picture><source srcset="../../resources/onboarding/feature-wall/tile-01.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-01.poster.jpg" alt="Orquestração de worktrees paralelos" width="100%" /></picture></a>
 </td>
 </tr>
 <tr>
@@ -68,7 +68,7 @@ Terminais no nível do Ghostty com renderização WebGL, divisões infinitas e s
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/terminal"><picture><source srcset="../../resources/onboarding/feature-wall/tile-02.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-02.poster.jpg" alt="Terminais divididos" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/terminal"><picture><source srcset="../../resources/onboarding/feature-wall/tile-02.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-02.poster.jpg" alt="Terminais divididos" width="100%" /></picture></a>
 </td>
 </tr>
 <tr>
@@ -82,7 +82,7 @@ Clique em qualquer elemento de UI em uma janela real do Chromium para enviar HTM
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/browser/design-mode"><picture><source srcset="../../resources/onboarding/feature-wall/tile-05.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-05.poster.jpg" alt="Navegador integrado e Modo Design" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/browser/design-mode"><picture><source srcset="../../resources/onboarding/feature-wall/tile-05.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-05.poster.jpg" alt="Navegador integrado e Modo Design" width="100%" /></picture></a>
 </td>
 </tr>
 <tr>
@@ -96,7 +96,7 @@ Navegue por PRs, issues e quadros de projeto dentro do app — abra um worktree 
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/review/linear"><picture><source srcset="../../resources/onboarding/feature-wall/tile-03.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-03.poster.jpg" alt="Fluxos de trabalho de tarefas do GitHub e Linear no Orca" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/review/linear"><picture><source srcset="../../resources/onboarding/feature-wall/tile-03.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-03.poster.jpg" alt="Fluxos de trabalho de tarefas do GitHub e Linear no Orca" width="100%" /></picture></a>
 </td>
 </tr>
 <tr>
@@ -110,7 +110,7 @@ Execute agentes em uma máquina remota potente com edição completa de arquivos
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/ssh"><picture><source srcset="../../resources/onboarding/feature-wall/tile-06.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-06.poster.jpg" alt="Worktrees remotos por SSH" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/ssh"><picture><source srcset="../../resources/onboarding/feature-wall/tile-06.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-06.poster.jpg" alt="Worktrees remotos por SSH" width="100%" /></picture></a>
 </td>
 </tr>
 <tr>
@@ -124,7 +124,7 @@ Deixe comentários em qualquer linha de diff e envie-os de volta ao agente — r
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/review/annotate-ai-diff"><picture><source srcset="../../resources/onboarding/feature-wall/tile-08.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-08.poster.jpg" alt="Anotar diffs gerados por IA" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/review/annotate-ai-diff"><picture><source srcset="../../resources/onboarding/feature-wall/tile-08.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-08.poster.jpg" alt="Anotar diffs gerados por IA" width="100%" /></picture></a>
 </td>
 </tr>
 <tr>
@@ -152,7 +152,7 @@ Agentes também controlam o Orca — automatize qualquer fluxo de trabalho com `
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/cli/overview"><picture><source srcset="../../resources/onboarding/feature-wall/tile-09.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-09.poster.jpg" alt="Automatize o Orca pela CLI" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/cli/overview"><picture><source srcset="../../resources/onboarding/feature-wall/tile-09.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-09.poster.jpg" alt="Automatize o Orca pela CLI" width="100%" /></picture></a>
 </td>
 </tr>
 </table>

@@ -53,7 +53,8 @@ const summary: ClaudeUsageSummary = {
   estimatedCostUsd: 12.5,
   topModel: 'claude-opus-5',
   topProject: null,
-  hasAnyClaudeData: true
+  hasAnyClaudeData: true,
+  hasUnpricedModels: false
 }
 
 const roots: Root[] = []

@@ -21,10 +21,15 @@ export function windowsProcessTreePackageDir(projectDir) {
  * The gyp rewrites are a fallback for a patch that stopped applying: pnpm skips
  * a broken hunk silently, which is what `pnpm-patch-integrity.test.mjs` guards.
  *
+ * `packageDir` is a private copy when the installed one sits in pnpm's global virtual store;
+ * `resolveFromDir` is then the installed dir, the only one that can resolve node-addon-api.
+ *
  * @returns {boolean} false when the optional package is not installed.
  */
-export function ensureWindowsProcessTreeBuildSource(projectDir) {
-  const packageDir = windowsProcessTreePackageDir(projectDir)
+export function ensureWindowsProcessTreeBuildSource(
+  projectDir,
+  { packageDir = windowsProcessTreePackageDir(projectDir), resolveFromDir = packageDir } = {}
+) {
   if (!existsSync(packageDir)) {
     return false
   }
@@ -73,7 +78,7 @@ export function ensureWindowsProcessTreeBuildSource(projectDir) {
   if (processCc !== originalProcess) {
     writeFileSync(processPath, processCc)
   }
-  stageWindowsProcessTreeNodeAddonApiHeaders(packageDir)
+  stageWindowsProcessTreeNodeAddonApiHeaders(packageDir, resolveFromDir)
   // Deliberately NOT guarded on `repairable`: an unpatched command-line reader compiles fine
   // and then walks every process's PEB, so a missing or unrepairable source must fail the
   // build rather than be skipped the way the gyp rewrites are.

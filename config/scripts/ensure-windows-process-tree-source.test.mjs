@@ -29,11 +29,11 @@ describe('windows-process-tree build source', () => {
     }
   })
 
-  // Both build paths need the staging: the relay addon build and the Electron
+  // Both build paths need the staging: the node-ABI addon build and the Electron
   // native rebuild that postinstall and electron-builder's beforeBuild run.
   it.each([
     ['config/scripts/rebuild-native-deps.mjs'],
-    ['config/scripts/build-windows-process-tree-relay-addon.mjs']
+    ['config/scripts/build-windows-process-tree-addon.mjs']
   ])('%s stages the source before node-gyp', (scriptPath) => {
     expect(readFileSync(join(projectDir, scriptPath), 'utf8')).toContain(
       'ensureWindowsProcessTreeBuildSource('

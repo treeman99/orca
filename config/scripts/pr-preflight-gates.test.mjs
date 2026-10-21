@@ -67,6 +67,14 @@ it('uses the shared Bun pin for every current-toolchain workflow', () => {
   }
 })
 
+it('checks formatting over the same tree the local format script writes', () => {
+  const check = steps.find((step) => step.name === 'Check formatting')
+  const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
+  expect(check.run.replace('node node_modules/oxfmt/bin/oxfmt', 'oxfmt')).toBe(
+    manifest.scripts.format.replace('--write', '--check')
+  )
+})
+
 // Fork: the anti-slop plugin and its CI scan are removed from this build (ledger absentSymbols).
 
 it('requires physical preflight success before publishing shards and admitting consumers', () => {
@@ -215,6 +223,7 @@ it('pins every foreground and background step to its selected phase', () => {
   )
   // Fork: upstream's 'Reject low-evidence patterns' (anti-slop) step is removed (README §6).
   expect(foreground.map((step) => [step.name ?? step.run ?? step.uses, step.if])).toEqual([
+    ['Check formatting', staticPhase],
     ['Enforce type-aware code-quality baseline', staticPhase],
     [
       './.github/actions/install-mobile-dependencies',
@@ -231,11 +240,12 @@ it('pins every foreground and background step to its selected phase', () => {
     ['Enforce runtime Electron-import ratchet', staticPhase],
     ['Enforce focus-read ratchet', staticPhase],
     ['Enforce layout-writer ratchets', staticPhase],
-    ['Enforce deprecated runtime-owner importer ratchet', staticPhase],
     ['Enforce path-literal ratchet', staticPhase],
     ['Enforce worktree-id composer ratchet', staticPhase],
     ['Enforce e2e typecheck ratchet', staticPhase],
     ['Enforce legacy relay fence ratchet', staticPhase],
+    ['Enforce unproven PTY retirement ratchet', staticPhase],
+    ['Enforce id-only store write ratchet', staticPhase],
     ['Check Node runtime pin', staticPhase],
     ['Decide whether the orcad terminal smoke runs', staticPhase],
     ['Verify the generated RPC params catalog', staticPhase],
@@ -266,7 +276,8 @@ it('pins every foreground and background step to its selected phase', () => {
 })
 
 it.each([
-  { changed: ['README.md'], static_analysis: false, typecheck: false, mobile_dependencies: false },
+  { changed: ['LICENSE'], static_analysis: false, typecheck: false, mobile_dependencies: false },
+  { changed: ['README.md'], static_analysis: true, typecheck: false, mobile_dependencies: false },
   {
     changed: ['mobile/src/App.tsx'],
     static_analysis: true,

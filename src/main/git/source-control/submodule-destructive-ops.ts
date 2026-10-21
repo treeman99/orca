@@ -83,7 +83,13 @@ export async function restoreSubmodulePointer(
   resolveSubmoduleWorktreePath(worktreePath, submodulePath)
   try {
     await gitExecFileAsync(
-      ['submodule', 'update', '--init', '--', literalPathspec(submodulePath, options)],
+      [
+        'submodule',
+        'update',
+        '--init',
+        '--',
+        literalPathspec(submodulePath, worktreePath, options)
+      ],
       { ...gitOptionsForWorktree(worktreePath, options) }
     )
   } finally {

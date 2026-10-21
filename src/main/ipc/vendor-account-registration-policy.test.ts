@@ -27,6 +27,11 @@ vi.mock('../rate-limits/minimax-request-context', () => ({
   clearMiniMaxSessionCookieJar: vi.fn(async () => {})
 }))
 
+// v1.4.232: saving a session cookie needs the desktop's browser session.
+vi.mock('../network/http-client', () => ({
+  getMainHttpClient: () => ({ partitionSession: () => ({}) })
+}))
+
 import { registerClaudeAccountHandlers } from './claude-accounts'
 import { registerCodexAccountHandlers } from './codex-accounts'
 import { registerMiniMaxCredentialsHandlers } from './minimax-credentials'

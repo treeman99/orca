@@ -51,7 +51,8 @@ export function structuredAgentLaunchSupported(
   )
 }
 
-function structuredAgentLaunchSupport(input: Omit<AgentLaunchRoutingInput, 'launchText'>) {
+/** Whether the target host could open this agent as a chat, and why not; the settings aside. */
+export function structuredAgentLaunchSupport(input: Omit<AgentLaunchRoutingInput, 'launchText'>) {
   return resolveStructuredNativeChatSupport({
     agent: input.agent,
     executionHostId: input.executionHostId,

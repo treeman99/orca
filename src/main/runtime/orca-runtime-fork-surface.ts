@@ -1,7 +1,7 @@
 import type { TuiAgent } from '../../shared/tui-agent'
 import { TUI_AGENT_CONFIG } from '../../shared/tui-agent-config'
 import { worktreeIdsEqual } from '../../shared/worktree/id'
-import { OrcaRuntimeWithMigrationCatalog } from './orca-runtime-migration-catalog'
+import { OrcaRuntimeWithAgentTransitions } from './orca-runtime-agent-transitions'
 import { OrcaRuntimeWithSidebarTemporal } from './sidebar-inputs/orca-runtime-sidebar-temporal'
 import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../shared/sidebar-inputs-switch'
 import { waitForWorktreeStartupDraft } from './runtime-worktree-startup-readiness'
@@ -10,14 +10,17 @@ import type { CreateWorktreeResult } from '../../shared/worktree/create-types'
 import type { RuntimeManagedWorktreeCreateArgs } from './runtime-managed-worktree-create-types'
 import { assertManagedWorktreeAgentsAllowed } from './runtime-managed-worktree-agent-policy'
 import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
-import { isAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
+import {
+  assertAgentAllowedByEnterprisePolicy,
+  isAgentAllowedByEnterprisePolicy
+} from '../enterprise/agent-allowlist-guard'
 import { OrchestrationError } from './orchestration/orchestration-error'
 
 // Why here: upstream picks the chain's top layer by build switch in orca-runtime.ts (v1.4.230);
 // owning that pick keeps this layer above whichever top the build chooses.
-const ForkSurfaceBase: typeof OrcaRuntimeWithMigrationCatalog = ORCA_SIDEBAR_INPUTS_IS_MAIN
+const ForkSurfaceBase: typeof OrcaRuntimeWithAgentTransitions = ORCA_SIDEBAR_INPUTS_IS_MAIN
   ? OrcaRuntimeWithSidebarTemporal
-  : OrcaRuntimeWithMigrationCatalog
+  : OrcaRuntimeWithAgentTransitions
 
 /**
  * Runtime members this fork owns. Kept at the tail of the class chain so an upstream
@@ -48,6 +51,17 @@ export abstract class OrcaRuntimeForkSurface extends ForkSurfaceBase {
       return { supported: false, reason: 'agent' }
     }
     return super.getStructuredAgentSessionCreateSupport(worktreeSelector, agent)
+  }
+
+  /**
+   * allowedAgents gate for every new-workspace agent startup. Here rather than in the layer that
+   * defines it: upstream fills workspaces/workspace-activation.ts to its max-lines cap (v1.4.232).
+   */
+  protected override buildStartupForAgent(
+    ...args: Parameters<OrcaRuntimeWithAgentTransitions['buildStartupForAgent']>
+  ): ReturnType<OrcaRuntimeWithAgentTransitions['buildStartupForAgent']> {
+    assertAgentAllowedByEnterprisePolicy(args[1])
+    return super.buildStartupForAgent(...args)
   }
 
   /** allowedAgents gate for an orchestration worker's launcher (worker-start validation). */

@@ -282,6 +282,8 @@ module.exports = {
     '!out/runtimes{,/**/*}',
     '!out/node-runtime-cache{,/**/*}',
     '!config{,/**/*}',
+    // Cloud services deploy separately; their sources are not desktop runtime resources.
+    '!cloud{,/**/*}',
     // Release archives and other build staging are not runtime resources.
     '!.build{,/**/*}',
     // Worktree-local Vite dependency caches are development inputs.
@@ -318,6 +320,8 @@ module.exports = {
     '!out/**/*.map',
     // Why: Vite's manifest is only used to project the paired web client.
     '!out/renderer/.vite{,/**/*}',
+    // The installed browser serves its allowlisted assets from the unpacked renderer.
+    '!out/web{,/**/*}',
     // Why: out/electron-dev caches `pnpm dev`'s per-branch Electron.app copies (~270MB each).
     // CI never creates it, but packaging on a machine that has run dev would pack them all.
     '!out/electron-dev{,/**/*}',
@@ -376,7 +380,7 @@ module.exports = {
   // entries reached solely from the Electron main process stay packed, since
   // asar redirects their app.asar paths.
   // Why: `orca serve` runs the orcad selection entry under ELECTRON_RUN_AS_NODE too (#27307).
-  // Why out/web and out/mobile-web: their assets are opened by path, and opening a packed file
+  // Why out/renderer and out/mobile-web: their assets are opened by path, and opening a packed file
   // reads a /tmp extract Electron makes once and never remakes, so a /tmp sweep broke them (#27976).
   asarUnpack: [
     'out/package.json',
@@ -406,7 +410,7 @@ module.exports = {
     'out/main/parcel-watcher-process-entry.js',
     'out/main/orcad/orcad-local-serve-selection-entry.js',
     'out/main/chunks/**',
-    'out/web/**',
+    'out/renderer/**',
     'out/mobile-web/**',
     'resources/**',
     'node_modules/ws/**',
@@ -421,13 +425,14 @@ module.exports = {
   },
   // Fork: no mobile web bundle guard — the corporate build drops the bundle lane (mobile pairing is
   // policy-locked and the Expo/RN deps are not on the internal mirror); the runtime treats a missing
-  // bundle as "none". See README §6. The unused second slot keeps upstream's positional test seams.
+  // bundle as "none". See README §6. The second slot keeps upstream's positional test seams and
+  // only feeds the dark-build check, which skips a missing bundle dir.
   beforePack: (
     context,
-    _mobileWebBundleDir,
+    mobileWebBundleDir = join(__dirname, '..', 'out', 'mobile-web'),
     ensureWaylandClipboard = ensureBundledWaylandClipboard
   ) => {
-    assertNotDarkBuild([join(__dirname, '..', 'out', 'main')])
+    assertNotDarkBuild([join(__dirname, '..', 'out', 'main'), mobileWebBundleDir])
     assertPackagedNativeVariantsInstalled(context.electronPlatformName, context.arch)
     assertBundledRipgrepInstalled()
     assertProcessHostOutputBuilt()
@@ -459,6 +464,7 @@ module.exports = {
         context.packager.appInfo.productFilename
       )
       const architecture = macSliceArch(context.arch, 'local-build compatibility')
+      // Fork: no ShipIt scheduling addon — it only tunes Squirrel.Mac, and the in-app updater is removed.
       const version = context.packager.appInfo.version
       let commit = process.env.ORCA_BUILD_COMMIT || process.env.GITHUB_SHA || 'unknown'
       if (commit === 'unknown') {

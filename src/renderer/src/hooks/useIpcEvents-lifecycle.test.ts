@@ -153,7 +153,15 @@ describe('useIpcEvents App-lifetime lifecycle', () => {
     ).toBe(true)
     const activeSubscriptionCount = storeSubscriptions.filter((item) => item.active).length
     expect(activeSubscriptionCount).toBeGreaterThan(0)
-    expect(addDocumentListener.mock.calls.map(([type]) => type)).toEqual(['focusin', 'pointerdown'])
+    const documentListenerTypes = [
+      'focusin',
+      'pointerdown',
+      'compositionstart',
+      'compositionupdate',
+      'compositionend',
+      'input'
+    ]
+    expect(addDocumentListener.mock.calls.map(([type]) => type)).toEqual(documentListenerTypes)
 
     firstCleanup()
     expect(runtimeSubscriptions.every((unsubscribe) => unsubscribe.mock.calls.length === 1)).toBe(
@@ -177,10 +185,8 @@ describe('useIpcEvents App-lifetime lifecycle', () => {
     ).toBe(true)
     expect(storeSubscriptions.filter((item) => item.active)).toHaveLength(activeSubscriptionCount)
     expect(addDocumentListener.mock.calls.map(([type]) => type)).toEqual([
-      'focusin',
-      'pointerdown',
-      'focusin',
-      'pointerdown'
+      ...documentListenerTypes,
+      ...documentListenerTypes
     ])
 
     secondCleanup()

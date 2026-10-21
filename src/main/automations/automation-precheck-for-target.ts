@@ -1,5 +1,5 @@
 import type { Automation, AutomationPrecheckResult } from '../../shared/automations-types'
-import { runAutomationPrecheck } from './precheck-runner'
+import { failedPrecheckResult, runAutomationPrecheck } from './precheck-runner'
 import type { AutomationRunTargetResult } from './run-target-resolution'
 
 /**
@@ -16,20 +16,7 @@ export async function runAutomationPrecheckForTarget(
     throw new Error('Automation has no precheck.')
   }
   if (!target.ok) {
-    const now = Date.now()
-    return {
-      command: automation.precheck.command,
-      exitCode: null,
-      timedOut: false,
-      durationMs: 0,
-      stdout: '',
-      stderr: '',
-      stdoutTruncated: false,
-      stderrTruncated: false,
-      error: target.error,
-      startedAt: now,
-      completedAt: now
-    }
+    return failedPrecheckResult(automation.precheck, Date.now(), target.error)
   }
   return await runAutomationPrecheck({
     precheck: automation.precheck,

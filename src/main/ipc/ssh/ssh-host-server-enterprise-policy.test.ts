@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeEnterprisePolicy, makeLockdownPolicy } from '../../../shared/enterprise-policy-fixture'
-import type * as SshTargetRegistry from '../../ssh/ssh-target-registry'
+import type * as SshTargetRegistry from '../../ssh/targets/ssh-target-registry'
 
 const mocks = vi.hoisted(() => ({
   getEnterprisePolicy: vi.fn(),
@@ -19,7 +19,7 @@ vi.mock('../../enterprise/enterprise-policy-file', () => ({
 vi.mock('../../../shared/app-environment', () => ({
   getAppEnvironment: () => ({ getPath: () => '/tmp/user-data', getVersion: () => '1.5.0' })
 }))
-vi.mock('../../ssh/ssh-target-registry', async (importOriginal) => ({
+vi.mock('../../ssh/targets/ssh-target-registry', async (importOriginal) => ({
   ...(await importOriginal<typeof SshTargetRegistry>()),
   getSshTargetRegistryStore: () => ({ getTarget: () => null })
 }))

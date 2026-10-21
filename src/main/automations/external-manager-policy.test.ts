@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as Fs from 'node:fs'
 import type * as FsPromises from 'node:fs/promises'
 import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterprise-policy-fixture'
-import type * as SshTargetRegistryModule from '../ssh/ssh-target-registry'
+import type * as SshTargetRegistryModule from '../ssh/targets/ssh-target-registry'
 
 type SshTargetRegistry = typeof SshTargetRegistryModule
 
@@ -50,8 +50,8 @@ vi.mock('../enterprise/enterprise-policy-file', () => ({
   getEnterprisePolicy: () => getEnterprisePolicyMock()
 }))
 // Upstream v1.4.190 moved this out of ../ipc/ssh so the SSH lane loads without ipcMain.
-vi.mock('../ssh/ssh-target-registry', async () => {
-  const actual = await vi.importActual<SshTargetRegistry>('../ssh/ssh-target-registry')
+vi.mock('../ssh/targets/ssh-target-registry', async () => {
+  const actual = await vi.importActual<SshTargetRegistry>('../ssh/targets/ssh-target-registry')
   return {
     ...actual,
     getActiveMultiplexer: () => ({ isDisposed: () => false, request: requestMock })

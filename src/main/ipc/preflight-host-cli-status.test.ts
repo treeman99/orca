@@ -83,7 +83,8 @@ vi.mock('../pty/windows-environment-path', () => ({
   mergePersistedWindowsPath: mergePersistedWindowsPathMock
 }))
 
-import { _resetPreflightCache, registerPreflightHandlers, runPreflightCheck } from './preflight'
+import { _resetPreflightCache, runPreflightCheck } from '../preflight/agent-detection'
+import { registerPreflightHandlers } from './preflight'
 import { resetPreflightMocks, type HandlerMap } from './preflight-test-harness'
 
 describe('preflight', () => {

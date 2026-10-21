@@ -61,7 +61,8 @@ vi.mock('../enterprise/enterprise-policy-file', () => ({
   getEnterprisePolicy: () => getEnterprisePolicyMock()
 }))
 
-import { detectInstalledAgents, registerPreflightHandlers } from './preflight'
+import { detectInstalledAgents } from '../preflight/agent-detection'
+import { registerPreflightHandlers } from './preflight'
 import { resetPreflightMocks, type HandlerMap } from './preflight-test-harness'
 import { makeEnterprisePolicy } from '../../shared/enterprise-policy-fixture'
 

@@ -199,29 +199,21 @@ vi.mock('../dashboard-popout', () => ({
 
 // Why mocked: '../tab-popout' pulls the pop-out window factory, which imports
 // electron at runtime and breaks this suite's module graph.
-vi.mock('../tab-popout', () => ({
-  registerTabPopoutHandlers: registerTabPopoutHandlersMock
-}))
+vi.mock('../tab-popout', () => ({ registerTabPopoutHandlers: registerTabPopoutHandlersMock }))
 
-vi.mock('../gateway', () => ({
-  registerGatewayHandlers: registerGatewayHandlersMock
-}))
+vi.mock('../gateway', () => ({ registerGatewayHandlers: registerGatewayHandlersMock }))
 
 vi.mock('../github-enterprise', () => ({
   registerGithubEnterpriseHandlers: registerGithubEnterpriseHandlersMock
 }))
 
-vi.mock('../confluence', () => ({
-  registerConfluenceHandlers: registerConfluenceHandlersMock
-}))
+vi.mock('../confluence', () => ({ registerConfluenceHandlers: registerConfluenceHandlersMock }))
 
 vi.mock('../diagnostic-log', () => ({
   registerDiagnosticLogHandlers: registerDiagnosticLogHandlersMock
 }))
 
-vi.mock('../app-update', () => ({
-  registerAppUpdateHandlers: registerAppUpdateHandlersMock
-}))
+vi.mock('../app-update', () => ({ registerAppUpdateHandlers: registerAppUpdateHandlersMock }))
 
 vi.mock('../workspace-space-window', () => ({
   registerWorkspaceSpaceWindowHandlers: registerWorkspaceSpaceWindowHandlersMock
@@ -496,9 +488,7 @@ vi.mock('../../enterprise/enterprise-policy-file', () => ({
   getEnterprisePolicy: () => getEnterprisePolicyMock()
 }))
 
-vi.mock('../plugins', () => ({
-  registerPluginHandlers: registerPluginHandlersMock
-}))
+vi.mock('../plugins', () => ({ registerPluginHandlers: registerPluginHandlersMock }))
 
 import { registerCoreHandlers } from './register-core-handlers'
 
@@ -648,6 +638,7 @@ describe('registerCoreHandlers', () => {
       museUsage
     })
     expect(registerAppHandlersMock).toHaveBeenCalledWith(store, {
+      quitResumeRecordsFor: expect.any(Function),
       onBeforeRelaunch,
       onBeforeRelaunchExit: expect.any(Function)
     })
@@ -730,7 +721,9 @@ describe('registerCoreHandlers', () => {
     expect(registerCliHandlersMock).toHaveBeenCalled()
     expect(registerPreflightHandlersMock).toHaveBeenCalled()
     expect(registerShellHandlersMock).toHaveBeenCalledWith(store)
-    expect(registerClipboardHandlersMock).toHaveBeenCalledWith(store)
+    expect(registerClipboardHandlersMock).toHaveBeenCalledWith(store, {
+      localChatAttachmentStore: expect.any(Function)
+    })
     // Fork: the updater lane is removed from the build.
     expect(registerUpdaterHandlersMock).not.toHaveBeenCalled()
     expect(setTrustedBrowserRendererWebContentsIdMock).toHaveBeenCalledWith(null)

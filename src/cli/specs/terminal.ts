@@ -2,6 +2,7 @@ import type { CommandSpec } from '../args'
 import { GLOBAL_FLAGS } from '../args'
 import { TERMINAL_CLOSE_COMMAND_SPEC } from './terminal-close'
 import { TERMINAL_SEND_COMMAND_SPEC } from './terminal-send'
+import { TERMINAL_SET_PANE_TITLE_COMMAND_SPEC } from './terminal-set-pane-title'
 
 export const TERMINAL_COMMAND_SPECS: CommandSpec[] = [
   {
@@ -107,6 +108,7 @@ export const TERMINAL_COMMAND_SPECS: CommandSpec[] = [
       'orca terminal rename --terminal term_abc123 --json'
     ]
   },
+  TERMINAL_SET_PANE_TITLE_COMMAND_SPEC,
   {
     path: ['terminal', 'split'],
     summary: 'Split an existing terminal pane',

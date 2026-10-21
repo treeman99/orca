@@ -8,10 +8,9 @@ import {
   parseNativeChatUpgradeTipAudience,
   type NativeChatUpgradeTipVariant
 } from '../../../shared/native-chat-upgrade-tip-audience'
-import {
-  updateSettings as updateSettingsOperation,
-  type SettingsMutationOperations
-} from '../applying-settings/settings-update'
+import type { SettingsMutationOperations } from '../applying-settings/settings-update'
+// Fork: upstream's update plus the Confluence token's retained blob, under upstream's call name.
+import { updateSettingsClearingConfluenceToken as updateSettingsOperation } from '../applying-settings/settings-update-confluence-token'
 import { getPersistedUI } from '../applying-settings/ui-state-read'
 import { updatePersistedUI, type UIUpdateOperations } from '../applying-settings/ui-state-update'
 import {

@@ -25,7 +25,7 @@ function readPolicy(relativePath: string): unknown {
 }
 
 // Mirrors getEnterprisePolicy(): adopted file → bundled floor → built-in agent floor → resolve.
-function resolveAdopted(adopted: unknown, bundled: unknown | null): EnterprisePolicy {
+function resolveAdopted(adopted: unknown, bundled: unknown): EnterprisePolicy {
   const floored =
     bundled === null ? adopted : applyEnterprisePolicyBaseline(adopted, bundled).document
   return resolveEnterprisePolicy(applyBuiltInAgentAllowlist(floored).document, {}, 'policy')

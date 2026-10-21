@@ -572,7 +572,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.230`** 이 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.232`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -982,6 +982,34 @@ electron-builder `beforePack` 에 `assertMobileWebBundleBuilt` 를 걸었습니�
 **다음 동기화에서 볼 것**: upstream 이 새 패키징 잡이나 새 빌드 체인 스크립트에 번들을 붙이면 뒤집은
 테스트가 빨개집니다 — 그 체인에서도 빼면 됩니다. 모바일 컴패니언을 사내에서 쓰기로 하면 이 절을
 통째로 되돌리고 `enterprise-build.yml` 에 `install-mobile-dependencies` 를 넣어야 합니다.
+
+**v1.4.232 — `beforePack` 의 두 번째 인자가 다시 쓰입니다.** upstream 이 다크 빌드 검사에
+`mobileWebBundleDir` 를 넣었는데(`assertNotDarkBuild([out/main, mobileWebBundleDir])`), 포크는 그 인자를
+`_mobileWebBundleDir` 로 이름을 바꿔 두었으므로 **충돌 없이 병합된 채 패키징에서 `ReferenceError`** 가 납니다.
+포크는 그 인자에 `out/mobile-web` 기본값을 주고 다크 빌드 검사에만 씁니다(없는 디렉터리는 건너뜀). 원장
+`windows-build` 의 앵커가 이 기본값을 지킵니다.
+
+#### macOS ShipIt 스케줄링 애드온은 싣지 않는다 (v1.4.232에서 제거)
+
+v1.4.232 가 Squirrel.Mac 의 설치 작업 우선순위를 바꾸는 네이티브 애드온을 들였습니다 —
+`native/macos-shipit-scheduling/`, 그 빌드 스크립트 `config/scripts/macos-shipit-scheduling.cjs`(+테스트),
+electron-builder 의 macOS afterPack 에서 그것을 빌드·서명하는 두 줄, 런타임 쪽
+`src/main/updater/macos-shipit-scheduling.ts`. **인앱 업데이터 전용**이고 포크는 업데이터를 지웠으므로 전부
+뺐습니다. 런타임 쪽은 `src/main/updater/` 아래라 원장 `absentPaths` 가 이미 잡고, 나머지는 이번에
+`absentPaths`(`native/macos-shipit-scheduling`, `config/scripts/macos-shipit-scheduling*`)와
+`absentSymbols`(빌드 설정의 `buildMacShipItScheduling`)에 올렸습니다. **충돌 없이 들어오는 신규 파일**이므로
+다음 동기화에서도 원장이 먼저 말해 줍니다.
+
+#### pnpm 전역 가상 스토어 — upstream 이 로컬 설치의 기본값을 바꿨다 (v1.4.232)
+
+v1.4.232 의 `config/pnpmfile.cjs` 가 **CI 밖 모든 설치**에서 pnpm 전역 가상 스토어를 켭니다(Windows 는
+junction). `node_modules/<pkg>` 가 사용자 홈의 공유 스토어를 가리키므로 **패키지 디렉터리를 그 자리에서 고치면
+모든 체크아웃이 공유하는 스토어(하드링크)를 덮어씁니다.** upstream 은 네이티브 빌드를 비공개 사본에서
+돌리도록 바꿨고(`shared-native-build.mjs`, `build-windows-process-tree-addon.mjs` 의 `SCRATCH_DIR`), 포크의
+windows-process-tree 소스 수리(`ensure-windows-process-tree-source.mjs`)도 그 사본에 걸리게
+`packageDir`·`resolveFromDir` 를 받도록 했습니다. GitHub Actions(enterprise build)는 CI 라 꺼져 있어
+예전과 같고, **사내 Windows 단말에서 로컬로 빌드할 때만 달라집니다** — 문제가 생기면 빌드 셸에서
+`ORCA_PNPM_GLOBAL_VIRTUAL_STORE=0` 으로 끌 수 있습니다(빌드 셸 전용 변수, 사용자 환경에 넣지 않음).
 
 #### upstream 파일이 `max-lines` 상한에 닿을 때 — 별칭 임포트로 호출부를 되돌려라 (v1.4.204에서 실제로 겪음)
 

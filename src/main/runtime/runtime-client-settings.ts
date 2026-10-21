@@ -92,6 +92,9 @@ export class RuntimeClientSettingsController {
       ...(settings.nativeChatPermissionMode
         ? { nativeChatPermissionMode: settings.nativeChatPermissionMode }
         : {}),
+      ...(settings.agentNativeChatPermissionModes
+        ? { agentNativeChatPermissionModes: settings.agentNativeChatPermissionModes }
+        : {}),
       // Why projected: a paired client's AI buttons start these actions' agents, and must honour
       // the agent saved for each one as the desktop does. Absent on older hosts.
       sourceControlAi: projectSourceControlLaunchRecipes(settings),
@@ -113,6 +116,9 @@ export class RuntimeClientSettingsController {
     this.store.updateSettings(
       {
         ...updates,
+        ...(updates.nativeChatPermissionMode !== undefined
+          ? { agentNativeChatPermissionModes: {} }
+          : {}),
         ...(updates.defaultTuiAgent !== undefined ? { newWorkspaceSetupOnly: false } : {})
       },
       { notifyListeners: true }

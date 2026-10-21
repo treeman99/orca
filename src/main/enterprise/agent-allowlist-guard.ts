@@ -35,6 +35,12 @@ export function agentBlockedByPolicyError(agent: string): Error | null {
   )
 }
 
+/** `agentBlockedByPolicyError` as a rejection, for entry points that return a Promise unawaited. */
+export function refuseDisallowedAgent(agent: string): Promise<never> | null {
+  const blocked = agentBlockedByPolicyError(agent)
+  return blocked ? Promise.reject(blocked) : null
+}
+
 /** Throws when the corporate policy does not list `agent` among the selectable CLIs. */
 export function assertAgentAllowedByEnterprisePolicy(agent: string): void {
   const blocked = agentBlockedByPolicyError(agent)

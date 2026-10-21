@@ -3,6 +3,7 @@ import { applySubmoduleIgnorePolicyToEntries } from '../../../shared/git-submodu
 import { readSubmoduleIgnorePolicy } from '../submodule-ignore-config'
 import type { GitRuntimeOptions } from '../git-runtime-options'
 import type {
+  GitBranchLineTotal,
   GitStatusEntry,
   GitStatusResult,
   GitUpstreamStatus
@@ -10,7 +11,6 @@ import type {
 import { StatusPorcelainParser } from '../../../shared/git-status-porcelain-parser'
 import { resolveGitStatusLimit } from '../../../shared/git-status-limit'
 import { stableInFlightKey } from '../../../shared/in-flight-promise-dedupe'
-import type { GitBranchLineTotal } from '../../../shared/git-branch-line-total'
 import {
   beginGitStatusLineStatsCacheWrite,
   clearGitStatusLineStatsCacheKey,
@@ -253,6 +253,7 @@ async function runGetStatus(
 
   // Why: line counts run only for areas with entries (clean tree = 0 calls); skip past the limit to avoid numstat over a huge set.
   let branchLineTotal: GitBranchLineTotal | undefined
+  let branchLineTotalUnavailable: string | undefined
   if (!didHitLimit && lineStatsWriteToken !== null) {
     const branchLineTotalInput = createBranchLineTotalInput(
       worktreePath,
@@ -271,6 +272,7 @@ async function runGetStatus(
       ...(branchLineTotalInput ? { branchLineTotal: branchLineTotalInput } : {})
     })
     branchLineTotal = lineStats.branchLineTotal
+    branchLineTotalUnavailable = lineStats.branchLineTotalUnavailable
   } else if (lineStatsWriteToken !== null) {
     clearGitStatusLineStatsCacheKey(lineStatsCacheKey, lineStatsWriteToken)
   }
@@ -289,6 +291,7 @@ async function runGetStatus(
     branch,
     ...(options.includeIgnored ? { ignoredPaths: parser.ignoredPaths } : {}),
     ...(branchLineTotal ? { branchLineTotal } : {}),
+    ...(branchLineTotalUnavailable ? { branchLineTotalUnavailable } : {}),
     ...(didHitLimit ? { didHitLimit: true, statusLength: parser.statusLength } : {}),
     ...(statusSucceeded
       ? {

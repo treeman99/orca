@@ -239,6 +239,11 @@ try {
 
   withFsRetry(() => rmSync(webOutput, { force: true, recursive: true }))
   publishWebOutput()
+  // The installed browser client shares renderer bytes; only its selected files may be served.
+  writeFileSync(
+    join(rendererOutput, '.orca-web-client-files.json'),
+    JSON.stringify([...selectedFiles].sort())
+  )
 } finally {
   withFsRetry(() => rmSync(stagingOutput, { force: true, recursive: true }))
 }

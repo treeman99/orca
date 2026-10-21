@@ -54,7 +54,7 @@
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/model/worktrees"><picture><source srcset="../../resources/onboarding/feature-wall/tile-01.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-01.poster.jpg" alt="並列ワークツリーのオーケストレーション" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/model/worktrees"><picture><source srcset="../../resources/onboarding/feature-wall/tile-01.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-01.poster.jpg" alt="並列ワークツリーのオーケストレーション" width="100%" /></picture></a>
 </td>
 </tr>
 <tr>
@@ -68,7 +68,7 @@ WebGL レンダリング、無制限の分割、再起動後も残るスクロ�
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/terminal"><picture><source srcset="../../resources/onboarding/feature-wall/tile-02.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-02.poster.jpg" alt="ターミナル分割" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/terminal"><picture><source srcset="../../resources/onboarding/feature-wall/tile-02.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-02.poster.jpg" alt="ターミナル分割" width="100%" /></picture></a>
 </td>
 </tr>
 <tr>
@@ -82,7 +82,7 @@ WebGL レンダリング、無制限の分割、再起動後も残るスクロ�
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/browser/design-mode"><picture><source srcset="../../resources/onboarding/feature-wall/tile-05.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-05.poster.jpg" alt="組み込みブラウザとデザインモード" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/browser/design-mode"><picture><source srcset="../../resources/onboarding/feature-wall/tile-05.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-05.poster.jpg" alt="組み込みブラウザとデザインモード" width="100%" /></picture></a>
 </td>
 </tr>
 <tr>
@@ -96,7 +96,7 @@ PR、Issue、プロジェクトボードをアプリ内で閲覧 — 任意の�
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/review/linear"><picture><source srcset="../../resources/onboarding/feature-wall/tile-03.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-03.poster.jpg" alt="Orca の GitHub と Linear タスクワークフロー" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/review/linear"><picture><source srcset="../../resources/onboarding/feature-wall/tile-03.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-03.poster.jpg" alt="Orca の GitHub と Linear タスクワークフロー" width="100%" /></picture></a>
 </td>
 </tr>
 <tr>
@@ -110,7 +110,7 @@ PR、Issue、プロジェクトボードをアプリ内で閲覧 — 任意の�
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/ssh"><picture><source srcset="../../resources/onboarding/feature-wall/tile-06.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-06.poster.jpg" alt="SSH 経由のリモートワークツリー" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/ssh"><picture><source srcset="../../resources/onboarding/feature-wall/tile-06.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-06.poster.jpg" alt="SSH 経由のリモートワークツリー" width="100%" /></picture></a>
 </td>
 </tr>
 <tr>
@@ -124,7 +124,7 @@ PR、Issue、プロジェクトボードをアプリ内で閲覧 — 任意の�
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/review/annotate-ai-diff"><picture><source srcset="../../resources/onboarding/feature-wall/tile-08.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-08.poster.jpg" alt="AI が生成した Diff への注釈" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/review/annotate-ai-diff"><picture><source srcset="../../resources/onboarding/feature-wall/tile-08.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-08.poster.jpg" alt="AI が生成した Diff への注釈" width="100%" /></picture></a>
 </td>
 </tr>
 <tr>
@@ -152,7 +152,7 @@ PR、Issue、プロジェクトボードをアプリ内で閲覧 — 任意の�
 
 </td>
 <td width="50%">
-  <a href="https://www.onorca.dev/docs/cli/overview"><picture><source srcset="../../resources/onboarding/feature-wall/tile-09.gif" type="image/gif"><img src="../../resources/onboarding/feature-wall/tile-09.poster.jpg" alt="CLI から Orca をスクリプト操作" width="100%" /></picture></a>
+  <a href="https://www.onorca.dev/docs/cli/overview"><picture><source srcset="../../resources/onboarding/feature-wall/tile-09.webp" type="image/webp"><img src="../../resources/onboarding/feature-wall/tile-09.poster.jpg" alt="CLI から Orca をスクリプト操作" width="100%" /></picture></a>
 </td>
 </tr>
 </table>

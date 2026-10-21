@@ -19,22 +19,32 @@
  *   node config/scripts/build-windows-process-tree-addon.mjs --arch=arm64
  */
 import { execFileSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { createRequire } from 'node:module'
-import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
+import { join, relative, resolve } from 'node:path'
+import { isSharedPackageDir } from './native-build-entry.cjs'
 import { canReusePreparedAddon } from './windows-process-tree-prepared-addon.mjs'
 import { ORCAD_WINDOWS_PROCESS_TREE_FILENAME } from '../../src/shared/orcad-artifacts.ts'
-import {
-  ensureWindowsProcessTreeBuildSource,
-  windowsProcessTreePackageDir
-} from './ensure-windows-process-tree-source.mjs'
+import { ensureWindowsProcessTreeBuildSource } from './ensure-windows-process-tree-source.mjs'
 // Upstream's rebuild invocation realpaths the cwd; pnpm's junction breaks gyp's
 // node-addon-api hop otherwise. Our source staging stays — it does strictly more,
 // and it owns the command-line repair upstream keeps in applyWindowsProcessTreeBuildFixes.
 import {
   inspectWindowsProcessTreeAddon,
   nodeGypRebuildInvocation,
-  windowsProcessTreeAddonHasBreakawayLauncher
+  windowsProcessTreeAddonHasBreakawayLauncher,
+  WINDOWS_PROCESS_TREE_PACKAGE_DIR as INSTALLED_PACKAGE_DIR
 } from './windows-process-tree-gyp-rebuild.mjs'
 
 const { PE_MACHINE, describePeMachine, readPeMachine } = createRequire(import.meta.url)(
@@ -42,8 +52,22 @@ const { PE_MACHINE, describePeMachine, readPeMachine } = createRequire(import.me
 )
 
 const ROOT = resolve(import.meta.dirname, '..', '..')
-const PACKAGE_DIR = windowsProcessTreePackageDir(ROOT)
 const SUPPORTED_ARCHES = ['x64', 'arm64']
+// Why: under pnpm's global virtual store the installed dir is every worktree's, so the source
+// repairs and the build below run in a private copy instead.
+const SCRATCH_DIR =
+  existsSync(INSTALLED_PACKAGE_DIR) && isSharedPackageDir(INSTALLED_PACKAGE_DIR, ROOT)
+    ? mkdtempSync(join(tmpdir(), 'orca-windows-process-tree-'))
+    : null
+const PACKAGE_DIR = SCRATCH_DIR === null ? INSTALLED_PACKAGE_DIR : join(SCRATCH_DIR, 'package')
+if (SCRATCH_DIR !== null) {
+  const physicalDir = realpathSync(INSTALLED_PACKAGE_DIR)
+  cpSync(physicalDir, PACKAGE_DIR, {
+    recursive: true,
+    dereference: true,
+    filter: (path) => relative(physicalDir, path) !== 'build'
+  })
+}
 
 function parseArgs(argv) {
   const arch = argv.find((a) => a.startsWith('--arch='))?.slice('--arch='.length) ?? process.arch
@@ -378,7 +402,10 @@ function main() {
   if (!existsSync(PACKAGE_DIR)) {
     throw new Error(`${PACKAGE_DIR} is missing. Run pnpm install first.`)
   }
-  ensureWindowsProcessTreeBuildSource(ROOT)
+  ensureWindowsProcessTreeBuildSource(ROOT, {
+    packageDir: PACKAGE_DIR,
+    resolveFromDir: INSTALLED_PACKAGE_DIR
+  })
   // Upstream v1.4.199 added the creation-time hunks and made assertPatchApplied require them.
   // Our staging owns the rest of the repair, so this is the one upstream repair still to run.
   if (repairCreationTimeSources()) {
@@ -401,7 +428,7 @@ function main() {
   ) {
     console.log(`[windows-process-tree] reusing the prepared ${arch} addon`)
   } else {
-    const gyp = nodeGypRebuildInvocation(arch)
+    const gyp = nodeGypRebuildInvocation(arch, PACKAGE_DIR)
     console.log(`[windows-process-tree] building ${arch} from ${gyp.cwd}`)
     execFileSync(process.execPath, gyp.args, { cwd: gyp.cwd, stdio: 'inherit' })
   }
@@ -443,5 +470,9 @@ try {
   main()
 } catch (error) {
   console.error(`[windows-process-tree] ${error instanceof Error ? error.message : String(error)}`)
-  process.exit(1)
+  process.exitCode = 1
+} finally {
+  if (SCRATCH_DIR !== null) {
+    rmSync(SCRATCH_DIR, { recursive: true, force: true })
+  }
 }

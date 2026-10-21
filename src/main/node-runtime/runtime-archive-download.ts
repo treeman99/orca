@@ -119,7 +119,11 @@ async function downloadVerifiedArchiveOnce(
   // Why here: every pinned-runtime fetch (SSH relay, WSL, OpenCode) funnels into this download;
   // a verified cache hit never reaches it and stays allowed.
   if (getEnterprisePolicy().disableRuntimeDownloads) {
-    throw new Error(`${label} ${RUNTIME_DOWNLOAD_POLICY_REFUSAL}`)
+    // A string `code` makes the pinned materializer pass the refusal through unwrapped, so callers
+    // never read it as an unreachable network and fall back to a host-side download.
+    throw Object.assign(new Error(`${label} ${RUNTIME_DOWNLOAD_POLICY_REFUSAL}`), {
+      code: 'ORCA_RUNTIME_DOWNLOAD_DISABLED_BY_POLICY'
+    })
   }
   const maxBytes = archive.maxArchiveBytes ?? MAX_RUNTIME_ARCHIVE_BYTES
   const stall = new AbortController()

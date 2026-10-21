@@ -17,6 +17,7 @@ import type { CodexUsageStore } from '../codex-usage/store'
 import { resolveAutomationRunTarget, type AutomationRunTargetResult } from './run-target-resolution'
 import { writeAutomationRunUsage } from './run-usage-collection'
 import type { HeadlessAutomationDispatcher } from './headless-dispatch'
+import { runKeyedSerializedOperation } from '../cli/keyed-promise-queue'
 import { clearAutomationDispatchTokens } from './dispatch-tokens'
 import { unattendedAgentRunSkip } from '../enterprise/unattended-agent-run-guard'
 import { runAutomationPrecheckForTarget } from './automation-precheck-for-target'
@@ -54,6 +55,7 @@ export class AutomationService {
   private readonly codexUsage: CodexUsageStore | null
   private readonly allowRemoteHostScheduling: boolean
   private readonly headlessDispatcher: HeadlessAutomationDispatcher | null
+  private readonly automationLanes = new Map<string, Promise<void>>()
   /** Set on a headless host: closes completed, unused run terminals now; resolves how many. */
   releaseFinishedRunTerminals: (() => Promise<number>) | null = null
   private readonly publish: PublishAutomationsChanged | null
@@ -293,6 +295,15 @@ export class AutomationService {
     return Boolean(webContents && !webContents.isDestroyed() && this.rendererReady)
   }
 
+  /**
+   * One run of an automation at a time claims, prechecks, picks, prompts and records its agent,
+   * and headless retention closes that automation's terminals in the same lane, so no two ever
+   * claim one pane. Held only until the run is dispatched, never while its agent works.
+   */
+  runInAutomationLane<T>(automationId: string, operation: () => Promise<T>): Promise<T> {
+    return runKeyedSerializedOperation(this.automationLanes, automationId, operation)
+  }
+
   private requestDispatch(
     automation: Automation,
     run: AutomationRun,
@@ -305,21 +316,23 @@ export class AutomationService {
     if (policySkip) {
       return this.runs.updateRun(policySkip)
     }
-    return requestAutomationDispatch(
-      {
-        store: this.store,
-        runs: this.runs,
-        isActive: () => !this.stopped && generation === this.dispatchGeneration,
-        getRenderer: () => (this.canDispatchToRenderer() ? this.webContents : null),
-        headlessDispatcher: this.headlessDispatcher,
-        resolveTarget: (current) => this.resolveTarget(current),
-        runPrecheck: () => this.runPrecheck(automation.id, run.id),
-        markDispatchResult: (result) => this.markDispatchResult(result),
-        watchRun: (dispatched) => this.completionWatcher?.watch(dispatched)
-      },
-      automation,
-      run,
-      target
+    return this.runInAutomationLane(automation.id, () =>
+      requestAutomationDispatch(
+        {
+          store: this.store,
+          runs: this.runs,
+          isActive: () => !this.stopped && generation === this.dispatchGeneration,
+          getRenderer: () => (this.canDispatchToRenderer() ? this.webContents : null),
+          headlessDispatcher: this.headlessDispatcher,
+          resolveTarget: (current) => this.resolveTarget(current),
+          runPrecheck: () => this.runPrecheck(automation.id, run.id),
+          markDispatchResult: (result) => this.markDispatchResult(result),
+          watchRun: (dispatched) => this.completionWatcher?.watch(dispatched)
+        },
+        automation,
+        run,
+        target
+      )
     )
   }
 }

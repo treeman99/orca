@@ -23,7 +23,7 @@ vi.mock('electron', () => ({
       mocks.handlers.set(channel, handler)
   }
 }))
-vi.mock('../../ssh/ssh-target-registry', async (importOriginal) => ({
+vi.mock('../../ssh/targets/ssh-target-registry', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   getSshTargetRegistryStore: () => mocks.registry,
   setSshTargetMutations: vi.fn()
