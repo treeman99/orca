@@ -224,6 +224,16 @@
           "why": "v1.4.226 신규 Jira 제목 생성 — Source Control AI 에이전트 CLI 를 Jira 초안을 프롬프트로 스폰한다."
         },
         {
+          "file": "src/main/text-generation/agent-generation-request.ts",
+          "contains": "const agentBlocked = agentBlockedByPolicyResult(input.params.agentId)",
+          "why": "Source Control AI 텍스트 생성(커밋·PR·브랜치·워크스페이스 제목·채팅 이름·Jira)의 단일 초크포인트. v1.4.237 이 이리로 모았다 — 빠지면 데스크톱 IPC 와 채팅 자동 이름 짓기가 허용목록 밖 CLI·사용자 지정 명령을 띄운다(감사 #37)."
+        },
+        {
+          "file": "src/main/text-generation/commit-message-model-discovery.ts",
+          "contains": "const agentBlocked = agentBlockedByPolicyResult(input.agentId)",
+          "why": "Source Control AI 설정 행의 모델 목록 조회가 에이전트 CLI 를 실행한다. 데스크톱 git:discoverCommitMessageModels IPC 는 런타임 게이트를 지나지 않는다."
+        },
+        {
           "file": "src/main/ipc/pty/ipc/spawn.ts",
           "contains": "assertAgentAllowedByEnterprisePolicy(args.launchAgent)",
           "why": "데스크톱 pty:spawn IPC 입구의 허용목록 게이트. v1.4.226 egress 감사에서 원장 미등재로 확인돼 등재했다."

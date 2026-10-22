@@ -13,6 +13,7 @@ import type { ResolvedSourceControlAiGenerationParams } from '../../shared/sourc
 import { openCodeVariantRetryPlan } from '../../shared/opencode-generation-command'
 import { runLocalPlanForAgent } from './source-control-local-generation'
 import { runRemoteSourceControlPlan } from './source-control-remote-generation'
+import { agentBlockedByPolicyResult } from '../enterprise/agent-allowlist-guard'
 import type {
   CommitMessageGenerationTarget,
   InternalTextGenerationResult,
@@ -37,6 +38,11 @@ export async function runGenerationRequest(input: {
   operation: TextGenerationOperation
   spawnAgent: SpawnSourceControlAgent
 }): Promise<InternalTextGenerationResult> {
+  // Fork: commit, PR, branch, workspace-title, chat-name and Jira text all spawn this agent here.
+  const agentBlocked = agentBlockedByPolicyResult(input.params.agentId)
+  if (agentBlocked) {
+    return agentBlocked
+  }
   const params = { ...input.params, backslash: commandBackslashMode(input.target) }
   const planned = planCommitMessageGeneration(params, input.prompt)
   if (!planned.ok) {

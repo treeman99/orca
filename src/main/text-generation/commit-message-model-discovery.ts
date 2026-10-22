@@ -12,6 +12,7 @@ import {
 } from '../../shared/claude-background-run-isolation'
 import type { TuiAgent } from '../../shared/tui-agent'
 import { resolveCodexHomeProcessLockKeyForSpawnEnv } from '../codex-cli/codex-home-process-lock'
+import { agentBlockedByPolicyResult } from '../enterprise/agent-allowlist-guard'
 import { supervisedProviderSpawnFailure } from '../provider-process/provider-spawn-failure-report'
 import {
   finalizeModelDiscoveryOutput,
@@ -50,6 +51,11 @@ type DiscoverModelsLocalInput = {
 export async function discoverModelsLocal(
   input: DiscoverModelsLocalInput
 ): Promise<DiscoverCommitMessageModelsResult> {
+  // Fork: the desktop `git:discoverCommitMessageModels` IPC reaches here without the runtime's gate.
+  const agentBlocked = agentBlockedByPolicyResult(input.agentId)
+  if (agentBlocked) {
+    return agentBlocked
+  }
   const spec = getAgentModelProbeSpec(input.agentId)
   if (!spec) {
     return { success: false, error: `Agent "${input.agentId}" does not support model discovery.` }
