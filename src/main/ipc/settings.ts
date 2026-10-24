@@ -3,7 +3,6 @@ import type { Store } from '../persistence'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import type { PersistedState } from '../../shared/persisted-state-types'
 import { listSystemFontFamilies } from '../system-fonts'
-import { isRemoteOrcaServerDisabled } from '../enterprise/remote-orca-server-guard'
 import { previewGhosttyImport } from '../ghostty/index'
 import { previewWarpThemeImport } from '../warp-themes'
 import { setMainUiLanguage } from '../i18n/main-i18n'
@@ -13,9 +12,8 @@ import { track } from '../telemetry/client'
 import { SETTINGS_CHANGED_WHITELIST, type SettingsChangedKey } from '../../shared/telemetry-events'
 import type { AgentAwakeService } from '../agent-awake-service'
 import { sanitizeFloatingWorkspaceDirectorySetting } from './floating-workspace-directory'
-// Aliased to upstream's name so the call site below stays byte-identical to upstream — the
-// enterprise gate lives in the wrapper, not here.
-import { applyAgentStatusHooksEnabledUnderEnterprisePolicy as applyAgentStatusHooksEnabled } from '../agent-hooks/enterprise-agent-hook-policy'
+// Fork: both enterprise gates come from one module so this file stays within max-lines.
+import { applyAgentStatusHooksEnabled, isRemoteOrcaServerDisabled } from './settings-policy-gates'
 import { isAgentStatusHooksEnabledForAgent } from '../../shared/agent-status-hooks-setting'
 import { recordManagedHookInstallFailure } from '../agent-hooks/install-telemetry'
 import { applyElectronProxySettings } from '../network/proxy-settings'
@@ -206,6 +204,14 @@ export function registerSettingsHandlers(
       'alwaysForceDeletePreservedBranches' in sanitizedArgs
         ? await store.updateSettingsAndFlush(sanitizedArgs, updateOptions)
         : store.updateSettings(sanitizedArgs, updateOptions)
+    if (
+      'experimentalAgentDashboardPopout' in sanitizedArgs &&
+      before.experimentalAgentDashboardPopout !== result.experimentalAgentDashboardPopout
+    ) {
+      track('agent_dashboard_enabled', {
+        enabled: result.experimentalAgentDashboardPopout === true
+      })
+    }
     const proxySettingsChanged =
       ('httpProxyUrl' in sanitizedArgs && before.httpProxyUrl !== result.httpProxyUrl) ||
       ('httpProxyBypassRules' in sanitizedArgs &&

@@ -7,7 +7,7 @@ import { makeEnterprisePolicy, makeLockdownPolicy } from '../../shared/enterpris
 
 const mocks = vi.hoisted(() => ({
   getEnterprisePolicy: vi.fn(),
-  observeAgentCliVersion: vi.fn(),
+  checkAgentCliVersion: vi.fn(),
   resolveLaunch: vi.fn()
 }))
 
@@ -15,7 +15,7 @@ vi.mock('../enterprise/enterprise-policy-file', () => ({
   getEnterprisePolicy: mocks.getEnterprisePolicy
 }))
 vi.mock('../agent-cli-version-probe', () => ({
-  observeAgentCliVersion: mocks.observeAgentCliVersion
+  checkAgentCliVersion: mocks.checkAgentCliVersion
 }))
 vi.mock('./structured-agent-shell-environment', () => ({
   resolveHostAgentBaseEnvironment: async () => ({}),
@@ -23,7 +23,7 @@ vi.mock('./structured-agent-shell-environment', () => ({
 }))
 vi.mock('./structured-agent-runtime-metadata', () => ({
   structuredAgentRuntimeMetadata: () => ({
-    launchCheck: { resolveLaunch: mocks.resolveLaunch, supportsVersion: () => true }
+    launchCheck: { resolveLaunch: mocks.resolveLaunch, minimumVersions: [] }
   })
 }))
 
@@ -34,27 +34,27 @@ const home = async () => '/home/user'
 
 beforeEach(() => {
   mocks.getEnterprisePolicy.mockReset()
-  mocks.observeAgentCliVersion.mockReset().mockResolvedValue('supported')
+  mocks.checkAgentCliVersion.mockReset().mockResolvedValue({ status: 'ready', version: '1.0.0' })
   mocks.resolveLaunch.mockReset().mockResolvedValue({ command: '/usr/bin/opencode2', env: {} })
 })
 
 describe('agent launch observation under the enterprise policy', () => {
-  it('never probes an agent the policy does not list, and reads it as unsupported', async () => {
+  it('never probes an agent the policy does not list, and reads it as not launchable', async () => {
     mocks.getEnterprisePolicy.mockReturnValue(makeLockdownPolicy({ allowedAgents: ['claude'] }))
 
-    await expect(observeStructuredAgentLaunch('opencode2', home, runtime, false)).resolves.toBe(
-      'unsupported'
-    )
+    await expect(
+      observeStructuredAgentLaunch('opencode2', home, runtime, false)
+    ).resolves.toStrictEqual({ status: 'missing', version: null })
     expect(mocks.resolveLaunch).not.toHaveBeenCalled()
-    expect(mocks.observeAgentCliVersion).not.toHaveBeenCalled()
+    expect(mocks.checkAgentCliVersion).not.toHaveBeenCalled()
   })
 
   it('probes an allowed agent as upstream does', async () => {
     mocks.getEnterprisePolicy.mockReturnValue(makeEnterprisePolicy({ allowedAgents: null }))
 
-    await expect(observeStructuredAgentLaunch('opencode2', home, runtime, false)).resolves.toBe(
-      'supported'
-    )
-    expect(mocks.observeAgentCliVersion).toHaveBeenCalledTimes(1)
+    await expect(
+      observeStructuredAgentLaunch('opencode2', home, runtime, false)
+    ).resolves.toStrictEqual({ status: 'ready', version: '1.0.0' })
+    expect(mocks.checkAgentCliVersion).toHaveBeenCalledTimes(1)
   })
 })

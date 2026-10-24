@@ -1,6 +1,7 @@
 import { useAppStore } from '@/store'
 import type { OpenFile } from '@/store/slices/editor'
 import { findWorktreeById } from '@/store/slices/worktree-helpers'
+import { selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 import { getConnectionIdForFile } from '@/lib/connection-context'
 import { requireRuntimeTargetForFileOwner } from '@/lib/file-owner-runtime-target'
 import type { RuntimeGitContext } from '@/runtime/runtime-git-client-context'
@@ -46,7 +47,7 @@ export async function refreshMergedFileStatus(context: RuntimeGitContext): Promi
     worktreeId: context.worktreeId,
     worktreePath: context.worktreePath,
     connectionId: context.connectionId,
-    pushTarget: findWorktreeById(state.worktreesByRepo, context.worktreeId)?.pushTarget,
+    pushTarget: findWorktreeById(selectWorktreesByRepo(state), context.worktreeId)?.pushTarget,
     deps: {
       setGitStatus: state.setGitStatus,
       updateWorktreeGitIdentity: state.updateWorktreeGitIdentity,

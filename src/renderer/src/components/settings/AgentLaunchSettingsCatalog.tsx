@@ -22,6 +22,10 @@ import { AgentDetectionCatalog } from './AgentDetectionCatalog'
 import type { AgentCatalogRowProps } from './AgentCatalogRow'
 import { HostAgentEnvironmentEditor } from './HostAgentEnvironmentEditor'
 import { buildCodexSessionSourceHomeControl } from './codex-session-source-home-control'
+import { buildDefaultAgentOpensAs } from './native-chat-provider-choice'
+import { useHostStructuredAgentsVersion } from '@/lib/chat-provider-agents'
+import { useAppStore } from '@/store'
+import { readNativeDetectedAgents } from '@/store/slices/local-detected-agent-store-state'
 import { translate } from '@/i18n/i18n'
 
 export type AgentPermissionsRenderer = (props: AgentPermissionsSettingProps) => React.ReactNode
@@ -57,6 +61,8 @@ export function AgentLaunchSettingsCatalog({
     refresh
   } = useDetectedAgents(detectionTarget)
   const detectedIds = useMemo(() => (detected ? new Set(detected) : null), [detected])
+  useHostStructuredAgentsVersion()
+  const installedHere = useAppStore(readNativeDetectedAgents)
   // Why the read is kept even where the value is unused: getAgentCatalog() applies the
   // corporate allowlist itself but is not reactive, so this subscription is what re-renders
   // the catalog once the policy lands at startup.
@@ -146,6 +152,17 @@ export function AgentLaunchSettingsCatalog({
           'settings.agents.hostDefaults',
           'Defaults for new agents on the selected host.'
         )}
+        // The chat-or-CLI choice is this computer's, so a paired host's page doesn't offer it.
+        opensAs={
+          local
+            ? buildDefaultAgentOpensAs({
+                defaultAgent: settings.defaultTuiAgent,
+                settings: local.settings,
+                updateSettings: local.updateSettings,
+                installedHere
+              })
+            : undefined
+        }
         onSetDefault={(agent) => save({ type: 'default', agent })}
       />
       {renderPermissions({

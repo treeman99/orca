@@ -13,6 +13,7 @@ import { STRUCTURED_AGENT_RUNTIME_METADATA } from './structured-agent-runtime-me
 import type { StructuredAgentRuntimeMetadata } from './structured-agent-runtime-registration-types'
 import { recaptureHostShellEnvironment } from './structured-agent-shell-environment'
 import type { RuntimeStore } from './runtime-store-contract'
+import { isAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 
 export type StructuredAgentAvailabilityReader = (
   agents: readonly AgentSessionAgentAvailability[]
@@ -43,7 +44,8 @@ async function observeHostAgent(
   { definition: { agent }, supportsLocation }: StructuredAgentRuntimeMetadata,
   runtime: HealthRuntime
 ): Promise<AgentSessionAgentAvailability> {
-  if (!supportsLocation(HOST_LOCATION)) {
+  // Fork: an agent outside the corporate allowlist is refused here, never probed.
+  if (!supportsLocation(HOST_LOCATION) || !isAgentAllowedByEnterprisePolicy(agent)) {
     return { agent, state: 'refused', reason: 'agent' }
   }
   // A failed probe or an unrunnable Command setting says nothing about the installed release.
@@ -52,13 +54,13 @@ async function observeHostAgent(
     async () => homedir(),
     runtime,
     false
-  ).catch(() => 'inconclusive' as const)
-  if (seen === 'inconclusive') {
-    return { agent, state: 'unknown' }
+  ).catch(() => ({ status: 'unknown' as const }))
+  if (seen === null || seen.status === 'ready') {
+    return { agent, state: 'available' }
   }
-  return seen === 'supported'
-    ? { agent, state: 'available' }
-    : { agent, state: 'refused', reason: 'agent' }
+  return seen.status === 'tooOld'
+    ? { agent, state: 'refused', reason: 'agent' }
+    : { agent, state: 'unknown' }
 }
 
 /** The runtime's snapshot: taken after a fresh shell capture, initially and on launch settings or

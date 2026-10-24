@@ -14,6 +14,7 @@ import {
   automationWorktreeForRow,
   type AutomationListRow
 } from './automation-list-row-identity'
+import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 
 // Why a call, not a module const: the corporate agent allowlist arrives over IPC after
 // this module is imported, so a snapshot taken at import time is always unfiltered.
@@ -25,8 +26,8 @@ function getAutomationAgentIds(): TuiAgent[] {
 export function useAutomationsPageStoreState() {
   const repos = useAppStore((s) => s.repos)
   const projectHostSetups = useAppStore((s) => s.projectHostSetups)
-  const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
-  const folderWorkspaces = useAppStore((s) => s.folderWorkspaces)
+  const worktreesByRepo = useAppStore((s) => selectWorktreesByRepo(s))
+  const folderWorkspaces = useAppStore((s) => selectFolderWorkspaces(s))
   const unifiedTabsByWorktree = useAppStore((s) => s.unifiedTabsByWorktree)
   const terminalLayoutsByTabId = useAppStore((s) => s.terminalLayoutsByTabId)
   const ptyIdsByTabId = useAppStore((s) => s.ptyIdsByTabId)

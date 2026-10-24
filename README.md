@@ -575,7 +575,7 @@ git push origin main
 
 #### 사내 커스터마이즈를 새 릴리스 위로 올리기
 
-현재 `enterprise/samsungds`에는 **`v1.4.237`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
+현재 `enterprise/samsungds`에는 **`v1.4.238`** 가 병합되어 있습니다(`git log --oneline --merges -3`로 확인). v1.4.159부터 v1.4.184까지 매번 **병합(merge)** 으로 올렸습니다 — 강제 푸시가 필요 없고, 사내에서 이미 받아 간 커밋이 재작성되지 않습니다.
 
 ```powershell
 git fetch upstream --tags --prune
@@ -1026,6 +1026,26 @@ upstream #31082 가 Remote Orca Servers 를 "섹션 여섯 개 → 목록 하나
 헤더 메뉴로 옮겨 온 "Set up Orca on an SSH host"(관리형 orcad 설치)는 SSH 호스트를 뺀 이 빌드에서 항상 실패하므로
 `SSH_REMOTE_HOSTS_REMOVED` 로 감췄습니다. 원장 `absentSymbols` 7건과 `present` 1건이 지킵니다 — 포크에 업데이트 코디네이터
 모듈이 없어 되살아나면 tc 도 깨지지만, 원장이 먼저 파일을 짚어 줍니다.
+
+#### 충돌 없이 들어온 새 입구 셋 — 계정 로그인·plain SSH·언어 요청 (v1.4.238)
+
+v1.4.238 은 포크가 이미 막아 둔 도메인에 **새 진입점**을 셋 더했고, 셋 다 게이트 없이 자동 병합으로 들어왔습니다.
+
+| 무엇                                                                | 왜 문제인가                                                                                                                                                   | 포크 처리                                                                                                                                                                               |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 다른 기기 경유 계정 로그인 `accounts.hostSignIn*` → `runHostSignIn` | 페어링된 기기가 이 호스트에서 `claude auth login --claudeai` / `codex login --device-auth` 를 끝낸다. 같은 컨트롤러의 다른 등록 메서드 게이트를 지나지 않는다 | `runHostSignIn` 첫 줄에 `assertVendorAccountRegistrationAllowed()`(`disableVendorProviderAccounts`)                                                                                     |
+| plain SSH 터미널 `plainSsh:*`                                       | 이동이 막힌 SSH 호스트에 시스템 `ssh` 를 PTY 로 띄운다. 그 상태는 이미 거부된 connect 만 만들어 원래 도달할 수 없다                                           | 불변식에 기대지 않으려고 `openPlainSshTerminal` 첫 줄과 진입 버튼을 `SSH_REMOTE_HOSTS_REMOVED` 로 막음. upstream 테스트 2개는 `ssh-remote-hosts-enabled.test-fixture.ts` 로 상수를 끈다 |
+| 온보딩 "다른 언어 요청"                                             | 벤더 피드백 엔드포인트(`window.api.feedback.submit`)로 보낸다 — 포크는 피드백 제출을 지웠다                                                                   | 포크 seam `language-request-removed.ts` 가 끈다. upstream 테스트는 그 seam 을 모킹해 요청 화면을 계속 검증한다. 브리지를 되살리지 말 것                                                 |
+
+**같은 판의 의미 반전 함정.** `observeStructuredAgentLaunch` 의 반환형이 `'supported' | 'unsupported'` 에서
+`AgentCliVersionCheck | null` 로 바뀌었는데, 새 형에서는 `null` 과 `{ status: 'unknown' }` 이 "실행 가능"입니다. 포크 허용목록
+게이트의 `return 'unsupported'` 를 그 둘 중 하나로 옮기면 tc 도 원장도 초록인 채 차단이 풀립니다 — `{ status: 'missing', version: null }`
+이어야 하고, 원장이 이제 그 반환 줄까지 지킵니다. 호스트 가용성 스냅샷은 예전에는 `'unsupported'` 가 곧 `refused` 였으므로,
+`structured-agent-availability.ts` 에도 허용목록 게이트를 따로 넣었습니다.
+
+**다음 동기화에서 볼 것.** 원장이 세 입구의 포크 줄을 지킵니다. 같은 부류가 또 오는지는 신규 RPC 이름(`signIn`·`login`·`add`)과
+신규 IPC 네임스페이스(`ssh` 계열)를 egress·표면 대조에서 따로 보십시오 — 이번 셋은 fetch 리터럴 대조에 하나도 안 보였고,
+전부 **자식 프로세스 레인**이었습니다.
 
 #### pnpm 전역 가상 스토어 — upstream 이 로컬 설치의 기본값을 바꿨다 (v1.4.232)
 

@@ -14,6 +14,7 @@ type RuntimeGitCommandName =
   | 'checkRuntimeGitIgnoredPaths'
   | 'getRuntimeGitHistory'
   | 'getRuntimeGitConflictOperation'
+  | 'getRuntimeGitMutationInFlight'
   | 'abortRuntimeGitMerge'
   | 'abortRuntimeGitRebase'
   | 'checkoutRuntimeGitBranch'
@@ -66,6 +67,7 @@ export function installRuntimeGitCommandSurface(
     checkRuntimeGitIgnoredPaths: commands.checkRuntimeGitIgnoredPaths.bind(commands),
     getRuntimeGitHistory: commands.getRuntimeGitHistory.bind(commands),
     getRuntimeGitConflictOperation: commands.getRuntimeGitConflictOperation.bind(commands),
+    getRuntimeGitMutationInFlight: commands.getRuntimeGitMutationInFlight.bind(commands),
     abortRuntimeGitMerge: commands.abortRuntimeGitMerge.bind(commands),
     abortRuntimeGitRebase: commands.abortRuntimeGitRebase.bind(commands),
     checkoutRuntimeGitBranch: commands.checkoutRuntimeGitBranch.bind(commands),

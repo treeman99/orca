@@ -100,9 +100,9 @@
           "contains": "applyAgentStatusHooksEnabledUnderEnterprisePolicy"
         },
         {
-          "file": "src/main/ipc/settings.ts",
+          "file": "src/main/ipc/settings-policy-gates.ts",
           "contains": "applyAgentStatusHooksEnabledUnderEnterprisePolicy as applyAgentStatusHooksEnabled",
-          "why": "설정 화면에서 훅 토글을 바꿀 때 지나는 두 번째 입구. v1.4.204 에서 upstream 이 이 파일을 max-lines 상한까지 밀어 올려, 포크 호출부를 upstream 과 바이트 동일하게 되돌리고 게이트를 별칭 임포트로 옮겼다 — 그래서 앵커는 호출부가 아니라 임포트 줄이다."
+          "why": "설정 화면에서 훅 토글을 바꿀 때 지나는 두 번째 입구. v1.4.204 에서 upstream 이 이 파일을 max-lines 상한까지 밀어 올려, 포크 호출부를 upstream 과 바이트 동일하게 되돌리고 게이트를 별칭 임포트로 옮겼다 — 그래서 앵커는 호출부가 아니라 임포트 줄이다. v1.4.238 에서 이 파일이 다시 상한(301)에 닿아, 포크 임포트 둘(훅 래퍼·원격 Orca 차단)을 포크 모듈 settings-policy-gates.ts 하나로 묶었다 — 별칭은 그 모듈의 재수출 줄로 옮겼다."
         },
         {
           "file": "src/main/codex/codex-structured-launch-resolution.ts",
@@ -277,6 +277,21 @@
           "file": "src/main/runtime/structured-agent-launch-support.ts",
           "contains": "if (!isAgentAllowedByEnterprisePolicy(agent)) {",
           "why": "v1.4.232 가 export 한 observeStructuredAgentLaunch 를 에이전트 가용성 스냅샷이 시작·설정 변경·Refresh 마다 부른다. ACP 레인은 게이트된 리졸버를 거치지 않아 허용목록 밖 에이전트의 `--version` 을 띄우고 available 로 발행했다(실패 모드 V)."
+        },
+        {
+          "file": "src/main/runtime/structured-agent-launch-support.ts",
+          "contains": "return { status: 'missing', version: null }",
+          "why": "v1.4.238 이 반환형을 AgentCliVersionCheck | null 로 바꿨다. null 과 {status:'unknown'} 은 '실행 가능'이므로 비허용 에이전트는 반드시 missing 이어야 한다 — if 줄만 남고 반환값이 바뀌면 허용목록이 조용히 풀린다."
+        },
+        {
+          "file": "src/main/runtime/structured-agent-availability.ts",
+          "contains": "if (!supportsLocation(HOST_LOCATION) || !isAgentAllowedByEnterprisePolicy(agent)) {",
+          "why": "호스트 에이전트 가용성 스냅샷(클라이언트가 채팅을 제안할 때 읽는다)에서 비허용 에이전트를 프로브 없이 refused 로 게시한다. v1.4.238 전에는 실행 검사의 'unsupported' 가 refused 로 매핑돼 따로 게이트가 필요 없었다."
+        },
+        {
+          "file": "src/main/ipc/settings.ts",
+          "contains": "import { applyAgentStatusHooksEnabled, isRemoteOrcaServerDisabled } from './settings-policy-gates'",
+          "why": "settings.ts 가 upstream 모듈(managed-agent-hook-controls) 대신 포크 모듈에서 훅 토글을 받는 줄. upstream 임포트로 돌아가면 훅 정책 게이트가 조용히 빠진다."
         }
       ]
     },
@@ -463,6 +478,16 @@
           "file": "src/main/speech/openai-api-key-store.ts",
           "contains": "import { assertVoiceAllowed } from './speech-runtime-service'",
           "why": "v1.4.237 이 OpenAI 음성 키 저장에 런타임 RPC(speech.openAiKey.set)와 CLI(orca speech openai-key set)라는 두 번째 입구를 열었다. disableVoice 일 때 막혀 있던 것은 데스크톱 speech IPC 등록뿐이라, 저장 초크포인트의 첫 줄이 유일한 공통 게이트다. 호출 줄이 빠지면 oxlint 가 미사용 import 로 잡는다."
+        },
+        {
+          "file": "src/main/runtime/runtime-account-controller.ts",
+          "contains": "// Fork: v1.4.238's paired-client sign-in runs `claude auth login` / `codex login` here.",
+          "why": "v1.4.238 `accounts.hostSignIn*` RPC 가 다른 기기에서 이 호스트의 벤더 계정 로그인(claude auth login --claudeai, codex login --device-auth)을 끝낸다. 같은 파일의 다른 메서드 게이트를 지나지 않고 충돌 없이 자동 병합으로 들어왔다 — 이 주석 바로 다음 줄이 runHostSignIn 의 disableVendorProviderAccounts 게이트다."
+        },
+        {
+          "file": "src/renderer/src/components/onboarding/OnboardingLanguageSwitcher.tsx",
+          "contains": "LANGUAGE_REQUESTS_AVAILABLE && !isWebClientLocation()",
+          "why": "v1.4.238 온보딩 언어 선택기의 \"다른 언어 요청\"은 벤더 피드백 엔드포인트로 간다. 포크 seam(language-request-removed.ts)이 끈다 — upstream 판 줄(!isWebClientLocation() 단독)로 돌아오면 요청 화면이 다시 열린다."
         }
       ]
     },
@@ -1542,6 +1567,11 @@
           "file": "src/main/window/clipboard-ipc-handlers.ts",
           "contains": "isDashboardOrTabPopoutRenderer as isDashboardPopoutRenderer",
           "why": "팝아웃 탭 창의 터미널 복사/붙여넣기 허용. v1.4.232 가 이 파일을 max-lines 한도까지 채워 별칭 임포트로 바꿨다 — 빠지면 팝아웃 창에서 클립보드가 조용히 거부된다."
+        },
+        {
+          "file": "src/renderer/src/components/dashboard-popout/AgentTerminalPreview.tsx",
+          "contains": "scrollback: Math.max(PREVIEW_SCROLLBACK_BUFFER_ROWS, scrollbackRowsRef.current)",
+          "why": "분리된 탭 창이 요청한 스크롤백을 xterm 버퍼가 실제로 담게 한다. v1.4.238 이 xterm 생성을 open-standalone-terminal 로 옮기며 이 줄이 충돌 블록에 들어갔다."
         }
       ]
     },
@@ -1724,6 +1754,16 @@
           "file": "src/renderer/src/components/settings/runtime-servers-header-actions.tsx",
           "contains": "const canInstall = !SSH_REMOTE_HOSTS_REMOVED && getManagedOrcadApi() !== undefined",
           "why": "v1.4.237 이 관리형 서버 설치(\"Set up Orca on an SSH host\")를 Remote Orca Servers 헤더의 Add server 메뉴로 옮겼다. SSH 연결이 막힌 빌드에서 항상 실패하는 진입점이다."
+        },
+        {
+          "file": "src/main/ssh/plain-ssh-terminal/plain-ssh-terminal-sessions.ts",
+          "contains": "// Fork: this build has no SSH hosts, so no saved target is one this terminal may dial.",
+          "why": "v1.4.238 plain SSH 터미널(plainSsh:* IPC → 시스템 ssh 를 PTY 로 스폰). 이동이 막힌 호스트에만 열리고 그 상태는 이미 거부된 connect 만 만든다 — 그 불변식에 기대지 않으려고 open 첫 줄에서 거부한다."
+        },
+        {
+          "file": "src/renderer/src/components/plain-ssh-terminal/OpenPlainSshTerminalButton.tsx",
+          "contains": "SSH_REMOTE_HOSTS_REMOVED ||",
+          "why": "plain SSH 터미널 진입 버튼(서버 상태·재연결 오버레이)을 감춘다."
         }
       ]
     },
@@ -1879,6 +1919,11 @@
           "file": "src/renderer/src/components/tab-group/TabGroupSplitNodeTree.tsx",
           "contains": "export function ResizeHandle({",
           "why": "머지 뷰가 입력|결과 분할에 기존 리사이즈 핸들을 재사용한다(포크가 export 만 추가)."
+        },
+        {
+          "file": "src/renderer/src/components/editor/editor-autosave-due-records.ts",
+          "contains": "!isAutosaveSuspendedForFile(file, state) &&",
+          "why": "v1.4.238 이 자동 저장 타이머 대상 계산을 이 모듈로 추출했다. state 인자가 빠지면 머지 뷰의 reset 결과(마커 제거본)가 자동 저장된다."
         }
       ]
     }
@@ -1958,7 +2003,11 @@
     "native/macos-shipit-scheduling",
     "config/scripts/macos-shipit-scheduling*",
     "src/main/updater/macos-shipit-scheduling*",
-    "src/main/orcad/orcad-browser-install-park.test.ts"
+    "src/main/orcad/orcad-browser-install-park.test.ts",
+    "src/renderer/src/components/settings/ReleaseBuildPicker*",
+    "src/renderer/src/components/settings/ReleaseChannelSection*",
+    "src/renderer/src/components/skills/SkillInstallDialog.tsx",
+    "src/renderer/src/components/skills/SkillBundleInstallFlow.tsx"
   ],
   "absentSymbols": [
     {
@@ -2175,6 +2224,21 @@
       "file": "src/shared/host-runtime-capabilities.ts",
       "symbol": "REMOTE_SERVER_UPDATE_CAPABILITY",
       "why": "원격 서버 업데이트 capability(포크 삭제). v1.4.237 이 protocol-version.ts 에서 이 모듈로 옮겼고, 이 파일은 충돌 없이 병합된다."
+    },
+    {
+      "file": "src/renderer/src/components/onboarding/OnboardingLanguageSwitcher.tsx",
+      "symbol": "window.api.feedback",
+      "why": "v1.4.238 온보딩 언어 요청이 벤더 피드백 엔드포인트(feedback:submit)로 보낸다. 포크는 피드백 제출을 지웠으므로 요청은 language-request-removed.ts 의 seam 으로 꺼져 있다 — 브리지를 되살리지 말 것."
+    },
+    {
+      "file": "src/main/ipc/register-core-handlers/register-core-handlers.ts",
+      "symbol": "import { registerBitbucketHandlers }",
+      "why": "Bitbucket 연동을 지웠다. v1.4.238 import 경로 충돌의 theirs 블록에 이 줄이 함께 들어 있었다."
+    },
+    {
+      "file": "src/main/ipc/register-core-handlers/register-core-handlers.ts",
+      "symbol": "import { registerFeedbackHandlers }",
+      "why": "피드백 제출을 지웠다. 위와 같은 충돌 블록."
     }
   ],
   "policySwitchMinConsumers": {

@@ -69,6 +69,46 @@ describe('vendor account registration under the enterprise policy', () => {
   })
 })
 
+// v1.4.238 lets a client on another device finish `claude auth login` / `codex login` on this
+// host (`accounts.hostSignIn*`); the flow calls the controller without passing the methods above.
+describe('host account sign-in under the enterprise policy', () => {
+  const signInServices = () => ({
+    claudeAccounts: { addAccountWithPastedCode: vi.fn(async () => ({ accounts: [] })) },
+    codexAccounts: { addAccountWithDeviceCode: vi.fn(async () => ({ accounts: [] })) },
+    rateLimits: {}
+  })
+
+  it.each(['claude', 'codex'] as const)(
+    'refuses a %s host sign-in before any login runs',
+    async (provider) => {
+      getEnterprisePolicyMock.mockReturnValue(makeLockdownPolicy())
+      const services = signInServices()
+      const accounts = new RuntimeAccountController()
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: runHostSignIn reads only the two add* methods stubbed here.
+      accounts.setServices(services as never)
+
+      await expect(accounts.runHostSignIn(provider, {} as never)).rejects.toThrow(
+        VENDOR_ACCOUNTS_DISABLED_BY_POLICY
+      )
+      expect(services.claudeAccounts.addAccountWithPastedCode).not.toHaveBeenCalled()
+      expect(services.codexAccounts.addAccountWithDeviceCode).not.toHaveBeenCalled()
+    }
+  )
+
+  it('runs the login when the policy opts back in', async () => {
+    getEnterprisePolicyMock.mockReturnValue(
+      makeLockdownPolicy({ disableVendorProviderAccounts: false })
+    )
+    const services = signInServices()
+    const accounts = new RuntimeAccountController()
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: as above.
+    accounts.setServices(services as never)
+
+    await accounts.runHostSignIn('codex', {} as never)
+    expect(services.codexAccounts.addAccountWithDeviceCode).toHaveBeenCalledTimes(1)
+  })
+})
+
 // v1.4.221 opened two more registration lanes on the runtime: `orca account add --agent
 // opencode|devin` (managed data accounts) and saving the current Antigravity credential.
 describe('v1.4.221 vendor account registration lanes under the enterprise policy', () => {

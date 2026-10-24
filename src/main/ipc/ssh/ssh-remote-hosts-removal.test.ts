@@ -69,3 +69,37 @@ describe('SSH hosts are removed from this build', () => {
     expect(mocks.handlers.has('ssh:removeTarget')).toBe(true)
   })
 })
+
+// v1.4.238 added a plain `ssh` login for a host whose move to its Orca server is blocked. Only a
+// connect attempt marks a host blocked and connect is refused above, so this guards the invariant.
+describe('plain SSH terminals are removed with SSH hosts', () => {
+  it('refuses to open one before it looks the target up or spawns ssh', async () => {
+    const { openPlainSshTerminal } =
+      await import('../../ssh/plain-ssh-terminal/plain-ssh-terminal-sessions')
+    const getTarget = vi.fn(() => ({
+      id: 'box',
+      label: 'box',
+      host: 'box',
+      port: 22,
+      username: ''
+    }))
+    const loadPtySpawn = vi.fn()
+    const result = await openPlainSshTerminal(
+      {
+        getTarget,
+        isMoveBlocked: () => true,
+        findSsh: () => '/usr/bin/ssh',
+        mayConfigClaimAlias: () => true,
+        loadPtySpawn,
+        homeDir: () => '/home/me',
+        platform: 'linux'
+      } as never,
+      { targetId: 'box', cols: 80, rows: 24, owner: 1 },
+      { emit: vi.fn() } as never
+    )
+
+    expect(result).toEqual({ ok: false, reason: 'unknown-target' })
+    expect(getTarget).not.toHaveBeenCalled()
+    expect(loadPtySpawn).not.toHaveBeenCalled()
+  })
+})

@@ -1,6 +1,6 @@
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { SourceControlGroupOrder } from '../../../../shared/ui-chrome-types'
-import { DEFAULT_SOURCE_CONTROL_GROUP_ORDER } from '../../../../shared/source-control-group-order'
+import { normalizeSourceControlGroupOrder } from '../../../../shared/source-control-group-order'
 import { translate } from '@/i18n/i18n'
 import { SearchableSetting } from './SearchableSetting'
 import { SettingsRow, SettingsSegmentedControl } from './SettingsFormControls'
@@ -25,7 +25,7 @@ function getSourceControlGroupOrderTitle(): string {
 function getSourceControlGroupOrderDescription(): string {
   return translate(
     'auto.components.settings.GitPane.sourceControlGroupOrderDescription',
-    'Choose whether Changes, Staged Changes, or Untracked Files appear first in Source Control.'
+    'Choose whether Staged Changes or Changes appear first in Source Control.'
   )
 }
 
@@ -44,7 +44,7 @@ export function SourceControlGroupOrderSetting({
   settings: GlobalSettings
   updateSettings: (updates: Partial<GlobalSettings>) => void | Promise<void>
 }): React.JSX.Element {
-  const value = settings.sourceControlGroupOrder ?? DEFAULT_SOURCE_CONTROL_GROUP_ORDER
+  const value = normalizeSourceControlGroupOrder(settings.sourceControlGroupOrder)
   const title = getSourceControlGroupOrderTitle()
   const description = getSourceControlGroupOrderDescription()
 
@@ -77,13 +77,6 @@ export function SourceControlGroupOrderSetting({
               {
                 value: 'staged-first',
                 label: translate('auto.components.settings.GitPane.stagedFirst', 'Staged first')
-              },
-              {
-                value: 'untracked-first',
-                label: translate(
-                  'auto.components.settings.GitPane.untrackedFirst',
-                  'Untracked first'
-                )
               }
             ]}
           />

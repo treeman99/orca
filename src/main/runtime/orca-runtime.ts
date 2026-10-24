@@ -87,10 +87,11 @@ class OrcaRuntimeService extends OrcaRuntimeForkSurface {
   readonly workspaceRows = ORCA_SIDEBAR_INPUTS_IS_MAIN
     ? new WorkspaceRowsProducer({
         store: this.store,
-        // Merged fresh (git scans keep their own cache): the window's metadata writes emit no
-        // client event, so the shared listing may predate them.
-        listVisibleWorktrees: async () =>
-          this.visibleResolvedWorktreeSnapshot(await this.computeResolvedWorktrees()),
+        // Its own scans, not the shared listing: metadata joins at read, so no write waits on git.
+        scan: () => this.scanResolvedWorktreeRepos(),
+        join: (scans) => this.joinResolvedWorktreeScans(scans),
+        visible: (snapshot) => this.visibleResolvedWorktreeSnapshot(snapshot),
+        lifecycle: this.workspaceLifecycle,
         onClientEvent: (listener, options) => this.onClientEvent(listener, options)
       })
     : null
@@ -101,7 +102,7 @@ class OrcaRuntimeService extends OrcaRuntimeForkSurface {
           sidebarInputsFeedDomains({
             facts: requireSwitchedOn(this.sidebarFacts),
             pairedServerRows: requireSwitchedOn(this.pairedServerRows),
-            workspaceCreations: requireSwitchedOn(this.workspaceCreations),
+            workspaceLifecycle: requireSwitchedOn(this.workspaceLifecycle),
             workspaceRows: requireSwitchedOn(this.workspaceRows),
             repoIcons: requireSwitchedOn(this.repoIconDataUrls),
             store: () => this.store,
@@ -241,7 +242,7 @@ class OrcaRuntimeService extends OrcaRuntimeForkSurface {
     homeHostId: (key) => this.tryGetWorkspaceSessionHostIdForWorktree(key),
     // An empty title is no title.
     liveTitle: (ptyId) => this.getTrackedDisplayTitleForPty(ptyId) || null,
-    paneStartFact: (paneKey, binding) => this.paneStartStatuses?.get(paneKey, binding) ?? null
+    ...this.paneFactSources()
   })
 
   protected markPaneLiveTitlesDirty(): void {
@@ -272,11 +273,11 @@ class OrcaRuntimeService extends OrcaRuntimeForkSurface {
             ? this.getWorkspaceSessionHostIdsForTab(worktreeId, tabId)
             : [this.tryGetWorkspaceSessionHostIdForWorktree(worktreeId) ?? []].flat(),
         command,
-        (move) => rekeyMovedPaneOwners(this, move)
+        (move) => rekeyMovedPaneOwners(this, move),
+        this.layoutCommandRun(command)
       )
     // A window's sleep or wake lands after the hook statuses main accepted before it, as in the window.
-    const reply = await (ORCA_LAYOUT_OWNER_IS_MAIN &&
-    (command.type === 'sleep' || command.type === 'wake')
+    const reply = await (ORCA_LAYOUT_OWNER_IS_MAIN && ['sleep', 'wake'].includes(command.type)
       ? this.inResumeRecordOrder(apply)
       : (placing?.then(apply) ?? apply()))
     // Sent before the reply, so the window can wait for the frame that shows the change.

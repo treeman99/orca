@@ -14,8 +14,6 @@ vi.mock('../enterprise/enterprise-policy-file', () => ({
 const electron = vi.hoisted(() => ({ openExternal: vi.fn() }))
 vi.mock('electron', () => ({ shell: { openExternal: electron.openExternal } }))
 
-vi.mock('@electron-toolkit/utils', () => ({ is: { dev: false } }))
-
 import { openExternalUrlUnderPolicy } from './shell-open-url'
 import { installPrivilegedWindowNavigationPolicy } from '../window/privileged-window-navigation'
 

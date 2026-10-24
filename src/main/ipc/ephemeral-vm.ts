@@ -1,5 +1,5 @@
 import { app, ipcMain } from 'electron'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 import { assertRemoteOrcaServerAllowed } from '../enterprise/remote-orca-server-guard'
 import {
   getEphemeralVmRecipeResultConnection,
@@ -24,8 +24,8 @@ import {
 import {
   cleanupEphemeralVmRuntime,
   provisionEphemeralVmRuntime
-} from '../ephemeral-vm-runtime-service'
-import { connectRuntimeOwnedSshTarget } from '../ephemeral-vm-runtime-ssh'
+} from '../ephemeral-vm/runtime-service'
+import { connectRuntimeOwnedSshTarget } from '../ephemeral-vm/runtime-ssh'
 import {
   getRecipeRepo,
   listRecipeCatalog,
@@ -36,7 +36,7 @@ import {
 import { registerEphemeralVmRuntimeHandlers } from './ephemeral-vm-runtime-handlers'
 import type { PluginService } from '../plugins/plugin-service'
 import { getApprovedPluginVmRecipes } from '../plugins/plugin-approved-vm-recipes'
-import { resolveProvisionedRootSource } from '../ephemeral-vm-provisioned-root-source'
+import { resolveProvisionedRootSource } from '../ephemeral-vm/provisioned-root-source'
 
 const activeProvisionControllers = new Map<string, AbortController>()
 

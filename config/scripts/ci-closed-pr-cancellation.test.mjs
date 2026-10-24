@@ -75,6 +75,7 @@ it('looks up exact PR groups without branch or head-SHA inference', async () => 
   await result
   expect(request.mock.calls.map(([, args]) => args.concurrency_group_name)).toEqual([
     'pr-checks-123',
+    'dependency-security-123',
     'node-server-123',
     'ssh-windows-hosts-123',
     'ssh-hostile-hosts-123',
@@ -89,7 +90,6 @@ it('looks up exact PR groups without branch or head-SHA inference', async () => 
     'windows-typecheck-parity-123',
     'zcode-transcript-contract-123',
     'release-ref-validation-123',
-    'pnpm-verification-pilot-123',
     'win-orcad-serve-switch-e2e-123',
     'pi-provider-runtime-123',
     'coding-plan-contract-123-credentials',

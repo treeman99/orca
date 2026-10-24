@@ -1,5 +1,4 @@
 import { app, session } from 'electron'
-import { electronApp, is } from '@electron-toolkit/utils'
 import { applyBackgroundActivationPolicy } from '../window/foreground-activation-policy'
 import { applyElectronProxySettings } from '../network/proxy-settings'
 import { installElectronProxyRequestGuard } from '../network/electron-proxy-request-guard'
@@ -10,13 +9,15 @@ import { setNodeDistMirrorSettingReader } from '../node-runtime/node-dist-mirror
 import { handleBrowserGuestLogin } from '../browser/browser-http-auth-prompt'
 import { installMainThreadHangWatchdog } from '../hang-watchdog/main-thread-hang-watchdog'
 import { preservePreviousHangDetection } from '../hang-watchdog/previous-hang-detection'
-import { browserCertificateTrustController } from '../browser/browser-manager'
+import { browserCertificateTrustController, browserManager } from '../browser/browser-manager'
+import { browserSiteDisplayController } from '../browser/browser-site-display-controller'
 import { ensureActiveOrcaProfile } from '../orca-profiles/profile-index-store'
 import { getCanonicalUserDataPath } from '../persistence'
 import { getAppEnvironment } from '../../shared/app-environment'
 import { loadWslMoveFence } from '../persistence/moving-wsl-projects/wsl-move-scope-guard'
 import { runGatedWslMoveDesktopRewritePass } from '../persistence/moving-wsl-projects/wsl-move-desktop-rewrite'
 import { createProfileStateStoreForStartup } from '../persistence/profile-state/profile-state-startup-authority'
+import { getProfileUserDataPath } from '../orca-profiles/profile-storage-paths'
 import { initializeBrowserClientHostId } from '../browser/browser-client-host-id'
 import { scheduleSecretProtectionGapReport } from '../host/deferred-secret-protection-report'
 import { withholdUnreachableKeychainForServe } from '../host/serve-keychain-guard'
@@ -40,7 +41,7 @@ import {
 } from '../browser/browser-session-proxy'
 import { installDocPreviewProtocolHandler } from '../browser/doc-preview-protocol'
 import { installMediaPreviewProtocolHandler } from '../media/media-preview-protocol'
-import { installJiraImageProtocolHandler } from '../jira/attachment-image-protocol'
+import { installJiraImageProtocolHandler } from '../jira/attachments/image-protocol'
 import { registerDocPreviewGrantHandlers } from '../ipc/doc-preview-grant-ipc'
 import { initializeBrowserSessionsForApp } from '../browser/browser-session-startup'
 import { browserSessionRegistry } from '../browser/browser-session-registry'
@@ -99,7 +100,9 @@ export async function initializeReadyFoundation(): Promise<void> {
   }
   // Why: host resolution must be settled before the first lookup, and Electron only accepts this call after 'ready'.
   applyEnterpriseSecureDnsPolicy()
-  electronApp.setAppUserModelId(identity.appUserModelId)
+  if (process.platform === 'win32') {
+    app.setAppUserModelId(app.isPackaged ? identity.appUserModelId : process.execPath)
+  }
   // Why: names the app menu/About panel. Dev already applied this pre-ready (see the
   // safeStorage note above); this call stays unconditional so packaged builds keep their
   // existing post-ready rename, which lands after the Keychain name is already resolved.
@@ -138,6 +141,7 @@ export async function initializeReadyFoundation(): Promise<void> {
   // read has to have happened by then or the renderer and the browser-host lease disagree.
   initializeBrowserClientHostId(profile.profileDirectory)
   const profileState = await createProfileStateStoreForStartup({
+    userDataPath: getProfileUserDataPath(),
     dataFile: profile.dataFile,
     databaseFile: profile.stateDatabaseFile,
     profileId: profile.profile.id,
@@ -185,7 +189,7 @@ export async function initializeReadyFoundation(): Promise<void> {
     dataFile: profile.dataFile,
     force: process.env.ORCA_ALWAYS_REPORT_SECRET_PROTECTION === '1',
     deferUntilFirstWindow: !state.isServeMode,
-    skipInDevelopment: is.dev
+    skipInDevelopment: !app.isPackaged
   })
   // Why here: the host key store is a sidecar of the same profile, and every SSH connect consults
   // it. Left unbound it reports nothing trusted, which is safe but silently discards our own
@@ -268,7 +272,7 @@ export async function initializeReadyFoundation(): Promise<void> {
     }
   })
   applyAppIcon(store.getSettings().appIcon)
-  if (shouldSuppressDevEducation({ isDev: is.dev })) {
+  if (shouldSuppressDevEducation({ isDev: !app.isPackaged })) {
     suppressDevEducationForStore(store)
   }
   installEnterpriseNetworkGuard()
@@ -294,6 +298,8 @@ export async function initializeReadyFoundation(): Promise<void> {
       return currentStore.getSshTargets().map((target) => target.id)
     }
   })
+  browserSiteDisplayController.followZoomSettings(store)
+  browserManager.setSiteDisplayController(browserSiteDisplayController)
   try {
     // Why: awaited here so the first guest navigation cannot race the installer's fire-and-forget write.
     await applyBrowserSessionProxies(browserSessionRegistry.listProfiles(), store.getSettings())

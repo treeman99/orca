@@ -1,3 +1,4 @@
+import { agentSessionPinnedLaunchDirectory } from './agent-session-record-launch-directory'
 import { agentModelCatalogStore } from '../native-chat/agent-model-catalog/agent-model-catalog-store'
 import { createAgentModelCatalogFilePersistence } from '../native-chat/agent-model-catalog/agent-model-catalog-persistence'
 import {
@@ -21,22 +22,15 @@ import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire
 import { isAgentAllowedByEnterprisePolicy } from '../enterprise/agent-allowlist-guard'
 
 // The store is process-global; hydrate it from disk at most once per process.
-let persistenceAttached = false
+let persistenceAttached: Promise<void> | null = null
 
 export async function attachAgentModelCatalogPersistenceOnce(
   stateDirectory: string
 ): Promise<void> {
-  if (persistenceAttached) {
-    return
-  }
-  persistenceAttached = true
-  try {
-    await agentModelCatalogStore.attachPersistence(
-      createAgentModelCatalogFilePersistence(stateDirectory)
-    )
-  } catch {
-    // A missing or unreadable file only costs the warm start.
-  }
+  persistenceAttached ??= agentModelCatalogStore
+    .attachPersistence(createAgentModelCatalogFilePersistence(stateDirectory))
+    .catch(() => {})
+  await persistenceAttached
 }
 
 type CatalogRegistration = Pick<StructuredAgentRuntimeRegistration, 'definition' | 'modelCatalog'>
@@ -94,7 +88,7 @@ export async function modelCatalogHostDeps(input: {
     drivesRecord: (record) => agentDrivesSession(input.agents, record),
     resolveAccountHome: deps.resolveAgentAccountHome,
     recordWorkspacePath: async (record) =>
-      record.launchDirectory ??
+      agentSessionPinnedLaunchDirectory(record) ??
       (await deps.resolveWorkspacePath(record.location.workspaceId).catch(() => null)),
     agentReadsProjectModelConfig,
     workspaceMayOverrideDefaultModel,

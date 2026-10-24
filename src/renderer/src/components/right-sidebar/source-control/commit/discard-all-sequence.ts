@@ -22,7 +22,7 @@ export function getDiscardAllPaths(
   return entries
     .filter(
       (entry) =>
-        entry.area === area &&
+        (entry.area === area || (area === 'unstaged' && entry.area === 'untracked')) &&
         entry.conflictStatus !== 'unresolved' &&
         entry.conflictStatus !== 'resolved_locally' &&
         !isSubmoduleGitlinkRow(entry)

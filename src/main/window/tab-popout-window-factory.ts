@@ -1,6 +1,5 @@
 import { app, BrowserWindow, nativeTheme } from 'electron'
 import { join } from 'node:path'
-import { is } from '@electron-toolkit/utils'
 import type { Store } from '../persistence'
 import { installPrivilegedWindowNavigationPolicy } from './privileged-window-navigation'
 import { getEnterprisePolicy } from '../enterprise/enterprise-policy-file'
@@ -80,7 +79,7 @@ export function createTabPopoutWindow(args: {
   })
 
   const search = `win=${encodeURIComponent(args.windowKey)}`
-  if (is.dev && process.env.ELECTRON_RENDERER_URL) {
+  if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(`${process.env.ELECTRON_RENDERER_URL}/popout.html?${search}`)
   } else {
     void window.loadFile(join(__dirname, '../renderer/popout.html'), { search })
