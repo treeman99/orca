@@ -18053,6 +18053,13 @@
           "description": "{{value0}} が変更されました。更新すると、バンドルのすべてのスキルを .agents と .claude でまとめて置き換えます。",
           "update": "スキルを更新"
         },
+        "GithubEnterpriseSetupDialog": {
+          "title": "gh を社内 GitHub にサインインしてください",
+          "description": "社内で Orca を使う場合はセキュリティのため、GitHub CLI (gh) をインストールし、github.com ではなく {{value0}} にサインインしてください。この PC の gh はまだ {{value0}} にサインインしていません。",
+          "commandsLabel": "gh をインストールしたら、ターミナルで実行:",
+          "later": "後で",
+          "openSettings": "設定からサインイン"
+        },
         "skillBundle": {
           "unavailable": {
             "noEnterpriseHost": "社内 GitHub Enterprise ホストが設定されていないため、確認するスキルリポジトリがありません。",

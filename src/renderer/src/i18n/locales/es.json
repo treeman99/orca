@@ -18051,6 +18051,13 @@
           "description": "{{value0}} cambió. Al actualizar se reemplazan juntos todos los skills del paquete en .agents y .claude.",
           "update": "Actualizar skills"
         },
+        "GithubEnterpriseSetupDialog": {
+          "title": "Inicia sesión con gh en el GitHub de la empresa",
+          "description": "Por seguridad, si usas Orca en el trabajo, instala la CLI de GitHub (gh) e inicia sesión en {{value0}} en lugar de github.com. gh todavía no ha iniciado sesión en {{value0}} en este equipo.",
+          "commandsLabel": "Después de instalar gh, ejecuta en una terminal:",
+          "later": "Más tarde",
+          "openSettings": "Iniciar sesión desde Ajustes"
+        },
         "skillBundle": {
           "unavailable": {
             "noEnterpriseHost": "No hay ningún host de GitHub Enterprise de la empresa configurado, así que no hay repositorio de skills que comprobar.",

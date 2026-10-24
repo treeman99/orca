@@ -15,6 +15,10 @@ import { useAppStore } from '@/store'
 import { AppUpdateCheckResultDialog } from './app-update/AppUpdateCheckResultDialog'
 import { CorporateSkillBundleNudge } from './app-update/CorporateSkillBundleNudge'
 import {
+  GithubEnterpriseSetupDialog,
+  useGithubEnterpriseSetupNotice
+} from './app-update/GithubEnterpriseSetupDialog'
+import {
   dismissAppUpdatePresentation,
   openAppUpdateReleasePage,
   skipAppUpdateVersion,
@@ -33,13 +37,20 @@ type AvailableStatus = Extract<AppUpdateCheckStatus, { state: 'available' }>
  * shown, and this component only renders it.
  *
  * The corporate skill bundle's notice rides along: it is the other corporate update lane,
- * and mounting it here keeps both surfaces in this fork-owned file.
+ * and mounting it here keeps both surfaces in this fork-owned file. So does the launch
+ * warning that gh is not signed in to the company host; the release dialog waits behind it
+ * so two modals never stack.
  */
 export default function AppUpdateAvailableDialog(): React.JSX.Element {
+  const setupNotice = useGithubEnterpriseSetupNotice()
   return (
     <>
       <CorporateSkillBundleNudge />
-      <AppReleaseUpdateDialog />
+      {setupNotice.host ? (
+        <GithubEnterpriseSetupDialog host={setupNotice.host} onClose={setupNotice.close} />
+      ) : (
+        <AppReleaseUpdateDialog />
+      )}
     </>
   )
 }

@@ -17986,6 +17986,15 @@
         "copyFailed": "Impossible de copier le lien.",
         "signingIn": "Connexion…",
         "cancel": "Annuler"
+      },
+      "appUpdate": {
+        "GithubEnterpriseSetupDialog": {
+          "title": "Connectez gh au GitHub de l'entreprise",
+          "description": "Pour des raisons de sécurité, si vous utilisez Orca au travail, installez la CLI GitHub (gh) et connectez-la à {{value0}} plutôt qu'à github.com. gh n'est pas encore connecté à {{value0}} sur cet ordinateur.",
+          "commandsLabel": "Après avoir installé gh, exécutez dans un terminal :",
+          "later": "Plus tard",
+          "openSettings": "Se connecter depuis les paramètres"
+        }
       }
     },
     "i18n": {

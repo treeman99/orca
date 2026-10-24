@@ -1,7 +1,9 @@
 // IPC surface for the corporate GitHub Enterprise host + browser login the Settings
-// UI drives. Five channels:
+// UI drives. Six channels:
 //
 //   githubEnterprise:getStatus — the effective host and whether gh is logged into it.
+//   githubEnterprise:getSetupNotice — the launch warning when gh was never signed in to
+//                                the company host (gh's config only, no gh process).
 //   githubEnterprise:setHost   — persist the user's GHES host (blank clears it).
 //   githubEnterprise:login     — run `gh auth login --web`, streaming the one-time code
 //                                back on githubEnterprise:loginProgress; resolves on exit.
@@ -16,9 +18,12 @@ import { ipcMain, type WebContents } from 'electron'
 import { normalizeHost } from '../../shared/enterprise-policy'
 import type {
   GithubEnterpriseAuthStatus,
-  GithubEnterpriseLoginResult
+  GithubEnterpriseLoginResult,
+  GithubEnterpriseSetupNotice
 } from '../../shared/github-enterprise-auth'
 import { diagnoseGhAuth } from '../github/auth-diagnose'
+import { readGhConfigHosts } from '../github/gh-config-host'
+import { resolveGithubEnterpriseSetupNotice } from '../github/github-enterprise-setup-notice'
 import { ghExecFileAsync } from '../github/gh-utils'
 import {
   readStoredGithubEnterpriseHost,
@@ -54,6 +59,7 @@ type Dependencies = {
   login: typeof runGithubEnterpriseDeviceLogin
   loginWithToken: typeof runGithubEnterpriseTokenLogin
   logout: (host: string) => Promise<void>
+  setupNotice: () => GithubEnterpriseSetupNotice
 }
 
 // Only one browser login can be in flight; a new one aborts the previous.
@@ -76,7 +82,13 @@ function defaultDependencies(): Dependencies {
     loginWithToken: runGithubEnterpriseTokenLogin,
     logout: async (host) => {
       await ghExecFileAsync(['auth', 'logout', '--hostname', host], { host })
-    }
+    },
+    setupNotice: () =>
+      resolveGithubEnterpriseSetupNotice({
+        companyHost: getEnterprisePolicy().githubEnterpriseHost,
+        ghConfigHosts: readGhConfigHosts(),
+        env: process.env
+      })
   }
 }
 
@@ -182,6 +194,10 @@ export function registerGithubEnterpriseHandlers(
 ): void {
   ipcMain.handle('githubEnterprise:getStatus', (): Promise<GithubEnterpriseAuthStatus> =>
     getStatus(dependencies)
+  )
+
+  ipcMain.handle('githubEnterprise:getSetupNotice', (): GithubEnterpriseSetupNotice =>
+    dependencies.setupNotice()
   )
 
   // Re-reads gh rather than returning a stub: the host the user just typed may already

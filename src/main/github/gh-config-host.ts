@@ -77,6 +77,30 @@ export function parseGhHostsFile(contents: string): string[] {
   return hosts
 }
 
+/** Every host gh's config holds a login for; empty when there is no readable gh config. */
+export function readGhConfigHosts(
+  env: GhConfigEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+  readFile: (filePath: string) => string = (filePath) =>
+    readFileSync(filePath, { encoding: 'utf8' })
+): string[] {
+  const filePath = ghHostsFilePath(env, platform)
+  if (!filePath) {
+    return []
+  }
+  let contents: string
+  try {
+    contents = readFile(filePath)
+  } catch {
+    // Missing is the normal case; unreadable is gh's problem, not ours to report.
+    return []
+  }
+  if (contents.length > MAX_HOSTS_FILE_BYTES) {
+    return []
+  }
+  return parseGhHostsFile(contents)
+}
+
 /**
  * The single host gh is configured for, or null.
  *
@@ -87,23 +111,8 @@ export function parseGhHostsFile(contents: string): string[] {
 export function readGhConfiguredHost(
   env: GhConfigEnv = process.env,
   platform: NodeJS.Platform = process.platform,
-  readFile: (filePath: string) => string = (filePath) =>
-    readFileSync(filePath, { encoding: 'utf8' })
+  readFile?: (filePath: string) => string
 ): string | null {
-  const filePath = ghHostsFilePath(env, platform)
-  if (!filePath) {
-    return null
-  }
-  let contents: string
-  try {
-    contents = readFile(filePath)
-  } catch {
-    // Missing is the normal case; unreadable is gh's problem, not ours to report.
-    return null
-  }
-  if (contents.length > MAX_HOSTS_FILE_BYTES) {
-    return null
-  }
-  const hosts = parseGhHostsFile(contents)
+  const hosts = readGhConfigHosts(env, platform, readFile)
   return hosts.length === 1 ? (hosts[0] ?? null) : null
 }

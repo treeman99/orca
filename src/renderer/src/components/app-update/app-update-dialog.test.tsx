@@ -28,12 +28,13 @@ const openReleasePage = vi.fn()
 let statusListeners: ((status: AppUpdateCheckStatus) => void)[] = []
 let checkResult: Promise<AppUpdateCheckStatus>
 
-function installLane(options: { lane?: boolean } = {}): void {
+function installLane(options: { lane?: boolean; setupNotice?: { host: string } } = {}): void {
   statusListeners = []
   Object.defineProperty(window, 'api', {
     configurable: true,
     value: {
       app: { getVersion: vi.fn().mockResolvedValue('1.4.200') },
+      githubEnterprise: { getSetupNotice: vi.fn().mockResolvedValue(options.setupNotice ?? null) },
       appUpdate:
         options.lane === false
           ? undefined
@@ -282,5 +283,44 @@ describe('clients without an update lane', () => {
     await mountDialog()
 
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+})
+
+describe('company GitHub sign-in warning', () => {
+  const SETUP_TITLE = 'Sign gh in to the company GitHub'
+
+  it('stays quiet once gh is signed in to the company host', async () => {
+    await mountDialog()
+
+    expect(screen.queryByText(SETUP_TITLE)).toBeNull()
+  })
+
+  it('warns at launch and holds the upgrade offer until it closes', async () => {
+    installLane({ setupNotice: { host: 'ghe.example.com' } })
+    await mountDialog()
+    await pushBackgroundStatus(AVAILABLE)
+
+    expect(screen.queryByText(SETUP_TITLE)).not.toBeNull()
+    expect(screen.queryByText(/gh auth login --hostname ghe\.example\.com/)).not.toBeNull()
+    expect(screen.queryByText(/A newer version of Orca is available/)).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Later' }))
+    })
+    expect(screen.queryByText(SETUP_TITLE)).toBeNull()
+    expect(screen.queryByText(/A newer version of Orca is available/)).not.toBeNull()
+  })
+
+  it('opens the company GitHub sign-in in Settings', async () => {
+    installLane({ setupNotice: { host: 'ghe.example.com' } })
+    await mountDialog()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in from Settings' }))
+    })
+    expect(screen.queryByText(SETUP_TITLE)).toBeNull()
+    expect(useAppStore.getState().settingsNavigationTarget).toMatchObject({
+      pane: 'integrations'
+    })
   })
 })

@@ -7,7 +7,8 @@ import type {
 import type {
   GithubEnterpriseAuthStatus,
   GithubEnterpriseLoginProgress,
-  GithubEnterpriseLoginResult
+  GithubEnterpriseLoginResult,
+  GithubEnterpriseSetupNotice
 } from '../../shared/github-enterprise-auth'
 
 export type EnterprisePolicyApi = {
@@ -26,6 +27,7 @@ export type GatewayApi = {
 
 export type GithubEnterpriseApi = {
   getStatus: () => Promise<GithubEnterpriseAuthStatus>
+  getSetupNotice: () => Promise<GithubEnterpriseSetupNotice>
   setHost: (args: { host: string }) => Promise<GithubEnterpriseAuthStatus>
   login: (args: { host: string }) => Promise<GithubEnterpriseLoginResult>
   loginWithToken: (args: { host: string; token: string }) => Promise<GithubEnterpriseLoginResult>

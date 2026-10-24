@@ -3,12 +3,15 @@ import type { PreloadApi } from '../api-types'
 import type {
   GithubEnterpriseAuthStatus,
   GithubEnterpriseLoginProgress,
-  GithubEnterpriseLoginResult
+  GithubEnterpriseLoginResult,
+  GithubEnterpriseSetupNotice
 } from '../../shared/github-enterprise-auth'
 
 export const githubEnterpriseApi = {
   getStatus: (): Promise<GithubEnterpriseAuthStatus> =>
     ipcRenderer.invoke('githubEnterprise:getStatus'),
+  getSetupNotice: (): Promise<GithubEnterpriseSetupNotice> =>
+    ipcRenderer.invoke('githubEnterprise:getSetupNotice'),
   setHost: (args: { host: string }): Promise<GithubEnterpriseAuthStatus> =>
     ipcRenderer.invoke('githubEnterprise:setHost', args),
   login: (args: { host: string }): Promise<GithubEnterpriseLoginResult> =>

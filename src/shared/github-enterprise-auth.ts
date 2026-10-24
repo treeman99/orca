@@ -32,6 +32,9 @@ export type EffectiveGitHubHostSource =
   | 'enterprise-policy'
   | 'default'
 
+/** The launch warning that gh is not signed in to the company host. Null means stay quiet. */
+export type GithubEnterpriseSetupNotice = { host: string } | null
+
 /** Live progress emitted while `gh auth login --web` runs. */
 export type GithubEnterpriseLoginProgress = {
   /** The one-time code the user types into the browser, once gh prints it. */

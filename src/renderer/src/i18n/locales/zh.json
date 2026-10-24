@@ -18053,6 +18053,13 @@
           "description": "{{value0}} 已更改。更新会在 .agents 和 .claude 中一并替换技能包中的所有技能。",
           "update": "更新技能"
         },
+        "GithubEnterpriseSetupDialog": {
+          "title": "请将 gh 登录到公司 GitHub",
+          "description": "在公司内使用 Orca 时，为了安全，请安装 GitHub CLI (gh) 并登录到 {{value0}}，而不是 github.com。此电脑上的 gh 尚未登录 {{value0}}。",
+          "commandsLabel": "安装 gh 后，在终端中运行：",
+          "later": "稍后",
+          "openSettings": "在设置中登录"
+        },
         "skillBundle": {
           "unavailable": {
             "noEnterpriseHost": "未配置公司 GitHub Enterprise 主机，因此没有可检查的技能仓库。",

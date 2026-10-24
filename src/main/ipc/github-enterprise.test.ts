@@ -31,6 +31,7 @@ function makeDeps(overrides: Partial<NonNullable<Deps>> = {}): NonNullable<Deps>
     login: vi.fn(async () => ({ ok: true, account: 'dev-user' }) as GithubEnterpriseLoginResult),
     loginWithToken: vi.fn(async () => ({ ok: true, account: null }) as GithubEnterpriseLoginResult),
     logout: vi.fn(async () => {}),
+    setupNotice: () => null,
     ...overrides
   }
 }

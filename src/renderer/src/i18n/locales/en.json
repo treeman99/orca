@@ -17362,6 +17362,13 @@
           "description": "{{value0}} changed. Updating replaces every skill of the bundle in .agents and .claude together.",
           "update": "Update skills"
         },
+        "GithubEnterpriseSetupDialog": {
+          "title": "Sign gh in to the company GitHub",
+          "description": "For security when you use Orca at work, install the GitHub CLI (gh) and sign it in to {{value0}} instead of github.com. gh on this computer is not signed in to {{value0}} yet.",
+          "commandsLabel": "After installing gh, run in a terminal:",
+          "later": "Later",
+          "openSettings": "Sign in from Settings"
+        },
         "skillBundle": {
           "unavailable": {
             "noEnterpriseHost": "No corporate GitHub Enterprise host is configured, so there is no skill repository to check.",
