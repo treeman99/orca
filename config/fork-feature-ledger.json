@@ -2007,7 +2007,8 @@
     "src/renderer/src/components/settings/ReleaseBuildPicker*",
     "src/renderer/src/components/settings/ReleaseChannelSection*",
     "src/renderer/src/components/skills/SkillInstallDialog.tsx",
-    "src/renderer/src/components/skills/SkillBundleInstallFlow.tsx"
+    "src/renderer/src/components/skills/SkillBundleInstallFlow.tsx",
+    "src/main/orca-profiles/profile-cloud-sign-in-progress.test.ts"
   ],
   "absentSymbols": [
     {

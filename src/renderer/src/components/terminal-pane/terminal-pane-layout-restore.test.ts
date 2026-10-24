@@ -18,6 +18,8 @@ vi.mock('@/store', () => ({
     getState: () => ({
       localOnlyScrollbackByTabId: { [TAB]: { [LEAF]: 'local-only history' } },
       repos: [{ id: 'repo', connectionId: 'ssh-1' }],
+      // Fork: the terminal-restore diagnostic reads the tab's generation.
+      tabsByWorktree: {},
       setTabLayout,
       setTabLocalOnlyScrollback
     })

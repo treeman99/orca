@@ -4,6 +4,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { OrcaRuntimeService } from './orca-runtime'
 import { settledWriteStub } from '../providers/settled-pty-write-stub'
+import { OrcaRuntimeWithControllerKnowsPtyIsLive } from './terminal/input/terminal-input-dispatch'
 
 const PTY = 'pty-default-path'
 const HANDLE = 'term_default_path'
@@ -40,9 +41,13 @@ async function completionTicks(): Promise<number> {
     }
   })
   let done = false
-  void target.sendTerminalAgentPrompt(HANDLE, 'hello', { inputKind: 'driving' }).then(() => {
-    done = true
-  })
+  // Fork: the Enter-rescue override waits on the pane's output after this write by design, so
+  // this times upstream's writer beneath it.
+  void OrcaRuntimeWithControllerKnowsPtyIsLive.prototype.sendTerminalAgentPrompt
+    .call(target, HANDLE, 'hello', { inputKind: 'driving' })
+    .then(() => {
+      done = true
+    })
   while (!reached) {
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
@@ -72,7 +77,8 @@ describe('agent prompt writer: default path', () => {
 
   it("settles its receipt on main's microtask schedule", async () => {
     // Pinned against main's writer; one more async layer in between makes it 6.
-    expect(await completionTicks()).toBe(5)
+    // Fork: 6, the stall recorder's serializeAgentPromptSubmission override being that layer.
+    expect(await completionTicks()).toBe(6)
   })
 
   it('writes a queued leaf prompt to the PTY the leaf names when its turn comes', async () => {

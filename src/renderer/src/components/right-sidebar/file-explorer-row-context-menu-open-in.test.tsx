@@ -17,7 +17,7 @@ const { items, mockSettings, openInExternalEditorMock } = vi.hoisted(() => ({
 const worktreeOwner = vi.hoisted(() => ({ runtimeEnvironmentId: null as string | null }))
 vi.mock(import('@/lib/worktree-runtime-owner'), async (importOriginal) => ({
   ...(await importOriginal()),
-  getRuntimeEnvironmentIdForWorktree: () => worktreeOwner.runtimeEnvironmentId
+  runtimeEnvironmentIdOrLocalUnlessTwin: () => worktreeOwner.runtimeEnvironmentId
 }))
 
 vi.mock('@/components/ui/context-menu', async () => {

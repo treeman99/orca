@@ -58,7 +58,10 @@ export const AGENT_SKILL_INSTALL_ROOTS: readonly AgentSkillInstallRoot[] = [
   // v1.4.229 added these three to discovery (skill-install-providers.ts).
   { rootId: 'home-codebuddy', segments: ['.codebuddy', 'skills'], agentKey: 'codebuddy' },
   { rootId: 'home-qoder', segments: ['.qoder', 'skills'], agentKey: 'qoder' },
-  { rootId: 'home-kiro', segments: ['.kiro', 'skills'], agentKey: 'kiro-cli' }
+  { rootId: 'home-kiro', segments: ['.kiro', 'skills'], agentKey: 'kiro-cli' },
+  // v1.4.238 gave OpenClaude its own home. The skills CLI has no key for it, and discovery's
+  // OPENCLAUDE_CONFIG_DIR override is the same known gap as HERMES_HOME above.
+  { rootId: 'home-openclaude', segments: ['.openclaude', 'skills'], agentKey: null }
 ]
 
 export function agentSkillInstallRootPath(homeDir: string, root: AgentSkillInstallRoot): string {

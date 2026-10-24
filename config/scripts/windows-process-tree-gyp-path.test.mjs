@@ -24,13 +24,15 @@ describe('windows-process-tree node-addon-api gyp path', () => {
     )
     expect(sourceModule).toContain("from './windows-process-tree-gyp-rebuild.mjs'")
     expect(sourceModule).toContain('stageWindowsProcessTreeNodeAddonApiHeaders')
-    expect(sourceModule).toContain('stageWindowsProcessTreeNodeAddonApiHeaders(packageDir)')
+    expect(sourceModule).toContain(
+      'stageWindowsProcessTreeNodeAddonApiHeaders(packageDir, resolveFromDir)'
+    )
     expect(sourceModule).toContain('Repaired un-applied pnpm patch hunks before build.')
     const rebuildHelper = readFileSync(
       join(projectDir, 'config/scripts/windows-process-tree-gyp-rebuild.mjs'),
       'utf8'
     )
-    expect(rebuildHelper).toContain("createRequire(join(packageDir, 'package.json'))")
+    expect(rebuildHelper).toContain("createRequire(join(resolveFromDir, 'package.json'))")
     expect(rebuildHelper).toContain("resolve('node-addon-api/package.json')")
     expect(rebuildHelper).toContain("'napi.h'")
     expect(rebuildHelper).toContain("'napi-inl.h'")
