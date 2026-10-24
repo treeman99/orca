@@ -16128,6 +16128,38 @@
         },
         "useMarkdownDocuments": {
           "listFailed": "Impossible de lister les documents Markdown."
+        },
+        "mergeEditor": {
+          "confirmTitle": "Terminer la fusion avec des conflits non traités ?",
+          "confirmDescription": "{{value0}} conflits ne sont pas encore traités. Terminer enregistre le résultat tel qu'affiché, sans marqueurs de conflit (un conflit non modifié garde le texte de l'ancêtre commun), et stage le fichier.",
+          "cancel": "Annuler",
+          "completeWithConflicts": "Terminer quand même",
+          "rebuiltFromMarkers": "Reconstruit à partir des marqueurs de conflit",
+          "noCommonAncestor": "Aucun ancêtre commun (reconstruit à partir des marqueurs de conflit)",
+          "resetResult": "Réinitialiser le résultat",
+          "showTextEditor": "Ouvrir dans l'éditeur de texte",
+          "completeMerge": "Terminer la fusion",
+          "loading": "Chargement de l'éditeur de fusion...",
+          "stageFailed": "Le résultat de la fusion a été enregistré, mais le fichier n'a pas pu être stagé.",
+          "completeFailed": "Impossible de terminer la fusion.",
+          "result": "Résultat",
+          "openMergeEditor": "Ouvrir dans l'éditeur de fusion",
+          "incoming": "Entrant",
+          "current": "Actuel",
+          "acceptInput": "Accepter {{title}}",
+          "acceptCombinationFirst": "Accepter la combinaison ({{title}} d'abord)",
+          "acceptCombination": "Accepter la combinaison",
+          "ignore": "Ignorer",
+          "manualResolution": "Résolution manuelle",
+          "noChangesAccepted": "Aucune modification acceptée",
+          "resetToBase": "Rétablir la base",
+          "allHandled": "Tous les conflits sont traités",
+          "oneConflictRemaining": "1 conflit restant",
+          "conflictsRemaining": "{{value0}} conflits restants",
+          "unavailableBinary": "L'éditeur de fusion n'ouvre pas les fichiers binaires. Affichage dans l'éditeur de texte.",
+          "unavailableTooLarge": "Ce conflit est trop volumineux pour l'éditeur de fusion. Affichage dans l'éditeur de texte.",
+          "unavailableMissingSide": "Un côté de ce conflit n'a pas de version du fichier. Affichage dans l'éditeur de texte.",
+          "unavailableNoMarkers": "Aucune version de conflit ni aucun marqueur à fusionner. Affichage dans l'éditeur de texte."
         }
       },
       "diff": {

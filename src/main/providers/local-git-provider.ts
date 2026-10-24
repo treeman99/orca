@@ -3,6 +3,7 @@ import type { GitRuntimeOptions } from '../git/git-runtime-options'
 import { checkIgnoredPaths } from '../git/check-ignored-paths'
 import { checkoutBranch, listLocalBranches } from '../git/checkout'
 import { getHistory } from '../git/history'
+import { readMergeConflictInputs } from '../git/source-control/merge-conflict-inputs'
 import { gitFastForward, gitFetch, gitPull, gitPullRebaseFromBase, gitPush } from '../git/remote'
 import { getRemoteCommitUrl, getRemoteFileUrl, isGitRepo } from '../git/repo'
 import { awaitWindowsHostGitEnvironmentReady, gitExecFileAsync } from '../git/runner'
@@ -79,6 +80,8 @@ export function createLocalGitProvider(options: LocalGitProviderOptions = {}): L
     getStagedCommitContext: (worktreePath) => getStagedCommitContext(worktreePath, interactive),
     getDiff: (worktreePath, filePath, staged, compareAgainstHead) =>
       getDiff(worktreePath, filePath, staged, compareAgainstHead, interactive),
+    getMergeConflictInputs: (worktreePath, filePath) =>
+      readMergeConflictInputs(worktreePath, filePath, interactive),
     stageFile: (worktreePath, filePath) => stageFile(worktreePath, filePath, interactive),
     unstageFile: (worktreePath, filePath) => unstageFile(worktreePath, filePath, interactive),
     bulkStageFiles: async (worktreePath, filePaths, scope) => {

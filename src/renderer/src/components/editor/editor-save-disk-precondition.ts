@@ -33,8 +33,8 @@ export function editorTabModelUri(state: AppState, file: OpenFile): string {
 
 /** Whether the tab edits its Monaco model directly; rich, notebook, CSV and preview views don't. */
 function isCodeViewTab(state: AppState, file: OpenFile): boolean {
-  // Why: the Changes view renders its own diff model, not the shared text model.
-  if (file.mode !== 'edit' || state.editorViewMode?.[file.id] === 'changes') {
+  // Why: the Changes and merge views render their own models, not the shared text model.
+  if (file.mode !== 'edit' || (state.editorViewMode?.[file.id] ?? 'edit') !== 'edit') {
     return false
   }
   // Why: a read-only tab always renders raw Monaco source (editor-panel-render-model), whatever its type.

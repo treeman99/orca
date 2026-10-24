@@ -1,5 +1,6 @@
 import { RuntimeGitDiffCommands } from './runtime-git-diff-commands'
 import { RuntimeGitGenerationCommands } from './runtime-git-generation-commands'
+import { RuntimeGitMergeConflictCommands } from './runtime-git-merge-conflict-commands'
 import { RuntimeGitStagingCommands } from './runtime-git-staging-commands'
 import { RuntimeGitStatusCommands } from './runtime-git-status-commands'
 import { RuntimeGitSubmoduleCommands } from './runtime-git-submodule-commands'
@@ -21,6 +22,7 @@ export class RuntimeGitCommands {
   readonly getRuntimeGitCommitDiff: RuntimeGitDiffCommands['getRuntimeGitCommitDiff']
   readonly getRuntimeGitRemoteFileUrl: RuntimeGitDiffCommands['getRuntimeGitRemoteFileUrl']
   readonly getRuntimeGitRemoteCommitUrl: RuntimeGitDiffCommands['getRuntimeGitRemoteCommitUrl']
+  readonly getRuntimeGitMergeConflictInputs: RuntimeGitMergeConflictCommands['getRuntimeGitMergeConflictInputs']
   readonly abortRuntimeGitMerge: RuntimeGitSyncCommands['abortRuntimeGitMerge']
   readonly abortRuntimeGitRebase: RuntimeGitSyncCommands['abortRuntimeGitRebase']
   readonly getRuntimeGitUpstreamStatus: RuntimeGitSyncCommands['getRuntimeGitUpstreamStatus']
@@ -58,6 +60,7 @@ export class RuntimeGitCommands {
     const generation = new RuntimeGitGenerationCommands(host)
     const staging = new RuntimeGitStagingCommands(host)
     const submodule = new RuntimeGitSubmoduleCommands(host)
+    const mergeConflict = new RuntimeGitMergeConflictCommands(host)
 
     this.getRuntimeGitStatus = status.getRuntimeGitStatus.bind(status)
     this.getRuntimeGitSubmoduleStatus = status.getRuntimeGitSubmoduleStatus.bind(status)
@@ -73,6 +76,8 @@ export class RuntimeGitCommands {
     this.getRuntimeGitCommitDiff = diff.getRuntimeGitCommitDiff.bind(diff)
     this.getRuntimeGitRemoteFileUrl = diff.getRuntimeGitRemoteFileUrl.bind(diff)
     this.getRuntimeGitRemoteCommitUrl = diff.getRuntimeGitRemoteCommitUrl.bind(diff)
+    this.getRuntimeGitMergeConflictInputs =
+      mergeConflict.getRuntimeGitMergeConflictInputs.bind(mergeConflict)
     this.abortRuntimeGitMerge = sync.abortRuntimeGitMerge.bind(sync)
     this.abortRuntimeGitRebase = sync.abortRuntimeGitRebase.bind(sync)
     this.getRuntimeGitUpstreamStatus = sync.getRuntimeGitUpstreamStatus.bind(sync)

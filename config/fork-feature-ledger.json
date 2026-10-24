@@ -1108,8 +1108,8 @@
         },
         {
           "file": "src/renderer/src/web/preload-api/web-git-api.ts",
-          "contains": "createWebGitSubmoduleApi",
-          "why": "웹 클라이언트의 서브모듈 API 배선. v1.4.224 충돌에서 import 가 다시 보였는데 원장에 없었다."
+          "contains": "...createWebGitForkApi(),",
+          "why": "웹 클라이언트의 서브모듈 API 배선. v1.4.224 충돌에서 import 가 다시 보였는데 원장에 없었다. web-git-api.ts 가 max-lines 300 에 정확히 닿아, 머지 에디터 읽기와 함께 포크 집계(web-git-fork-api.ts → createWebGitSubmoduleApi)를 이 한 줄로 펼친다."
         }
       ]
     },
@@ -1788,6 +1788,97 @@
           "file": "config/nsis/orca-installer-hooks.nsh",
           "contains": "  !insertmacro ORCA_SEED_MACHINE_ENTERPRISE_POLICY",
           "why": "customInstall 안의 호출 한 줄. upstream 이 customInstall 을 고치면 충돌 없이 빠질 수 있다 — nsis-enterprise-policy-seed.test.mjs 가 잡는다."
+        }
+      ]
+    },
+    {
+      "id": "vscode-merge-editor",
+      "summary": "VS Code 식 3분할 머지 에디터 — 충돌 파일의 인덱스 스테이지 :1/:2/:3 와 양쪽 라벨 읽기(IPC·런타임 RPC·웹 브리지), 렌더러 'merge' 보기 모드(충돌 파일 열기·자동 저장 금지·편집 표면 분기).",
+      "present": [
+        {
+          "file": "src/main/providers/git-provider-contract.ts",
+          "contains": "getMergeConflictInputs(worktreePath: string, filePath: string): Promise<GitMergeConflictInputs>"
+        },
+        {
+          "file": "src/main/providers/local-git-provider.ts",
+          "contains": "readMergeConflictInputs(worktreePath, filePath, interactive)"
+        },
+        {
+          "file": "src/main/runtime/orca-runtime-git.ts",
+          "contains": "RuntimeGitMergeConflictCommands",
+          "why": "런타임 명령 클래스 등록. 빠지면 git.mergeConflictInputs RPC 가 부를 런타임 메서드가 사라진다."
+        },
+        {
+          "file": "src/main/runtime/runtime-git-command-surface.ts",
+          "contains": "getRuntimeGitMergeConflictInputs: commands.getRuntimeGitMergeConflictInputs.bind(commands)"
+        },
+        {
+          "file": "src/main/runtime/rpc/methods/git.ts",
+          "contains": "...GIT_MERGE_CONFLICT_METHODS,",
+          "why": "RPC 등록 한 줄. 아무도 import 하지 않아 빠져도 타입체크가 초록이고, 원격·웹 클라이언트가 method_not_found 로 마커 복원 대체 경로에 빠진다."
+        },
+        {
+          "file": "src/main/ipc/filesystem.ts",
+          "contains": "registerFilesystemGitMergeConflictHandlers(context)",
+          "why": "로컬 IPC 핸들러 등록. 빠지면 데스크톱 렌더러의 window.api.git.mergeConflictInputs 가 핸들러 없는 채널을 부른다."
+        },
+        {
+          "file": "src/preload/api-types.ts",
+          "contains": "& GitMergeConflictApi>"
+        },
+        {
+          "file": "src/preload/api/git-bridge.ts",
+          "contains": "ipcRenderer.invoke('git:mergeConflictInputs', args)"
+        },
+        {
+          "file": "src/renderer/src/web/preload-api/web-git-api.ts",
+          "contains": "...createWebGitForkApi(),",
+          "why": "웹 클라이언트 배선. web-git-api.ts 가 max-lines 300 에 닿아 포크 집계(web-git-fork-api.ts)가 서브모듈 API 와 함께 mergeConflictInputs 를 펼친다."
+        },
+        {
+          "file": "src/renderer/src/store/slices/editor/types/open-file.ts",
+          "contains": "export type EditorViewMode = 'edit' | 'changes' | 'merge'"
+        },
+        {
+          "file": "src/renderer/src/store/slices/editor/actions/open-conflict-file.ts",
+          "contains": "applyOpenedConflictViewMode(get(), absolutePath, entry)",
+          "why": "충돌 파일 열기 초크포인트에서 미해결 both_modified/both_added 를 머지 뷰로 여는 한 줄. 빠져도 타입체크가 초록이고 충돌 파일이 텍스트 편집기로만 열린다."
+        },
+        {
+          "file": "src/renderer/src/components/editor/editor-autosave.ts",
+          "contains": "state.editorViewMode?.[file.id] === 'merge'",
+          "why": "자동 저장 스케줄러와 저장 큐가 함께 쓰는 단일 술어의 머지 뷰 조건(D3). 빠지면 마커를 지운 reset 결과가 디스크에 자동 저장된다."
+        },
+        {
+          "file": "src/renderer/src/components/editor/editor-save-queue.ts",
+          "contains": "isAutosaveSuspendedForFile(liveFile, state)"
+        },
+        {
+          "file": "src/renderer/src/components/editor/editor-save-disk-precondition.ts",
+          "contains": "(state.editorViewMode?.[file.id] ?? 'edit') !== 'edit'",
+          "why": "머지 뷰도 Changes 처럼 공유 텍스트 모델이 아닌 자기 모델을 쓴다 — 'changes' 만 비교하던 원래 조건으로 돌아가면 머지 탭이 같은 파일 텍스트 탭의 기준선을 움직인다."
+        },
+        {
+          "file": "src/renderer/src/components/editor/EditorEditFileSurface.tsx",
+          "contains": "const isMergeMode = useIsMergeViewMode(activeFile)"
+        },
+        {
+          "file": "src/renderer/src/components/editor/EditorEditFileSurface.tsx",
+          "contains": "<EditorMergeModeSurface",
+          "why": "편집 표면의 'merge' 분기. 빠지면 보기 모드는 'merge' 인데 텍스트 편집기가 그대로 보이고 자동 저장만 멈춘다."
+        },
+        {
+          "file": "src/renderer/src/components/editor/EditorEditFileSurface.tsx",
+          "contains": "mergeEditorAction={<OpenMergeEditorButton file={activeFile} />}"
+        },
+        {
+          "file": "src/renderer/src/components/editor/ConflictComponents.tsx",
+          "contains": "{mergeEditorAction && <div className=\"ml-auto flex shrink-0\">{mergeEditorAction}</div>}"
+        },
+        {
+          "file": "src/renderer/src/components/tab-group/TabGroupSplitNodeTree.tsx",
+          "contains": "export function ResizeHandle({",
+          "why": "머지 뷰가 입력|결과 분할에 기존 리사이즈 핸들을 재사용한다(포크가 export 만 추가)."
         }
       ]
     }

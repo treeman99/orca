@@ -1,0 +1,93 @@
+/* Three-way merge view. Current/Incoming reuse the text editor's conflict colors
+   (modified / renamed git decorations) so both views read as one design. */
+
+.monaco-editor .orca-merge-range.is-current {
+  background: color-mix(in srgb, var(--git-decoration-modified) 8%, transparent);
+}
+
+.monaco-editor .orca-merge-range.is-incoming {
+  background: color-mix(in srgb, var(--git-decoration-renamed) 8%, transparent);
+}
+
+.monaco-editor .orca-merge-range.is-current.is-accepted {
+  background: color-mix(in srgb, var(--git-decoration-modified) 20%, transparent);
+}
+
+.monaco-editor .orca-merge-range.is-incoming.is-accepted {
+  background: color-mix(in srgb, var(--git-decoration-renamed) 20%, transparent);
+}
+
+.monaco-editor .orca-merge-range.is-conflict {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--git-decoration-conflicting) 70%, transparent);
+}
+
+.monaco-editor .orca-merge-result-range.is-handled {
+  background: color-mix(in srgb, var(--muted-foreground) 6%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--muted-foreground) 35%, transparent);
+}
+
+.monaco-editor .orca-merge-result-range.is-unhandled {
+  background: color-mix(in srgb, var(--git-decoration-conflicting) 9%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--git-decoration-conflicting) 70%, transparent);
+}
+
+/* An empty range is an insertion point: draw the boundary, not a tinted line. */
+.monaco-editor .orca-merge-range.is-gap-before,
+.monaco-editor .orca-merge-result-range.is-gap-before {
+  background: transparent;
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--muted-foreground) 55%, transparent);
+}
+
+.monaco-editor .orca-merge-range.is-gap-after,
+.monaco-editor .orca-merge-result-range.is-gap-after {
+  background: transparent;
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--muted-foreground) 55%, transparent);
+}
+
+.monaco-editor .orca-merge-gutter {
+  width: 3px !important;
+  margin-left: 3px;
+  background: color-mix(in srgb, var(--muted-foreground) 45%, transparent);
+}
+
+.monaco-editor .orca-merge-zone {
+  /* Why: Monaco's view-lines layer sits over view-zone DOM and eats clicks (as for diff comments). */
+  z-index: 1;
+}
+
+.monaco-editor .orca-merge-zone-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding-left: 2px;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.monaco-editor .orca-merge-zone-label {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.monaco-editor .orca-merge-zone-action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted-foreground);
+  font: inherit;
+  cursor: pointer;
+}
+
+.monaco-editor .orca-merge-zone-action:hover {
+  color: var(--foreground);
+  text-decoration: underline;
+}
+
+.monaco-editor .orca-merge-zone-action:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+  border-radius: 2px;
+}

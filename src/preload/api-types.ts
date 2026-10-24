@@ -34,6 +34,7 @@ import type { EnterprisePolicyApi, GatewayApi, GithubEnterpriseApi } from './api
 import type { EphemeralVmApi } from './api/ephemeral-vm-api'
 import type { ExportApi, FilesystemApi } from './api/filesystem-api'
 import type { GitInspectionApi } from './api/git-inspection-api'
+import type { GitMergeConflictApi } from './api/git-merge-conflict-api'
 import type { GitOperationApi } from './api/git-operation-api'
 import type { GithubAccountApi } from './api/github-account-api'
 import type { GithubPullRequestApi } from './api/github-pull-request-api'
@@ -141,7 +142,7 @@ export type PreloadApi = {
   aiVault: AiVaultApi
   nativeChat: NativeChatApi
   fs: FilesystemApi['fs']
-  git: Merged<GitInspectionApi & GitOperationApi>
+  git: Merged<GitInspectionApi & GitOperationApi & GitMergeConflictApi>
   ui: Merged<UiCommandEventApi & UiWindowApi>
   runtime: RuntimeApi['runtime']
   runtimeEnvironments: RuntimeApi['runtimeEnvironments']

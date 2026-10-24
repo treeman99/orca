@@ -9,6 +9,7 @@ const { git } = vi.hoisted(() => ({
     commitChanges: vi.fn(),
     getStagedCommitContext: vi.fn(),
     getDiff: vi.fn(),
+    readMergeConflictInputs: vi.fn(),
     stageFile: vi.fn(),
     unstageFile: vi.fn(),
     bulkStageFiles: vi.fn(),
@@ -47,6 +48,9 @@ vi.mock('../git/checkout', () => ({
   listLocalBranches: git.listLocalBranches
 }))
 vi.mock('../git/history', () => ({ getHistory: git.getHistory }))
+vi.mock('../git/source-control/merge-conflict-inputs', () => ({
+  readMergeConflictInputs: git.readMergeConflictInputs
+}))
 vi.mock('../git/remote', () => git)
 vi.mock('../git/fork-sync', () => ({ gitSyncForkDefaultBranch: git.gitSyncForkDefaultBranch }))
 vi.mock('../git/upstream', () => ({ getUpstreamStatus: git.getUpstreamStatus }))
@@ -102,6 +106,12 @@ const cases: ParityCase[] = [
     [WT, interactive]
   ],
   ['getDiff', (p) => p.getDiff(WT, 'a', true, true), 'getDiff', [WT, 'a', true, true, interactive]],
+  [
+    'getMergeConflictInputs',
+    (p) => p.getMergeConflictInputs(WT, 'a'),
+    'readMergeConflictInputs',
+    [WT, 'a', interactive]
+  ],
   ['stageFile', (p) => p.stageFile(WT, 'a'), 'stageFile', [WT, 'a', interactive]],
   ['unstageFile', (p) => p.unstageFile(WT, 'a'), 'unstageFile', [WT, 'a', interactive]],
   [

@@ -142,7 +142,7 @@ export function createEditorSaveQueue(store: AppStoreApi): EditorSaveQueue {
         // Why: only autosave is blocked while suspended; explicit user saves proceed (the banner warned).
         if (
           trigger === 'autosave' &&
-          (isAutosaveSuspendedForFile(liveFile) ||
+          (isAutosaveSuspendedForFile(liveFile, state) ||
             isEditorLargePasteInFlight(editorTabModelUri(state, liveFile)) ||
             holds.isHeld(state, liveFile))
         ) {
@@ -269,7 +269,7 @@ export function createEditorSaveQueue(store: AppStoreApi): EditorSaveQueue {
         file.isDirty &&
         canAutoSaveOpenFile(file) &&
         // Why: suspension holds until the user picks a side via the banner (or saves manually).
-        !isAutosaveSuspendedForFile(file) &&
+        !isAutosaveSuspendedForFile(file, state) &&
         !holds.isHeld(state, file) &&
         draft !== undefined
       if (!shouldKeepTimer) {
@@ -289,7 +289,7 @@ export function createEditorSaveQueue(store: AppStoreApi): EditorSaveQueue {
         !file.isDirty ||
         draft === undefined ||
         !canAutoSaveOpenFile(file) ||
-        isAutosaveSuspendedForFile(file) ||
+        isAutosaveSuspendedForFile(file, state) ||
         holds.isHeld(state, file)
       ) {
         clearScheduledAutoSave(key)

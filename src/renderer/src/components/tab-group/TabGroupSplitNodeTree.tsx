@@ -9,7 +9,7 @@ import { setGroupRatioThroughLayoutOwner } from './tab-group-layout-owner-comman
 const MIN_RATIO = 0.15
 const MAX_RATIO = 0.85
 
-function ResizeHandle({
+export function ResizeHandle({
   direction,
   onResizeStart,
   onRatioChange

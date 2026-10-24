@@ -16154,6 +16154,38 @@
         },
         "useMarkdownDocuments": {
           "listFailed": "无法列出 Markdown 文档。"
+        },
+        "mergeEditor": {
+          "confirmTitle": "仍有未处理的冲突，确定完成合并？",
+          "confirmDescription": "还有 {{value0}} 个冲突未处理。完成后将按结果当前显示的内容保存（不含冲突标记，未处理的冲突保留共同祖先的内容），并暂存该文件。",
+          "cancel": "取消",
+          "completeWithConflicts": "仍然完成",
+          "rebuiltFromMarkers": "已从冲突标记重建",
+          "noCommonAncestor": "无共同祖先（已从冲突标记重建）",
+          "resetResult": "重置结果",
+          "showTextEditor": "在文本编辑器中打开",
+          "completeMerge": "完成合并",
+          "loading": "正在加载合并编辑器...",
+          "stageFailed": "已保存合并结果，但暂存文件失败。",
+          "completeFailed": "无法完成合并。",
+          "result": "结果",
+          "openMergeEditor": "在合并编辑器中打开",
+          "incoming": "传入",
+          "current": "当前",
+          "acceptInput": "接受{{title}}",
+          "acceptCombinationFirst": "接受组合（{{title}}优先）",
+          "acceptCombination": "接受组合",
+          "ignore": "忽略",
+          "manualResolution": "手动解决",
+          "noChangesAccepted": "未接受任何更改",
+          "resetToBase": "重置为基础版本",
+          "allHandled": "所有冲突均已处理",
+          "oneConflictRemaining": "剩余 1 个冲突",
+          "conflictsRemaining": "剩余 {{value0}} 个冲突",
+          "unavailableBinary": "合并编辑器无法打开二进制文件，将在文本编辑器中显示。",
+          "unavailableTooLarge": "此冲突过大，合并编辑器无法打开，将在文本编辑器中显示。",
+          "unavailableMissingSide": "此冲突的一方没有文件版本，将在文本编辑器中显示。",
+          "unavailableNoMarkers": "没有可合并的冲突版本或标记，将在文本编辑器中显示。"
         }
       },
       "diff": {

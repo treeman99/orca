@@ -16504,6 +16504,38 @@
         },
         "useMarkdownDocuments": {
           "listFailed": "Markdown 문서를 나열하지 못했습니다."
+        },
+        "mergeEditor": {
+          "confirmTitle": "처리하지 않은 충돌이 남아 있습니다. 병합을 완료할까요?",
+          "confirmDescription": "{{value0}}개 충돌을 아직 처리하지 않았습니다. 완료하면 결과 창 내용을 충돌 마커 없이 그대로 저장하고(손대지 않은 충돌은 공통 조상 내용으로 남습니다) 파일을 스테이지에 올립니다.",
+          "cancel": "취소",
+          "completeWithConflicts": "미처리 상태로 완료",
+          "rebuiltFromMarkers": "충돌 마커에서 복원함",
+          "noCommonAncestor": "공통 조상 없음(충돌 마커에서 복원)",
+          "resetResult": "결과 초기화",
+          "showTextEditor": "텍스트 편집기로 보기",
+          "completeMerge": "병합 완료",
+          "loading": "머지 에디터를 불러오는 중...",
+          "stageFailed": "병합 결과는 저장했지만 파일을 스테이지에 올리지 못했습니다.",
+          "completeFailed": "병합을 완료하지 못했습니다.",
+          "result": "결과",
+          "openMergeEditor": "머지 에디터로 열기",
+          "incoming": "수신",
+          "current": "현재",
+          "acceptInput": "{{title}} 수락",
+          "acceptCombinationFirst": "조합 수락({{title}} 먼저)",
+          "acceptCombination": "조합 수락",
+          "ignore": "무시",
+          "manualResolution": "수동 해결",
+          "noChangesAccepted": "변경 수락 안 됨",
+          "resetToBase": "기본으로 되돌리기",
+          "allHandled": "모든 충돌 처리됨",
+          "oneConflictRemaining": "충돌 1개 남음",
+          "conflictsRemaining": "충돌 {{value0}}개 남음",
+          "unavailableBinary": "이진 파일은 머지 에디터로 열 수 없어 텍스트 편집기로 표시합니다.",
+          "unavailableTooLarge": "충돌이 너무 커서 머지 에디터로 열 수 없어 텍스트 편집기로 표시합니다.",
+          "unavailableMissingSide": "충돌의 한쪽에 파일 버전이 없어 텍스트 편집기로 표시합니다.",
+          "unavailableNoMarkers": "병합할 충돌 버전이나 마커가 없어 텍스트 편집기로 표시합니다."
         }
       },
       "diff": {

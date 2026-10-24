@@ -22,6 +22,8 @@ import { ExternalFileChangeBanner } from './ExternalFileChangeBanner'
 import type { useMarkdownDocuments } from './useMarkdownDocuments'
 import { EditorMarkdownFileSurface } from './EditorMarkdownFileSurface'
 import type { MarkdownRenderState } from './markdown-render-mode'
+import { EditorMergeModeSurface, useIsMergeViewMode } from './merge-editor/EditorMergeModeSurface'
+import { OpenMergeEditorButton } from './merge-editor/OpenMergeEditorButton'
 
 const noopEditorContentChange = (_content: string): void => {}
 const noopEditorSave = async (_content: string): Promise<boolean> => false
@@ -93,6 +95,7 @@ export function EditorEditFileSurface({
   handleSave: (content: string) => Promise<boolean>
   reloadContent: (file: OpenFile) => void
 }): React.JSX.Element {
+  const isMergeMode = useIsMergeViewMode(activeFile)
   if (activeFile.conflict?.kind === 'conflict-placeholder') {
     return <ConflictPlaceholderView file={activeFile} />
   }
@@ -169,6 +172,19 @@ export function EditorEditFileSurface({
         reloadContent={reloadContent}
       />
     ) : null
+
+  if (isMergeMode) {
+    return (
+      <EditorMergeModeSurface
+        file={activeFile}
+        content={currentContent}
+        language={monacoLanguage}
+        externalChangeBanner={externalChangeBanner}
+        onContentChange={handleContentChange}
+        onSave={isMarkdown ? markdownDocuments.mdSave : handleSave}
+      />
+    )
+  }
 
   if (isChangesMode) {
     const changesView = (
@@ -309,6 +325,7 @@ export function EditorEditFileSurface({
           file={activeFile}
           entry={activeConflictEntry}
           conflictNavigation={getConflictNavigation(activeFile, currentContent)}
+          mergeEditorAction={<OpenMergeEditorButton file={activeFile} />}
         />
       )}
       <div className="min-h-0 flex-1 relative">{editorSurface}</div>

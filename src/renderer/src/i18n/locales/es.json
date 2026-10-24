@@ -16152,6 +16152,38 @@
         },
         "useMarkdownDocuments": {
           "listFailed": "No se pudo obtener la lista de documentos Markdown."
+        },
+        "mergeEditor": {
+          "confirmTitle": "¿Completar la combinación con conflictos sin resolver?",
+          "confirmDescription": "Quedan {{value0}} conflictos sin resolver. Al completar, el resultado se guarda tal como se ve, sin marcadores de conflicto (un conflicto sin tocar conserva el texto del ancestro común), y el archivo se agrega al stage.",
+          "cancel": "Cancelar",
+          "completeWithConflicts": "Completar de todos modos",
+          "rebuiltFromMarkers": "Reconstruido a partir de los marcadores de conflicto",
+          "noCommonAncestor": "Sin antecesor común (reconstruido a partir de los marcadores de conflicto)",
+          "resetResult": "Restablecer resultado",
+          "showTextEditor": "Abrir en el editor de texto",
+          "completeMerge": "Completar combinación",
+          "loading": "Cargando el editor de combinación...",
+          "stageFailed": "Se guardó el resultado de la combinación, pero no se pudo agregar el archivo al stage.",
+          "completeFailed": "No se pudo completar la combinación.",
+          "result": "Resultado",
+          "openMergeEditor": "Abrir en el editor de combinación",
+          "incoming": "Entrante",
+          "current": "Actual",
+          "acceptInput": "Aceptar {{title}}",
+          "acceptCombinationFirst": "Aceptar combinación ({{title}} primero)",
+          "acceptCombination": "Aceptar combinación",
+          "ignore": "Ignorar",
+          "manualResolution": "Resolución manual",
+          "noChangesAccepted": "No se aceptaron cambios",
+          "resetToBase": "Restablecer a la base",
+          "allHandled": "Todos los conflictos resueltos",
+          "oneConflictRemaining": "Queda 1 conflicto",
+          "conflictsRemaining": "Quedan {{value0}} conflictos",
+          "unavailableBinary": "El editor de combinación no abre archivos binarios. Se muestra el editor de texto.",
+          "unavailableTooLarge": "Este conflicto es demasiado grande para el editor de combinación. Se muestra el editor de texto.",
+          "unavailableMissingSide": "Uno de los lados de este conflicto no tiene versión del archivo. Se muestra el editor de texto.",
+          "unavailableNoMarkers": "No hay versiones del conflicto ni marcadores que combinar. Se muestra el editor de texto."
         }
       },
       "diff": {

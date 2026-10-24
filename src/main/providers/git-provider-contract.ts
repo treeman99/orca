@@ -4,6 +4,7 @@ import type {
   GitDiffResult
 } from '../../shared/git-diff-compare-types'
 import type { GitForkSyncExpectedUpstream, GitForkSyncResult } from '../../shared/git-fork-sync'
+import type { GitMergeConflictInputs } from '../../shared/git-merge-conflict-inputs'
 import type {
   GitConflictOperation,
   GitStagingArea,
@@ -37,6 +38,7 @@ export type IGitProvider = {
     staged: boolean,
     compareAgainstHead?: boolean
   ): Promise<GitDiffResult>
+  getMergeConflictInputs(worktreePath: string, filePath: string): Promise<GitMergeConflictInputs>
   stageFile(worktreePath: string, filePath: string): Promise<void>
   unstageFile(worktreePath: string, filePath: string): Promise<void>
   bulkStageFiles(

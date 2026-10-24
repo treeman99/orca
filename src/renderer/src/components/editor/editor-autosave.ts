@@ -1,4 +1,5 @@
 import { joinPath } from '@/lib/path'
+import type { AppState } from '@/store'
 import type { OpenFile } from '@/store/slices/editor'
 import { areLocalWindowsWslPathAliases } from '../../../../shared/cross-platform-path'
 import { isLocalWindowsDesktopClient } from '@/lib/desktop-window-chrome'
@@ -108,17 +109,21 @@ export function canAutoSaveOpenFile(file: OpenFile): boolean {
 export function isAutosaveSuspendedForFile(
   file: Pick<
     OpenFile,
+    | 'id'
     | 'externalMutation'
     | 'pendingDiskBaselineVerification'
     | 'pendingLiveDiskVerification'
     | 'pendingOwnerMigration'
-  >
+  >,
+  state: Pick<AppState, 'editorViewMode'>
 ): boolean {
   return (
     file.externalMutation === 'changed' ||
     file.pendingDiskBaselineVerification === true ||
     file.pendingLiveDiskVerification === true ||
-    file.pendingOwnerMigration === true
+    file.pendingOwnerMigration === true ||
+    // Why: the merge view's reset result drops the markers; only Complete Merge or an explicit save writes it.
+    state.editorViewMode?.[file.id] === 'merge'
   )
 }
 

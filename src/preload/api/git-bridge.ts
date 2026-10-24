@@ -5,6 +5,7 @@ import type { GitPushTarget } from '../../shared/worktree/types'
 import type { GitStageWorktreeScope } from '../../shared/git-stage-worktree-scope'
 import type { GitHistoryOptions, GitHistoryResult } from '../../shared/git-history'
 import type { GitSubmoduleListResult } from '../../shared/git-submodule-list'
+import type { GitMergeConflictInputs } from '../../shared/git-merge-conflict-inputs'
 import type { PreloadApi } from '../api-types'
 
 export const gitApi = {
@@ -58,6 +59,11 @@ export const gitApi = {
     compareAgainstHead?: boolean
     connectionId?: string
   }) => ipcRenderer.invoke('git:diff', args),
+  mergeConflictInputs: (args: {
+    worktreePath: string
+    filePath: string
+    connectionId?: string
+  }): Promise<GitMergeConflictInputs> => ipcRenderer.invoke('git:mergeConflictInputs', args),
   branchCompare: (args: { worktreePath: string; baseRef: string; connectionId?: string }) =>
     ipcRenderer.invoke('git:branchCompare', args),
   commitCompare: (args: { worktreePath: string; commitId: string; connectionId?: string }) =>

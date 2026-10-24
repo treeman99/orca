@@ -3443,6 +3443,38 @@
         },
         "useRichMarkdownReviewData": {
           "f9d2acd6b0": "All unsent notes"
+        },
+        "mergeEditor": {
+          "confirmTitle": "Complete the merge with unhandled conflicts?",
+          "confirmDescription": "{{value0}} conflicts are not handled yet. Completing saves the result exactly as shown, without conflict markers (an untouched conflict keeps the common ancestor's text), and stages the file.",
+          "cancel": "Cancel",
+          "completeWithConflicts": "Complete Anyway",
+          "rebuiltFromMarkers": "Rebuilt from conflict markers",
+          "noCommonAncestor": "No common ancestor (rebuilt from conflict markers)",
+          "resetResult": "Reset Result",
+          "showTextEditor": "Open in Text Editor",
+          "completeMerge": "Complete Merge",
+          "loading": "Loading merge editor...",
+          "stageFailed": "Saved the merge result, but staging the file failed.",
+          "completeFailed": "Could not complete the merge.",
+          "result": "Result",
+          "openMergeEditor": "Open in Merge Editor",
+          "incoming": "Incoming",
+          "current": "Current",
+          "acceptInput": "Accept {{title}}",
+          "acceptCombinationFirst": "Accept Combination ({{title}} First)",
+          "acceptCombination": "Accept Combination",
+          "ignore": "Ignore",
+          "manualResolution": "Manual Resolution",
+          "noChangesAccepted": "No Changes Accepted",
+          "resetToBase": "Reset to Base",
+          "allHandled": "All Conflicts Handled",
+          "oneConflictRemaining": "1 Conflict Remaining",
+          "conflictsRemaining": "{{value0}} Conflicts Remaining",
+          "unavailableBinary": "The merge editor does not open binary files. Showing the text editor.",
+          "unavailableTooLarge": "This conflict is too large for the merge editor. Showing the text editor.",
+          "unavailableMissingSide": "One side of this conflict has no file version. Showing the text editor.",
+          "unavailableNoMarkers": "No conflict versions or markers to merge. Showing the text editor."
         }
       },
       "emulator": {

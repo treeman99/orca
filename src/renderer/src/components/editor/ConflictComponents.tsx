@@ -65,7 +65,8 @@ export function getNextConflictNavigationIndex({
 export function ConflictBanner({
   file,
   entry,
-  conflictNavigation
+  conflictNavigation,
+  mergeEditorAction
 }: {
   file: OpenFile
   entry: GitStatusEntry | null
@@ -74,6 +75,7 @@ export function ConflictBanner({
     total: number
     onJump: (direction: ConflictNavigationDirection) => void
   }
+  mergeEditorAction?: React.ReactNode
 }): React.JSX.Element | null {
   const conflict = file.conflict
   if (!conflict) {
@@ -110,6 +112,7 @@ export function ConflictBanner({
             </span>
           )}
         </div>
+        {mergeEditorAction && <div className="ml-auto flex shrink-0">{mergeEditorAction}</div>}
         {conflictNavigation && conflictNavigation.total > 0 && (
           <div className="flex shrink-0 items-center gap-1">
             <Tooltip>

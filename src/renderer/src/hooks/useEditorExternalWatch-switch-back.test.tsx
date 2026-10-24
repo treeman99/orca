@@ -307,6 +307,6 @@ describe('switching back to a workspace that was not watched', () => {
     await act(async () => {})
 
     expect(file(CLEAN).pendingDiskBaselineVerification).toBeFalsy()
-    expect(isAutosaveSuspendedForFile(file(CLEAN))).toBe(false)
+    expect(isAutosaveSuspendedForFile(file(CLEAN), { editorViewMode: {} })).toBe(false)
   })
 })

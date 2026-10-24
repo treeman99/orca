@@ -3,7 +3,7 @@ import { callAbortableRuntimeEnvironment } from '../../runtime/abortable-runtime
 import { toRuntimeWorktreeSelector } from '../../runtime/runtime-worktree-selector'
 import { translate } from '@/i18n/i18n'
 import { callRuntimeResult } from './web-runtime-calls'
-import { createWebGitSubmoduleApi } from './web-git-submodule-api'
+import { createWebGitForkApi } from './web-git-fork-api'
 import { requireGitStageWorktreeScopeReceipt } from '../../../../shared/git-stage-worktree-scope'
 import { requireActiveEnvironment, updateEnvironmentFromResponse } from './web-runtime-session'
 import {
@@ -260,7 +260,7 @@ export function createGitApi(): NonNullable<Partial<PreloadApi>['git']> {
       mutateGitPath('git.unstage', worktreePath, filePath),
     bulkUnstage: async ({ worktreePath, filePaths }) =>
       mutateGitPaths('git.bulkUnstage', worktreePath, filePaths),
-    ...createWebGitSubmoduleApi(),
+    ...createWebGitForkApi(),
     discard: async ({ worktreePath, filePath }) =>
       mutateGitPath('git.discard', worktreePath, filePath),
     bulkDiscard: async ({ worktreePath, filePaths }) => {

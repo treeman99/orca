@@ -16154,6 +16154,38 @@
         },
         "useMarkdownDocuments": {
           "listFailed": "Markdown ドキュメントを一覧表示できませんでした。"
+        },
+        "mergeEditor": {
+          "confirmTitle": "未処理の競合が残ったままマージを完了しますか?",
+          "confirmDescription": "{{value0}} 件の競合がまだ処理されていません。完了すると、結果の内容を競合マーカーなしでそのまま保存し（手を付けていない競合は共通祖先の内容のままです）、ファイルをステージします。",
+          "cancel": "キャンセル",
+          "completeWithConflicts": "未処理のまま完了",
+          "rebuiltFromMarkers": "競合マーカーから復元",
+          "noCommonAncestor": "共通の祖先なし (競合マーカーから復元)",
+          "resetResult": "結果をリセット",
+          "showTextEditor": "テキスト エディターで開く",
+          "completeMerge": "マージを完了",
+          "loading": "マージ エディターを読み込んでいます...",
+          "stageFailed": "マージ結果は保存しましたが、ファイルをステージできませんでした。",
+          "completeFailed": "マージを完了できませんでした。",
+          "result": "結果",
+          "openMergeEditor": "マージ エディターで開く",
+          "incoming": "受信",
+          "current": "現在",
+          "acceptInput": "{{title}} を受け入れる",
+          "acceptCombinationFirst": "組み合わせを受け入れる ({{title}} を先に)",
+          "acceptCombination": "組み合わせを受け入れる",
+          "ignore": "無視",
+          "manualResolution": "手動で解決",
+          "noChangesAccepted": "変更は受け入れられていません",
+          "resetToBase": "ベースに戻す",
+          "allHandled": "すべての競合を処理済み",
+          "oneConflictRemaining": "残りの競合 1 件",
+          "conflictsRemaining": "残りの競合 {{value0}} 件",
+          "unavailableBinary": "バイナリ ファイルはマージ エディターで開けないため、テキスト エディターで表示します。",
+          "unavailableTooLarge": "競合が大きすぎてマージ エディターで開けないため、テキスト エディターで表示します。",
+          "unavailableMissingSide": "競合の一方にファイルのバージョンがないため、テキスト エディターで表示します。",
+          "unavailableNoMarkers": "マージする競合のバージョンもマーカーもないため、テキスト エディターで表示します。"
         }
       },
       "diff": {

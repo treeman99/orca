@@ -48,7 +48,8 @@ const RPC_TO_RUNTIME_COMMAND = {
   'git.submoduleCommit': 'commitRuntimeGitSubmodule',
   'git.submodulePush': 'pushRuntimeGitSubmodule',
   'git.submodulePull': 'pullRuntimeGitSubmodule',
-  'git.remoteCommitUrl': 'getRuntimeGitRemoteCommitUrl'
+  'git.remoteCommitUrl': 'getRuntimeGitRemoteCommitUrl',
+  'git.mergeConflictInputs': 'getRuntimeGitMergeConflictInputs'
 } as const satisfies Record<string, keyof RuntimeGitCommands>
 
 describe('runtime Git API contract', () => {

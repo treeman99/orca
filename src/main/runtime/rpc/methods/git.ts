@@ -1,6 +1,7 @@
 import { defineMethod } from '../core'
 import { GIT_COMMIT_MESSAGE_GENERATION_METHODS } from './git-commit-message-generation-methods'
 import { GIT_DIFF_METHODS } from './git-diff-methods'
+import { GIT_MERGE_CONFLICT_METHODS } from './git-merge-conflict-methods'
 import {
   GitBranchCompare,
   GitBulkPaths,
@@ -237,6 +238,8 @@ export const GIT_METHODS = [
   }),
   // Fork: Source Control submodule actions (git-submodule-methods.ts).
   ...GIT_SUBMODULE_METHODS,
+  // Fork: VS Code-style merge editor stage reads (git-merge-conflict-methods.ts).
+  ...GIT_MERGE_CONFLICT_METHODS,
   defineMethod({
     name: 'git.bulkDiscard',
     permission: 'workspace',

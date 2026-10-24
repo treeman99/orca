@@ -66,13 +66,13 @@ The `--mode e2e` build is what exposes `window.__store`; a plain `pnpm build` re
 
 Orca is an Electron app that runs many CLI coding agents in parallel git worktrees, locally or on remote hosts. Five deployable pieces:
 
-| Piece    | Entry                                                   | Role                                                              |
-| -------- | ------------------------------------------------------- | ----------------------------------------------------------------- |
-| Main     | `src/main/index.ts`                                     | Electron main; owns all state that must survive a renderer reload |
-| Preload  | `src/preload/index.ts`                                  | the single audited `contextBridge` IPC contract                   |
-| Renderer | `src/renderer/index.html` → `src/renderer/src/main.tsx` | React 19 + Zustand + Tailwind v4/shadcn                           |
-| WSL guest | `src/wsl-guest/` (`build:wsl-guest`)                   | bundle run inside a WSL distro: agent hooks, PTY dispatcher       |
-| CLI      | `src/cli/index.ts`                                      | `orca` binary; drives a running app over a local socket           |
+| Piece     | Entry                                                   | Role                                                              |
+| --------- | ------------------------------------------------------- | ----------------------------------------------------------------- |
+| Main      | `src/main/index.ts`                                     | Electron main; owns all state that must survive a renderer reload |
+| Preload   | `src/preload/index.ts`                                  | the single audited `contextBridge` IPC contract                   |
+| Renderer  | `src/renderer/index.html` → `src/renderer/src/main.tsx` | React 19 + Zustand + Tailwind v4/shadcn                           |
+| WSL guest | `src/wsl-guest/` (`build:wsl-guest`)                    | bundle run inside a WSL distro: agent hooks, PTY dispatcher       |
+| CLI       | `src/cli/index.ts`                                      | `orca` binary; drives a running app over a local socket           |
 
 Plus `mobile/` (Expo companion that pairs to the desktop runtime) and `native/` (per-OS binaries for Computer Use and macOS notification status).
 
@@ -219,7 +219,8 @@ Orca 클라우드, Bitbucket·Azure DevOps·Gitea, `docs/site` 배포 레인, �
 
 **포크가 더한 기능** — 오케스트레이션 워커 패널 자동 분할(+최대 개수 설정, 완료 탭 자동 닫기,
 워커 프롬프트 진단 로그), opencode 평문 프롬프트 배달과 Enter 재전송 구제, 탭 팝아웃 창,
-VS Code 소스 제어 패널과 서브모듈 취급, VS Code 로 열기, Confluence 연동, GHES 릴리스 태그
+VS Code 소스 제어 패널과 서브모듈 취급, VS Code식 3분할 머지 에디터(미해결 both_modified/both_added 충돌 →
+같은 탭 'merge' 보기, 스테이지 :1/:2/:3 읽기 `git.mergeConflictInputs`, 구버전 서버는 마커 복원), VS Code 로 열기, Confluence 연동, GHES 릴리스 태그
 업데이트 알림, 사내 스킬 번들 갱신(GHES `daegun-kim/ORCA_skill` 의 `main` 브랜치 → 번들 스킬 전부를
 `.agents`·`.claude` 에서 폴더째 교체, `disableSkillBundleUpdate`; 그 이름들은 빌드 내장 신선도 검사에서 빠진다),
 탭 닫기 시 세션 종료, 번들 스킬 오프라인 설치, 스택 PR 병합 옵트인,

@@ -5,6 +5,7 @@ import type { OpenFile } from '../types/open-file'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../../../shared/layout-owner-switch'
 import { recordReopenedEditorFileInLayoutOwner } from '../tabs/editor-tab-layout-owner'
 import { toOpenConflictMetadata } from '../git/git-status-reconciliation'
+import { applyOpenedConflictViewMode } from './conflict-file-view-mode'
 import { resolveEditorOpenTargetGroupId } from '../tabs/editor-open-target-group'
 import { resolveEditorPreviewIntent } from '../tabs/editor-preview-tab-setting'
 import {
@@ -125,6 +126,7 @@ export function createOpenConflictFile(
       if (!openedConflictFile) {
         return
       }
+      applyOpenedConflictViewMode(get(), absolutePath, entry)
       const tabId = openWorkspaceEditorItem(
         get(),
         absolutePath,
